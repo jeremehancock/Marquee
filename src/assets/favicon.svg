@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="200" height="200"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Main poster group -->
+  <g transform="translate(40, 35)">
+    <!-- Back poster -->
+    <rect x="0" y="0" width="70" height="100" rx="6" fill="#E5A00D" opacity="0.4"></rect>
+    
+    <!-- Middle poster -->
+    <rect x="20" y="15" width="70" height="100" rx="6" fill="#E5A00D" opacity="0.7"></rect>
+    
+    <!-- Front poster -->
+    <rect x="40" y="30" width="70" height="100" rx="6" fill="#E5A00D"></rect>
+    
+    <!-- Play button -->
+    <circle cx="75" cy="80" r="25" fill="white"></circle>
+    <path d="M65 65 L95 80 L65 95 Z" fill="#E5A00D"></path>
+  </g>
+</svg><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
+@media (prefers-color-scheme: dark) { :root { filter: none; } }
+</style></svg>
