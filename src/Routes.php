@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App;
 
 use App\Controller\AuthController;
+use App\Controller\GalleryController;
 use App\Controller\HealthController;
-use App\Controller\HomeController;
+use App\Controller\PosterController;
+use App\Controller\PosterImageController;
+use App\Controller\UploadController;
 use Slim\App;
 
 /**
@@ -22,5 +25,12 @@ function registerRoutes(App $app): void
     $app->post('/login', [AuthController::class, 'login']);
     $app->get('/logout', [AuthController::class, 'logout']);
 
-    $app->get('/', HomeController::class);
+    $app->get('/', [GalleryController::class, 'home']);
+    $app->get('/library/{category}', [GalleryController::class, 'show']);
+
+    $app->get('/posters/{category}/{filename}', PosterImageController::class);
+
+    $app->post('/library/{category}/upload', [UploadController::class, 'file']);
+    $app->post('/library/{category}/upload-url', [UploadController::class, 'url']);
+    $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 }

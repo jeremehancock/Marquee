@@ -7,10 +7,15 @@ namespace App;
 use App\Auth\AuthMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
+use App\Config\PosterConfig;
+use App\Poster\FilesystemPosterStorage;
+use App\Poster\PosterStorage;
 use App\Support\Session\NativeSession;
 use App\Support\Session\SessionInterface;
 use DI\Container;
 use DI\ContainerBuilder;
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
@@ -30,7 +35,11 @@ function buildContainer(array $overrides = []): Container
     $builder->addDefinitions([
         AppConfig::class => static fn (): AppConfig => AppConfig::fromEnv(),
         AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
+        PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
+        ClientInterface::class => static fn (): ClientInterface => new Client(),
+        PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
+            => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
         LoggerInterface::class => static function (AppConfig $config): LoggerInterface {
             if (!is_dir($config->dataDir)) {
                 @mkdir($config->dataDir, 0o775, true);

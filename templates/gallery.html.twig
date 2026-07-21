@@ -1,0 +1,106 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ category.label }} · {{ site_title }}{% endblock %}
+
+{% set base = '/library/' ~ category.value %}
+
+{% block content %}
+<div x-data="{ upload: false, uploadTab: 'file', viewer: null }">
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    <nav class="tabs">
+        {% for cat in categories %}
+            <a class="tab {{ cat.value == category.value ? 'tab--active' : '' }}"
+               href="/library/{{ cat.value }}">{{ cat.label }}</a>
+        {% endfor %}
+    </nav>
+
+    <div class="toolbar">
+        <form class="search" method="get" action="{{ base }}" role="search">
+            <input type="search" name="q" value="{{ query }}"
+                   placeholder="Search {{ category.label }}…" aria-label="Search">
+            {% if query is not empty %}
+                <a class="search__clear" href="{{ base }}">Clear</a>
+            {% endif %}
+        </form>
+        <button type="button" class="btn btn--accent" @click="upload = true">Add poster</button>
+    </div>
+
+    <p class="stats">
+        {% if result.total > 0 %}
+            Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
+        {% else %}
+            No posters{{ query is not empty ? ' match your search' : ' yet' }}.
+        {% endif %}
+    </p>
+
+    <div class="grid">
+        {% for poster in result.items %}
+            <figure class="card">
+                <button type="button" class="card__image" @click="viewer = '{{ poster.url }}'"
+                        title="View full size">
+                    <img src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
+                </button>
+                <figcaption class="card__body">
+                    <span class="card__title" title="{{ poster.title }}">{{ poster.title }}</span>
+                    <form method="post" action="{{ base }}/delete"
+                          onsubmit="return confirm('Delete this poster?');">
+                        <input type="hidden" name="filename" value="{{ poster.filename }}">
+                        <button type="submit" class="btn btn--danger btn--small">Delete</button>
+                    </form>
+                </figcaption>
+            </figure>
+        {% endfor %}
+    </div>
+
+    {% if result.totalPages > 1 %}
+        {% set q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+        <nav class="pagination">
+            {% if result.hasPrevious %}
+                <a class="btn" href="{{ base }}?page={{ result.page - 1 }}{{ q }}">Previous</a>
+            {% endif %}
+            <span class="pagination__status">Page {{ result.page }} of {{ result.totalPages }}</span>
+            {% if result.hasNext %}
+                <a class="btn" href="{{ base }}?page={{ result.page + 1 }}{{ q }}">Next</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+
+    {# Upload modal #}
+    <div class="modal" x-show="upload" x-cloak @keydown.escape.window="upload = false" style="display:none">
+        <div class="modal__backdrop" @click="upload = false"></div>
+        <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Add poster">
+            <div class="modal__head">
+                <h2>Add poster to {{ category.label }}</h2>
+                <button type="button" class="modal__close" @click="upload = false" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal__tabs">
+                <button type="button" :class="uploadTab === 'file' ? 'is-active' : ''" @click="uploadTab = 'file'">From file</button>
+                <button type="button" :class="uploadTab === 'url' ? 'is-active' : ''" @click="uploadTab = 'url'">From URL</button>
+            </div>
+
+            <form class="form" method="post" action="{{ base }}/upload"
+                  enctype="multipart/form-data" x-show="uploadTab === 'file'">
+                <label for="poster-file">Image file (JPG, PNG, or WebP)</label>
+                <input id="poster-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                <button type="submit" class="btn btn--accent">Upload</button>
+            </form>
+
+            <form class="form" method="post" action="{{ base }}/upload-url" x-show="uploadTab === 'url'">
+                <label for="poster-url">Image URL</label>
+                <input id="poster-url" type="url" name="url" placeholder="https://…" required>
+                <button type="submit" class="btn btn--accent">Add from URL</button>
+            </form>
+        </div>
+    </div>
+
+    {# Fullscreen viewer #}
+    <div class="viewer" x-show="viewer" x-cloak @click="viewer = null"
+         @keydown.escape.window="viewer = null" style="display:none">
+        <img :src="viewer" alt="">
+    </div>
+</div>
+{% endblock %}

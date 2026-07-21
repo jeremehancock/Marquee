@@ -32,9 +32,9 @@ final class ApplicationShellTest extends AppTestCase
         self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
-    public function testHomePageRendersSiteTitle(): void
+    public function testGalleryRendersSiteTitle(): void
     {
-        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/');
+        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/library/movies');
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('My Wall', (string) $response->getBody());
