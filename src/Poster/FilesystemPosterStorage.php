@@ -86,6 +86,22 @@ final class FilesystemPosterStorage implements PosterStorage
         return $filename;
     }
 
+    public function replace(PosterCategory $category, string $filename, string $sourcePath): void
+    {
+        if (!$this->isSafeFilename($filename)) {
+            throw new RuntimeException('Invalid poster filename.');
+        }
+
+        $dir = $this->categoryDir($category);
+        if (!is_dir($dir) && !mkdir($dir, 0o775, true) && !is_dir($dir)) {
+            throw new RuntimeException(sprintf('Could not create category directory: %s', $dir));
+        }
+
+        if (!$this->moveFile($sourcePath, $dir . '/' . $filename)) {
+            throw new RuntimeException('Could not replace the poster file.');
+        }
+    }
+
     public function delete(PosterCategory $category, string $filename): bool
     {
         $path = $this->path($category, $filename);

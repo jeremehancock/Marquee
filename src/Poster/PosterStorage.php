@@ -30,5 +30,10 @@ interface PosterStorage
      */
     public function store(PosterCategory $category, string $desiredFilename, string $sourcePath): string;
 
+    /**
+     * Overwrite an exact filename in place (used by idempotent re-import).
+     */
+    public function replace(PosterCategory $category, string $filename, string $sourcePath): void;
+
     public function delete(PosterCategory $category, string $filename): bool;
 }

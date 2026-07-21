@@ -7,7 +7,11 @@ namespace App;
 use App\Auth\AuthMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
+use App\Config\PlexConfig;
 use App\Config\PosterConfig;
+use App\Database\Database;
+use App\Plex\HttpPlexClient;
+use App\Plex\PlexClient;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
 use App\Support\Session\NativeSession;
@@ -36,10 +40,14 @@ function buildContainer(array $overrides = []): Container
         AppConfig::class => static fn (): AppConfig => AppConfig::fromEnv(),
         AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
         PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
+        PlexConfig::class => static fn (): PlexConfig => PlexConfig::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
+        Database::class => static fn (AppConfig $app): Database => new Database($app->dataDir . '/marquee.sqlite'),
+        PlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): PlexClient
+            => new HttpPlexClient($http, $plex),
         LoggerInterface::class => static function (AppConfig $config): LoggerInterface {
             if (!is_dir($config->dataDir)) {
                 @mkdir($config->dataDir, 0o775, true);

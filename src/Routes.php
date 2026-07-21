@@ -7,6 +7,7 @@ namespace App;
 use App\Controller\AuthController;
 use App\Controller\GalleryController;
 use App\Controller\HealthController;
+use App\Controller\PlexImportController;
 use App\Controller\PosterController;
 use App\Controller\PosterImageController;
 use App\Controller\UploadController;
@@ -33,4 +34,7 @@ function registerRoutes(App $app): void
     $app->post('/library/{category}/upload', [UploadController::class, 'file']);
     $app->post('/library/{category}/upload-url', [UploadController::class, 'url']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
+
+    $app->get('/plex', [PlexImportController::class, 'show']);
+    $app->post('/plex/import', [PlexImportController::class, 'run']);
 }

@@ -60,8 +60,12 @@ data and logs (`/config/data`).
 | `SESSION_DURATION` | Login session lifetime, in seconds       | `3600`     |
 | `PUID` / `PGID`    | User/group id for the `/config` volume   | `911`      |
 | `TZ`               | Timezone                                 | `Etc/UTC`  |
+| `IMAGES_PER_PAGE`  | Posters shown per gallery page           | `24`       |
+| `MAX_FILE_SIZE`    | Maximum upload size, in bytes            | `5242880`  |
+| `PLEX_SERVER_URL`  | Plex Media Server URL (for import)       | _(unset)_  |
+| `PLEX_TOKEN`       | Plex authentication token                | _(unset)_  |
 
-More variables (Plex, auto-import, poster sources) arrive with their features.
+More variables (auto-import, poster sources) arrive with their features.
 
 ## Spec-driven development with OpenSpec
 

@@ -200,6 +200,36 @@ h1 {
     margin: 8px 0 16px;
 }
 
+.toolbar__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 0 0 16px;
+}
+
+.fieldset legend {
+    padding: 0 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.check__meta {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
 /* Poster grid */
 .grid {
     display: grid;
