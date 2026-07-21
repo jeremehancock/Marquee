@@ -1,0 +1,58 @@
+schema: spec-driven
+
+# Project context shown to AI when creating artifacts.
+context: |
+  Project: Marquee — a self-hosted web app for managing custom media posters
+  for a Plex library (movies, TV shows, TV seasons, collections). It imports
+  posters from Plex, lets users customize them (upload from disk/URL or fetch
+  from TMDB/TVDB/Fanart/Mediux), and syncs them back to Plex with poster
+  locking. Ships as a single Docker image. This is a clean-room rewrite of an
+  older monolithic PHP app ("Posteria"); there is no backward-compatibility
+  requirement with the old on-disk layout.
+
+  Tech stack:
+    - PHP 8.3+ (targets 8.3; dev runs 8.4), Composer, PSR-4 autoload (App\).
+    - Slim 4 (PSR-7 / PSR-15) for routing and middleware.
+    - Twig for server-rendered templates; Alpine.js + ES modules for
+      interactivity. No Node build step in the runtime image.
+    - Guzzle (PSR-18) for outbound HTTP (Plex, posteria.app API).
+    - SQLite via PDO for metadata (library tracking, Plex id mapping, lock and
+      import state). Poster image files live on disk under /config/posters.
+    - Monolog for logging to /config/data.
+    - Docker: LinuxServer Alpine-nginx base with s6-overlay + cron.
+
+  Conventions:
+    - strict_types=1 in every PHP file; PSR-12 style (enforced by PHP-CS-Fixer).
+    - Thin controllers -> service classes -> value objects. No business logic
+      in templates or the front controller.
+    - All configuration comes from environment variables, read once into typed
+      config objects at bootstrap. Never call getenv() deep in the code.
+    - Every capability is defined by an OpenSpec spec before it is built.
+    - PHPStan max level and PHPUnit must pass in CI on every push.
+
+  External dependency (not built here):
+    - posteria.app API — a hosted service (owned by the maintainer) that fetches
+      poster candidates from TMDB / TVDB / Fanart / Mediux and provides a server
+      time-sync endpoint. Marquee calls it; it is not part of this repo.
+
+  Capability map (each becomes its own change, built phase by phase):
+    - application-shell   (bootstrap, routing, config, sessions, error handling, health)
+    - authentication      (env credentials, sessions, auth-bypass)
+    - poster-library      (categories, listing, pagination, fullscreen)
+    - search              (article-aware fuzzy search)
+    - poster-upload       (disk + URL upload, formats, size limit)
+    - plex-import         (multi-library import, exclusions, tracking)
+    - plex-export         (send-to-Plex, poster locking, Kometa overlay label)
+    - poster-sources      (Find Posters via posteria.app: TMDB/TVDB/Fanart/Mediux)
+    - auto-import         (scheduled cron import, per-type toggles)
+    - orphan-detection    (detect + delete orphaned posters)
+    - poster-wall         (rotating wall, active streams, image proxy)
+    - pwa                 (installable manifest, offline, version check)
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Keep the Why section focused on user value, not implementation detail.
+  spec:
+    - Scenarios MUST use exactly four hashtags (#### Scenario:).
+    - Use SHALL/MUST for normative requirements.

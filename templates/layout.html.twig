@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ site_title }}{% endblock %}</title>
+    <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">{{ site_title }}</a>
+        {% block nav %}
+            <nav><a href="/logout">Log out</a></nav>
+        {% endblock %}
+    </header>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

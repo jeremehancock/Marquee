@@ -1,0 +1,35 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
+    root /app/www/public;
+    index index.php;
+
+    client_max_body_size 25M;
+
+    # Serve real files/directories; route everything else to the front controller.
+    location / {
+        try_files $uri $uri/ /index.php$is_args$args;
+    }
+
+    # Only the front controller may execute PHP.
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include /etc/nginx/fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $document_root;
+        internal;
+    }
+
+    # Block direct access to any other PHP file.
+    location ~ \.php$ {
+        return 404;
+    }
+
+    # Hide dotfiles (except ACME challenges).
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}

@@ -1,0 +1,14 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Prepare the /config volume: create the data and poster directories and make
+# sure they are owned by the container user.
+
+mkdir -p \
+    /config/data \
+    /config/posters/movies \
+    /config/posters/tv-shows \
+    /config/posters/tv-seasons \
+    /config/posters/collections
+
+lsiown -R abc:abc /config
