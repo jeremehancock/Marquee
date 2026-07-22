@@ -239,6 +239,16 @@ h1 {
     font-size: 0.8rem;
 }
 
+.check__hint {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 0 0 8px;
+}
+
+.is-disabled {
+    opacity: 0.45;
+}
+
 /* Poster grid */
 .grid {
     display: grid;
@@ -247,50 +257,72 @@ h1 {
 }
 
 .card {
+    position: relative;
     margin: 0;
+    aspect-ratio: 2 / 3;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 .card__image {
-    border: none;
-    padding: 0;
-    background: none;
-    cursor: zoom-in;
-    display: block;
-    aspect-ratio: 2 / 3;
-}
-
-.card__image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    cursor: zoom-in;
 }
 
-.card__body {
+/* Actions overlay the poster and reveal on hover (always on touch). */
+.card__overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: flex-end;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 12px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0) 85%);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.card:hover .card__overlay,
+.card:focus-within .card__overlay,
+.card__overlay--static {
+    opacity: 1;
 }
 
 .card__title {
+    color: #fff;
     font-size: 0.85rem;
-    white-space: nowrap;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .card__actions {
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    flex: none;
+}
+
+.card__actions form {
+    display: block;
+}
+
+.card__actions .btn {
+    width: 100%;
+    text-align: center;
+}
+
+@media (hover: none) {
+    .card__overlay {
+        opacity: 1;
+    }
 }
 
 /* Pagination */

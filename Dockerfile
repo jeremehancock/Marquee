@@ -39,8 +39,8 @@ RUN apk add --no-cache \
 RUN sed -E -i 's/^;?clear_env ?=.*$/clear_env = no/' /etc/php83/php-fpm.d/www.conf \
  && sed -E -i 's#^;?listen = .*#listen = 127.0.0.1:9000#' /etc/php83/php-fpm.d/www.conf
 
-# PHP tuning (uploads / memory)
-RUN printf 'upload_max_filesize = 20M\npost_max_size = 21M\nmemory_limit = 256M\n' \
+# PHP tuning (uploads / memory / long-running imports)
+RUN printf 'upload_max_filesize = 20M\npost_max_size = 21M\nmemory_limit = 256M\nmax_execution_time = 600\n' \
     > /etc/php83/conf.d/zz-marquee.ini
 
 # Application code + installed dependencies

@@ -74,6 +74,11 @@ body {
     font-size: 1.1rem;
 }
 
+/* The hidden attribute must win over the display:flex above. */
+.wall__empty[hidden] {
+    display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .wall__layer {
         transition: none;

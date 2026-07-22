@@ -20,6 +20,8 @@ server {
         include /etc/nginx/fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param DOCUMENT_ROOT $document_root;
+        # Allow long-running Plex imports to finish.
+        fastcgi_read_timeout 600;
         internal;
     }
 

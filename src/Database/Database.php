@@ -35,6 +35,14 @@ final class Database
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
+        // Avoid "database is locked" errors when a write (e.g. an import) overlaps
+        // a read (e.g. the gallery): wait for locks and let readers run during writes.
+        $pdo->exec('PRAGMA busy_timeout = 5000');
+        if ($this->path !== ':memory:') {
+            $pdo->exec('PRAGMA journal_mode = WAL');
+        }
+        $pdo->exec('PRAGMA synchronous = NORMAL');
+
         $this->migrate($pdo);
         $this->pdo = $pdo;
 

@@ -30,13 +30,11 @@
         <div class="grid">
             {% for orphan in orphans %}
                 <figure class="card">
-                    <div class="card__image">
-                        <img src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
-                             alt="{{ orphan.title }}" loading="lazy">
-                    </div>
-                    <figcaption class="card__body">
+                    <img class="card__image" src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
+                         alt="{{ orphan.title }}" loading="lazy">
+                    <div class="card__overlay card__overlay--static">
                         <span class="card__title" title="{{ orphan.title }}">{{ orphan.title }}</span>
-                    </figcaption>
+                    </div>
                 </figure>
             {% endfor %}
         </div>

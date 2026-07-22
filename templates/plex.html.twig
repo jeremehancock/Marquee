@@ -20,12 +20,14 @@
     {% elseif libraries is empty %}
         <div class="panel"><p>No movie or TV libraries were found on your Plex server.</p></div>
     {% else %}
-        <form class="panel form" method="post" action="/plex/import">
+        <form class="panel form" method="post" action="/plex/import"
+              x-data="{ movies: 0, shows: 0, importing: false }" @submit="importing = true">
             <fieldset class="fieldset">
                 <legend>Libraries</legend>
                 {% for library in libraries %}
                     <label class="check">
-                        <input type="checkbox" name="sections[]" value="{{ library.key }}">
+                        <input type="checkbox" name="sections[]" value="{{ library.key }}"
+                               @change="{{ library.isMovie ? 'movies' : 'shows' }} += $event.target.checked ? 1 : -1">
                         {{ library.title }}
                         <span class="check__meta">{{ library.isMovie ? 'Movies' : 'TV' }}</span>
                     </label>
@@ -34,15 +36,24 @@
 
             <fieldset class="fieldset">
                 <legend>What to import</legend>
+                <p class="check__hint">Options match the types of the libraries you select.</p>
                 {% for type in mediaTypes %}
+                    {% set cond = {'movie': 'movies > 0', 'show': 'shows > 0', 'season': 'shows > 0', 'collection': '(movies > 0 || shows > 0)'}[type.value] %}
                     <label class="check">
-                        <input type="checkbox" name="types[]" value="{{ type.value }}">
-                        {{ type.label }}
+                        <input type="checkbox" name="types[]" value="{{ type.value }}"
+                               :disabled="!({{ cond }})" x-effect="if (!({{ cond }})) $el.checked = false">
+                        <span :class="!({{ cond }}) ? 'is-disabled' : ''">{{ type.label }}</span>
                     </label>
                 {% endfor %}
             </fieldset>
 
-            <button type="submit" class="btn btn--accent">Import</button>
+            <button type="submit" class="btn btn--accent" :disabled="importing">
+                <span x-show="!importing">Import</span>
+                <span x-show="importing" x-cloak>Importing&hellip;</span>
+            </button>
+            <p class="stats" x-show="importing" x-cloak>
+                Importing from Plex &mdash; this can take a while for large libraries. Please keep this page open.
+            </p>
         </form>
         <p class="stats">Plex is the source of truth: importing overwrites posters that changed in Plex.</p>
     {% endif %}

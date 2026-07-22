@@ -45,26 +45,27 @@
     <div class="grid">
         {% for poster in result.items %}
             <figure class="card">
-                <button type="button" class="card__image" @click="viewer = '{{ poster.url }}'"
-                        title="View full size">
-                    <img src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
-                </button>
-                <figcaption class="card__body">
+                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy"
+                     @click="viewer = '{{ poster.url }}'">
+                <div class="card__overlay">
                     <span class="card__title" title="{{ poster.title }}">{{ poster.title }}</span>
                     <div class="card__actions">
+                        <button type="button" class="btn btn--small" @click="viewer = '{{ poster.url }}'">
+                            Full screen
+                        </button>
                         {% if plex_configured and poster.filename in linked %}
                             <form method="post" action="{{ base }}/send-to-plex">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small">Send to Plex</button>
+                                <button type="submit" class="btn btn--small btn--accent">Send to Plex</button>
                             </form>
                         {% endif %}
                         <form method="post" action="{{ base }}/delete"
                               onsubmit="return confirm('Delete this poster?');">
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
-                            <button type="submit" class="btn btn--danger btn--small">Delete</button>
+                            <button type="submit" class="btn btn--small btn--danger">Delete</button>
                         </form>
                     </div>
-                </figcaption>
+                </div>
             </figure>
         {% endfor %}
     </div>
