@@ -12,6 +12,7 @@ use App\Controller\PlexExportController;
 use App\Controller\PlexImportController;
 use App\Controller\PosterController;
 use App\Controller\PosterImageController;
+use App\Controller\PosterWallController;
 use App\Controller\UploadController;
 use Slim\App;
 
@@ -43,4 +44,7 @@ function registerRoutes(App $app): void
 
     $app->get('/orphans', [OrphanController::class, 'show']);
     $app->post('/orphans/delete-all', [OrphanController::class, 'deleteAll']);
+
+    $app->get('/wall', [PosterWallController::class, 'show']);
+    $app->get('/wall/posters', [PosterWallController::class, 'posters']);
 }

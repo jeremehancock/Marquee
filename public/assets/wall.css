@@ -1,0 +1,81 @@
+* {
+    margin: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+
+.wall {
+    position: fixed;
+    inset: 0;
+}
+
+.wall__layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+}
+
+.wall__layer.is-active {
+    opacity: 1;
+}
+
+.wall__bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(48px) brightness(0.4);
+    transform: scale(1.15);
+}
+
+.wall__poster {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    max-width: 92%;
+    max-height: 92%;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.wall__exit {
+    position: fixed;
+    top: 14px;
+    right: 20px;
+    z-index: 10;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 2rem;
+    line-height: 1;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.wall:hover .wall__exit {
+    opacity: 1;
+}
+
+.wall__empty {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a8f99;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 1.1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wall__layer {
+        transition: none;
+    }
+}
