@@ -1,0 +1,60 @@
+{% set base = '/library/' ~ category.value %}
+
+<p class="stats">
+    {% if result.total > 0 %}
+        Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
+    {% else %}
+        No posters{{ query is not empty ? ' match your search' : ' yet — import from Plex to get started' }}.
+    {% endif %}
+</p>
+
+<div class="grid">
+    {% for poster in result.items %}
+        {% set is_linked = plex_configured and poster.filename in linked %}
+        <figure class="card">
+            <div class="card__frame">
+                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
+                <div class="card__overlay">
+                    <div class="card__actions">
+                        <button type="button" class="btn btn--small btn--accent"
+                                data-action="change" data-filename="{{ poster.filename }}" data-title="{{ poster.title }}">
+                            Change poster
+                        </button>
+                        {% if is_linked %}
+                            <form class="js-mutate" method="post" action="{{ base }}/send-to-plex">
+                                <input type="hidden" name="filename" value="{{ poster.filename }}">
+                                <button type="submit" class="btn btn--small">Send to Plex</button>
+                            </form>
+                            <form class="js-mutate" method="post" action="{{ base }}/fetch-from-plex">
+                                <input type="hidden" name="filename" value="{{ poster.filename }}">
+                                <button type="submit" class="btn btn--small">Fetch from Plex</button>
+                            </form>
+                        {% endif %}
+                        <a class="btn btn--small" href="{{ poster.url }}" download>Download</a>
+                        <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">Copy URL</button>
+                        <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">Full screen</button>
+                        <form class="js-mutate" method="post" action="{{ base }}/delete"
+                              data-confirm="Permanently delete “{{ poster.title }}”? This cannot be undone.">
+                            <input type="hidden" name="filename" value="{{ poster.filename }}">
+                            <button type="submit" class="btn btn--small btn--danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <figcaption class="card__caption" title="{{ poster.title }}">{{ poster.title }}</figcaption>
+        </figure>
+    {% endfor %}
+</div>
+
+{% if result.totalPages > 1 %}
+    {% set q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+    <nav class="pagination">
+        {% if result.hasPrevious %}
+            <a class="btn" href="{{ base }}?page={{ result.page - 1 }}{{ q }}">Previous</a>
+        {% endif %}
+        <span class="pagination__status">Page {{ result.page }} of {{ result.totalPages }}</span>
+        {% if result.hasNext %}
+            <a class="btn" href="{{ base }}?page={{ result.page + 1 }}{{ q }}">Next</a>
+        {% endif %}
+    </nav>
+{% endif %}

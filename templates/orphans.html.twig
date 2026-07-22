@@ -1,0 +1,59 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Orphaned posters · {{ site_title }}{% endblock %}
+
+{% block content %}
+<div x-data="{ confirmOpen: false }">
+    <p><a class="search__clear" href="{{ back_url }}">&larr; Back to library</a></p>
+    <h1>Orphaned posters</h1>
+    <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.
+       Posters you uploaded yourself are never treated as orphans.</p>
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    {% if not configured %}
+        <div class="panel"><p>Plex must be configured to detect orphans.</p></div>
+    {% elseif error %}
+        <p class="alert" role="alert">{{ error }}</p>
+    {% elseif orphans is empty %}
+        <div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>
+    {% else %}
+        <div class="toolbar">
+            <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>
+            <button type="button" class="btn btn--danger" @click="confirmOpen = true">Delete all orphans</button>
+        </div>
+
+        <div class="grid">
+            {% for orphan in orphans %}
+                <figure class="card">
+                    <div class="card__frame">
+                        <img class="card__image" src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
+                             alt="{{ orphan.title }}" loading="lazy">
+                    </div>
+                    <figcaption class="card__caption" title="{{ orphan.title }}">{{ orphan.title }}</figcaption>
+                </figure>
+            {% endfor %}
+        </div>
+
+        {# Delete-all confirmation #}
+        <div class="modal" x-show="confirmOpen" x-cloak @keydown.escape.window="confirmOpen = false" style="display:none">
+            <div class="modal__backdrop" @click="confirmOpen = false"></div>
+            <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm delete">
+                <div class="modal__head">
+                    <h2>Delete all orphans?</h2>
+                    <button type="button" class="modal__close" @click="confirmOpen = false" aria-label="Close">&times;</button>
+                </div>
+                <p class="stats">This permanently removes {{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}. This cannot be undone.</p>
+                <div class="modal__actions">
+                    <button type="button" class="btn" @click="confirmOpen = false">Cancel</button>
+                    <form method="post" action="/orphans/delete-all">
+                        <button type="submit" class="btn btn--danger">Delete all</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

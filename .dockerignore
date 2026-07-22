@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+openspec
+tests
+images
+*.md
+phpunit.xml
+phpstan.neon
+.phpstan.cache
+.phpunit.cache
+.php-cs-fixer.dist.php
+.php-cs-fixer.cache
+vendor
+node_modules

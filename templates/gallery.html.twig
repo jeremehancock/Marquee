@@ -1,0 +1,129 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ category.label }} · {{ site_title }}{% endblock %}
+
+{% set base = '/library/' ~ category.value %}
+
+{% block content %}
+<div data-gallery data-base="{{ base }}" x-data="galleryUI"
+     @gallery:view.window="view($event.detail.url)"
+     @gallery:copy.window="copyUrl($event.detail.url)"
+     @gallery:change.window="openChange($event.detail.filename, $event.detail.title)"
+     @gallery:confirm.window="askConfirm($event.detail)"
+     @gallery:toast.window="notify($event.detail.text)"
+     @gallery:done.window="change.open = false">
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    <nav class="tabs">
+        {% for cat in categories %}
+            <a class="tab {{ cat.value == category.value ? 'tab--active' : '' }}"
+               href="/library/{{ cat.value }}">{{ cat.label }}</a>
+        {% endfor %}
+    </nav>
+
+    <div class="toolbar">
+        <form class="search" method="get" action="{{ base }}" role="search">
+            <input type="search" name="q" value="{{ query }}" autocomplete="off"
+                   placeholder="Search {{ category.label }}…" aria-label="Search">
+            {% if query is not empty %}
+                <a class="search__clear" href="{{ base }}">Clear</a>
+            {% endif %}
+        </form>
+        <div class="toolbar__actions">
+            <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
+            <a class="btn" href="/plex">Import from Plex</a>
+            <a class="btn" href="/orphans">Orphans</a>
+        </div>
+    </div>
+
+    <div id="results">
+        {% include 'partials/gallery_results.html.twig' %}
+    </div>
+
+    {# Change poster modal #}
+    <div class="modal" x-show="change.open" x-cloak @keydown.escape.window="change.open = false" style="display:none">
+        <div class="modal__backdrop" @click="change.open = false"></div>
+        <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
+             role="dialog" aria-modal="true" aria-label="Change poster">
+            <div class="modal__head">
+                <h2>Change poster</h2>
+                <button type="button" class="modal__close" @click="change.open = false" aria-label="Close">&times;</button>
+            </div>
+            <p class="stats" x-text="change.title"></p>
+            <div class="modal__tabs">
+                <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
+                <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
+                <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
+                        @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
+            </div>
+
+            <form class="form js-mutate" method="post" action="{{ base }}/change/upload"
+                  enctype="multipart/form-data" x-show="change.tab === 'upload'">
+                <input type="hidden" name="filename" :value="change.filename">
+                <label for="change-file">Image file (JPG, PNG, or WebP)</label>
+                <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                <button type="submit" class="btn btn--accent">Update poster</button>
+            </form>
+
+            <form class="form js-mutate" method="post" action="{{ base }}/change/url" x-show="change.tab === 'url'">
+                <input type="hidden" name="filename" :value="change.filename">
+                <label for="change-url">Image URL (also supports Mediux URLs)</label>
+                <input id="change-url" type="url" name="url" placeholder="https://…" required>
+                <button type="submit" class="btn btn--accent">Update poster</button>
+            </form>
+
+            <div x-show="change.tab === 'find'">
+                <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
+                <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
+                <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
+                    Click a poster to preview it, or choose <strong>Select</strong> to apply it.
+                </p>
+                <div class="find-grid">
+                    <template x-for="url in finder.results" :key="url">
+                        <figure class="find-item">
+                            <img class="find-item__img" :src="url" alt="" loading="lazy"
+                                 data-action="view" :data-url="url" title="Preview full screen">
+                            <div class="find-item__actions">
+                                <form class="js-mutate" method="post" action="{{ base }}/change/url">
+                                    <input type="hidden" name="filename" :value="change.filename">
+                                    <input type="hidden" name="url" :value="url">
+                                    <button type="submit" class="btn btn--small btn--accent">Select</button>
+                                </form>
+                                <button type="button" class="btn btn--small" data-action="view" :data-url="url">View</button>
+                            </div>
+                        </figure>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Confirm modal #}
+    <div class="modal" x-show="confirm.open" x-cloak @keydown.escape.window="confirm.open = false" style="display:none">
+        <div class="modal__backdrop" @click="confirm.open = false"></div>
+        <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm">
+            <div class="modal__head">
+                <h2 x-text="confirm.title"></h2>
+                <button type="button" class="modal__close" @click="confirm.open = false" aria-label="Close">&times;</button>
+            </div>
+            <p class="stats" x-text="confirm.message"></p>
+            <div class="modal__actions">
+                <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
+                <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
+            </div>
+        </div>
+    </div>
+
+    {# Fullscreen viewer #}
+    <div class="viewer" x-show="viewer" x-cloak @click="viewer = null"
+         @keydown.escape.window="viewer = null" style="display:none">
+        <img :src="viewer" alt="">
+    </div>
+
+    {# Toast #}
+    <div class="toast" x-show="toast.show" x-cloak style="display:none" x-text="toast.text"></div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Prepare the /config volume and schedule auto-import.
+
+mkdir -p \
+    /config/data \
+    /config/posters/movies \
+    /config/posters/tv-shows \
+    /config/posters/tv-seasons \
+    /config/posters/collections
+
+lsiown -R abc:abc /config
+
+# Persist the environment so cron jobs (which run without the container env) can
+# reach Plex and read the auto-import settings.
+env | grep -E '^(PLEX_|AUTO_IMPORT_|EXCLUDED_LIBRARIES|SITE_TITLE|DATA_DIR|POSTERS_DIR)=' \
+    > /app/docker-env.sh
+sed -i 's/^/export /' /app/docker-env.sh
+lsiown abc:abc /app/docker-env.sh
+chmod +x /app/auto-import.sh
+
+# Schedule auto-import from AUTO_IMPORT_SCHEDULE when it is enabled.
+if [ "${AUTO_IMPORT_ENABLED,,}" = "true" ]; then
+    case "${AUTO_IMPORT_SCHEDULE:-24h}" in
+        24h) cron_expr="0 0 * * *" ;;
+        12h) cron_expr="0 */12 * * *" ;;
+        6h) cron_expr="0 */6 * * *" ;;
+        3h) cron_expr="0 */3 * * *" ;;
+        1h) cron_expr="0 * * * *" ;;
+        *) cron_expr="0 0 * * *" ;;
+    esac
+    echo "$cron_expr /app/auto-import.sh" > /etc/crontabs/abc
+    echo "Auto-import scheduled (${AUTO_IMPORT_SCHEDULE:-24h}): $cron_expr"
+else
+    rm -f /etc/crontabs/abc
+fi

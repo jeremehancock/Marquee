@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#14161c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="{{ site_title }}">
+    <title>{% block title %}{{ site_title }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('/assets/app.css') }}">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+    <script defer src="{{ asset('/assets/gallery.js') }}"></script>
+    <script defer src="{{ asset('/assets/alpine.min.js') }}"></script>
+    <script defer src="{{ asset('/assets/app.js') }}"></script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">{{ site_title }}</a>
+        {% block nav %}
+            {% if not auth_bypass %}
+                <nav><a href="/logout">Log out</a></nav>
+            {% endif %}
+        {% endblock %}
+    </header>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">{{ site_title }} &middot; v{{ app_version }}<span id="update-note"></span></footer>
+</body>
+</html>

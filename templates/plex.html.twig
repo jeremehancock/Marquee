@@ -1,0 +1,89 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Import from Plex · {{ site_title }}{% endblock %}
+
+{% block content %}
+    <p><a class="search__clear" href="{{ back_url }}">&larr; Back to library</a></p>
+    <h1>Import from Plex</h1>
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    {% if not configured %}
+        <div class="panel">
+            <p>Plex is not configured yet. Set <code>PLEX_SERVER_URL</code> and
+               <code>PLEX_TOKEN</code> in your environment and restart Marquee.</p>
+        </div>
+    {% elseif error %}
+        <p class="alert" role="alert">{{ error }}</p>
+    {% elseif libraries is empty %}
+        <div class="panel"><p>No movie or TV libraries were found on your Plex server.</p></div>
+    {% else %}
+        {% set movie_count = libraries|filter(l => l.isMovie)|length %}
+        {% set tv_count = libraries|filter(l => not l.isMovie)|length %}
+        <form class="panel form" method="post" action="/plex/import"
+              x-data="{
+                  type: '',
+                  sections: [],
+                  importing: false,
+                  movieLibs: {{ movie_count }},
+                  tvLibs: {{ tv_count }},
+                  get available() {
+                      if (this.type === 'movie') return this.movieLibs;
+                      if (this.type === 'collection') return this.movieLibs + this.tvLibs;
+                      if (this.type === 'show' || this.type === 'season') return this.tvLibs;
+                      return 0;
+                  }
+              }" @submit="importing = true">
+
+            <fieldset class="fieldset">
+                <legend>Step 1 — What do you want to import?</legend>
+                <div class="choice-row">
+                    {% for type in mediaTypes %}
+                        <label class="choice">
+                            <input type="radio" name="types[]" value="{{ type.value }}"
+                                   x-model="type" @change="sections = []">
+                            <span>{{ type.label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <fieldset class="fieldset" x-show="type" x-cloak>
+                <legend>Step 2 — Which libraries?</legend>
+                <p class="check__hint" x-show="available === 0">
+                    None of your Plex libraries can provide this content type.
+                </p>
+                {% for library in libraries %}
+                    {% set compat = library.isMovie
+                        ? "type === 'movie' || type === 'collection'"
+                        : "type === 'show' || type === 'season' || type === 'collection'" %}
+                    <label class="check" x-show="{{ compat|raw }}" x-cloak>
+                        <input type="checkbox" name="sections[]" value="{{ library.key }}" x-model="sections">
+                        {{ library.title }}
+                        <span class="check__meta">{{ library.isMovie ? 'Movies' : 'TV' }}</span>
+                    </label>
+                {% endfor %}
+            </fieldset>
+
+            <label class="check" x-show="type" x-cloak>
+                <input type="checkbox" name="force" value="1">
+                Re-download unchanged posters
+                <span class="check__meta">Normally Marquee skips posters that haven't changed in Plex.</span>
+            </label>
+
+            <button type="submit" class="btn btn--accent"
+                    :disabled="!type || sections.length === 0 || importing">Import</button>
+
+            <div class="overlay" x-show="importing" x-cloak style="display:none">
+                <div class="overlay__box">
+                    <div class="spinner"></div>
+                    <p><strong>Importing from Plex&hellip;</strong></p>
+                    <p class="stats">This can take a while for large libraries. Please keep this page open.</p>
+                </div>
+            </div>
+        </form>
+        <p class="stats">Plex is the source of truth: importing overwrites posters that changed in Plex.</p>
+    {% endif %}
+{% endblock %}

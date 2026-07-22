@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint · Analyse · Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, gd, pdo_sqlite, intl, mbstring
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json / composer.lock
+        run: composer validate --strict --no-check-publish
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Coding standards (PHP-CS-Fixer)
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: 1
+
+      - name: Static analysis (PHPStan)
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Tests (PHPUnit)
+        run: vendor/bin/phpunit
+
+  docker:
+    name: Build image · Smoke test /health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t marquee:ci .
+
+      - name: Run container and probe health
+        run: |
+          docker run -d --name marquee -p 8080:80 -e AUTH_BYPASS=true marquee:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
+              echo "Health check passed"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check never succeeded"; docker logs marquee; exit 1

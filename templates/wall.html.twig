@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Poster Wall · {{ site_title }}</title>
+    <link rel="stylesheet" href="{{ asset('/assets/wall.css') }}">
+</head>
+<body>
+    <div class="wall">
+        <div class="wall__layer" data-layer="0">
+            <div class="wall__bg"></div>
+            <img class="wall__poster" alt="">
+        </div>
+        <div class="wall__layer" data-layer="1">
+            <div class="wall__bg"></div>
+            <img class="wall__poster" alt="">
+        </div>
+        <a class="wall__exit" href="/library/movies" title="Exit the wall">&times;</a>
+        <p class="wall__empty" hidden>No posters to show yet. Import some from Plex first.</p>
+    </div>
+    <script src="{{ asset('/assets/wall.js') }}"></script>
+</body>
+</html>

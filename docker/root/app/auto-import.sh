@@ -1,19 +1,9 @@
 #!/bin/bash
+# Runs one scheduled auto-import. Invoked by cron as the "abc" user.
 
-# Source environment variables from saved file
 if [ -f /app/docker-env.sh ]; then
-  source /app/docker-env.sh
-else
-  echo "$(date) - ERROR: Environment file not found!" >> /config/data/auto-import-cron.log
-  exit 1
+    # shellcheck disable=SC1091
+    source /app/docker-env.sh
 fi
 
-# Output environment for debugging
-echo "$(date) - Running auto-import with environment:" >> /config/data/auto-import-cron.log
-env | grep -E '^(PLEX_|AUTO_IMPORT_)' >> /config/data/auto-import-cron.log
-
-# Change to the correct directory
-cd /app/www/public || exit
-
-# Run the PHP script
-php include/auto-import.php >> /config/data/auto-import-cron.log 2>&1
+php /app/www/bin/auto-import.php >> /config/data/auto-import.log 2>&1
