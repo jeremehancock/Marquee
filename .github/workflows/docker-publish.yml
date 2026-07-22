@@ -1,16 +1,20 @@
 name: Publish Docker image
 
 # Build and push the multi-arch image to Docker Hub.
-#   push to main  -> bozodev/marquee:latest            (production)
-#   push to dev   -> bozodev/marquee:dev                (testing)
-#   push a v* tag -> bozodev/marquee:<VERSION> + latest (release)
-# On a tag, the version string comes from the repo's VERSION file (the tag name
-# is just the trigger). Every build also gets an immutable sha-<short> tag. Can
-# be run by hand from the Actions tab.
+#   push to dev   -> bozodev/marquee:dev                    (testing)
+#   push to main  -> bozodev/marquee:latest                 (production)
+#                    ...and if the VERSION file names a version we haven't
+#                    released yet, also bozodev/marquee:<VERSION>, plus a
+#                    git tag v<VERSION> and a GitHub Release (which powers the
+#                    in-app update notice).
+# Every build also gets an immutable sha-<short> tag. Can be run by hand from
+# the Actions tab.
+#
+# Release flow: bump VERSION on dev, validate the :dev image, then merge dev
+# into main — the merge publishes :latest and the pinned version in one step.
 on:
   push:
     branches: [main, dev]
-    tags: ['v*']
   workflow_dispatch:
 
 # Don't let two publishes race; a newer push supersedes an in-flight one.
@@ -19,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write   # create the release tag + GitHub Release on a version bump
 
 jobs:
   publish:
@@ -29,6 +33,30 @@ jobs:
     if: github.repository_owner == 'jeremehancock'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history + tags, so we can tell if this
+          fetch-tags: true      # VERSION has already been released
+
+      - name: Read version and detect a new release
+        id: ver
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ -z "$version" ]; then
+            echo "::error::VERSION file is empty"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # A "release" is a push to main whose VERSION has no matching tag yet.
+          release=false
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+              echo "v$version already released — publishing :latest only."
+            else
+              release=true
+              echo "New version v$version — will publish the pinned image + release."
+            fi
+          fi
+          echo "release=$release" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU (for arm64 emulation)
         uses: docker/setup-qemu-action@v3
@@ -42,16 +70,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Read version from the VERSION file
-        id: ver
-        run: |
-          version="$(tr -d '[:space:]' < VERSION)"
-          if [ -z "$version" ]; then
-            echo "::error::VERSION file is empty"; exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Version: $version"
-
       - name: Derive image tags
         id: meta
         uses: docker/metadata-action@v5
@@ -60,8 +78,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
-            type=raw,value=${{ steps.ver.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=${{ steps.ver.outputs.version }},enable=${{ steps.ver.outputs.release == 'true' }}
             type=sha,format=short
 
       - name: Build and push
@@ -74,3 +91,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Tag + GitHub Release for a new version. Uses GITHUB_TOKEN, which does not
+      # re-trigger this workflow, so there's no double build.
+      - name: Create tag and GitHub Release
+        if: steps.ver.outputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
