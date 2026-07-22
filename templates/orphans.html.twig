@@ -1,0 +1,44 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Orphaned posters · {{ site_title }}{% endblock %}
+
+{% block content %}
+    <p><a class="search__clear" href="/library/movies">&larr; Back to library</a></p>
+    <h1>Orphaned posters</h1>
+    <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.
+       Posters you uploaded yourself are never treated as orphans.</p>
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    {% if not configured %}
+        <div class="panel"><p>Plex must be configured to detect orphans.</p></div>
+    {% elseif error %}
+        <p class="alert" role="alert">{{ error }}</p>
+    {% elseif orphans is empty %}
+        <div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>
+    {% else %}
+        <div class="toolbar">
+            <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>
+            <form method="post" action="/orphans/delete-all"
+                  onsubmit="return confirm('Delete all orphaned posters? This cannot be undone.');">
+                <button type="submit" class="btn btn--danger">Delete all orphans</button>
+            </form>
+        </div>
+
+        <div class="grid">
+            {% for orphan in orphans %}
+                <figure class="card">
+                    <div class="card__image">
+                        <img src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
+                             alt="{{ orphan.title }}" loading="lazy">
+                    </div>
+                    <figcaption class="card__body">
+                        <span class="card__title" title="{{ orphan.title }}">{{ orphan.title }}</span>
+                    </figcaption>
+                </figure>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

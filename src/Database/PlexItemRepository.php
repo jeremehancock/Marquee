@@ -82,6 +82,31 @@ final class PlexItemRepository
         return $filenames;
     }
 
+    public function deleteByRatingKey(string $ratingKey): void
+    {
+        $stmt = $this->database->pdo()->prepare('DELETE FROM plex_items WHERE rating_key = :key');
+        $stmt->execute([':key' => $ratingKey]);
+    }
+
+    /**
+     * Distinct Plex media types that currently have a stored poster.
+     *
+     * @return list<string>
+     */
+    public function distinctMediaTypes(): array
+    {
+        $stmt = $this->database->pdo()->query('SELECT DISTINCT media_type FROM plex_items');
+
+        $types = [];
+        foreach ($stmt !== false ? $stmt->fetchAll() : [] as $row) {
+            if (is_array($row) && isset($row['media_type'])) {
+                $types[] = (string) $row['media_type'];
+            }
+        }
+
+        return $types;
+    }
+
     /**
      * @return list<PlexItemRecord>
      */

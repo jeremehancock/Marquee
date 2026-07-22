@@ -7,6 +7,7 @@ namespace App;
 use App\Controller\AuthController;
 use App\Controller\GalleryController;
 use App\Controller\HealthController;
+use App\Controller\OrphanController;
 use App\Controller\PlexExportController;
 use App\Controller\PlexImportController;
 use App\Controller\PosterController;
@@ -39,4 +40,7 @@ function registerRoutes(App $app): void
 
     $app->get('/plex', [PlexImportController::class, 'show']);
     $app->post('/plex/import', [PlexImportController::class, 'run']);
+
+    $app->get('/orphans', [OrphanController::class, 'show']);
+    $app->post('/orphans/delete-all', [OrphanController::class, 'deleteAll']);
 }
