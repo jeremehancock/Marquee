@@ -13,8 +13,7 @@
         {% set is_linked = plex_configured and poster.filename in linked %}
         <figure class="card">
             <div class="card__frame">
-                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy"
-                     data-action="view" data-url="{{ poster.url }}">
+                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
                 <div class="card__overlay">
                     <div class="card__actions">
                         <button type="button" class="btn btn--small btn--accent"

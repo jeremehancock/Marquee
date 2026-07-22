@@ -79,7 +79,7 @@
                 <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
                 <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
-                    Click a poster to preview it, or choose <strong>Use this</strong> to apply it.
+                    Click a poster to preview it, or choose <strong>Select</strong> to apply it.
                 </p>
                 <div class="find-grid">
                     <template x-for="url in finder.results" :key="url">
@@ -90,7 +90,7 @@
                                 <form class="js-mutate" method="post" action="{{ base }}/change/url">
                                     <input type="hidden" name="filename" :value="change.filename">
                                     <input type="hidden" name="url" :value="url">
-                                    <button type="submit" class="btn btn--small btn--accent">Use this</button>
+                                    <button type="submit" class="btn btn--small btn--accent">Select</button>
                                 </form>
                                 <button type="button" class="btn btn--small" data-action="view" :data-url="url">View</button>
                             </div>

@@ -199,8 +199,26 @@
             if (pageLink && root.contains(pageLink)) {
                 e.preventDefault();
                 load(pageLink.getAttribute('href'), true);
+                return;
             }
+            // Tap a poster to reveal/hide its action overlay (touch-friendly;
+            // desktop still reveals on hover).
+            var frame = e.target.closest('.card__frame');
+            if (frame && root.contains(frame)) {
+                if (e.target.closest('.card__actions')) { return; }
+                var wasOpen = frame.classList.contains('is-open');
+                closeOverlays();
+                if (!wasOpen) { frame.classList.add('is-open'); }
+                return;
+            }
+            closeOverlays();
         });
+
+        function closeOverlays() {
+            root.querySelectorAll('.card__frame.is-open').forEach(function (f) {
+                f.classList.remove('is-open');
+            });
+        }
 
         // Delegated submit for every AJAX mutation form.
         document.addEventListener('submit', function (e) {

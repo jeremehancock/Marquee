@@ -330,7 +330,7 @@ h1 {
     height: 100%;
     object-fit: cover;
     display: block;
-    cursor: zoom-in;
+    cursor: pointer;
     opacity: 0;
     transition: opacity 0.4s ease;
 }
@@ -362,13 +362,17 @@ h1 {
     padding: 12px;
     background: rgba(0, 0, 0, 0.72);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.18s ease;
     overflow-y: auto;
 }
 
+/* Reveal on hover (desktop) or when tapped open (touch, via .is-open). */
 .card__frame:hover .card__overlay,
-.card__frame:focus-within .card__overlay {
+.card__frame:focus-within .card__overlay,
+.card__frame.is-open .card__overlay {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .card__actions {
@@ -502,9 +506,53 @@ h1 {
     }
 }
 
-@media (hover: none) {
-    .card__overlay {
-        opacity: 1;
+/* Mobile: keep the layout from overflowing and shrink oversized posters. */
+@media (max-width: 640px) {
+    .container {
+        padding: 20px 14px;
+    }
+
+    /* Tabs scroll sideways instead of wrapping onto several lines. */
+    .tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 2px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab {
+        padding: 10px 12px;
+        white-space: nowrap;
+    }
+
+    /* Search and the action buttons each take a full row. */
+    .search {
+        flex-basis: 100%;
+    }
+
+    .toolbar__actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .toolbar__actions .btn {
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    /* Smaller posters: at least two per row on a phone. */
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .find-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }
 }
 

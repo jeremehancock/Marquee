@@ -19,7 +19,9 @@
     <header class="topbar">
         <a class="brand" href="/">{{ site_title }}</a>
         {% block nav %}
-            <nav><a href="/logout">Log out</a></nav>
+            {% if not auth_bypass %}
+                <nav><a href="/logout">Log out</a></nav>
+            {% endif %}
         {% endblock %}
     </header>
     <main class="container">

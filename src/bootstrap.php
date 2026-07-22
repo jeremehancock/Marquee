@@ -90,10 +90,11 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config): Twig {
+        Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
+            $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
 
             // Cache-busting asset URLs: append the file's mtime so a changed
             // stylesheet or script is a new URL that defeats every cache layer.

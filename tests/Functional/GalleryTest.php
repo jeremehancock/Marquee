@@ -79,6 +79,30 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('target="_blank"', $body);
     }
 
+    public function testLogoutHiddenWhenAuthBypassed(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // AUTH_BYPASS is true in app(); the logout link should not render.
+        self::assertStringNotContainsString('/logout', $body);
+    }
+
+    public function testLogoutShownWhenAuthEnabled(): void
+    {
+        // Build a container with auth enabled and render the shared layout: the
+        // logout link should be present when auth is not bypassed.
+        putenv('AUTH_BYPASS=false');
+        putenv('DATA_DIR=' . sys_get_temp_dir() . '/marquee-test-data');
+        $twig = \App\buildContainer()->get(\Slim\Views\Twig::class);
+
+        $html = $twig->fetch('layout.html.twig', ['app_version' => '0.0.0']);
+
+        self::assertStringContainsString('/logout', $html);
+        putenv('AUTH_BYPASS');
+    }
+
     public function testRemembersSectionForOrphansBackLink(): void
     {
         // One app instance so the in-memory session persists across requests.
