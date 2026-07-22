@@ -14,14 +14,17 @@ CI publishes to Docker Hub automatically (see
 | You push to… | Docker Hub tag | Use for |
 | --- | --- | --- |
 | `dev` | `bozodev/marquee:dev` | testing new work on a throwaway/staging instance |
-| `main` | `bozodev/marquee:latest` | production |
-| a `vX.Y.Z` git tag | `bozodev/marquee:X.Y.Z` and `X.Y` | pinned releases |
+| `main` | `bozodev/marquee:latest` | production (always the latest) |
+| a `v*` git tag | `bozodev/marquee:<version>` **and** `:latest` | pinned releases |
 
-Every build also gets an immutable `sha-<short>` tag.
+On a tag, the **version string is read from the repo's `VERSION` file** — the tag
+name is just the trigger. Every build also gets an immutable `sha-<short>` tag.
 
-**The loop:** build a feature on a branch off `dev` → merge it into `dev` (CI
-publishes `:dev`) → test the `:dev` image → when it's solid, open a PR from `dev`
-into `main` to release (`:latest`).
+**The loop:** build a feature on a branch off `dev` → merge into `dev` (CI
+publishes `:dev`) → test the `:dev` image → open a PR from `dev` into `main`
+(publishes `:latest`) → cut a versioned release by bumping `VERSION` and pushing
+a tag (publishes `:<version>` and refreshes `:latest`). See
+[Cutting a release](#cutting-a-release).
 
 ### A separate instance for testing `:dev`
 
@@ -232,6 +235,45 @@ Say you want to add "export/import a backup of all posters."
 
 ---
 
+## Cutting a release
+
+`main` is always `:latest`. To also publish a **versioned** image, bump the
+`VERSION` file and push a git tag — the workflow reads the version from that file
+and publishes `bozodev/marquee:<version>` **and** refreshes `:latest`.
+
+1. Make sure the code you want to ship is merged into `main` (via a `dev → main`
+   PR).
+2. On `main`, set the new version in the `VERSION` file (this is also what the
+   app shows in its footer). Commit it:
+
+   ```bash
+   git checkout main && git pull
+   echo "1.0.0" > VERSION
+   git commit -am "Release 1.0.0"
+   git push
+   ```
+
+3. Publish a **GitHub Release** for that commit (Releases → Draft a new release →
+   create tag `v1.0.0` → Publish). This both triggers the Docker build and powers
+   Marquee's in-app "Update available" notice (which checks GitHub Releases).
+
+   Or just push a tag from the CLI (builds the image, but no in-app notice):
+
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+The workflow then pushes `bozodev/marquee:1.0.0` and `bozodev/marquee:latest`.
+
+Notes:
+- The **`VERSION` file is the source of truth** for the version number; the tag
+  name is only the trigger. Keep them in sync (tag `v1.0.0` ↔ `VERSION` `1.0.0`).
+- The in-app update check compares against `UPDATE_REPO` (default
+  `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
+
+---
+
 ## Cheat sheet
 
 ```bash
@@ -260,8 +302,13 @@ openspec archive <change>
 /opsx:archive   <change>
 
 # Branch → image tag
-#   dev  → bozodev/marquee:dev      (test)
-#   main → bozodev/marquee:latest   (release)
+#   dev     → bozodev/marquee:dev                (test)
+#   main    → bozodev/marquee:latest             (release)
+#   v* tag  → bozodev/marquee:<VERSION> + latest  (versioned release)
+
+# Cut a versioned release
+echo "1.0.0" > VERSION && git commit -am "Release 1.0.0" && git push
+git tag v1.0.0 && git push origin v1.0.0   # or publish a GitHub Release
 ```
 
 ### Repo layout

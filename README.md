@@ -132,7 +132,7 @@ server.
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
 | `POSTER_SOURCE_URL` | Base URL of the poster search service used by **Find Posters** | `https://posteria.app` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
-| `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Posteria-II` |
+| `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 
 ### Finding your Plex token
 
@@ -172,12 +172,13 @@ release is available.
 
 | Tag | Built from | Use for |
 | --- | --- | --- |
-| `bozodev/marquee:latest` | the `main` branch | production |
+| `bozodev/marquee:latest` | the `main` branch, and every tagged release | production |
 | `bozodev/marquee:dev` | the `dev` branch | testing upcoming changes |
-| `bozodev/marquee:X.Y.Z` | a `vX.Y.Z` git tag | pinning a specific release |
+| `bozodev/marquee:<version>` | a `v*` git tag; the version comes from the `VERSION` file | pinning a specific release |
 
 Images are built and pushed automatically by GitHub Actions
-(`.github/workflows/docker-publish.yml`).
+(`.github/workflows/docker-publish.yml`). Publishing a release tag pushes both
+`:<version>` and `:latest`.
 
 ## FAQ
 

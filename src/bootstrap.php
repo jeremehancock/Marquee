@@ -77,7 +77,7 @@ function buildContainer(array $overrides = []): Container
             => new GitHubLatestReleaseProvider(
                 $http,
                 Env::bool('UPDATE_CHECK_ENABLED', false),
-                Env::str('UPDATE_REPO', 'jeremehancock/Posteria-II'),
+                Env::str('UPDATE_REPO', 'jeremehancock/Marquee'),
             ),
         VersionService::class => static fn (LatestReleaseProvider $latest): VersionService
             => new VersionService(readVersion(), $latest),

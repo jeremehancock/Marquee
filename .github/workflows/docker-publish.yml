@@ -1,11 +1,12 @@
 name: Publish Docker image
 
 # Build and push the multi-arch image to Docker Hub.
-#   push to main  -> bozodev/marquee:latest   (production)
-#   push to dev   -> bozodev/marquee:dev       (testing)
-#   push a v* tag -> bozodev/marquee:X.Y.Z + X.Y
-# Every build also gets an immutable sha-<short> tag. Can be run by hand from the
-# Actions tab.
+#   push to main  -> bozodev/marquee:latest            (production)
+#   push to dev   -> bozodev/marquee:dev                (testing)
+#   push a v* tag -> bozodev/marquee:<VERSION> + latest (release)
+# On a tag, the version string comes from the repo's VERSION file (the tag name
+# is just the trigger). Every build also gets an immutable sha-<short> tag. Can
+# be run by hand from the Actions tab.
 on:
   push:
     branches: [main, dev]
@@ -41,6 +42,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Read version from the VERSION file
+        id: ver
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ -z "$version" ]; then
+            echo "::error::VERSION file is empty"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
       - name: Derive image tags
         id: meta
         uses: docker/metadata-action@v5
@@ -49,9 +60,9 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=${{ steps.ver.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
             type=sha,format=short
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
