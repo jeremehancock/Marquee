@@ -14,6 +14,9 @@ use App\Plex\PlexLibrary;
  */
 final class FakePlexClient implements PlexClient
 {
+    /** @var list<string> rating keys whose poster was actually downloaded */
+    public array $downloads = [];
+
     /**
      * @param list<PlexLibrary>                $libraries
      * @param array<array-key, list<PlexItem>> $itemsByLibrary   keyed by library key
@@ -61,6 +64,7 @@ final class FakePlexClient implements PlexClient
         if (in_array($item->ratingKey, $this->failingKeys, true)) {
             throw PlexException::connectionFailed();
         }
+        $this->downloads[] = $item->ratingKey;
 
         return $this->png();
     }

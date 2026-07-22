@@ -67,6 +67,12 @@
                 {% endfor %}
             </fieldset>
 
+            <label class="check" x-show="type" x-cloak>
+                <input type="checkbox" name="force" value="1">
+                Re-download unchanged posters
+                <span class="check__meta">Normally Marquee skips posters that haven't changed in Plex.</span>
+            </label>
+
             <button type="submit" class="btn btn--accent"
                     :disabled="!type || sections.length === 0 || importing">Import</button>
 

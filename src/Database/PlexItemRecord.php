@@ -18,6 +18,7 @@ final class PlexItemRecord
         public readonly string $filename,
         public readonly int $updatedAt,
         public readonly string $sectionKey = '',
+        public readonly string $thumb = '',
     ) {
     }
 
@@ -35,6 +36,7 @@ final class PlexItemRecord
             filename: (string) $row['filename'],
             updatedAt: (int) $row['updated_at'],
             sectionKey: (string) ($row['section_key'] ?? ''),
+            thumb: (string) ($row['thumb'] ?? ''),
         );
     }
 }

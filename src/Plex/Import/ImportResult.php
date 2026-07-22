@@ -13,6 +13,7 @@ final class ImportResult
 {
     private int $imported = 0;
     private int $failed = 0;
+    private int $skipped = 0;
 
     /** @var array<string, int> */
     private array $byCategory = [];
@@ -28,6 +29,11 @@ final class ImportResult
         $this->failed++;
     }
 
+    public function recordSkipped(): void
+    {
+        $this->skipped++;
+    }
+
     public function imported(): int
     {
         return $this->imported;
@@ -38,6 +44,11 @@ final class ImportResult
         return $this->failed;
     }
 
+    public function skipped(): int
+    {
+        return $this->skipped;
+    }
+
     public function countFor(PosterCategory $category): int
     {
         return $this->byCategory[$category->value] ?? 0;
@@ -46,6 +57,9 @@ final class ImportResult
     public function summary(): string
     {
         $summary = sprintf('Imported %d poster%s.', $this->imported, $this->imported === 1 ? '' : 's');
+        if ($this->skipped > 0) {
+            $summary .= sprintf(' Skipped %d unchanged.', $this->skipped);
+        }
         if ($this->failed > 0) {
             $summary .= sprintf(' %d could not be imported.', $this->failed);
         }

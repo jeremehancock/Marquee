@@ -76,9 +76,12 @@ final class PlexImportController
             return $this->backToPlex($response);
         }
 
+        $force = isset($body['force']);
+
         try {
-            $result = $this->import->import($sections, $types);
-            $this->flash->add($result->imported() > 0 ? 'success' : 'error', $result->summary());
+            $result = $this->import->import($sections, $types, $force);
+            $succeeded = $result->imported() > 0 || $result->skipped() > 0;
+            $this->flash->add($succeeded ? 'success' : 'error', $result->summary());
         } catch (PlexException $e) {
             $this->flash->add('error', $e->getMessage());
         }

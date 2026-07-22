@@ -60,6 +60,7 @@ final class Database
                 section_key TEXT NOT NULL DEFAULT \'\',
                 title TEXT NOT NULL,
                 filename TEXT NOT NULL,
+                thumb TEXT NOT NULL DEFAULT \'\',
                 updated_at INTEGER NOT NULL
             )'
         );
@@ -75,6 +76,9 @@ final class Database
 
         // Added after the initial release; safe to run every boot.
         $this->ensureColumn($pdo, 'plex_items', 'section_key', "TEXT NOT NULL DEFAULT ''");
+        // Plex's poster path carries a version token; storing it lets an import
+        // skip re-downloading posters that have not changed in Plex.
+        $this->ensureColumn($pdo, 'plex_items', 'thumb', "TEXT NOT NULL DEFAULT ''");
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

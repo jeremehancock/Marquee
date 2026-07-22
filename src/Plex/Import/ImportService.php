@@ -31,8 +31,9 @@ final class ImportService
     /**
      * @param list<string>        $sectionKeys
      * @param list<PlexMediaType> $mediaTypes
+     * @param bool                $force       re-download even when the poster is unchanged in Plex
      */
-    public function import(array $sectionKeys, array $mediaTypes): ImportResult
+    public function import(array $sectionKeys, array $mediaTypes, bool $force = false): ImportResult
     {
         $result = new ImportResult();
 
@@ -41,7 +42,7 @@ final class ImportService
                 continue;
             }
             $this->libraries->sync($library);
-            $this->importLibrary($library, $mediaTypes, $result);
+            $this->importLibrary($library, $mediaTypes, $result, $force);
         }
 
         return $result;
@@ -50,24 +51,24 @@ final class ImportService
     /**
      * @param list<PlexMediaType> $mediaTypes
      */
-    private function importLibrary(PlexLibrary $library, array $mediaTypes, ImportResult $result): void
+    private function importLibrary(PlexLibrary $library, array $mediaTypes, ImportResult $result, bool $force): void
     {
         $wants = static fn (PlexMediaType $type): bool => in_array($type, $mediaTypes, true);
 
         if ($library->isMovie() && $wants(PlexMediaType::Movie)) {
             foreach ($this->plex->items($library) as $movie) {
-                $this->importItem($movie, $result);
+                $this->importItem($movie, $result, $force);
             }
         }
 
         if ($library->isShow() && ($wants(PlexMediaType::Show) || $wants(PlexMediaType::Season))) {
             foreach ($this->plex->items($library) as $show) {
                 if ($wants(PlexMediaType::Show)) {
-                    $this->importItem($show, $result);
+                    $this->importItem($show, $result, $force);
                 }
                 if ($wants(PlexMediaType::Season)) {
                     foreach ($this->plex->seasons($show) as $season) {
-                        $this->importItem($season, $result);
+                        $this->importItem($season, $result, $force);
                     }
                 }
             }
@@ -75,17 +76,35 @@ final class ImportService
 
         if ($wants(PlexMediaType::Collection)) {
             foreach ($this->plex->collections($library) as $collection) {
-                $this->importItem($collection, $result);
+                $this->importItem($collection, $result, $force);
             }
         }
     }
 
-    private function importItem(PlexItem $item, ImportResult $result): void
+    private function importItem(PlexItem $item, ImportResult $result, bool $force): void
     {
         try {
-            $bytes = $this->plex->downloadPoster($item);
             $category = $item->mediaType->category();
             $existing = $this->items->findByRatingKey($item->ratingKey);
+            $thumb = $item->thumb ?? '';
+
+            // Skip the poster download when Plex's artwork version is unchanged
+            // since our last import and the local file still exists. Plex embeds
+            // a version token in the thumb path, so an identical path means the
+            // poster has not changed — no need to pull the image again.
+            if (
+                !$force
+                && $existing !== null
+                && $thumb !== ''
+                && $existing->thumb === $thumb
+                && $this->storage->exists($category, $existing->filename)
+            ) {
+                $result->recordSkipped();
+
+                return;
+            }
+
+            $bytes = $this->plex->downloadPoster($item);
 
             $temp = $this->writeTempFile($bytes);
             try {
@@ -110,6 +129,7 @@ final class ImportService
                 filename: $filename,
                 updatedAt: time(),
                 sectionKey: $item->sectionKey,
+                thumb: $thumb,
             ));
 
             $result->recordImported($category);
