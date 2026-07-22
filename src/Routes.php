@@ -7,6 +7,7 @@ namespace App;
 use App\Controller\AuthController;
 use App\Controller\GalleryController;
 use App\Controller\HealthController;
+use App\Controller\ManifestController;
 use App\Controller\OrphanController;
 use App\Controller\PlexExportController;
 use App\Controller\PlexImportController;
@@ -14,6 +15,7 @@ use App\Controller\PosterController;
 use App\Controller\PosterImageController;
 use App\Controller\PosterWallController;
 use App\Controller\UploadController;
+use App\Controller\VersionController;
 use Slim\App;
 
 /**
@@ -24,6 +26,8 @@ use Slim\App;
 function registerRoutes(App $app): void
 {
     $app->get('/health', HealthController::class);
+    $app->get('/manifest.webmanifest', ManifestController::class);
+    $app->get('/version', VersionController::class);
 
     $app->get('/login', [AuthController::class, 'showLogin']);
     $app->post('/login', [AuthController::class, 'login']);

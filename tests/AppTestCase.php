@@ -36,6 +36,7 @@ abstract class AppTestCase extends TestCase
             'PLEX_SERVER_URL' => '',
             'PLEX_TOKEN' => '',
             'PLEX_REMOVE_OVERLAY_LABEL' => 'false',
+            'UPDATE_CHECK_ENABLED' => 'false',
         ];
         foreach (array_merge($defaults, $env) as $key => $value) {
             putenv($key . '=' . $value);

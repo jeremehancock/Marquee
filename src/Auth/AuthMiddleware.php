@@ -18,7 +18,7 @@ use Slim\Psr7\Response;
 final class AuthMiddleware implements MiddlewareInterface
 {
     /** @var list<string> */
-    private array $publicPaths = ['/health', '/login', '/logout'];
+    private array $publicPaths = ['/health', '/login', '/logout', '/manifest.webmanifest'];
 
     /** @var list<string> */
     private array $publicPrefixes = ['/assets/'];

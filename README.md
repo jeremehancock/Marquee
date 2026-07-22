@@ -69,8 +69,14 @@ data and logs (`/config/data`).
 | `AUTO_IMPORT_SCHEDULE` | Interval: `1h`, `3h`, `6h`, `12h`, `24h` | `24h`     |
 | `AUTO_IMPORT_MOVIES` / `_SHOWS` / `_SEASONS` / `_COLLECTIONS` | Which media types to auto-import | `false` |
 | `EXCLUDED_LIBRARIES` | Library names to skip (comma-separated)   | _(none)_   |
+| `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release        | `false`    |
+| `UPDATE_REPO` | Repository to check for releases (`owner/repo`)  | `jeremehancock/Posteria-II` |
 
 More variables (poster sources) arrive with their features.
+
+Marquee is an installable PWA: open it on a phone or desktop and add it to your
+home screen. A service worker caches the static assets for fast, offline-tolerant
+loads.
 
 ## Spec-driven development with OpenSpec
 

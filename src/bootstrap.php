@@ -16,8 +16,12 @@ use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
+use App\Support\Env;
 use App\Support\Session\NativeSession;
 use App\Support\Session\SessionInterface;
+use App\Version\GitHubLatestReleaseProvider;
+use App\Version\LatestReleaseProvider;
+use App\Version\VersionService;
 use DI\Container;
 use DI\ContainerBuilder;
 use GuzzleHttp\Client;
@@ -29,6 +33,17 @@ use Psr\Log\LoggerInterface;
 use Slim\App;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
+
+/**
+ * Read the application version from the VERSION file at the project root.
+ */
+function readVersion(): string
+{
+    $contents = @file_get_contents(dirname(__DIR__) . '/VERSION');
+    $version = $contents === false ? '' : trim($contents);
+
+    return $version !== '' ? $version : '0.0.0';
+}
 
 /**
  * Build the DI container with the application's service definitions.
@@ -53,6 +68,14 @@ function buildContainer(array $overrides = []): Container
             => new HttpPlexClient($http, $plex),
         PlexClient::class => \DI\get(HttpPlexClient::class),
         PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
+        LatestReleaseProvider::class => static fn (ClientInterface $http): LatestReleaseProvider
+            => new GitHubLatestReleaseProvider(
+                $http,
+                Env::bool('UPDATE_CHECK_ENABLED', false),
+                Env::str('UPDATE_REPO', 'jeremehancock/Posteria-II'),
+            ),
+        VersionService::class => static fn (LatestReleaseProvider $latest): VersionService
+            => new VersionService(readVersion(), $latest),
         LoggerInterface::class => static function (AppConfig $config): LoggerInterface {
             if (!is_dir($config->dataDir)) {
                 @mkdir($config->dataDir, 0o775, true);
@@ -65,6 +88,7 @@ function buildContainer(array $overrides = []): Container
         Twig::class => static function (AppConfig $config): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
+            $twig->getEnvironment()->addGlobal('app_version', readVersion());
 
             return $twig;
         },
