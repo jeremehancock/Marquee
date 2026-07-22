@@ -77,6 +77,8 @@ final class GalleryTest extends AppTestCase
         self::assertStringNotContainsString('card__title', $body);
         // Poster Wall opens in a new tab.
         self::assertStringContainsString('target="_blank"', $body);
+        // The mobile action sheet is wired up.
+        self::assertStringContainsString('x-html="sheet.actions"', $body);
     }
 
     public function testLogoutHiddenWhenAuthBypassed(): void
