@@ -47,13 +47,15 @@
                 {% endfor %}
             </fieldset>
 
-            <button type="submit" class="btn btn--accent" :disabled="importing">
-                <span x-show="!importing">Import</span>
-                <span x-show="importing" x-cloak>Importing&hellip;</span>
-            </button>
-            <p class="stats" x-show="importing" x-cloak>
-                Importing from Plex &mdash; this can take a while for large libraries. Please keep this page open.
-            </p>
+            <button type="submit" class="btn btn--accent" :disabled="importing">Import</button>
+
+            <div class="overlay" x-show="importing" x-cloak style="display:none">
+                <div class="overlay__box">
+                    <div class="spinner"></div>
+                    <p><strong>Importing from Plex&hellip;</strong></p>
+                    <p class="stats">This can take a while for large libraries. Please keep this page open.</p>
+                </div>
+            </div>
         </form>
         <p class="stats">Plex is the source of truth: importing overwrites posters that changed in Plex.</p>
     {% endif %}

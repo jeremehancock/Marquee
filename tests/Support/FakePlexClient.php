@@ -62,6 +62,20 @@ final class FakePlexClient implements PlexClient
             throw PlexException::connectionFailed();
         }
 
+        return $this->png();
+    }
+
+    public function itemPoster(string $ratingKey): string
+    {
+        if (in_array($ratingKey, $this->failingKeys, true)) {
+            throw PlexException::connectionFailed();
+        }
+
+        return $this->png();
+    }
+
+    private function png(): string
+    {
         $image = imagecreatetruecolor(2, 3);
         ob_start();
         imagepng($image);

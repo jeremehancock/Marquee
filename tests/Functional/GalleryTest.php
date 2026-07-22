@@ -7,8 +7,6 @@ namespace App\Tests\Functional;
 use App\Tests\AppTestCase;
 use App\Tests\Support\MakesImages;
 use Slim\App;
-use Slim\Psr7\Factory\ServerRequestFactory;
-use Slim\Psr7\UploadedFile;
 
 final class GalleryTest extends AppTestCase
 {
@@ -84,23 +82,6 @@ final class GalleryTest extends AppTestCase
     public function testMissingImageReturns404(): void
     {
         self::assertSame(404, $this->get($this->app(), '/posters/movies/nope.png')->getStatusCode());
-    }
-
-    public function testUploadStoresPoster(): void
-    {
-        $tmp = tempnam(sys_get_temp_dir(), 'marquee_up_');
-        self::assertIsString($tmp);
-        file_put_contents($tmp, $this->pngBytes());
-        $file = new UploadedFile($tmp, 'Uploaded.png', 'image/png', (int) filesize($tmp), UPLOAD_ERR_OK);
-
-        $request = (new ServerRequestFactory())
-            ->createServerRequest('POST', '/library/movies/upload')
-            ->withUploadedFiles(['poster' => $file]);
-
-        $response = $this->app()->handle($request);
-
-        self::assertSame(302, $response->getStatusCode());
-        self::assertFileExists($this->postersDir . '/movies/Uploaded.png');
     }
 
     public function testDeleteRemovesPoster(): void

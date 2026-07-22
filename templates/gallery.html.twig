@@ -5,7 +5,28 @@
 {% set base = '/library/' ~ category.value %}
 
 {% block content %}
-<div x-data="{ upload: false, uploadTab: 'file', viewer: null }">
+<div x-data="{
+        viewer: null,
+        copied: false,
+        change: { open: false, tab: 'upload', filename: '', title: '' },
+        finder: { loading: false, error: '', results: [] },
+        openChange(filename, title) {
+            this.change = { open: true, tab: 'upload', filename: filename, title: title };
+            this.finder = { loading: false, error: '', results: [] };
+        },
+        findPosters() {
+            this.finder = { loading: true, error: '', results: [] };
+            fetch('{{ base }}/find-posters?filename=' + encodeURIComponent(this.change.filename), { headers: { Accept: 'application/json' } })
+                .then(r => r.ok ? r.json() : { posters: [], error: 'Search failed.' })
+                .then(d => { this.finder = { loading: false, error: d.error || '', results: Array.isArray(d.posters) ? d.posters : [] }; })
+                .catch(() => { this.finder = { loading: false, error: 'Search failed.', results: [] }; });
+        },
+        copyUrl(url) {
+            navigator.clipboard.writeText(window.location.origin + url)
+                .then(() => { this.copied = true; setTimeout(() => this.copied = false, 1600); })
+                .catch(() => {});
+        }
+     }">
 
     {% if flash %}
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
@@ -30,7 +51,6 @@
             <a class="btn" href="/wall">Poster Wall</a>
             <a class="btn" href="/plex">Import from Plex</a>
             <a class="btn" href="/orphans">Orphans</a>
-            <button type="button" class="btn btn--accent" @click="upload = true">Add poster</button>
         </div>
     </div>
 
@@ -38,27 +58,32 @@
         {% if result.total > 0 %}
             Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
         {% else %}
-            No posters{{ query is not empty ? ' match your search' : ' yet' }}.
+            No posters{{ query is not empty ? ' match your search' : ' yet — import from Plex to get started' }}.
         {% endif %}
     </p>
 
     <div class="grid">
         {% for poster in result.items %}
+            {% set linked = plex_configured and poster.filename in linked %}
             <figure class="card">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy"
                      @click="viewer = '{{ poster.url }}'">
                 <div class="card__overlay">
                     <span class="card__title" title="{{ poster.title }}">{{ poster.title }}</span>
                     <div class="card__actions">
-                        <button type="button" class="btn btn--small" @click="viewer = '{{ poster.url }}'">
-                            Full screen
+                        <button type="button" class="btn btn--small btn--accent"
+                                @click="openChange('{{ poster.filename|e('js') }}', '{{ poster.title|e('js') }}')">
+                            Change poster
                         </button>
-                        {% if plex_configured and poster.filename in linked %}
-                            <form method="post" action="{{ base }}/send-to-plex">
+                        {% if linked %}
+                            <form method="post" action="{{ base }}/fetch-from-plex">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small btn--accent">Send to Plex</button>
+                                <button type="submit" class="btn btn--small">Fetch from Plex</button>
                             </form>
                         {% endif %}
+                        <a class="btn btn--small" href="{{ poster.url }}" download>Download</a>
+                        <button type="button" class="btn btn--small" @click="copyUrl('{{ poster.url }}')">Copy URL</button>
+                        <button type="button" class="btn btn--small" @click="viewer = '{{ poster.url }}'">Full screen</button>
                         <form method="post" action="{{ base }}/delete"
                               onsubmit="return confirm('Delete this poster?');">
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
@@ -83,31 +108,52 @@
         </nav>
     {% endif %}
 
-    {# Upload modal #}
-    <div class="modal" x-show="upload" x-cloak @keydown.escape.window="upload = false" style="display:none">
-        <div class="modal__backdrop" @click="upload = false"></div>
-        <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Add poster">
+    {# Change poster modal #}
+    <div class="modal" x-show="change.open" x-cloak @keydown.escape.window="change.open = false" style="display:none">
+        <div class="modal__backdrop" @click="change.open = false"></div>
+        <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Change poster">
             <div class="modal__head">
-                <h2>Add poster to {{ category.label }}</h2>
-                <button type="button" class="modal__close" @click="upload = false" aria-label="Close">&times;</button>
+                <h2>Change poster</h2>
+                <button type="button" class="modal__close" @click="change.open = false" aria-label="Close">&times;</button>
             </div>
+            <p class="stats" x-text="change.title"></p>
             <div class="modal__tabs">
-                <button type="button" :class="uploadTab === 'file' ? 'is-active' : ''" @click="uploadTab = 'file'">From file</button>
-                <button type="button" :class="uploadTab === 'url' ? 'is-active' : ''" @click="uploadTab = 'url'">From URL</button>
+                <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
+                <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
+                <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
+                        @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
             </div>
 
-            <form class="form" method="post" action="{{ base }}/upload"
-                  enctype="multipart/form-data" x-show="uploadTab === 'file'">
-                <label for="poster-file">Image file (JPG, PNG, or WebP)</label>
-                <input id="poster-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
-                <button type="submit" class="btn btn--accent">Upload</button>
+            <form class="form" method="post" action="{{ base }}/change/upload"
+                  enctype="multipart/form-data" x-show="change.tab === 'upload'">
+                <input type="hidden" name="filename" :value="change.filename">
+                <label for="change-file">Image file (JPG, PNG, or WebP)</label>
+                <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                <button type="submit" class="btn btn--accent">Update poster</button>
             </form>
 
-            <form class="form" method="post" action="{{ base }}/upload-url" x-show="uploadTab === 'url'">
-                <label for="poster-url">Image URL</label>
-                <input id="poster-url" type="url" name="url" placeholder="https://…" required>
-                <button type="submit" class="btn btn--accent">Add from URL</button>
+            <form class="form" method="post" action="{{ base }}/change/url" x-show="change.tab === 'url'">
+                <input type="hidden" name="filename" :value="change.filename">
+                <label for="change-url">Image URL (also supports Mediux URLs)</label>
+                <input id="change-url" type="url" name="url" placeholder="https://…" required>
+                <button type="submit" class="btn btn--accent">Update poster</button>
             </form>
+
+            <div x-show="change.tab === 'find'">
+                <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
+                <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
+                <div class="find-grid">
+                    <template x-for="url in finder.results" :key="url">
+                        <form method="post" action="{{ base }}/change/url">
+                            <input type="hidden" name="filename" :value="change.filename">
+                            <input type="hidden" name="url" :value="url">
+                            <button type="submit" class="find-grid__item" title="Use this poster">
+                                <img :src="url" alt="" loading="lazy">
+                            </button>
+                        </form>
+                    </template>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -116,5 +162,8 @@
          @keydown.escape.window="viewer = null" style="display:none">
         <img :src="viewer" alt="">
     </div>
+
+    {# Copy notification #}
+    <div class="toast" x-show="copied" x-cloak style="display:none">URL copied to clipboard</div>
 </div>
 {% endblock %}

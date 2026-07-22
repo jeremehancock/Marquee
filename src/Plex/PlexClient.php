@@ -38,4 +38,9 @@ interface PlexClient
      * Raw bytes of the item's current Plex poster.
      */
     public function downloadPoster(PlexItem $item): string;
+
+    /**
+     * Raw bytes of the current Plex poster for an item, looked up by rating key.
+     */
+    public function itemPoster(string $ratingKey): string;
 }

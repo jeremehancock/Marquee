@@ -114,6 +114,32 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         return (string) $response->getBody();
     }
 
+    public function itemPoster(string $ratingKey): string
+    {
+        $xml = $this->get('/library/metadata/' . rawurlencode($ratingKey));
+
+        $thumb = null;
+        foreach ($xml->children() as $child) {
+            $candidate = $this->attr($child, 'thumb');
+            if ($candidate !== null && $candidate !== '') {
+                $thumb = $candidate;
+                break;
+            }
+        }
+
+        if ($thumb === null) {
+            throw PlexException::unexpectedResponse();
+        }
+
+        try {
+            $response = $this->http->request('GET', $this->config->serverUrl . $thumb, $this->options());
+        } catch (GuzzleException $e) {
+            throw PlexException::connectionFailed($e);
+        }
+
+        return (string) $response->getBody();
+    }
+
     public function uploadPoster(string $ratingKey, string $imageBytes): void
     {
         $this->write(

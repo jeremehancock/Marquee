@@ -16,6 +16,8 @@ use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
+use App\Poster\Source\PosteriaApiPosterSource;
+use App\Poster\Source\PosterSource;
 use App\Support\Env;
 use App\Support\Session\NativeSession;
 use App\Support\Session\SessionInterface;
@@ -63,6 +65,8 @@ function buildContainer(array $overrides = []): Container
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
+        PosterSource::class => static fn (ClientInterface $http): PosterSource
+            => new PosteriaApiPosterSource($http, rtrim(Env::str('POSTER_SOURCE_URL', 'https://posteria.app'), '/')),
         Database::class => static fn (AppConfig $app): Database => new Database($app->dataDir . '/marquee.sqlite'),
         HttpPlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): HttpPlexClient
             => new HttpPlexClient($http, $plex),

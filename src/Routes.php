@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App;
 
 use App\Controller\AuthController;
+use App\Controller\ChangePosterController;
 use App\Controller\GalleryController;
 use App\Controller\HealthController;
 use App\Controller\ManifestController;
 use App\Controller\OrphanController;
-use App\Controller\PlexExportController;
 use App\Controller\PlexImportController;
 use App\Controller\PosterController;
 use App\Controller\PosterImageController;
 use App\Controller\PosterWallController;
-use App\Controller\UploadController;
 use App\Controller\VersionController;
 use Slim\App;
 
@@ -38,10 +37,11 @@ function registerRoutes(App $app): void
 
     $app->get('/posters/{category}/{filename}', PosterImageController::class);
 
-    $app->post('/library/{category}/upload', [UploadController::class, 'file']);
-    $app->post('/library/{category}/upload-url', [UploadController::class, 'url']);
+    $app->post('/library/{category}/change/upload', [ChangePosterController::class, 'upload']);
+    $app->post('/library/{category}/change/url', [ChangePosterController::class, 'url']);
+    $app->post('/library/{category}/fetch-from-plex', [ChangePosterController::class, 'fetchFromPlex']);
+    $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
-    $app->post('/library/{category}/send-to-plex', [PlexExportController::class, 'send']);
 
     $app->get('/plex', [PlexImportController::class, 'show']);
     $app->post('/plex/import', [PlexImportController::class, 'run']);
