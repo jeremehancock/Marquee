@@ -9,6 +9,8 @@ use App\Database\PlexItemRepository;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Support\Flash;
+use App\Support\LastCategory;
+use App\Support\Session\SessionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpNotFoundException;
@@ -25,6 +27,7 @@ final class GalleryController
         private readonly Flash $flash,
         private readonly PlexConfig $plexConfig,
         private readonly PlexItemRepository $plexItems,
+        private readonly SessionInterface $session,
     ) {
     }
 
@@ -50,6 +53,9 @@ final class GalleryController
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
         $result = $this->library->browse($category, $query, $page);
+
+        // Remember the section so Orphans/Import can send the user back to it.
+        LastCategory::remember($this->session, $category);
 
         $plexConfigured = $this->plexConfig->isConfigured();
         $linked = $plexConfigured ? $this->plexItems->filenamesForCategory($category->value) : [];

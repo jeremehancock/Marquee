@@ -5,28 +5,13 @@
 {% set base = '/library/' ~ category.value %}
 
 {% block content %}
-<div x-data="{
-        viewer: null,
-        copied: false,
-        change: { open: false, tab: 'upload', filename: '', title: '' },
-        finder: { loading: false, error: '', results: [] },
-        openChange(filename, title) {
-            this.change = { open: true, tab: 'upload', filename: filename, title: title };
-            this.finder = { loading: false, error: '', results: [] };
-        },
-        findPosters() {
-            this.finder = { loading: true, error: '', results: [] };
-            fetch('{{ base }}/find-posters?filename=' + encodeURIComponent(this.change.filename), { headers: { Accept: 'application/json' } })
-                .then(r => r.ok ? r.json() : { posters: [], error: 'Search failed.' })
-                .then(d => { this.finder = { loading: false, error: d.error || '', results: Array.isArray(d.posters) ? d.posters : [] }; })
-                .catch(() => { this.finder = { loading: false, error: 'Search failed.', results: [] }; });
-        },
-        copyUrl(url) {
-            navigator.clipboard.writeText(window.location.origin + url)
-                .then(() => { this.copied = true; setTimeout(() => this.copied = false, 1600); })
-                .catch(() => {});
-        }
-     }">
+<div data-gallery data-base="{{ base }}" x-data="galleryUI"
+     @gallery:view.window="view($event.detail.url)"
+     @gallery:copy.window="copyUrl($event.detail.url)"
+     @gallery:change.window="openChange($event.detail.filename, $event.detail.title)"
+     @gallery:confirm.window="askConfirm($event.detail)"
+     @gallery:toast.window="notify($event.detail.text)"
+     @gallery:done.window="change.open = false">
 
     {% if flash %}
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
@@ -41,76 +26,22 @@
 
     <div class="toolbar">
         <form class="search" method="get" action="{{ base }}" role="search">
-            <input type="search" name="q" value="{{ query }}"
+            <input type="search" name="q" value="{{ query }}" autocomplete="off"
                    placeholder="Search {{ category.label }}…" aria-label="Search">
             {% if query is not empty %}
                 <a class="search__clear" href="{{ base }}">Clear</a>
             {% endif %}
         </form>
         <div class="toolbar__actions">
-            <a class="btn" href="/wall">Poster Wall</a>
+            <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
             <a class="btn" href="/plex">Import from Plex</a>
             <a class="btn" href="/orphans">Orphans</a>
         </div>
     </div>
 
-    <p class="stats">
-        {% if result.total > 0 %}
-            Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
-        {% else %}
-            No posters{{ query is not empty ? ' match your search' : ' yet — import from Plex to get started' }}.
-        {% endif %}
-    </p>
-
-    <div class="grid">
-        {% for poster in result.items %}
-            {% set linked = plex_configured and poster.filename in linked %}
-            <figure class="card">
-                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy"
-                     @click="viewer = '{{ poster.url }}'">
-                <div class="card__overlay">
-                    <span class="card__title" title="{{ poster.title }}">{{ poster.title }}</span>
-                    <div class="card__actions">
-                        <button type="button" class="btn btn--small btn--accent"
-                                @click="openChange('{{ poster.filename|e('js') }}', '{{ poster.title|e('js') }}')">
-                            Change poster
-                        </button>
-                        {% if linked %}
-                            <form method="post" action="{{ base }}/send-to-plex">
-                                <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small">Send to Plex</button>
-                            </form>
-                            <form method="post" action="{{ base }}/fetch-from-plex">
-                                <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small">Fetch from Plex</button>
-                            </form>
-                        {% endif %}
-                        <a class="btn btn--small" href="{{ poster.url }}" download>Download</a>
-                        <button type="button" class="btn btn--small" @click="copyUrl('{{ poster.url }}')">Copy URL</button>
-                        <button type="button" class="btn btn--small" @click="viewer = '{{ poster.url }}'">Full screen</button>
-                        <form method="post" action="{{ base }}/delete"
-                              onsubmit="return confirm('Delete this poster?');">
-                            <input type="hidden" name="filename" value="{{ poster.filename }}">
-                            <button type="submit" class="btn btn--small btn--danger">Delete</button>
-                        </form>
-                    </div>
-                </div>
-            </figure>
-        {% endfor %}
+    <div id="results">
+        {% include 'partials/gallery_results.html.twig' %}
     </div>
-
-    {% if result.totalPages > 1 %}
-        {% set q = query is not empty ? '&q=' ~ query|url_encode : '' %}
-        <nav class="pagination">
-            {% if result.hasPrevious %}
-                <a class="btn" href="{{ base }}?page={{ result.page - 1 }}{{ q }}">Previous</a>
-            {% endif %}
-            <span class="pagination__status">Page {{ result.page }} of {{ result.totalPages }}</span>
-            {% if result.hasNext %}
-                <a class="btn" href="{{ base }}?page={{ result.page + 1 }}{{ q }}">Next</a>
-            {% endif %}
-        </nav>
-    {% endif %}
 
     {# Change poster modal #}
     <div class="modal" x-show="change.open" x-cloak @keydown.escape.window="change.open = false" style="display:none">
@@ -129,7 +60,7 @@
                         @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
             </div>
 
-            <form class="form" method="post" action="{{ base }}/change/upload"
+            <form class="form js-mutate" method="post" action="{{ base }}/change/upload"
                   enctype="multipart/form-data" x-show="change.tab === 'upload'">
                 <input type="hidden" name="filename" :value="change.filename">
                 <label for="change-file">Image file (JPG, PNG, or WebP)</label>
@@ -137,7 +68,7 @@
                 <button type="submit" class="btn btn--accent">Update poster</button>
             </form>
 
-            <form class="form" method="post" action="{{ base }}/change/url" x-show="change.tab === 'url'">
+            <form class="form js-mutate" method="post" action="{{ base }}/change/url" x-show="change.tab === 'url'">
                 <input type="hidden" name="filename" :value="change.filename">
                 <label for="change-url">Image URL (also supports Mediux URLs)</label>
                 <input id="change-url" type="url" name="url" placeholder="https://…" required>
@@ -147,17 +78,41 @@
             <div x-show="change.tab === 'find'">
                 <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
+                <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
+                    Click a poster to preview it, or choose <strong>Use this</strong> to apply it.
+                </p>
                 <div class="find-grid">
                     <template x-for="url in finder.results" :key="url">
-                        <form method="post" action="{{ base }}/change/url">
-                            <input type="hidden" name="filename" :value="change.filename">
-                            <input type="hidden" name="url" :value="url">
-                            <button type="submit" class="find-grid__item" title="Use this poster">
-                                <img :src="url" alt="" loading="lazy">
-                            </button>
-                        </form>
+                        <figure class="find-item">
+                            <img class="find-item__img" :src="url" alt="" loading="lazy"
+                                 data-action="view" :data-url="url" title="Preview full screen">
+                            <div class="find-item__actions">
+                                <form class="js-mutate" method="post" action="{{ base }}/change/url">
+                                    <input type="hidden" name="filename" :value="change.filename">
+                                    <input type="hidden" name="url" :value="url">
+                                    <button type="submit" class="btn btn--small btn--accent">Use this</button>
+                                </form>
+                                <button type="button" class="btn btn--small" data-action="view" :data-url="url">View</button>
+                            </div>
+                        </figure>
                     </template>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# Confirm modal #}
+    <div class="modal" x-show="confirm.open" x-cloak @keydown.escape.window="confirm.open = false" style="display:none">
+        <div class="modal__backdrop" @click="confirm.open = false"></div>
+        <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm">
+            <div class="modal__head">
+                <h2 x-text="confirm.title"></h2>
+                <button type="button" class="modal__close" @click="confirm.open = false" aria-label="Close">&times;</button>
+            </div>
+            <p class="stats" x-text="confirm.message"></p>
+            <div class="modal__actions">
+                <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
+                <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
             </div>
         </div>
     </div>
@@ -168,7 +123,7 @@
         <img :src="viewer" alt="">
     </div>
 
-    {# Copy notification #}
-    <div class="toast" x-show="copied" x-cloak style="display:none">URL copied to clipboard</div>
+    {# Toast #}
+    <div class="toast" x-show="toast.show" x-cloak style="display:none" x-text="toast.text"></div>
 </div>
 {% endblock %}

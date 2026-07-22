@@ -63,6 +63,33 @@ final class GalleryTest extends AppTestCase
         self::assertSame(404, $this->get($this->app(), '/library/books')->getStatusCode());
     }
 
+    public function testGalleryRendersOverlayActionsAndCaption(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('id="results"', $body);
+        self::assertStringContainsString('card__caption', $body);
+        self::assertStringContainsString('data-action="change"', $body);
+        self::assertStringContainsString('data-action="view"', $body);
+        // The title moved to a caption; the old overlay title class is gone.
+        self::assertStringNotContainsString('card__title', $body);
+        // Poster Wall opens in a new tab.
+        self::assertStringContainsString('target="_blank"', $body);
+    }
+
+    public function testRemembersSectionForOrphansBackLink(): void
+    {
+        // One app instance so the in-memory session persists across requests.
+        $app = $this->makeApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+
+        $this->get($app, '/library/tv-shows');
+        $body = (string) $this->get($app, '/orphans')->getBody();
+
+        self::assertStringContainsString('href="/library/tv-shows"', $body);
+    }
+
     public function testImageIsServed(): void
     {
         $this->writePoster('Solaris.png');

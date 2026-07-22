@@ -9,6 +9,8 @@ use App\Plex\PlexClient;
 use App\Plex\PlexException;
 use App\Plex\PlexMediaType;
 use App\Support\Flash;
+use App\Support\LastCategory;
+use App\Support\Session\SessionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
@@ -23,6 +25,7 @@ final class PlexImportController
         private readonly PlexClient $plex,
         private readonly ImportService $import,
         private readonly Flash $flash,
+        private readonly SessionInterface $session,
     ) {
     }
 
@@ -51,6 +54,7 @@ final class PlexImportController
                 ['value' => 'collection', 'label' => 'Collections'],
             ],
             'flash' => $this->flash->pull(),
+            'back_url' => LastCategory::backUrl($this->session),
         ]);
     }
 

@@ -3,7 +3,7 @@
 {% block title %}Import from Plex · {{ site_title }}{% endblock %}
 
 {% block content %}
-    <p><a class="search__clear" href="/library/movies">&larr; Back to library</a></p>
+    <p><a class="search__clear" href="{{ back_url }}">&larr; Back to library</a></p>
     <h1>Import from Plex</h1>
 
     {% if flash %}

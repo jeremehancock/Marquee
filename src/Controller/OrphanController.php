@@ -8,6 +8,8 @@ use App\Plex\Orphan\OrphanService;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
 use App\Support\Flash;
+use App\Support\LastCategory;
+use App\Support\Session\SessionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
@@ -22,6 +24,7 @@ final class OrphanController
         private readonly PlexClient $plex,
         private readonly OrphanService $orphans,
         private readonly Flash $flash,
+        private readonly SessionInterface $session,
     ) {
     }
 
@@ -44,6 +47,7 @@ final class OrphanController
             'orphans' => $orphans,
             'error' => $error,
             'flash' => $this->flash->pull(),
+            'back_url' => LastCategory::backUrl($this->session),
         ]);
     }
 

@@ -252,13 +252,22 @@ h1 {
 /* Poster grid */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 18px;
+}
+
+[data-gallery].is-loading #results {
+    opacity: 0.55;
+    transition: opacity 0.1s ease;
 }
 
 .card {
-    position: relative;
     margin: 0;
+}
+
+/* The frame holds the poster and its hover overlay; the title sits below it. */
+.card__frame {
+    position: relative;
     aspect-ratio: 2 / 3;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -266,12 +275,41 @@ h1 {
     overflow: hidden;
 }
 
+/* Subtle shimmer shown until the lazy-loaded image fades in. */
+.card__frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, var(--surface) 30%, rgba(255, 255, 255, 0.06) 50%, var(--surface) 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.3s linear infinite;
+}
+
 .card__image {
+    position: relative;
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
     cursor: zoom-in;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.card__image.is-loaded {
+    opacity: 1;
+}
+
+.card__caption {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.3;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* Actions overlay the poster and reveal on hover (always on touch). */
@@ -289,22 +327,9 @@ h1 {
     overflow-y: auto;
 }
 
-.card:hover .card__overlay,
-.card:focus-within .card__overlay,
-.card__overlay--static {
+.card__frame:hover .card__overlay,
+.card__frame:focus-within .card__overlay {
     opacity: 1;
-}
-
-.card__title {
-    color: #fff;
-    font-size: 0.82rem;
-    line-height: 1.25;
-    text-align: center;
-    margin-bottom: 4px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 
 .card__actions {
@@ -320,33 +345,61 @@ h1 {
 .card__actions .btn {
     width: 100%;
     text-align: center;
-    padding: 5px 8px;
-    font-size: 0.78rem;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+}
+
+@keyframes shimmer {
+    to {
+        background-position: -200% 0;
+    }
 }
 
 .find-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 10px;
-    max-height: 58vh;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    max-height: 62vh;
     overflow-y: auto;
     padding-top: 4px;
 }
 
-.find-grid__item {
-    border: 1px solid var(--border);
-    background: none;
-    padding: 0;
-    border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
+.find-item {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.find-grid__item img {
+.find-item__img {
     display: block;
     width: 100%;
     aspect-ratio: 2 / 3;
     object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: zoom-in;
+}
+
+.find-item__actions {
+    display: flex;
+    gap: 6px;
+}
+
+.find-item__actions .btn {
+    flex: 1;
+    text-align: center;
+    padding: 5px 6px;
+    font-size: 0.76rem;
+}
+
+.find-item__actions form {
+    flex: 1;
+    display: flex;
+}
+
+.find-item__actions form .btn {
+    width: 100%;
 }
 
 .toast {
@@ -400,8 +453,13 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .spinner {
+    .spinner,
+    .card__frame::before {
         animation: none;
+    }
+
+    .card__image {
+        transition: none;
     }
 }
 
@@ -455,6 +513,21 @@ h1 {
 /* Give the found-poster gallery more room so thumbnails read cleanly. */
 .modal__panel--wide {
     width: min(760px, 94vw);
+}
+
+.modal__panel--narrow {
+    width: min(380px, 92vw);
+}
+
+.modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal__actions form {
+    display: inline;
 }
 
 .modal__head {
