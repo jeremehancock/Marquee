@@ -11,6 +11,8 @@
      @gallery:change.window="openChange($event.detail.filename, $event.detail.title)"
      @gallery:confirm.window="askConfirm($event.detail)"
      @gallery:toast.window="notify($event.detail.text)"
+     @gallery:sheet.window="openSheet($event.detail)"
+     @gallery:sheet-close.window="closeSheet()"
      @gallery:done.window="change.open = false">
 
     {% if flash %}
@@ -114,6 +116,19 @@
                 <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
                 <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
             </div>
+        </div>
+    </div>
+
+    {# Mobile action sheet: holds a tapped poster's actions at full size #}
+    <div class="sheet" x-show="sheet.open" x-cloak
+         @keydown.escape.window="closeSheet()" style="display:none">
+        <div class="sheet__backdrop" @click="closeSheet()"></div>
+        <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Poster actions">
+            <div class="sheet__head">
+                <span class="sheet__title" x-text="sheet.title"></span>
+                <button type="button" class="modal__close" @click="closeSheet()" aria-label="Close">&times;</button>
+            </div>
+            <div class="sheet__body" x-html="sheet.actions"></div>
         </div>
     </div>
 

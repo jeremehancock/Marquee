@@ -18,6 +18,7 @@
                 change: { open: false, tab: 'upload', filename: '', title: '' },
                 finder: { loading: false, error: '', results: [] },
                 confirm: { open: false, title: '', message: '', label: 'Confirm' },
+                sheet: { open: false, title: '', actions: '' },
                 toast: { show: false, text: '' },
                 _toastTimer: null,
 
@@ -26,6 +27,12 @@
                 },
                 view: function (url) {
                     if (url) { this.viewer = url; }
+                },
+                openSheet: function (detail) {
+                    this.sheet = { open: true, title: detail.title || '', actions: detail.actions || '' };
+                },
+                closeSheet: function () {
+                    this.sheet.open = false;
                 },
                 openChange: function (filename, title) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title };
@@ -173,9 +180,16 @@
 
         // Delegated clicks for card + finder actions and pagination.
         root.addEventListener('click', function (e) {
+            // Tapping the download link inside the sheet: let it download, close.
+            if (e.target.closest('.sheet__body a[download]')) {
+                dispatch('gallery:sheet-close', {});
+                return;
+            }
             var actionEl = e.target.closest('[data-action]');
             if (actionEl && root.contains(actionEl)) {
                 var action = actionEl.getAttribute('data-action');
+                // Actions can be triggered from the mobile sheet; close it after.
+                dispatch('gallery:sheet-close', {});
                 if (action === 'view') {
                     e.preventDefault();
                     dispatch('gallery:view', { url: actionEl.getAttribute('data-url') });
@@ -201,23 +215,29 @@
                 load(pageLink.getAttribute('href'), true);
                 return;
             }
-            // Tap a poster to reveal/hide its action overlay (touch-friendly;
-            // desktop still reveals on hover).
+            // Tapping a poster: on touch, open the action sheet (there is no room
+            // for an overlay on a phone); on desktop, open it full screen (the
+            // hover overlay already provides the actions).
             var frame = e.target.closest('.card__frame');
             if (frame && root.contains(frame)) {
                 if (e.target.closest('.card__actions')) { return; }
-                var wasOpen = frame.classList.contains('is-open');
-                closeOverlays();
-                if (!wasOpen) { frame.classList.add('is-open'); }
-                return;
+                if (isTouch()) {
+                    var actions = frame.querySelector('.card__actions');
+                    var card = frame.closest('.card');
+                    var caption = card ? card.querySelector('.card__caption') : null;
+                    dispatch('gallery:sheet', {
+                        title: caption ? caption.textContent.trim() : '',
+                        actions: actions ? actions.outerHTML : '',
+                    });
+                } else {
+                    var image = frame.querySelector('.card__image');
+                    if (image) { dispatch('gallery:view', { url: image.getAttribute('src') }); }
+                }
             }
-            closeOverlays();
         });
 
-        function closeOverlays() {
-            root.querySelectorAll('.card__frame.is-open').forEach(function (f) {
-                f.classList.remove('is-open');
-            });
+        function isTouch() {
+            return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
         }
 
         // Delegated submit for every AJAX mutation form.
@@ -225,6 +245,8 @@
             var form = e.target;
             if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-mutate')) { return; }
             e.preventDefault();
+            // A form may live in the mobile sheet; close it either way.
+            dispatch('gallery:sheet-close', {});
             if (form.hasAttribute('data-confirm')) {
                 pendingForm = form;
                 dispatch('gallery:confirm', {
