@@ -60,3 +60,31 @@ can reconcile the local library against Plex.
 #### Scenario: Libraries recorded on import
 - **WHEN** an import runs
 - **THEN** the system stores the name and type of each library it imported from
+
+### Requirement: Import options match the selected libraries
+The system SHALL offer, among the import media-type options, only those that
+apply to the currently selected libraries: movie types for movie libraries, TV
+types for show libraries, and collections whenever any library is selected. An
+option that does not apply SHALL NOT be selectable.
+
+#### Scenario: Movie library disables TV types
+- **WHEN** only a movie library is selected
+- **THEN** the "TV Shows" and "TV Seasons" options are not selectable
+
+#### Scenario: Show library enables TV types
+- **WHEN** a show library is selected
+- **THEN** the "TV Shows" and "TV Seasons" options are selectable
+
+#### Scenario: Collections available with any library
+- **WHEN** at least one library is selected
+- **THEN** the "Collections" option is selectable
+
+### Requirement: Import progress indication
+The system SHALL indicate that an import is running once it is started, and
+SHALL prevent it from being started again until it finishes, so the user knows
+it is in progress.
+
+#### Scenario: Running import is indicated
+- **WHEN** a user starts an import
+- **THEN** the interface shows that the import is in progress and disables
+  starting another until it completes

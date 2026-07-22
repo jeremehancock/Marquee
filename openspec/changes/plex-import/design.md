@@ -47,6 +47,14 @@ small SQLite store, and a focused import service.
   for movies, `"{title} [{library}]"` for shows/collections,
   `"{show} - {season} [{library}]"` for seasons. The mapping keeps re-imports
   stable even if the title later changes.
+- **SQLite concurrency.** The database uses WAL journaling, a busy timeout, and
+  `synchronous = NORMAL`, so an import (writer) overlapping the gallery (reader)
+  does not raise "database is locked". Import only calls Plex's HTTP API
+  sequentially; it never touches Plex's own database.
+- **Import feedback.** Import runs in a single request; the page indicates it is
+  running and disables re-submission. PHP `max_execution_time` and nginx
+  `fastcgi_read_timeout` are raised so large libraries are not cut off. A
+  batched/streaming progress UI remains a possible later refinement.
 
 ## Risks / Trade-offs
 

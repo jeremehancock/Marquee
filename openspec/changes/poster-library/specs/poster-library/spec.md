@@ -59,3 +59,20 @@ The system SHALL allow an authenticated user to delete a poster from a category.
 - **WHEN** an authenticated user deletes an existing poster
 - **THEN** the system removes the image file and it no longer appears in the
   gallery
+
+### Requirement: Fullscreen poster view
+The system SHALL let a user view any gallery poster full screen.
+
+#### Scenario: Open a poster full screen
+- **WHEN** a user activates a poster in the gallery
+- **THEN** the system displays that poster in a full-screen view
+
+### Requirement: Per-poster actions in the gallery
+The system SHALL make each poster's actions available with the poster in the
+gallery, without the actions being clipped or hidden off-card. The actions
+include at least viewing full screen and deleting.
+
+#### Scenario: Actions available for a poster
+- **WHEN** a user hovers or focuses a poster in the gallery (or on a touch
+  device, at rest)
+- **THEN** the system reveals that poster's actions over the poster
