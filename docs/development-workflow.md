@@ -220,8 +220,9 @@ Say you want to add "export/import a backup of all posters."
 7. **Test the `:dev` image.** Once merged into `dev`, CI publishes
    `bozodev/marquee:dev`; pull it on your test instance and try it for real.
 
-8. **Release:** when it's solid, open a PR from `dev` → `main`. Merging publishes
-   `bozodev/marquee:latest`.
+8. **Promote to production:** when it's solid, open a PR from `dev` → `main`.
+   Merging publishes `bozodev/marquee:latest`. Optionally cut a versioned release
+   afterward — see [Promoting & releasing](#promoting--releasing).
 
 9. **Archive** the change so the specs reflect reality:
 
@@ -235,16 +236,42 @@ Say you want to add "export/import a backup of all posters."
 
 ---
 
-## Cutting a release
+## Promoting & releasing
 
-`main` is always `:latest`. To also publish a **versioned** image, bump the
-`VERSION` file and push a git tag — the workflow reads the version from that file
-and publishes `bozodev/marquee:<version>` **and** refreshes `:latest`.
+There are two separate things here, and it's worth keeping them straight:
 
-1. Make sure the code you want to ship is merged into `main` (via a `dev → main`
-   PR).
-2. On `main`, set the new version in the `VERSION` file (this is also what the
-   app shows in its footer). Commit it:
+- **Promote to production** = merge `dev` → `main`. This moves `:latest`
+  automatically. `main` is *always* `:latest`.
+- **Cut a versioned release** = bump `VERSION` and push a tag. This *additionally*
+  publishes a pinned `bozodev/marquee:<version>` image and (if you use a GitHub
+  Release) powers the in-app update notice.
+
+You do **not** have to cut a release on every merge — `:latest` already tracks
+`main`. Release only when you want a version number people can pin to.
+
+### Step 1 — Validate on `dev`
+
+Your work is merged into `dev`, CI has published `bozodev/marquee:dev`, and you've
+tested that image on a throwaway instance (see the staging compose above).
+
+### Step 2 — Promote: merge `dev` → `main`
+
+Open a PR from `dev` into `main` and merge it. The push to `main` triggers the
+publish workflow and updates **`bozodev/marquee:latest`**. Production is now up to
+date — nothing else is required unless you want a pinned version.
+
+```bash
+# after the dev → main PR is merged, get the latest main locally:
+git checkout main && git pull
+```
+
+### Step 3 — (Optional) Cut a versioned release
+
+The **`VERSION` file is the source of truth** for the version number (it's also
+what the app shows in its footer). The tag name is only the trigger; keep them in
+sync.
+
+1. Bump `VERSION` on `main` and commit:
 
    ```bash
    git checkout main && git pull
@@ -253,24 +280,53 @@ and publishes `bozodev/marquee:<version>` **and** refreshes `:latest`.
    git push
    ```
 
-3. Publish a **GitHub Release** for that commit (Releases → Draft a new release →
-   create tag `v1.0.0` → Publish). This both triggers the Docker build and powers
-   Marquee's in-app "Update available" notice (which checks GitHub Releases).
+   > Pushing this commit fires a `:latest` build on its own. The tag in the next
+   > step fires a second build that *adds* `:1.0.0` and refreshes `:latest`. Two
+   > builds, both harmless.
 
-   Or just push a tag from the CLI (builds the image, but no in-app notice):
+2. Publish the release. Two options:
 
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+   - **GitHub Release (recommended)** — Releases → *Draft a new release* → create
+     tag `v1.0.0` on `main` → write notes → *Publish*. This triggers the Docker
+     build **and** powers Marquee's in-app "Update available" notice (which reads
+     GitHub Releases).
+   - **Plain tag** — builds the image, but no in-app notice:
 
-The workflow then pushes `bozodev/marquee:1.0.0` and `bozodev/marquee:latest`.
+     ```bash
+     git tag v1.0.0
+     git push origin v1.0.0
+     ```
 
-Notes:
-- The **`VERSION` file is the source of truth** for the version number; the tag
-  name is only the trigger. Keep them in sync (tag `v1.0.0` ↔ `VERSION` `1.0.0`).
+   Either way the workflow reads `VERSION` and pushes **`bozodev/marquee:1.0.0`**
+   and **`bozodev/marquee:latest`**.
+
+### Step 4 — Keep `dev` in sync
+
+After a release, `dev` is behind `main` by the `VERSION`-bump commit. Fast-forward
+it so it doesn't drift (this avoids conflicts on your next `dev → main` PR):
+
+```bash
+git checkout dev && git merge main && git push
+```
+
+### Release checklist
+
+```
+[ ] Feature validated against the :dev image
+[ ] dev → main PR merged            → :latest updated
+[ ] VERSION bumped on main + pushed → :latest rebuilt
+[ ] GitHub Release vX.Y.Z published → :X.Y.Z + :latest, in-app notice
+[ ] dev synced with main
+```
+
+### Notes
+
+- Tag `v1.0.0` ↔ `VERSION` `1.0.0`. If they ever disagree, the **file wins** for
+  the Docker tag and the app footer.
 - The in-app update check compares against `UPDATE_REPO` (default
   `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
+- Every build also gets an immutable `sha-<short>` tag, so you can always pull a
+  specific commit's image (handy for rollbacks).
 
 ---
 
@@ -302,13 +358,18 @@ openspec archive <change>
 /opsx:archive   <change>
 
 # Branch → image tag
-#   dev     → bozodev/marquee:dev                (test)
-#   main    → bozodev/marquee:latest             (release)
-#   v* tag  → bozodev/marquee:<VERSION> + latest  (versioned release)
+#   dev     → bozodev/marquee:dev                 (test)
+#   main    → bozodev/marquee:latest              (production, always latest)
+#   v* tag  → bozodev/marquee:<VERSION> + latest   (versioned release)
 
-# Cut a versioned release
+# Promote + release (after validating on :dev)
+#   1. merge dev → main (PR)            → :latest
+git checkout main && git pull
+#   2. bump version + release
 echo "1.0.0" > VERSION && git commit -am "Release 1.0.0" && git push
-git tag v1.0.0 && git push origin v1.0.0   # or publish a GitHub Release
+git tag v1.0.0 && git push origin v1.0.0    # or publish a GitHub Release
+#   3. resync dev
+git checkout dev && git merge main && git push
 ```
 
 ### Repo layout
