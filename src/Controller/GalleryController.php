@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Config\PlexConfig;
+use App\Database\PlexItemRepository;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Support\Flash;
@@ -21,6 +23,8 @@ final class GalleryController
         private readonly Twig $twig,
         private readonly PosterLibrary $library,
         private readonly Flash $flash,
+        private readonly PlexConfig $plexConfig,
+        private readonly PlexItemRepository $plexItems,
     ) {
     }
 
@@ -47,12 +51,17 @@ final class GalleryController
 
         $result = $this->library->browse($category, $query, $page);
 
+        $plexConfigured = $this->plexConfig->isConfigured();
+        $linked = $plexConfigured ? $this->plexItems->filenamesForCategory($category->value) : [];
+
         return $this->twig->render($response, 'gallery.html.twig', [
             'category' => $category,
             'categories' => PosterCategory::all(),
             'query' => $query,
             'result' => $result,
             'flash' => $this->flash->pull(),
+            'plex_configured' => $plexConfigured,
+            'linked' => $linked,
         ]);
     }
 }

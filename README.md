@@ -62,8 +62,9 @@ data and logs (`/config/data`).
 | `TZ`               | Timezone                                 | `Etc/UTC`  |
 | `IMAGES_PER_PAGE`  | Posters shown per gallery page           | `24`       |
 | `MAX_FILE_SIZE`    | Maximum upload size, in bytes            | `5242880`  |
-| `PLEX_SERVER_URL`  | Plex Media Server URL (for import)       | _(unset)_  |
+| `PLEX_SERVER_URL`  | Plex Media Server URL (import & export)  | _(unset)_  |
 | `PLEX_TOKEN`       | Plex authentication token                | _(unset)_  |
+| `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa "Overlay" label on send | `false` |
 
 More variables (auto-import, poster sources) arrive with their features.
 

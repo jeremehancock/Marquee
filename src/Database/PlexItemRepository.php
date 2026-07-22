@@ -25,12 +25,15 @@ final class PlexItemRepository
     public function upsert(PlexItemRecord $record): void
     {
         $stmt = $this->database->pdo()->prepare(
-            'INSERT INTO plex_items (rating_key, media_type, category, library_title, title, filename, updated_at)
-             VALUES (:rating_key, :media_type, :category, :library_title, :title, :filename, :updated_at)
+            'INSERT INTO plex_items
+                (rating_key, media_type, category, library_title, section_key, title, filename, updated_at)
+             VALUES
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
                 library_title = excluded.library_title,
+                section_key = excluded.section_key,
                 title = excluded.title,
                 filename = excluded.filename,
                 updated_at = excluded.updated_at'
@@ -41,10 +44,42 @@ final class PlexItemRepository
             ':media_type' => $record->mediaType,
             ':category' => $record->category,
             ':library_title' => $record->libraryTitle,
+            ':section_key' => $record->sectionKey,
             ':title' => $record->title,
             ':filename' => $record->filename,
             ':updated_at' => $record->updatedAt,
         ]);
+    }
+
+    public function findByFilename(string $category, string $filename): ?PlexItemRecord
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT * FROM plex_items WHERE category = :category AND filename = :filename LIMIT 1'
+        );
+        $stmt->execute([':category' => $category, ':filename' => $filename]);
+        $row = $stmt->fetch();
+
+        return is_array($row) ? PlexItemRecord::fromRow($row) : null;
+    }
+
+    /**
+     * Filenames in a category that are linked to a Plex item.
+     *
+     * @return list<string>
+     */
+    public function filenamesForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare('SELECT filename FROM plex_items WHERE category = :category');
+        $stmt->execute([':category' => $category]);
+
+        $filenames = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'])) {
+                $filenames[] = (string) $row['filename'];
+            }
+        }
+
+        return $filenames;
     }
 
     /**

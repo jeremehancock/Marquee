@@ -12,6 +12,7 @@ use App\Config\PosterConfig;
 use App\Database\Database;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
+use App\Plex\PlexPosterWriter;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
 use App\Support\Session\NativeSession;
@@ -46,8 +47,10 @@ function buildContainer(array $overrides = []): Container
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
         Database::class => static fn (AppConfig $app): Database => new Database($app->dataDir . '/marquee.sqlite'),
-        PlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): PlexClient
+        HttpPlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): HttpPlexClient
             => new HttpPlexClient($http, $plex),
+        PlexClient::class => \DI\get(HttpPlexClient::class),
+        PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
         LoggerInterface::class => static function (AppConfig $config): LoggerInterface {
             if (!is_dir($config->dataDir)) {
                 @mkdir($config->dataDir, 0o775, true);

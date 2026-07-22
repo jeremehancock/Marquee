@@ -14,9 +14,11 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 
 final class HttpPlexClientTest extends TestCase
 {
@@ -100,5 +102,64 @@ final class HttpPlexClientTest extends TestCase
 
         $this->expectException(PlexException::class);
         $this->client([$error])->libraries();
+    }
+
+    /**
+     * @param list<array<string, mixed>> $history
+     */
+    private function recordingClient(array &$history): HttpPlexClient
+    {
+        $stack = HandlerStack::create(new MockHandler([new Response(200), new Response(200), new Response(200)]));
+        $stack->push(Middleware::history($history));
+        $guzzle = new Client(['handler' => $stack]);
+
+        return new HttpPlexClient($guzzle, new PlexConfig('http://plex:32400', 'token', 10, 60));
+    }
+
+    public function testUploadPosterPostsImageBytes(): void
+    {
+        $history = [];
+        $this->recordingClient($history)->uploadPoster('10', 'IMAGE-BYTES');
+
+        $request = $this->lastRequest($history);
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('/library/metadata/10/posters', $request->getUri()->getPath());
+        self::assertSame('IMAGE-BYTES', (string) $request->getBody());
+    }
+
+    public function testLockPosterPutsLockFlag(): void
+    {
+        $history = [];
+        $this->recordingClient($history)->lockPoster('10');
+
+        $request = $this->lastRequest($history);
+        self::assertSame('PUT', $request->getMethod());
+        self::assertSame('/library/metadata/10', $request->getUri()->getPath());
+        self::assertStringContainsString('thumb.locked=1', $request->getUri()->getQuery());
+    }
+
+    public function testRemoveOverlayLabelPutsLabelEdit(): void
+    {
+        $history = [];
+        $this->recordingClient($history)->removeOverlayLabel('5', 1, '10');
+
+        $request = $this->lastRequest($history);
+        self::assertSame('PUT', $request->getMethod());
+        self::assertSame('/library/sections/5/all', $request->getUri()->getPath());
+        $query = urldecode($request->getUri()->getQuery());
+        self::assertStringContainsString('type=1', $query);
+        self::assertStringContainsString('id=10', $query);
+        self::assertStringContainsString('Overlay', $query);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $history
+     */
+    private function lastRequest(array $history): RequestInterface
+    {
+        $request = $history[count($history) - 1]['request'] ?? null;
+        self::assertInstanceOf(RequestInterface::class, $request);
+
+        return $request;
     }
 }

@@ -16,6 +16,7 @@ final class PlexConfig
         public readonly string $token,
         public readonly int $connectTimeout,
         public readonly int $requestTimeout,
+        public readonly bool $removeOverlayLabel = false,
     ) {
     }
 
@@ -26,6 +27,7 @@ final class PlexConfig
             token: Env::str('PLEX_TOKEN', ''),
             connectTimeout: max(1, Env::int('PLEX_CONNECT_TIMEOUT', 10)),
             requestTimeout: max(1, Env::int('PLEX_REQUEST_TIMEOUT', 60)),
+            removeOverlayLabel: Env::bool('PLEX_REMOVE_OVERLAY_LABEL', false),
         );
     }
 

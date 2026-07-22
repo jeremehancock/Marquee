@@ -17,6 +17,7 @@ final class PlexItem
         public readonly ?string $thumb,
         public readonly string $libraryTitle,
         public readonly ?string $parentTitle = null,
+        public readonly string $sectionKey = '',
     ) {
     }
 

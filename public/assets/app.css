@@ -278,6 +278,12 @@ h1 {
     text-overflow: ellipsis;
 }
 
+.card__actions {
+    display: flex;
+    gap: 6px;
+    flex: none;
+}
+
 /* Pagination */
 .pagination {
     display: flex;

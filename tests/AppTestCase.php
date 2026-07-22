@@ -32,6 +32,10 @@ abstract class AppTestCase extends TestCase
             'SESSION_DURATION' => '3600',
             'DATA_DIR' => sys_get_temp_dir() . '/marquee-test-data',
             'DISPLAY_ERRORS' => 'false',
+            // Reset Plex vars each time so one test's config cannot leak into another.
+            'PLEX_SERVER_URL' => '',
+            'PLEX_TOKEN' => '',
+            'PLEX_REMOVE_OVERLAY_LABEL' => 'false',
         ];
         foreach (array_merge($defaults, $env) as $key => $value) {
             putenv($key . '=' . $value);

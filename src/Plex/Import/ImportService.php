@@ -109,6 +109,7 @@ final class ImportService
                 title: $item->displayTitle(),
                 filename: $filename,
                 updatedAt: time(),
+                sectionKey: $item->sectionKey,
             ));
 
             $result->recordImported($category);

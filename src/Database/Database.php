@@ -49,6 +49,7 @@ final class Database
                 media_type TEXT NOT NULL,
                 category TEXT NOT NULL,
                 library_title TEXT NOT NULL,
+                section_key TEXT NOT NULL DEFAULT \'\',
                 title TEXT NOT NULL,
                 filename TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
@@ -63,5 +64,17 @@ final class Database
                 updated_at INTEGER NOT NULL
             )'
         );
+
+        // Added after the initial release; safe to run every boot.
+        $this->ensureColumn($pdo, 'plex_items', 'section_key', "TEXT NOT NULL DEFAULT ''");
+    }
+
+    private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void
+    {
+        $stmt = $pdo->query(sprintf('PRAGMA table_info(%s)', $table));
+        $columns = $stmt !== false ? array_column($stmt->fetchAll(), 'name') : [];
+        if (!in_array($column, $columns, true)) {
+            $pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $type));
+        }
     }
 }

@@ -12,7 +12,7 @@ use SimpleXMLElement;
 /**
  * Talks to a Plex Media Server over its XML HTTP API.
  */
-final class HttpPlexClient implements PlexClient
+final class HttpPlexClient implements PlexClient, PlexPosterWriter
 {
     public function __construct(
         private readonly ClientInterface $http,
@@ -52,11 +52,11 @@ final class HttpPlexClient implements PlexClient
         $items = [];
         if ($library->isMovie()) {
             foreach ($xml->Video as $video) {
-                $items[] = $this->item($video, PlexMediaType::Movie, $library->title);
+                $items[] = $this->item($video, PlexMediaType::Movie, $library);
             }
         } else {
             foreach ($xml->Directory as $directory) {
-                $items[] = $this->item($directory, PlexMediaType::Show, $library->title);
+                $items[] = $this->item($directory, PlexMediaType::Show, $library);
             }
         }
 
@@ -80,6 +80,7 @@ final class HttpPlexClient implements PlexClient
                 thumb: $this->attr($directory, 'thumb'),
                 libraryTitle: $show->libraryTitle,
                 parentTitle: $show->title,
+                sectionKey: $show->sectionKey,
             );
         }
 
@@ -92,7 +93,7 @@ final class HttpPlexClient implements PlexClient
 
         $items = [];
         foreach ($xml->Directory as $directory) {
-            $items[] = $this->item($directory, PlexMediaType::Collection, $library->title);
+            $items[] = $this->item($directory, PlexMediaType::Collection, $library);
         }
 
         return $items;
@@ -113,7 +114,48 @@ final class HttpPlexClient implements PlexClient
         return (string) $response->getBody();
     }
 
-    private function item(SimpleXMLElement $element, PlexMediaType $type, string $libraryTitle): PlexItem
+    public function uploadPoster(string $ratingKey, string $imageBytes): void
+    {
+        $this->write(
+            'POST',
+            sprintf('/library/metadata/%s/posters', rawurlencode($ratingKey)),
+            ['body' => $imageBytes],
+        );
+    }
+
+    public function lockPoster(string $ratingKey): void
+    {
+        $this->write('PUT', sprintf('/library/metadata/%s?thumb.locked=1', rawurlencode($ratingKey)));
+    }
+
+    public function removeOverlayLabel(string $sectionKey, int $plexType, string $ratingKey): void
+    {
+        $query = http_build_query([
+            'type' => $plexType,
+            'id' => $ratingKey,
+            'label[].tag.tag-' => 'Overlay',
+        ]);
+
+        $this->write('PUT', sprintf('/library/sections/%s/all?%s', rawurlencode($sectionKey), $query));
+    }
+
+    /**
+     * @param array<string, mixed> $extra
+     */
+    private function write(string $method, string $path, array $extra = []): void
+    {
+        if (!$this->config->isConfigured()) {
+            throw PlexException::notConfigured();
+        }
+
+        try {
+            $this->http->request($method, $this->config->serverUrl . $path, $extra + $this->options());
+        } catch (GuzzleException $e) {
+            throw PlexException::connectionFailed($e);
+        }
+    }
+
+    private function item(SimpleXMLElement $element, PlexMediaType $type, PlexLibrary $library): PlexItem
     {
         return new PlexItem(
             ratingKey: (string) $element['ratingKey'],
@@ -121,7 +163,8 @@ final class HttpPlexClient implements PlexClient
             title: (string) $element['title'],
             year: isset($element['year']) ? (int) $element['year'] : null,
             thumb: $this->attr($element, 'thumb'),
-            libraryTitle: $libraryTitle,
+            libraryTitle: $library->title,
+            sectionKey: $library->key,
         );
     }
 

@@ -49,11 +49,19 @@
                 </button>
                 <figcaption class="card__body">
                     <span class="card__title" title="{{ poster.title }}">{{ poster.title }}</span>
-                    <form method="post" action="{{ base }}/delete"
-                          onsubmit="return confirm('Delete this poster?');">
-                        <input type="hidden" name="filename" value="{{ poster.filename }}">
-                        <button type="submit" class="btn btn--danger btn--small">Delete</button>
-                    </form>
+                    <div class="card__actions">
+                        {% if plex_configured and poster.filename in linked %}
+                            <form method="post" action="{{ base }}/send-to-plex">
+                                <input type="hidden" name="filename" value="{{ poster.filename }}">
+                                <button type="submit" class="btn btn--small">Send to Plex</button>
+                            </form>
+                        {% endif %}
+                        <form method="post" action="{{ base }}/delete"
+                              onsubmit="return confirm('Delete this poster?');">
+                            <input type="hidden" name="filename" value="{{ poster.filename }}">
+                            <button type="submit" class="btn btn--danger btn--small">Delete</button>
+                        </form>
+                    </div>
                 </figcaption>
             </figure>
         {% endfor %}
