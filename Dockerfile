@@ -4,15 +4,19 @@
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
+# The runtime image installs the PHP extensions (gd, pdo, curl, …) via apk; the
+# build image only resolves and downloads packages, so skip its platform checks.
 RUN composer install \
     --no-dev --no-scripts --no-interaction \
-    --prefer-dist --optimize-autoloader
+    --prefer-dist --optimize-autoloader \
+    --ignore-platform-reqs
 
 # ---- Stage 2: runtime ----
 FROM ghcr.io/linuxserver/baseimage-alpine-nginx:3.21
 
-# PHP runtime extensions
+# PHP runtime extensions (and curl for the healthcheck)
 RUN apk add --no-cache \
+    curl \
     php83-curl \
     php83-gd \
     php83-pdo \
