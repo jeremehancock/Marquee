@@ -1,5 +1,11 @@
 # Marquee
 
+> ⚠️ **Early Alpha — not ready for general use.** Marquee is under active
+> development. Things may change, break, or behave unexpectedly without notice.
+> Don't point it at a Plex library you aren't willing to experiment on, and keep
+> your own backups. Testing and feedback are very welcome — but treat it as
+> experimental for now.
+
 Marquee is a self-hosted web app for managing your Plex media posters — for
 Movies, TV Shows, TV Seasons, and Collections. Import every poster from Plex,
 then refine each one in place: upload your own art, paste an image URL, or pick a
@@ -126,7 +132,7 @@ server.
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
 | `POSTER_SOURCE_URL` | Base URL of the poster search service used by **Find Posters** | `https://posteria.app` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
-| `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Posteria-II` |
+| `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 
 ### Finding your Plex token
 
@@ -161,6 +167,18 @@ docker compose up -d
 
 If `UPDATE_CHECK_ENABLED` is on, Marquee shows a note in the footer when a newer
 release is available.
+
+### Image tags
+
+| Tag | Built from | Use for |
+| --- | --- | --- |
+| `bozodev/marquee:latest` | the `main` branch, and every tagged release | production |
+| `bozodev/marquee:dev` | the `dev` branch | testing upcoming changes |
+| `bozodev/marquee:<version>` | a `v*` git tag; the version comes from the `VERSION` file | pinning a specific release |
+
+Images are built and pushed automatically by GitHub Actions
+(`.github/workflows/docker-publish.yml`). Publishing a release tag pushes both
+`:<version>` and `:latest`.
 
 ## FAQ
 
@@ -212,6 +230,12 @@ composer cs:fix        # PHP-CS-Fixer (apply)
 # Run locally on http://localhost:8080
 php -S localhost:8080 -t public public/index.php
 ```
+
+See [`docs/development-workflow.md`](docs/development-workflow.md) for the
+VSCodium + Claude Code + OpenSpec setup and the `dev`/`main` branch flow, and
+[`docs/testing.md`](docs/testing.md) for validating the live Plex round-trip
+(poster locking and the Kometa label), including the
+[`scripts/marquee-plex-test.py`](scripts/marquee-plex-test.py) tester.
 
 ### Tech stack
 
