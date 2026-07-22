@@ -1,11 +1,14 @@
 name: Publish Docker image
 
-# Build and push the multi-arch image to Docker Hub whenever main is updated.
-# Also runs on version tags (v1.2.3 -> tagged releases) and can be triggered by
-# hand from the Actions tab.
+# Build and push the multi-arch image to Docker Hub.
+#   push to main  -> bozodev/marquee:latest   (production)
+#   push to dev   -> bozodev/marquee:dev       (testing)
+#   push a v* tag -> bozodev/marquee:X.Y.Z + X.Y
+# Every build also gets an immutable sha-<short> tag. Can be run by hand from the
+# Actions tab.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ['v*']
   workflow_dispatch:
 
@@ -45,6 +48,7 @@ jobs:
           images: bozodev/marquee
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
             type=sha,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

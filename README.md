@@ -162,6 +162,17 @@ docker compose up -d
 If `UPDATE_CHECK_ENABLED` is on, Marquee shows a note in the footer when a newer
 release is available.
 
+### Image tags
+
+| Tag | Built from | Use for |
+| --- | --- | --- |
+| `bozodev/marquee:latest` | the `main` branch | production |
+| `bozodev/marquee:dev` | the `dev` branch | testing upcoming changes |
+| `bozodev/marquee:X.Y.Z` | a `vX.Y.Z` git tag | pinning a specific release |
+
+Images are built and pushed automatically by GitHub Actions
+(`.github/workflows/docker-publish.yml`).
+
 ## FAQ
 
 **Does Marquee change my Plex library?**
@@ -212,6 +223,12 @@ composer cs:fix        # PHP-CS-Fixer (apply)
 # Run locally on http://localhost:8080
 php -S localhost:8080 -t public public/index.php
 ```
+
+See [`docs/development-workflow.md`](docs/development-workflow.md) for the
+VSCodium + Claude Code + OpenSpec setup and the `dev`/`main` branch flow, and
+[`docs/testing.md`](docs/testing.md) for validating the live Plex round-trip
+(poster locking and the Kometa label), including the
+[`scripts/marquee-plex-test.py`](scripts/marquee-plex-test.py) tester.
 
 ### Tech stack
 
