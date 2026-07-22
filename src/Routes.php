@@ -39,6 +39,7 @@ function registerRoutes(App $app): void
 
     $app->post('/library/{category}/change/upload', [ChangePosterController::class, 'upload']);
     $app->post('/library/{category}/change/url', [ChangePosterController::class, 'url']);
+    $app->post('/library/{category}/send-to-plex', [ChangePosterController::class, 'sendToPlex']);
     $app->post('/library/{category}/fetch-from-plex', [ChangePosterController::class, 'fetchFromPlex']);
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);

@@ -92,6 +92,28 @@ final class ChangePosterTest extends AppTestCase
         self::assertStringContainsString('https://img/a.jpg', (string) $response->getBody());
     }
 
+    public function testSendToPlexPushesStoredPoster(): void
+    {
+        $writer = new FakePlexPosterWriter();
+
+        $app = $this->makeApp(
+            [
+                'AUTH_BYPASS' => 'true',
+                'POSTERS_DIR' => $this->postersDir,
+                'DATA_DIR' => $this->dataDir,
+                'PLEX_SERVER_URL' => 'http://plex:32400',
+                'PLEX_TOKEN' => 'token',
+            ],
+            [PlexPosterWriter::class => static fn (): PlexPosterWriter => $writer],
+        );
+
+        $response = $this->postForm($app, '/library/movies/send-to-plex', ['filename' => 'Solaris.jpg']);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame(['10'], $writer->uploaded);
+        self::assertSame(['10'], $writer->locked);
+    }
+
     public function testFetchFromPlexReplacesLocal(): void
     {
         $app = $this->makeApp(

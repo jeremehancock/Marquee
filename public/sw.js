@@ -1,22 +1,13 @@
-// Marquee service worker: cache the static app shell for fast, offline-tolerant
-// asset loads. Everything else passes through to the network.
+// Marquee service worker: runtime cache for static assets using a
+// stale-while-revalidate strategy so an updated stylesheet or script always
+// reaches the browser on the next load. Asset URLs are additionally versioned
+// by file mtime (see the `asset()` Twig helper), so a changed file is a brand
+// new URL that can never be answered from a stale cache entry.
 
-const CACHE = 'marquee-assets-v1';
-const ASSETS = [
-    '/assets/app.css',
-    '/assets/app.js',
-    '/assets/alpine.min.js',
-    '/assets/wall.css',
-    '/assets/wall.js',
-    '/assets/favicon.svg',
-    '/assets/icons/icon-192.png',
-    '/assets/icons/icon-512.png',
-];
+const CACHE = 'marquee-assets-v2';
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-    );
+    event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
@@ -36,16 +27,21 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Stale-while-revalidate: answer from cache immediately when present, but
+    // always fetch a fresh copy in the background and update the cache.
     event.respondWith(
-        caches.match(event.request).then((hit) => {
-            if (hit) {
-                return hit;
-            }
-            return fetch(event.request).then((response) => {
-                const copy = response.clone();
-                caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-                return response;
-            });
-        })
+        caches.open(CACHE).then((cache) =>
+            cache.match(event.request).then((hit) => {
+                const network = fetch(event.request)
+                    .then((response) => {
+                        if (response.ok) {
+                            cache.put(event.request, response.clone());
+                        }
+                        return response;
+                    })
+                    .catch(() => hit);
+                return hit || network;
+            })
+        )
     );
 });

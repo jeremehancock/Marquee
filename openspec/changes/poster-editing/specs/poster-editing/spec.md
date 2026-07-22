@@ -26,6 +26,16 @@ it.
 - **THEN** the system rejects it with a clear message and leaves the poster
   unchanged
 
+### Requirement: Send a poster to Plex
+The system SHALL let a user push a linked poster's currently stored image to its
+Plex item and lock it, without first changing the poster. This lets a user
+re-apply Marquee's copy after Plex has drifted (for example, an agent refresh).
+
+#### Scenario: Send the stored poster to Plex
+- **WHEN** a user sends a linked poster to Plex
+- **THEN** the system uploads the poster's currently stored image to Plex and
+  locks it, leaving the local file unchanged
+
 ### Requirement: Fetch a poster from Plex
 The system SHALL let a user re-pull a linked poster's current image from Plex,
 replacing the local file with what Plex currently has.

@@ -60,6 +60,16 @@ final class ChangePosterService
         return $this->replaceAndPush($category, $filename, $this->bytesToTempFile($this->fetchUrl($url)));
     }
 
+    /**
+     * Pushes the poster currently stored in Marquee to its linked Plex item and
+     * locks it, without changing the local poster first. Useful when Plex has
+     * drifted (e.g. an agent refresh) and the user wants Marquee's copy back.
+     */
+    public function sendToPlex(PosterCategory $category, string $filename): void
+    {
+        $this->export->sendToPlex($category, $filename);
+    }
+
     public function fetchFromPlex(PosterCategory $category, string $filename): void
     {
         $record = $this->items->findByFilename($category->value, $filename);

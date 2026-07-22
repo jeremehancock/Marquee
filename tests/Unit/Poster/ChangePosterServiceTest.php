@@ -139,6 +139,21 @@ final class ChangePosterServiceTest extends TestCase
         }
     }
 
+    public function testSendToPlexPushesStoredPosterWithoutChangingIt(): void
+    {
+        $stored = $this->pngBytes(5, 5);
+        $this->seedFile('Solaris.jpg', $stored);
+        $this->link('Solaris.jpg');
+
+        $this->service($this->createMock(ClientInterface::class))
+            ->sendToPlex(PosterCategory::Movies, 'Solaris.jpg');
+
+        self::assertSame(['10'], $this->writer->uploaded);
+        self::assertSame(['10'], $this->writer->locked);
+        // The local poster is untouched — send-to-Plex is a one-way push.
+        self::assertSame($stored, file_get_contents($this->dir . '/movies/Solaris.jpg'));
+    }
+
     public function testFetchFromPlexReplacesLocal(): void
     {
         $this->seedFile('Solaris.jpg', $this->pngBytes(5, 5));

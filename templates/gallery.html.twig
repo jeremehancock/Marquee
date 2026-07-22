@@ -76,6 +76,10 @@
                             Change poster
                         </button>
                         {% if linked %}
+                            <form method="post" action="{{ base }}/send-to-plex">
+                                <input type="hidden" name="filename" value="{{ poster.filename }}">
+                                <button type="submit" class="btn btn--small">Send to Plex</button>
+                            </form>
                             <form method="post" action="{{ base }}/fetch-from-plex">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">Fetch from Plex</button>
@@ -111,7 +115,8 @@
     {# Change poster modal #}
     <div class="modal" x-show="change.open" x-cloak @keydown.escape.window="change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
-        <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Change poster">
+        <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
+             role="dialog" aria-modal="true" aria-label="Change poster">
             <div class="modal__head">
                 <h2>Change poster</h2>
                 <button type="button" class="modal__close" @click="change.open = false" aria-label="Close">&times;</button>

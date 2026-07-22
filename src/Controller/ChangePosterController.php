@@ -77,6 +77,24 @@ final class ChangePosterController
     /**
      * @param array<string, string> $args
      */
+    public function sendToPlex(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $category = $this->requireCategory($request, $args);
+        $filename = $this->filename($request);
+
+        try {
+            $this->change->sendToPlex($category, $filename);
+            $this->flash->add('success', 'Sent the current poster to Plex and locked it.');
+        } catch (ExportException | PlexException $e) {
+            $this->flash->add('error', $e->getMessage());
+        }
+
+        return $this->back($response, $category);
+    }
+
+    /**
+     * @param array<string, string> $args
+     */
     public function fetchFromPlex(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         $category = $this->requireCategory($request, $args);

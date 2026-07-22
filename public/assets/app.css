@@ -449,6 +449,12 @@ h1 {
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
+    transition: width 0.15s ease;
+}
+
+/* Give the found-poster gallery more room so thumbnails read cleanly. */
+.modal__panel--wide {
+    width: min(760px, 94vw);
 }
 
 .modal__head {

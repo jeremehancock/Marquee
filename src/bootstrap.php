@@ -35,6 +35,7 @@ use Psr\Log\LoggerInterface;
 use Slim\App;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
+use Twig\TwigFunction;
 
 /**
  * Read the application version from the VERSION file at the project root.
@@ -93,6 +94,19 @@ function buildContainer(array $overrides = []): Container
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
+
+            // Cache-busting asset URLs: append the file's mtime so a changed
+            // stylesheet or script is a new URL that defeats every cache layer.
+            $publicDir = dirname(__DIR__) . '/public';
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'asset',
+                static function (string $path) use ($publicDir): string {
+                    $file = $publicDir . $path;
+                    $mtime = is_file($file) ? filemtime($file) : false;
+
+                    return $mtime === false ? $path : $path . '?v=' . $mtime;
+                }
+            ));
 
             return $twig;
         },
