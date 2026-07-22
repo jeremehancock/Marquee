@@ -1,0 +1,11 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Run cron only when an auto-import schedule has been written; otherwise idle so
+# the longrun service does not restart-loop.
+
+if [ -s /etc/crontabs/abc ]; then
+    exec busybox crond -f -S -l 7
+else
+    exec sleep infinity
+fi

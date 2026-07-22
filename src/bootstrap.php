@@ -7,6 +7,7 @@ namespace App;
 use App\Auth\AuthMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
+use App\Config\AutoImportConfig;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Database\Database;
@@ -42,6 +43,7 @@ function buildContainer(array $overrides = []): Container
         AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
         PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
         PlexConfig::class => static fn (): PlexConfig => PlexConfig::fromEnv(),
+        AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage

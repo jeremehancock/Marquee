@@ -65,8 +65,12 @@ data and logs (`/config/data`).
 | `PLEX_SERVER_URL`  | Plex Media Server URL (import & export)  | _(unset)_  |
 | `PLEX_TOKEN`       | Plex authentication token                | _(unset)_  |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa "Overlay" label on send | `false` |
+| `AUTO_IMPORT_ENABLED` | Enable the scheduled Plex import         | `false`    |
+| `AUTO_IMPORT_SCHEDULE` | Interval: `1h`, `3h`, `6h`, `12h`, `24h` | `24h`     |
+| `AUTO_IMPORT_MOVIES` / `_SHOWS` / `_SEASONS` / `_COLLECTIONS` | Which media types to auto-import | `false` |
+| `EXCLUDED_LIBRARIES` | Library names to skip (comma-separated)   | _(none)_   |
 
-More variables (auto-import, poster sources) arrive with their features.
+More variables (poster sources) arrive with their features.
 
 ## Spec-driven development with OpenSpec
 
