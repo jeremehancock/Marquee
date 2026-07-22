@@ -1,14 +1,15 @@
 # Testing Marquee against Plex
 
-Two Plex-facing behaviors are worth verifying by hand from time to time:
+Three Plex-facing behaviors are worth verifying by hand from time to time:
 
 1. A poster is **locked** in Plex after you update it in Marquee.
 2. The **Kometa "Overlay" label** feature (`PLEX_REMOVE_OVERLAY_LABEL`).
+3. **Orphan detection** — posters for media that no longer exists in Plex.
 
-You can check both automatically with the included script
+The first two can be checked automatically with the included script
 ([`scripts/marquee-plex-test.py`](../scripts/marquee-plex-test.py)) or manually
-against the Plex API. Everything below reads Plex's own metadata, because that's
-the only place the truth actually lives.
+against the Plex API. Orphan detection is a real-world workflow test (remove
+something from Plex, then check Marquee) — see the last section.
 
 > The unit/functional test suite (`composer test`) covers Marquee's internal
 > logic. This page is about validating the *live* round-trip to a real Plex
@@ -149,3 +150,71 @@ curl -s "$PLEX/library/metadata/$RK?X-Plex-Token=$TOKEN" \
 
 Plex library **type numbers** (used internally for label edits): movie = 1,
 show = 2, season = 3, collection = 18.
+
+---
+
+## Orphan detection (real-world test)
+
+An **orphan** is a poster that Marquee imported from Plex whose Plex item no
+longer exists — for example, a movie you deleted from your library. This one
+isn't in the test script on purpose: it's a workflow test that involves actually
+removing something from Plex.
+
+**How Marquee decides:** when you open the **Orphans** page, Marquee asks Plex
+for the current items across your imported libraries and flags any *imported*
+poster whose Plex item is missing. Two things to know:
+
+- Only **imported** posters can be orphans. Posters you uploaded yourself (not
+  linked to a Plex item) are never flagged.
+- Detection is **live** — the Orphans page checks Plex every time you open it, so
+  you do **not** need to re-import to see an orphan. (Re-importing won't remove
+  orphans either; import only adds/updates items that currently exist in Plex, it
+  never prunes. The Orphans page is what removes them.)
+
+### Recommended: a non-destructive test with a Collection
+
+Deleting a Plex **collection** removes no media files, so it's the safe way to
+create an orphan on purpose:
+
+1. In Plex, create a temporary collection (e.g. "Orphan Test") with a couple of
+   movies in it.
+2. In Marquee, **Import from Plex** → choose **Collections** → your movie
+   library. Confirm the collection's poster now appears on the **Collections**
+   tab.
+3. In Plex, **delete that collection** (Plex → the collection → ⋯ → Delete
+   Collection). No media is deleted.
+4. In Marquee, open **Orphans**. The collection's poster should be listed as an
+   orphan. *(No re-import needed.)*
+5. Click **Delete all orphans**, confirm the modal, and verify the poster
+   disappears from both the Orphans page and the Collections tab.
+
+### With a movie (your example — destructive)
+
+Same flow, but be aware deleting a movie in Plex removes its media files:
+
+1. Import **Movies** so Marquee is tracking the test movie; confirm its poster
+   is in the gallery.
+2. Remove the movie from Plex so the library no longer contains it — either
+   Plex → item → ⋯ → **Delete** (deletes the files), or move the file out of the
+   library folder and **Refresh** the library so Plex drops the item. Use a
+   throwaway file you don't mind losing.
+3. In Marquee, open **Orphans** → the movie's poster is listed.
+4. **Delete all orphans** to remove it.
+
+### Expected results
+
+| Step | Expected |
+| --- | --- |
+| After removing the item from Plex, open Orphans | The item's poster is listed as an orphan |
+| A manually-uploaded poster (no Plex link) | Never listed as an orphan |
+| Click "Delete all orphans" | Poster removed from disk and gallery; flash "Removed N orphaned poster(s)." |
+| Re-import instead of using Orphans | Orphan is **not** removed (import doesn't prune) |
+
+### Troubleshooting
+
+- **Item still not shown as an orphan** → give Plex a moment to finish removing
+  it, then reload the Orphans page. Confirm the item is truly gone from Plex
+  (search for it). Emptying the Plex library's trash may be required if Plex
+  keeps deleted items until trash is emptied.
+- **"Plex must be configured to detect orphans."** → set `PLEX_SERVER_URL` /
+  `PLEX_TOKEN` and recreate the container.
