@@ -15,16 +15,18 @@ CI publishes to Docker Hub automatically (see
 | --- | --- | --- |
 | `dev` | `bozodev/marquee:dev` | testing new work on a throwaway/staging instance |
 | `main` | `bozodev/marquee:latest` | production (always the latest) |
-| a `v*` git tag | `bozodev/marquee:<version>` **and** `:latest` | pinned releases |
+| `main`, when `VERSION` names an unreleased version | also `bozodev/marquee:<version>` | pinned releases |
 
-On a tag, the **version string is read from the repo's `VERSION` file** — the tag
-name is just the trigger. Every build also gets an immutable `sha-<short>` tag.
+`main` is **always** `:latest`. A **versioned release happens automatically**:
+when a push to `main` carries a `VERSION` that hasn't been released yet, CI also
+publishes `bozodev/marquee:<version>` and creates the matching `v<version>` git
+tag + GitHub Release. The version string always comes from the repo's `VERSION`
+file. Every build also gets an immutable `sha-<short>` tag.
 
 **The loop:** build a feature on a branch off `dev` → merge into `dev` (CI
-publishes `:dev`) → test the `:dev` image → open a PR from `dev` into `main`
-(publishes `:latest`) → cut a versioned release by bumping `VERSION` and pushing
-a tag (publishes `:<version>` and refreshes `:latest`). See
-[Cutting a release](#cutting-a-release).
+publishes `:dev`) → test the `:dev` image → **bump `VERSION` on `dev`** → open a
+PR from `dev` into `main`. Merging publishes `:latest` **and** the pinned
+`:<version>` in one step. See [Promoting & releasing](#promoting--releasing).
 
 ### A separate instance for testing `:dev`
 
@@ -220,15 +222,26 @@ Say you want to add "export/import a backup of all posters."
 7. **Test the `:dev` image.** Once merged into `dev`, CI publishes
    `bozodev/marquee:dev`; pull it on your test instance and try it for real.
 
-8. **Promote to production:** when it's solid, open a PR from `dev` → `main`.
-   Merging publishes `bozodev/marquee:latest`. Optionally cut a versioned release
-   afterward — see [Promoting & releasing](#promoting--releasing).
+8. **Bump the version on `dev`** (when this batch of work is ready to ship):
 
-9. **Archive** the change so the specs reflect reality:
+   ```bash
+   git checkout dev && git pull
+   echo "1.1.0" > VERSION
+   git commit -am "Release 1.1.0"
+   git push
+   ```
 
-   ```
-   /opsx:archive  poster-backup
-   ```
+9. **Promote & release:** open a PR from `dev` → `main` and merge it. Because
+   `VERSION` names a version that hasn't been released yet, the merge publishes
+   `bozodev/marquee:latest` **and** `bozodev/marquee:1.1.0`, and creates the
+   `v1.1.0` tag + GitHub Release automatically. See
+   [Promoting & releasing](#promoting--releasing).
+
+10. **Archive** the change so the specs reflect reality:
+
+    ```
+    /opsx:archive  poster-backup
+    ```
 
 > If you prefer, you can commit directly to `dev` instead of using per-feature
 > branches — the important boundary is `dev` (testing, `:dev`) vs `main`
@@ -238,72 +251,54 @@ Say you want to add "export/import a backup of all posters."
 
 ## Promoting & releasing
 
-There are two separate things here, and it's worth keeping them straight:
+Releases are driven by the **`VERSION` file**, and everything happens on the
+`dev → main` merge — no manual tagging.
 
-- **Promote to production** = merge `dev` → `main`. This moves `:latest`
-  automatically. `main` is *always* `:latest`.
-- **Cut a versioned release** = bump `VERSION` and push a tag. This *additionally*
-  publishes a pinned `bozodev/marquee:<version>` image and (if you use a GitHub
-  Release) powers the in-app update notice.
+- `main` is **always** `:latest`. Every merge to `main` refreshes `:latest`.
+- If the merge carries a **new** version (a `VERSION` value with no matching
+  `v<version>` tag yet), CI *also* publishes `bozodev/marquee:<version>` and
+  creates the `v<version>` git tag + GitHub Release. The Release is what powers
+  the in-app "Update available" notice.
+- Merge to `main` **without** changing `VERSION` → just `:latest`; the existing
+  pinned version is never overwritten.
 
-You do **not** have to cut a release on every merge — `:latest` already tracks
-`main`. Release only when you want a version number people can pin to.
+So a release is simply: **bump `VERSION` on `dev`, then merge `dev` → `main`.**
 
 ### Step 1 — Validate on `dev`
 
 Your work is merged into `dev`, CI has published `bozodev/marquee:dev`, and you've
 tested that image on a throwaway instance (see the staging compose above).
 
-### Step 2 — Promote: merge `dev` → `main`
+### Step 2 — Bump `VERSION` on `dev`
 
-Open a PR from `dev` into `main` and merge it. The push to `main` triggers the
-publish workflow and updates **`bozodev/marquee:latest`**. Production is now up to
-date — nothing else is required unless you want a pinned version.
+The `VERSION` file is the single source of truth for the version number (it's also
+what the app shows in its footer).
 
 ```bash
-# after the dev → main PR is merged, get the latest main locally:
-git checkout main && git pull
+git checkout dev && git pull
+echo "1.1.0" > VERSION
+git commit -am "Release 1.1.0"
+git push
 ```
 
-### Step 3 — (Optional) Cut a versioned release
+> `dev` publishes `:dev`, so this also refreshes the `:dev` image — a good last
+> chance to smoke-test the exact build you're about to release.
 
-The **`VERSION` file is the source of truth** for the version number (it's also
-what the app shows in its footer). The tag name is only the trigger; keep them in
-sync.
+### Step 3 — Merge `dev` → `main`
 
-1. Bump `VERSION` on `main` and commit:
+Open a PR from `dev` into `main` and merge it. The workflow sees the new `VERSION`
+and, in **one** run:
 
-   ```bash
-   git checkout main && git pull
-   echo "1.0.0" > VERSION
-   git commit -am "Release 1.0.0"
-   git push
-   ```
+- pushes `bozodev/marquee:latest`,
+- pushes `bozodev/marquee:1.1.0`,
+- creates the `v1.1.0` git tag and a GitHub Release (auto-generated notes).
 
-   > Pushing this commit fires a `:latest` build on its own. The tag in the next
-   > step fires a second build that *adds* `:1.0.0` and refreshes `:latest`. Two
-   > builds, both harmless.
-
-2. Publish the release. Two options:
-
-   - **GitHub Release (recommended)** — Releases → *Draft a new release* → create
-     tag `v1.0.0` on `main` → write notes → *Publish*. This triggers the Docker
-     build **and** powers Marquee's in-app "Update available" notice (which reads
-     GitHub Releases).
-   - **Plain tag** — builds the image, but no in-app notice:
-
-     ```bash
-     git tag v1.0.0
-     git push origin v1.0.0
-     ```
-
-   Either way the workflow reads `VERSION` and pushes **`bozodev/marquee:1.0.0`**
-   and **`bozodev/marquee:latest`**.
+Nothing else to do — no manual tag, no second build.
 
 ### Step 4 — Keep `dev` in sync
 
-After a release, `dev` is behind `main` by the `VERSION`-bump commit. Fast-forward
-it so it doesn't drift (this avoids conflicts on your next `dev → main` PR):
+After the merge, fast-forward `dev` so it doesn't drift behind `main` (the merge
+commit and the auto-created tag live on `main`):
 
 ```bash
 git checkout dev && git merge main && git push
@@ -313,20 +308,24 @@ git checkout dev && git merge main && git push
 
 ```
 [ ] Feature validated against the :dev image
-[ ] dev → main PR merged            → :latest updated
-[ ] VERSION bumped on main + pushed → :latest rebuilt
-[ ] GitHub Release vX.Y.Z published → :X.Y.Z + :latest, in-app notice
+[ ] VERSION bumped on dev + pushed            → :dev rebuilt at the new version
+[ ] dev → main PR merged                      → :latest + :<version>, tag + Release
 [ ] dev synced with main
 ```
 
 ### Notes
 
-- Tag `v1.0.0` ↔ `VERSION` `1.0.0`. If they ever disagree, the **file wins** for
-  the Docker tag and the app footer.
+- Forget to bump `VERSION`? The merge still ships `:latest`; you just won't get a
+  new pinned version. Bump it and merge again (even an empty/merge commit) to cut
+  the release.
+- The git tag `v<version>` is created by the workflow using `GITHUB_TOKEN`, which
+  does **not** re-trigger the workflow — so there's no double build.
 - The in-app update check compares against `UPDATE_REPO` (default
   `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
 - Every build also gets an immutable `sha-<short>` tag, so you can always pull a
   specific commit's image (handy for rollbacks).
+- Want to re-release the same code under a new number? Bump `VERSION`, merge — the
+  version number is independent of the tag name because it comes from the file.
 
 ---
 
@@ -358,16 +357,15 @@ openspec archive <change>
 /opsx:archive   <change>
 
 # Branch → image tag
-#   dev     → bozodev/marquee:dev                 (test)
-#   main    → bozodev/marquee:latest              (production, always latest)
-#   v* tag  → bozodev/marquee:<VERSION> + latest   (versioned release)
+#   dev   → bozodev/marquee:dev                          (test)
+#   main  → bozodev/marquee:latest                       (production, always latest)
+#   main + new VERSION → also :<VERSION> + tag + Release  (versioned release)
 
-# Promote + release (after validating on :dev)
-#   1. merge dev → main (PR)            → :latest
-git checkout main && git pull
-#   2. bump version + release
-echo "1.0.0" > VERSION && git commit -am "Release 1.0.0" && git push
-git tag v1.0.0 && git push origin v1.0.0    # or publish a GitHub Release
+# Cut a release (after validating on :dev)
+#   1. bump the version on dev
+git checkout dev && git pull
+echo "1.1.0" > VERSION && git commit -am "Release 1.1.0" && git push
+#   2. merge dev → main (PR)  → :latest + :1.1.0 + tag v1.1.0 + GitHub Release
 #   3. resync dev
 git checkout dev && git merge main && git push
 ```
