@@ -55,7 +55,10 @@ final class PosterWallServiceTest extends TestCase
         $urls = array_map(static fn ($p): string => $p->url(), $this->service()->randomPosters(100));
 
         self::assertCount(3, $urls);
-        self::assertContains('/posters/tv-shows/Severance.png', $urls);
+        // Match the path only: the URL carries a cache-busting ?v=<mtime>, and
+        // pinning a real mtime here would tie the test to the fixture's clock.
+        $paths = array_map(static fn (string $url): string => explode('?', $url)[0], $urls);
+        self::assertContains('/posters/tv-shows/Severance.png', $paths);
     }
 
     public function testEmptyLibraryReturnsNone(): void

@@ -156,6 +156,17 @@ four** `#`). Archiving folds those deltas into `openspec/specs/`.
 | `/opsx:update` | Revise an existing change's artifacts and keep them coherent. |
 | `/opsx:sync` | Sync a change's delta specs into the main specs without archiving. |
 | `/opsx:archive` | Finalize a completed change and fold its deltas into the specs. |
+| `/ship` | Everything after `apply`: toolchain, commit, archive, PR, resync. |
+
+Reach for `/opsx:propose` by default. `/opsx:explore` earns its cost when you
+can't yet state what should be true once the work is done — a vague feature idea,
+or a choice between approaches. For a bug with a known-correct behavior, propose
+straight away and correct the artifacts with `/opsx:update` if they miss.
+
+`/ship` is the one to remember after that. It works out what state the change is
+in and does the next step, so the order doesn't have to be memorized; run it
+again whenever you come back. It never merges a PR and never archives before
+you've validated the `:dev` image — both are yours.
 
 ### The raw CLI (alongside the slash commands)
 
@@ -318,9 +329,16 @@ divergence to look at — drop the flag and merge normally, or rebase.
 ```
 [ ] Feature validated against the :dev image
 [ ] VERSION bumped on dev + pushed            → :dev rebuilt at the new version
+[ ] Change archived (specs updated)           → code and specs ship together
 [ ] dev → main PR merged                      → :latest + :<version>, tag + Release
 [ ] dev synced with main
 ```
+
+`/ship` walks this list for you and will not skip the bump. Leaving `VERSION`
+equal to the latest tag is the quiet failure to watch for: the merge still
+publishes `:latest`, so nothing looks wrong, but no pinned image, tag, or
+GitHub Release is created — and since the in-app update check reads Releases,
+existing users are never offered the update.
 
 ### Notes
 

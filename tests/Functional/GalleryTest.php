@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Tests\AppTestCase;
 use App\Tests\Support\MakesImages;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Slim\App;
 
 final class GalleryTest extends AppTestCase
@@ -127,9 +128,85 @@ final class GalleryTest extends AppTestCase
         self::assertNotSame('', (string) $response->getBody());
     }
 
+    /**
+     * The version marker exists only to move the browser's cache key. The
+     * server must route on the path alone, so a stale, absent, or malformed
+     * marker still yields the poster currently on disk.
+     */
+    #[DataProvider('versionMarkers')]
+    public function testImageIsServedRegardlessOfVersionMarker(string $query): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $response = $this->get($this->app(), '/posters/movies/Solaris.png' . $query);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('image/png', $response->getHeaderLine('Content-Type'));
+        self::assertNotSame('', (string) $response->getBody());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function versionMarkers(): array
+    {
+        return [
+            'absent' => [''],
+            'stale' => ['?v=1'],
+            'non-numeric' => ['?v=not-a-time'],
+            'empty' => ['?v='],
+        ];
+    }
+
+    public function testChangedPosterGetsANewUrl(): void
+    {
+        $this->writePoster('Solaris.png');
+        $app = $this->app();
+
+        $before = $this->posterUrl((string) $this->get($app, '/library/movies')->getBody());
+
+        // Replace the file with different bytes and a later mtime, exactly as
+        // changing a poster does. This is the reported bug: the flash message
+        // was always correct, the image was the stale part.
+        $path = $this->postersDir . '/movies/Solaris.png';
+        file_put_contents($path, $this->pngBytes(4, 5));
+        touch($path, time() + 10);
+        clearstatcache(true, $path);
+
+        $after = $this->posterUrl((string) $this->get($app, '/library/movies')->getBody());
+
+        self::assertNotSame('', $before);
+        self::assertNotSame($before, $after, 'a replaced poster must not reuse its previous URL');
+    }
+
+    public function testUnchangedPosterKeepsItsUrlAcrossRenders(): void
+    {
+        $this->writePoster('Solaris.png');
+        $app = $this->app();
+
+        $first = $this->posterUrl((string) $this->get($app, '/library/movies')->getBody());
+        $second = $this->posterUrl((string) $this->get($app, '/library/movies')->getBody());
+
+        self::assertNotSame('', $first);
+        self::assertSame($first, $second, 'an untouched poster must stay cacheable');
+    }
+
+    private function posterUrl(string $body): string
+    {
+        preg_match('#/posters/movies/Solaris\.png(\?v=\d+)?#', $body, $m);
+
+        return $m[0] ?? '';
+    }
+
     public function testImageTraversalReturns404(): void
     {
         self::assertSame(404, $this->get($this->app(), '/posters/movies/..')->getStatusCode());
+    }
+
+    public function testImageTraversalWithVersionMarkerReturns404(): void
+    {
+        // The marker must not offer a way past filename validation.
+        self::assertSame(404, $this->get($this->app(), '/posters/movies/..?v=1')->getStatusCode());
     }
 
     public function testMissingImageReturns404(): void
