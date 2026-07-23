@@ -318,8 +318,9 @@ git checkout dev && git merge main && git push
 - Forget to bump `VERSION`? The merge still ships `:latest`; you just won't get a
   new pinned version. Bump it and merge again (even an empty/merge commit) to cut
   the release.
-- The git tag `v<version>` is created by the workflow using `GITHUB_TOKEN`, which
-  does **not** re-trigger the workflow — so there's no double build.
+- Git tags are an **output** of releasing, never an input: nothing is triggered by
+  pushing a tag. The workflow runs on branch pushes only, and creates
+  `v<version>` itself using `GITHUB_TOKEN` — so there's no double build.
 - The in-app update check compares against `UPDATE_REPO` (default
   `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
 - Every build also gets an immutable `sha-<short>` tag, so you can always pull a

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-23
+goal: Drive Docker publishing and GitHub releases from the VERSION file and the
+  branch, removing the v* tag trigger

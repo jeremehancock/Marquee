@@ -52,6 +52,8 @@ context: |
     - orphan-detection    (detect + delete orphaned posters)
     - poster-wall         (full-screen rotating wall, random batches)
     - pwa                 (installable manifest, offline assets, version check)
+    - release-publishing  (branch -> Docker tag, VERSION-driven releases;
+                           build/release behavior, not an app capability)
 
   Note: posters enter the library only through plex-import. There is no
   add-a-poster path; uploading a file or URL is a mode of changing an existing
