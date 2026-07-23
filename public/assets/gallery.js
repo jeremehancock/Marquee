@@ -37,18 +37,14 @@
     document.addEventListener('alpine:init', function () {
         window.Alpine.data('galleryUI', function () {
             return {
-                base: '',
                 viewer: null,
-                change: { open: false, tab: 'upload', filename: '', title: '' },
+                change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
                 finder: { loading: false, error: '', results: [] },
                 confirm: { open: false, title: '', message: '', label: 'Confirm' },
                 sheet: { open: false, title: '', actions: '' },
                 toast: { show: false, text: '' },
                 _toastTimer: null,
 
-                init: function () {
-                    this.base = this.$root.getAttribute('data-base') || '';
-                },
                 view: function (url) {
                     if (url) { this.viewer = url; }
                 },
@@ -58,14 +54,14 @@
                 closeSheet: function () {
                     this.sheet.open = false;
                 },
-                openChange: function (filename, title) {
-                    this.change = { open: true, tab: 'upload', filename: filename, title: title };
+                openChange: function (filename, title, category) {
+                    this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
                     this.finder = { loading: false, error: '', results: [] };
                 },
                 findPosters: function () {
                     var self = this;
                     this.finder = { loading: true, error: '', results: [] };
-                    fetch(this.base + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
+                    fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
                         .then(function (d) {
@@ -119,6 +115,14 @@
         var base = root.getAttribute('data-base');
         var results = root.querySelector('#results');
         var pendingForm = null;
+
+        // On a narrow screen the tab strip scrolls horizontally; center the
+        // active tab so it is never left off-screen (e.g. Collections on a phone).
+        var tabsEl = root.querySelector('.tabs');
+        var activeTab = tabsEl ? tabsEl.querySelector('.tab--active') : null;
+        if (tabsEl && activeTab && tabsEl.scrollWidth > tabsEl.clientWidth) {
+            tabsEl.scrollLeft = Math.max(0, activeTab.offsetLeft - (tabsEl.clientWidth - activeTab.clientWidth) / 2);
+        }
 
         function setResults(html) {
             results.innerHTML = html;
@@ -221,6 +225,7 @@
                     dispatch('gallery:change', {
                         filename: actionEl.getAttribute('data-filename'),
                         title: actionEl.getAttribute('data-title'),
+                        category: actionEl.getAttribute('data-category'),
                     });
                     return;
                 }

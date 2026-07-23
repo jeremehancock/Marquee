@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Config\PlexConfig;
 use App\Database\PlexItemRepository;
+use App\Poster\GalleryView;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Support\Flash;
@@ -34,7 +35,7 @@ final class GalleryController
     public function home(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         return $response
-            ->withHeader('Location', '/library/' . PosterCategory::default()->value)
+            ->withHeader('Location', '/library/' . GalleryView::ALL_SLUG)
             ->withStatus(302);
     }
 
@@ -43,8 +44,8 @@ final class GalleryController
      */
     public function show(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        $category = PosterCategory::fromSlug($args['category'] ?? '');
-        if ($category === null) {
+        $view = GalleryView::fromSlug($args['category'] ?? '');
+        if ($view === null) {
             throw new HttpNotFoundException($request);
         }
 
@@ -52,22 +53,57 @@ final class GalleryController
         $query = isset($params['q']) && is_string($params['q']) ? $params['q'] : '';
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
-        $result = $this->library->browse($category, $query, $page);
+        $category = $view->category;
+        $result = $category === null
+            ? $this->library->browseAll($query, $page)
+            : $this->library->browse($category, $query, $page);
 
         // Remember the section so Orphans/Import can send the user back to it.
-        LastCategory::remember($this->session, $category);
+        LastCategory::remember($this->session, $view);
 
+        // Linked filenames are keyed by category: in the All view a filename is
+        // only unique within its own category, so gather one list per category.
         $plexConfigured = $this->plexConfig->isConfigured();
-        $linked = $plexConfigured ? $this->plexItems->filenamesForCategory($category->value) : [];
+        $linked = [];
+        if ($plexConfigured) {
+            foreach ($view->categories() as $cat) {
+                $linked[$cat->value] = $this->plexItems->filenamesForCategory($cat->value);
+            }
+        }
 
         return $this->twig->render($response, 'gallery.html.twig', [
-            'category' => $category,
-            'categories' => PosterCategory::all(),
+            'view' => $view,
+            'tabs' => $this->tabs($view),
+            'is_all_view' => $view->isAll(),
             'query' => $query,
             'result' => $result,
             'flash' => $this->flash->pull(),
             'plex_configured' => $plexConfigured,
             'linked' => $linked,
         ]);
+    }
+
+    /**
+     * The category tab strip: All first, then the four categories.
+     *
+     * @return list<array{value: string, label: string, active: bool}>
+     */
+    private function tabs(GalleryView $active): array
+    {
+        $tabs = [[
+            'value' => GalleryView::ALL_SLUG,
+            'label' => 'All',
+            'active' => $active->isAll(),
+        ]];
+
+        foreach (PosterCategory::all() as $category) {
+            $tabs[] = [
+                'value' => $category->value,
+                'label' => $category->label(),
+                'active' => !$active->isAll() && $active->value === $category->value,
+            ];
+        }
+
+        return $tabs;
     }
 }

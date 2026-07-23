@@ -21,16 +21,46 @@ final class PosterLibrary
 
     public function browse(PosterCategory $category, ?string $query, int $page): Page
     {
-        $posters = $this->storage->list($category);
+        return $this->paginate($this->storage->list($category), $query, $page);
+    }
 
+    /**
+     * The aggregate "All" view: every category's posters merged into one flat,
+     * mixed-alphabetical listing.
+     */
+    public function browseAll(?string $query, int $page): Page
+    {
+        $posters = [];
+        foreach (PosterCategory::all() as $category) {
+            $posters = array_merge($posters, $this->storage->list($category));
+        }
+
+        return $this->paginate($posters, $query, $page);
+    }
+
+    /**
+     * Apply search or the article-aware sort, then slice into one page.
+     *
+     * @param list<Poster> $posters
+     */
+    private function paginate(array $posters, ?string $query, int $page): Page
+    {
         if ($query !== null && trim($query) !== '') {
             // Search results are already ranked by relevance.
             $posters = $this->search->filter($posters, $query);
         } else {
+            // Sort by title, breaking ties by category order so a mixed listing
+            // is deterministic. Within a single category the tiebreak never
+            // fires, so per-category ordering is unchanged.
             usort(
                 $posters,
-                fn (Poster $a, Poster $b): int => $a->sortKey($this->config->ignoreArticlesInSort)
-                    <=> $b->sortKey($this->config->ignoreArticlesInSort),
+                fn (Poster $a, Poster $b): int => [
+                    $a->sortKey($this->config->ignoreArticlesInSort),
+                    $a->category->sortOrder(),
+                ] <=> [
+                    $b->sortKey($this->config->ignoreArticlesInSort),
+                    $b->category->sortOrder(),
+                ],
             );
         }
 

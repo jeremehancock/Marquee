@@ -26,6 +26,34 @@ enum PosterCategory: string
     }
 
     /**
+     * Singular type name for the All-view badge (e.g. "TV Season", not the
+     * plural tab label "TV Seasons").
+     */
+    public function badgeLabel(): string
+    {
+        return match ($this) {
+            self::Movies => 'Movie',
+            self::TvShows => 'TV Show',
+            self::TvSeasons => 'TV Season',
+            self::Collections => 'Collection',
+        };
+    }
+
+    /**
+     * Position used to break ties between equal titles in the mixed All view.
+     * Follows declaration order: Movies, TV Shows, TV Seasons, Collections.
+     */
+    public function sortOrder(): int
+    {
+        return match ($this) {
+            self::Movies => 0,
+            self::TvShows => 1,
+            self::TvSeasons => 2,
+            self::Collections => 3,
+        };
+    }
+
+    /**
      * The directory name for this category (identical to the slug).
      */
     public function directory(): string

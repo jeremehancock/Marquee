@@ -39,12 +39,21 @@ final class GalleryTest extends AppTestCase
         $this->writePng($this->postersDir . '/movies/' . $filename);
     }
 
-    public function testHomeRedirectsToMovies(): void
+    private function writePosterIn(string $category, string $filename): void
+    {
+        $dir = $this->postersDir . '/' . $category;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0o775, true);
+        }
+        $this->writePng($dir . '/' . $filename);
+    }
+
+    public function testHomeRedirectsToAll(): void
     {
         $response = $this->get($this->app(), '/');
 
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/library/movies', $response->getHeaderLine('Location'));
+        self::assertSame('/library/all', $response->getHeaderLine('Location'));
     }
 
     public function testGalleryListsPosters(): void
@@ -62,6 +71,68 @@ final class GalleryTest extends AppTestCase
     public function testUnknownCategoryReturns404(): void
     {
         self::assertSame(404, $this->get($this->app(), '/library/books')->getStatusCode());
+    }
+
+    public function testAllViewMergesEveryCategory(): void
+    {
+        $this->writePosterIn('movies', 'Solaris.png');
+        $this->writePosterIn('tv-shows', 'Severance.png');
+        $this->writePosterIn('collections', 'Alien Anthology.png');
+
+        $body = (string) $this->get($this->app(), '/library/all')->getBody();
+
+        self::assertStringContainsString('Solaris', $body);
+        self::assertStringContainsString('Severance', $body);
+        self::assertStringContainsString('Alien Anthology', $body);
+        // The All tab renders and is the active one.
+        self::assertStringContainsString('href="/library/all"', $body);
+        self::assertStringContainsString('tab--active', $body);
+    }
+
+    public function testAllViewShowsTypeBadges(): void
+    {
+        $this->writePosterIn('tv-shows', 'Severance.png');
+
+        $body = (string) $this->get($this->app(), '/library/all')->getBody();
+
+        // Badge with the singular type label, only in the All view.
+        self::assertStringContainsString('card__badge--tv-shows', $body);
+        self::assertStringContainsString('>TV Show<', $body);
+    }
+
+    public function testSingleCategoryViewHasNoBadges(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringNotContainsString('card__badge', $body);
+    }
+
+    public function testAllViewActionsTargetOwnCategory(): void
+    {
+        // The same filename in two categories: each card must post to its own
+        // category, since a filename is unique only within a category.
+        $this->writePosterIn('movies', 'Poster.png');
+        $this->writePosterIn('tv-shows', 'Poster.png');
+
+        $body = (string) $this->get($this->app(), '/library/all')->getBody();
+
+        self::assertStringContainsString('action="/library/movies/delete"', $body);
+        self::assertStringContainsString('action="/library/tv-shows/delete"', $body);
+        self::assertStringContainsString('data-category="tv-shows"', $body);
+        // The combined slug is never an action target.
+        self::assertStringNotContainsString('action="/library/all/delete"', $body);
+    }
+
+    public function testRemembersAllViewForOrphansBackLink(): void
+    {
+        $app = $this->makeApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+
+        $this->get($app, '/library/all');
+        $body = (string) $this->get($app, '/orphans')->getBody();
+
+        self::assertStringContainsString('href="/library/all"', $body);
     }
 
     public function testGalleryRendersOverlayActionsAndCaption(): void

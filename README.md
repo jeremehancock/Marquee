@@ -34,6 +34,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h).
 - **Orphan detection** — find and remove posters whose media no longer exists in
   Plex. Posters you added yourself are never treated as orphans.
+- **Browse by type or all at once** — switch between Movies, TV Shows, TV
+  Seasons, and Collections, or use the **All** view (the default) to see your
+  whole library in one grid, each poster tagged with its type.
 - **Poster Wall** — a full-screen, slideshow-style view of your library.
 - **Fast, modern UI** — search as you type, background updates without full page
   reloads, and a touch-friendly action sheet on mobile.
