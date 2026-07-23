@@ -92,7 +92,10 @@ function buildContainer(array $overrides = []): Container
         },
         Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
+            // `site_title` names this install and is user-configurable;
+            // `app_name` names the product and is not.
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
+            $twig->getEnvironment()->addGlobal('app_name', AppConfig::APP_NAME);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
             $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
 

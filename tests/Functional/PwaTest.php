@@ -8,7 +8,7 @@ use App\Tests\AppTestCase;
 
 final class PwaTest extends AppTestCase
 {
-    public function testManifestIsPublicAndNamedAfterSiteTitle(): void
+    public function testManifestIsPublicAndNamedAfterProductNotSiteTitle(): void
     {
         // No AUTH_BYPASS: the manifest must be reachable without a session.
         $response = $this->get($this->makeApp(['SITE_TITLE' => 'My Wall']), '/manifest.webmanifest');
@@ -17,7 +17,11 @@ final class PwaTest extends AppTestCase
         self::assertSame('application/manifest+json', $response->getHeaderLine('Content-Type'));
 
         $body = (string) $response->getBody();
-        self::assertStringContainsString('"name":"My Wall"', $body);
+        // The install name is captured on the home screen once and never
+        // re-read, so it must not follow a per-install setting.
+        self::assertStringContainsString('"name":"Marquee"', $body);
+        self::assertStringContainsString('"short_name":"Marquee"', $body);
+        self::assertStringNotContainsString('My Wall', $body);
         self::assertStringContainsString('/assets/icons/icon-512.png', $body);
     }
 
@@ -40,5 +44,22 @@ final class PwaTest extends AppTestCase
         $body = (string) $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/library/movies')->getBody();
 
         self::assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $body);
+    }
+
+    public function testFooterAndHomeScreenLabelNameTheProductNotTheSiteTitle(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']),
+            '/library/movies',
+        )->getBody();
+
+        self::assertMatchesRegularExpression(
+            '#<footer class="footer">Marquee &middot; v\d+\.\d+\.\d+#',
+            $body,
+        );
+        self::assertStringContainsString(
+            '<meta name="apple-mobile-web-app-title" content="Marquee">',
+            $body,
+        );
     }
 }

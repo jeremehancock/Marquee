@@ -32,11 +32,16 @@ final class ApplicationShellTest extends AppTestCase
         self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
-    public function testGalleryRendersSiteTitle(): void
+    public function testGalleryRendersSiteTitleAsTheBrand(): void
     {
         $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/library/movies');
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('My Wall', (string) $response->getBody());
+        // Assert the brand link specifically: a bare substring check would also
+        // pass on the tab title, and so could not tell the two apart.
+        self::assertStringContainsString(
+            '<a class="brand" href="/">My Wall</a>',
+            (string) $response->getBody(),
+        );
     }
 }

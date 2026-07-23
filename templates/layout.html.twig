@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#14161c">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="{{ site_title }}">
+    <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
     <title>{% block title %}{{ site_title }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ asset('/assets/app.css') }}">
     <link rel="manifest" href="/manifest.webmanifest">
@@ -27,6 +27,6 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
-    <footer class="footer">{{ site_title }} &middot; v{{ app_version }}<span id="update-note"></span></footer>
+    <footer class="footer">{{ app_name }} &middot; v{{ app_version }}<span id="update-note"></span></footer>
 </body>
 </html>
