@@ -1,7 +1,7 @@
 ---
 name: "Ship"
 description: Carry a change from implemented to released - commit, PR, archive, resync - without skipping a step
-allowed-tools: Bash(git:*), Bash(gh:*), Bash(openspec:*), Bash(composer:*), Bash(./vendor/bin/*)
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(openspec:*), Bash(composer:*), Bash(./vendor/bin/*), Read, Edit, Grep, Glob
 category: Workflow
 tags: [workflow, release, git, openspec]
 ---
@@ -37,7 +37,7 @@ cat VERSION && gh release view --json tagName --jq .tagName
 | State | Do this |
 | --- | --- |
 | Active change, tasks incomplete | Stop. Tell the user to run `/opsx:apply` first — `/ship` does not write code. |
-| Uncommitted changes | Run the toolchain (below), then commit. |
+| Uncommitted changes | Run the toolchain gate, then the docs gate (both below), then commit. |
 | Commits on `dev` not pushed | Push to `dev`. CI publishes `bozodev/marquee:dev`. |
 | Change complete, not archived, `:dev` not yet validated | **Ask the user to test the `:dev` image.** Do not archive before they confirm. |
 | `:dev` validated, `VERSION` equals the latest release tag | **Bump `VERSION` (below).** Do this before archiving, so the release ships as one PR. |
@@ -58,6 +58,46 @@ composer test && composer stan && composer cs
 All three must pass. If `composer` is missing, fall back to `./vendor/bin/`.
 If PHPStan dies on memory, that is a local config problem, not a code problem —
 see `docs/development-workflow.md`. Report failures; do not commit around them.
+
+## The docs gate
+
+Before committing, check whether the change makes anything in `README.md` or
+`docs/` stale, and fix it in the **same** commit. Docs drift silently: nothing
+fails when they fall out of sync, so the only defense is checking every time.
+
+Look at what actually changed across the whole change, not just the last edit:
+
+```bash
+git diff --stat origin/main..HEAD; git diff --stat   # committed + uncommitted
+```
+
+Then, for each changed area, read the doc that describes it and confirm it still
+matches. Common triggers — treat as prompts to go read, not a whitelist:
+
+| A change touching… | Re-read and reconcile… |
+| --- | --- |
+| `.github/workflows/*` (CI/publish behavior, tags, release flow) | `docs/development-workflow.md` (Branches & tags, Promoting & releasing, Notes) and the README "Docker images" section |
+| Environment variables / config surface (`src/**Config**`, bootstrap, compose examples) | README config/env tables and any `docs/` setup steps |
+| `composer.json` scripts / quality gates | the toolchain commands in `docs/development-workflow.md` (Part 1, cheat sheet) and README |
+| `.claude/commands/*` or the OpenSpec flow | the command tables and mental-model in `docs/development-workflow.md` |
+| A new top-level directory or moved layout | the "Repo layout" tree in `docs/development-workflow.md` |
+| User-facing features, routes, or behavior | README feature list / usage and any relevant `docs/` page |
+
+Rules:
+
+- If a doc is stale, **update it now** and include it in the commit. Prefer a
+  minimal, accurate edit over a rewrite; match the surrounding voice.
+- If the docs were already updated as part of the work, confirm they cover the
+  final state and move on.
+- If nothing user-facing or documented changed (internal refactor, tests only),
+  say so explicitly — "docs gate: no user-facing surface changed" — and proceed.
+  Do not invent doc changes to look thorough.
+- When it is genuinely unclear whether something is worth documenting, ask the
+  user rather than guessing either way.
+
+Run this gate again before creating the PR, as a final sweep over the full
+`origin/main..dev` diff — later commits (the VERSION bump, the archive) can
+themselves change what the docs should say.
 
 ## Bumping VERSION
 
@@ -134,6 +174,9 @@ what they are and say so.
 - **Never archive before the user has validated `:dev`.** Archiving rewrites
   `openspec/specs/`, which is the source of truth.
 - **Never commit with a failing toolchain.** Report and stop.
+- **Never commit a documented behavior change with stale docs.** Run the docs
+  gate; fix `README.md`/`docs/` in the same commit, or state plainly that no
+  documented surface changed.
 - **Never skip the archive** to get a PR out faster. Code and specs ship together.
 - **Never open a release PR without checking `VERSION`.** Equal to the latest tag
   means no release will be cut. Say so explicitly, and confirm that is intended.

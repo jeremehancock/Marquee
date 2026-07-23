@@ -23,6 +23,13 @@ publishes `bozodev/marquee:<version>` and creates the matching `v<version>` git
 tag + GitHub Release. The version string always comes from the repo's `VERSION`
 file. Every build also gets an immutable `sha-<short>` tag.
 
+**Publishing waits for a green CI.** The publish workflow no longer races CI —
+it runs only *after* the CI workflow (lint, static analysis, tests, and the
+image smoke test) succeeds for that commit. A failing or cancelled CI publishes
+nothing: no moving tag, no pinned version image, no git tag, no release. You can
+still run the publish workflow by hand from the Actions tab, which deliberately
+skips the CI-success check.
+
 **The loop:** build a feature on a branch off `dev` → merge into `dev` (CI
 publishes `:dev`) → test the `:dev` image → **bump `VERSION` on `dev`** → open a
 PR from `dev` into `main`. Merging publishes `:latest` **and** the pinned
@@ -346,8 +353,9 @@ existing users are never offered the update.
   new pinned version. Bump it and merge again (even an empty/merge commit) to cut
   the release.
 - Git tags are an **output** of releasing, never an input: nothing is triggered by
-  pushing a tag. The workflow runs on branch pushes only, and creates
-  `v<version>` itself using `GITHUB_TOKEN` — so there's no double build.
+  pushing a tag. The publish workflow runs only when CI passes for a push to
+  `dev` or `main`, and creates `v<version>` itself using `GITHUB_TOKEN` (which
+  re-triggers neither CI nor the publish) — so there's no double build.
 - The in-app update check compares against `UPDATE_REPO` (default
   `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
 - Every build also gets an immutable `sha-<short>` tag, so you can always pull a
