@@ -55,7 +55,9 @@
                 },
                 copyUrl: function (url) {
                     var self = this;
-                    var full = window.location.origin + url;
+                    // Drop the cache-busting ?v= — the server ignores it, so a
+                    // shared link is cleaner and no less correct without it.
+                    var full = window.location.origin + String(url).split('?')[0];
                     navigator.clipboard.writeText(full)
                         .then(function () { self.notify('URL copied to clipboard'); })
                         .catch(function () {});

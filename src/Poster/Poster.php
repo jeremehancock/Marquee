@@ -35,10 +35,20 @@ final class Poster
 
     /**
      * The app URL that serves this image.
+     *
+     * The `v` parameter is the file's modification time. Replacing a poster
+     * keeps its filename, so without it the URL would not change and a browser
+     * would keep serving the previous image from cache. It exists only to move
+     * the cache key: the request handler routes on the path and never reads it,
+     * so a URL with a stale or missing `v` still serves the current file.
      */
     public function url(): string
     {
-        return '/posters/' . $this->category->value . '/' . rawurlencode($this->filename);
+        $path = '/posters/' . $this->category->value . '/' . rawurlencode($this->filename);
+
+        // filemtime() failures surface as 0; a constant would bust nothing, so
+        // leave the parameter off rather than imply a version we do not have.
+        return $this->modifiedAt > 0 ? $path . '?v=' . $this->modifiedAt : $path;
     }
 
     /**
