@@ -10,9 +10,7 @@ poster's actions on both pointer and touch devices.
 This capability owns *browsing and presenting* posters. Posters enter the
 library through `plex-import`; operating on one poster is `poster-editing`;
 filtering the listing is `search`.
-
 ## Requirements
-
 ### Requirement: Poster categories
 The system SHALL organize posters into four fixed categories — Movies, TV Shows,
 TV Seasons, and Collections — each backed by its own directory within the
@@ -53,11 +51,20 @@ The system SHALL sort posters by title, ignoring a leading article ("a", "an",
 ### Requirement: Auth-protected image serving
 The system SHALL serve poster image files only to authenticated users, with
 caching headers, and SHALL never resolve a request outside the posters
-directory.
+directory. The rendered URL for a poster SHALL carry a version marker derived
+from the file's modification time, so that replacing the file yields a different
+URL. The system SHALL identify the requested image from the path alone and
+SHALL ignore the version marker when serving.
 
 #### Scenario: Authenticated image request succeeds
 - **WHEN** an authenticated user requests an existing poster image
 - **THEN** the system responds with the image bytes and an image content type
+
+#### Scenario: Version marker is ignored when serving
+- **WHEN** a poster image is requested with a version marker that is absent,
+  outdated, or unrecognized
+- **THEN** the system serves the poster currently on disk rather than failing or
+  serving an earlier image
 
 #### Scenario: Path traversal is refused
 - **WHEN** a request for a poster image contains path separators or traversal
@@ -185,3 +192,4 @@ return them to the library section they were last viewing.
 - **WHEN** a user viewing a non-default library section opens Orphans or Import
   and then follows the back-to-library link
 - **THEN** they return to the section they were viewing, not the default one
+

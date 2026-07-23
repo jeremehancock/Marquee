@@ -15,9 +15,7 @@ overwrite one.
 
 The Plex write mechanism these operations rely on is `plex-export`; picking a
 replacement image from an online search is `poster-sources`.
-
 ## Requirements
-
 ### Requirement: Change a poster in place
 The system SHALL let a user replace an existing poster from a local file or a
 URL, overwriting that poster's file. When the poster is linked to a Plex item and
@@ -97,3 +95,25 @@ The system SHALL let a user download a poster's image and copy the poster's URL.
 #### Scenario: Copy a poster URL
 - **WHEN** a user chooses to copy a poster's URL
 - **THEN** the poster's URL is placed on the clipboard
+
+### Requirement: A changed poster is visible immediately
+After any operation that replaces a poster's image, the system SHALL present the
+new image on the next page render, without requiring the user to reload the page
+or clear a cache. A success message SHALL NOT be shown alongside the previous
+image.
+
+#### Scenario: Changed poster appears without a reload
+- **WHEN** a user changes a poster and is returned to the gallery
+- **THEN** the poster shown is the new image
+
+#### Scenario: The image URL changes with the file
+- **WHEN** a poster's file is replaced
+- **THEN** the URL the system renders for that poster differs from the one it
+  rendered before the replacement, so a cached copy of the previous image is
+  not reused
+
+#### Scenario: Unchanged posters keep their URL
+- **WHEN** a gallery is rendered twice with no poster replaced in between
+- **THEN** each poster's URL is identical in both renders, so cached images stay
+  usable
+
