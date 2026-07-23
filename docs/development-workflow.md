@@ -156,6 +156,17 @@ four** `#`). Archiving folds those deltas into `openspec/specs/`.
 | `/opsx:update` | Revise an existing change's artifacts and keep them coherent. |
 | `/opsx:sync` | Sync a change's delta specs into the main specs without archiving. |
 | `/opsx:archive` | Finalize a completed change and fold its deltas into the specs. |
+| `/ship` | Everything after `apply`: toolchain, commit, archive, PR, resync. |
+
+Reach for `/opsx:propose` by default. `/opsx:explore` earns its cost when you
+can't yet state what should be true once the work is done — a vague feature idea,
+or a choice between approaches. For a bug with a known-correct behavior, propose
+straight away and correct the artifacts with `/opsx:update` if they miss.
+
+`/ship` is the one to remember after that. It works out what state the change is
+in and does the next step, so the order doesn't have to be memorized; run it
+again whenever you come back. It never merges a PR and never archives before
+you've validated the `:dev` image — both are yours.
 
 ### The raw CLI (alongside the slash commands)
 
