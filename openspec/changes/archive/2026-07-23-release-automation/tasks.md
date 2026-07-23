@@ -40,16 +40,23 @@
       actionlint is not installed on the dev machine. Verified instead that the
       YAML parses and that triggers (`push`, `workflow_dispatch`) and
       `permissions: contents: write` resolve as intended.
-- [ ] 5.2 Push to `dev`: `:dev` and `:sha-<short>` appear on Docker Hub; no tag
-      or Release is created. **Requires a live push — cannot be checked locally.**
+- [x] 5.2 Push to `dev`: `:dev` and `:sha-<short>` appear on Docker Hub; no tag
+      or Release is created.
+      Verified live: pushing `1af8db5` to `dev` published `:dev` and
+      `:sha-1af8db5` (2026-07-23T01:29Z). Tags remained `v0.1.0`/`v0.1.1` and
+      the release count stayed at 2.
 - [ ] 5.3 Merge to `main` without changing `VERSION`: `:latest` refreshes; no
-      duplicate tag or Release. **Requires a live merge.**
-- [ ] 5.4 Merge to `main` with a bumped `VERSION`: `:latest`, `:<version>`, the
+      duplicate tag or Release.
+      Not yet exercised live — every merge to `main` so far has carried a new
+      `VERSION`. The logic was simulated against the repo's real tags
+      (main/0.1.1 and main/0.1.0 both -> no release), but the "already released"
+      branch has not run in CI. Low risk; confirm on the next no-op merge.
+- [x] 5.4 Merge to `main` with a bumped `VERSION`: `:latest`, `:<version>`, the
       `v<version>` tag, and the GitHub Release all appear from one run.
-      **Requires a live release.**
-      Release-detection logic for 5.2–5.4 was simulated locally against the
-      repo's real tags: dev/any version -> no release; main/0.1.1 and main/0.1.0
-      (tags exist) -> no release; main/0.1.2 -> release. Matches the spec.
+      Verified live, twice. For v0.1.1: tag created 01:15:00Z, `:latest` pushed
+      01:16:02Z, `:0.1.1` pushed 01:16:04Z, Release published 01:16:14Z by
+      `github-actions[bot]` with auto-generated notes — confirming both the
+      one-run behavior and that the Release follows the image push.
 - [x] 5.5 PHPUnit, PHPStan (level 8), PHP-CS-Fixer green (for the
       `bootstrap.php` change).
       PHPStan and PHP-CS-Fixer green. PHPUnit could not run on the dev machine
