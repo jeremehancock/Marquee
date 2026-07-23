@@ -19,7 +19,6 @@ trait MakesImages
         ob_start();
         imagepng($image);
         $bytes = ob_get_clean();
-        imagedestroy($image);
 
         return $bytes === false ? '' : $bytes;
     }
