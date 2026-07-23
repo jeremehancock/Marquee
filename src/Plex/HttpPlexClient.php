@@ -7,6 +7,7 @@ namespace App\Plex;
 use App\Config\PlexConfig;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 use SimpleXMLElement;
 
 /**
@@ -108,7 +109,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         try {
             $response = $this->http->request('GET', $this->config->serverUrl . $item->thumb, $this->options());
         } catch (GuzzleException $e) {
-            throw PlexException::connectionFailed($e);
+            throw $this->classify($e);
         }
 
         return (string) $response->getBody();
@@ -134,7 +135,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         try {
             $response = $this->http->request('GET', $this->config->serverUrl . $thumb, $this->options());
         } catch (GuzzleException $e) {
-            throw PlexException::connectionFailed($e);
+            throw $this->classify($e);
         }
 
         return (string) $response->getBody();
@@ -177,7 +178,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         try {
             $this->http->request($method, $this->config->serverUrl . $path, $extra + $this->options());
         } catch (GuzzleException $e) {
-            throw PlexException::connectionFailed($e);
+            throw $this->classify($e);
         }
     }
 
@@ -209,7 +210,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             $response = $this->http->request('GET', $this->config->serverUrl . $path, $this->options());
             $body = (string) $response->getBody();
         } catch (GuzzleException $e) {
-            throw PlexException::connectionFailed($e);
+            throw $this->classify($e);
         }
 
         $previous = libxml_use_internal_errors(true);
@@ -221,6 +222,29 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         }
 
         return $xml;
+    }
+
+    /**
+     * Maps a failed Plex request to a user-facing exception. A 404 means the
+     * item is gone (likely orphaned); a 401 means the token was rejected;
+     * anything else — including a transport failure with no response — is a
+     * connection problem. No extra request is made: the status is taken from
+     * the response the failed request already carried.
+     */
+    private function classify(GuzzleException $e): PlexException
+    {
+        $response = $e instanceof RequestException ? $e->getResponse() : null;
+        if ($response !== null) {
+            $status = $response->getStatusCode();
+            if ($status === 404) {
+                return PlexException::itemNotFound($e);
+            }
+            if ($status === 401) {
+                return PlexException::authFailed($e);
+            }
+        }
+
+        return PlexException::connectionFailed($e);
     }
 
     /**

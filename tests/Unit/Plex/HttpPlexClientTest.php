@@ -104,6 +104,32 @@ final class HttpPlexClientTest extends TestCase
         $this->client([$error])->libraries();
     }
 
+    public function testFetchingAGoneItemReportsItMayBeOrphaned(): void
+    {
+        $this->expectExceptionMessage('This item no longer exists in Plex, so the poster may be orphaned. Check the Orphans page.');
+        $this->client([new Response(404)])->itemPoster('999');
+    }
+
+    public function testSendingToAGoneItemReportsItMayBeOrphaned(): void
+    {
+        $this->expectExceptionMessage('This item no longer exists in Plex, so the poster may be orphaned. Check the Orphans page.');
+        $this->client([new Response(404)])->uploadPoster('999', 'IMAGE-BYTES');
+    }
+
+    public function testRejectedTokenReportsAnAuthProblem(): void
+    {
+        $this->expectExceptionMessage('The Plex server rejected the token. Check PLEX_TOKEN.');
+        $this->client([new Response(401)])->libraries();
+    }
+
+    public function testTransportFailureStillReportsAConnectionProblem(): void
+    {
+        $error = new ConnectException('down', new Request('GET', '/library/sections'));
+
+        $this->expectExceptionMessage('Could not connect to the Plex server. Check the URL and token.');
+        $this->client([$error])->libraries();
+    }
+
     /**
      * @param list<array<string, mixed>> $history
      */
