@@ -1,0 +1,66 @@
+## ADDED Requirements
+
+### Requirement: The branch determines the published image tag
+Pushing a branch SHALL publish a Docker image whose moving tag is determined by
+the branch alone: `dev` for the development branch and `latest` for the default
+branch. No other input SHALL affect which of these is published.
+
+#### Scenario: Development branch publishes the dev tag
+- **WHEN** a commit is pushed to `dev`
+- **THEN** the image is published as `bozodev/marquee:dev`
+- **AND** no git tag and no release are created
+
+#### Scenario: Default branch publishes latest
+- **WHEN** a commit is pushed to `main`
+- **THEN** the image is published as `bozodev/marquee:latest`
+
+### Requirement: A previously unreleased VERSION on the default branch cuts a release
+When a push to the default branch carries a `VERSION` that has not yet been
+released, the system SHALL additionally publish the image under that version,
+create the matching `v<version>` git tag, and create a GitHub Release from it.
+The `VERSION` file SHALL be the only source of the version number.
+
+#### Scenario: New version is released
+- **WHEN** a commit is pushed to `main` and `VERSION` names a version with no
+  existing `v<version>` git tag
+- **THEN** the image is published as `bozodev/marquee:<version>` in addition to
+  `latest`
+- **AND** a `v<version>` git tag is created
+- **AND** a GitHub Release is created for that tag
+
+#### Scenario: Already-released version publishes only latest
+- **WHEN** a commit is pushed to `main` and `VERSION` names a version whose
+  `v<version>` git tag already exists
+- **THEN** only `latest` is refreshed
+- **AND** no duplicate git tag or release is created, and the existing pinned
+  version image is not overwritten
+
+#### Scenario: Version bumps on the development branch do not release
+- **WHEN** a commit is pushed to `dev` with a changed `VERSION`
+- **THEN** only the `dev` image is published, and no version image, git tag, or
+  release is created
+
+### Requirement: A release is never advertised before its image exists
+The system SHALL create the git tag and the GitHub Release only after the image
+has been published successfully, so a release can never point at an image that
+cannot be pulled.
+
+#### Scenario: Failed image push creates no release
+- **WHEN** the image build or push fails during a release
+- **THEN** no git tag and no GitHub Release are created
+
+### Requirement: Every build is retrievable by commit
+The system SHALL publish an immutable `sha-<short>` tag for every build, on any
+branch, so any specific commit's image can be pulled for testing or rollback.
+
+#### Scenario: Commit-pinned image is published
+- **WHEN** any build publishes an image
+- **THEN** it is also tagged `sha-<short commit sha>`
+
+### Requirement: Git tags are an output of releasing, never an input
+The system SHALL NOT treat a pushed git tag as a trigger for publishing.
+Publishing SHALL be driven only by the branch and the `VERSION` file.
+
+#### Scenario: Pushing a git tag does not publish
+- **WHEN** a `v*` git tag is pushed to the repository
+- **THEN** no image build or publish is triggered by it
