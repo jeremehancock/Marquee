@@ -110,7 +110,7 @@ server.
 | --- | --- | --- |
 | `PUID` / `PGID` | User / group id that owns the `/config` volume | `911` |
 | `TZ` | Timezone (e.g. `America/New_York`) | `Etc/UTC` |
-| `SITE_TITLE` | Title shown in the UI | `Marquee` |
+| `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `AUTH_USERNAME` | Login username | `admin` |
 | `AUTH_PASSWORD` | Login password | `changeme` |
 | `AUTH_BYPASS` | Disable authentication entirely (trusted LAN only) | `false` |
