@@ -83,6 +83,21 @@ final class OrphanTest extends AppTestCase
         self::assertStringNotContainsString('never treated as orphans', $body);
     }
 
+    /**
+     * The shared fade-in script reveals posters by finding `.card__image`
+     * inside a `.card__frame`; without that markup an orphan renders as a
+     * permanently transparent image behind a shimmer that never resolves.
+     */
+    public function testOrphanUsesSharedCardMarkup(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans')->getBody();
+
+        self::assertMatchesRegularExpression(
+            '/class="card__frame">\s*<img class="card__image"/',
+            $body,
+        );
+    }
+
     public function testDeleteAllRemovesOrphanFiles(): void
     {
         $response = $this->postForm($this->app(), '/orphans/delete-all', []);

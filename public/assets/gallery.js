@@ -2,11 +2,35 @@
 // mutations, lazy-load fade-in, and the Alpine-driven overlays (change modal,
 // fullscreen viewer, confirm dialog, toast). Cards render as plain HTML with
 // data-* hooks so the grid can be swapped freely and handled by delegation.
+// Loaded on every page: the lazy-load fade-in applies wherever poster cards
+// render, while the rest activates only on a page with a [data-gallery] root.
 (function () {
     'use strict';
 
     function dispatch(name, detail) {
         window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
+    }
+
+    // ---- Lazy-load fade-in ----
+    // Poster cards ship transparent and are revealed by `is-loaded`, so this has
+    // to run on every page that renders them (the gallery, the orphans page),
+    // not just the one with a gallery root. An image that errors counts as
+    // resolved: a broken poster is a truer signal than an endless placeholder.
+    function markLoaded(img) {
+        // `complete` covers both outcomes — decoded, or fetched and failed — and
+        // a failed fetch is already complete by the time this runs, so its error
+        // event will never fire again. Checking naturalWidth here would leave a
+        // broken poster waiting on an event that has passed.
+        if (img.complete) {
+            img.classList.add('is-loaded');
+            return;
+        }
+        var done = function () { img.classList.add('is-loaded'); };
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+    }
+    function initImages(scope) {
+        (scope || document).querySelectorAll('.card__image').forEach(markLoaded);
     }
 
     // ---- Alpine component: the overlays ----
@@ -86,25 +110,15 @@
 
     // ---- Vanilla enhancement: grid, search, mutations ----
     document.addEventListener('DOMContentLoaded', function () {
+        // Before the gallery guard: every page with poster cards needs these
+        // revealed, and everything below depends on the gallery root.
+        initImages(document);
+
         var root = document.querySelector('[data-gallery]');
         if (!root) { return; }
         var base = root.getAttribute('data-base');
         var results = root.querySelector('#results');
         var pendingForm = null;
-
-        function markLoaded(img) {
-            if (img.complete && img.naturalWidth > 0) {
-                img.classList.add('is-loaded');
-                return;
-            }
-            var done = function () { img.classList.add('is-loaded'); };
-            img.addEventListener('load', done, { once: true });
-            img.addEventListener('error', done, { once: true });
-        }
-        function initImages(scope) {
-            (scope || document).querySelectorAll('.card__image').forEach(markLoaded);
-        }
-        initImages(document);
 
         function setResults(html) {
             results.innerHTML = html;
