@@ -301,8 +301,17 @@ After the merge, fast-forward `dev` so it doesn't drift behind `main` (the merge
 commit and the auto-created tag live on `main`):
 
 ```bash
-git checkout dev && git merge main && git push
+git checkout dev && git fetch origin && git merge --ff-only origin/main && git push
 ```
+
+Merge `origin/main`, not `main`. This workflow never checks out `main` — PRs are
+merged on GitHub — so the local `main` branch stays wherever it was when you
+cloned. Merging it does nothing and still reports `Already up to date.`, leaving
+`dev` unsynced while appearing to succeed.
+
+`--ff-only` is the safety rail: if `dev` has picked up commits of its own, the
+merge aborts instead of quietly creating a merge commit. That abort means real
+divergence to look at — drop the flag and merge normally, or rebase.
 
 ### Release checklist
 
@@ -367,8 +376,8 @@ openspec archive <change>
 git checkout dev && git pull
 echo "1.1.0" > VERSION && git commit -am "Release 1.1.0" && git push
 #   2. merge dev → main (PR)  → :latest + :1.1.0 + tag v1.1.0 + GitHub Release
-#   3. resync dev
-git checkout dev && git merge main && git push
+#   3. resync dev  (origin/main, not main — the local ref is stale)
+git checkout dev && git fetch origin && git merge --ff-only origin/main && git push
 ```
 
 ### Repo layout
