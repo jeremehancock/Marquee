@@ -7,7 +7,7 @@
     <p><a class="search__clear" href="{{ back_url }}">&larr; Back to library</a></p>
     <h1>Orphaned posters</h1>
     <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.
-       Posters you uploaded yourself are never treated as orphans.</p>
+       Deleting an orphan removes its poster file and its link to Plex.</p>
 
     {% if flash %}
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
