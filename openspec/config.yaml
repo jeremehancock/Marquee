@@ -35,19 +35,27 @@ context: |
       poster candidates from TMDB / TVDB / Fanart / Mediux and provides a server
       time-sync endpoint. Marquee calls it; it is not part of this repo.
 
-  Capability map (each becomes its own change, built phase by phase):
-    - application-shell   (bootstrap, routing, config, sessions, error handling, health)
+  Capability map. Every capability has a spec in openspec/specs/; a change
+  MUST target one of these rather than inventing a capability named after the
+  change itself:
+    - application-shell   (bootstrap, routing, config, error handling, health)
     - authentication      (env credentials, sessions, auth-bypass)
-    - poster-library      (categories, listing, pagination, fullscreen)
-    - search              (article-aware fuzzy search)
-    - poster-upload       (disk + URL upload, formats, size limit)
-    - plex-import         (multi-library import, exclusions, tracking)
-    - plex-export         (send-to-Plex, poster locking, Kometa overlay label)
+    - poster-library      (categories, listing, pagination, presentation,
+                           pointer/touch actions, responsive layout, delete)
+    - search              (specific, article-aware, live search)
+    - plex-import         (type-first import, skip-unchanged, item mapping,
+                           filenames, library tracking)
+    - plex-export         (upload to Plex, poster locking, Kometa overlay label)
+    - poster-editing      (change in place, re-send, fetch, download, copy)
     - poster-sources      (Find Posters via posteria.app: TMDB/TVDB/Fanart/Mediux)
-    - auto-import         (scheduled cron import, per-type toggles)
+    - auto-import         (scheduled cron import, per-type toggles, exclusions)
     - orphan-detection    (detect + delete orphaned posters)
-    - poster-wall         (rotating wall, active streams, image proxy)
-    - pwa                 (installable manifest, offline, version check)
+    - poster-wall         (full-screen rotating wall, random batches)
+    - pwa                 (installable manifest, offline assets, version check)
+
+  Note: posters enter the library only through plex-import. There is no
+  add-a-poster path; uploading a file or URL is a mode of changing an existing
+  poster (poster-editing).
 
 # Per-artifact rules
 rules:
