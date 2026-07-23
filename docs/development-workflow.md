@@ -329,9 +329,16 @@ divergence to look at — drop the flag and merge normally, or rebase.
 ```
 [ ] Feature validated against the :dev image
 [ ] VERSION bumped on dev + pushed            → :dev rebuilt at the new version
+[ ] Change archived (specs updated)           → code and specs ship together
 [ ] dev → main PR merged                      → :latest + :<version>, tag + Release
 [ ] dev synced with main
 ```
+
+`/ship` walks this list for you and will not skip the bump. Leaving `VERSION`
+equal to the latest tag is the quiet failure to watch for: the merge still
+publishes `:latest`, so nothing looks wrong, but no pinned image, tag, or
+GitHub Release is created — and since the in-app update check reads Releases,
+existing users are never offered the update.
 
 ### Notes
 

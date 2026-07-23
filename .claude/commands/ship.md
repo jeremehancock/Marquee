@@ -40,7 +40,8 @@ cat VERSION && gh release view --json tagName --jq .tagName
 | Uncommitted changes | Run the toolchain (below), then commit. |
 | Commits on `dev` not pushed | Push to `dev`. CI publishes `bozodev/marquee:dev`. |
 | Change complete, not archived, `:dev` not yet validated | **Ask the user to test the `:dev` image.** Do not archive before they confirm. |
-| `:dev` validated, change still active | `openspec archive <change> --yes`, then commit and push the archive. |
+| `:dev` validated, `VERSION` equals the latest release tag | **Bump `VERSION` (below).** Do this before archiving, so the release ships as one PR. |
+| `:dev` validated and `VERSION` bumped, change still active | `openspec archive <change> --yes`, then commit and push the archive. |
 | No active change, `dev` ahead of `main`, no open PR | Create the PR (below). |
 | PR open, not merged | Stop. Report the URL and wait — merging is the user's call. |
 | PR merged, `dev` behind `main` | Resync (below). |
@@ -57,6 +58,41 @@ composer test && composer stan && composer cs
 All three must pass. If `composer` is missing, fall back to `./vendor/bin/`.
 If PHPStan dies on memory, that is a local config problem, not a code problem —
 see `docs/development-workflow.md`. Report failures; do not commit around them.
+
+## Bumping VERSION
+
+Do this **after** the user has validated `:dev` and **before** archiving, so the
+bump, the code, and the archived specs all reach `main` in one PR.
+
+Compare `VERSION` against the latest release tag. If they are equal and `dev`
+carries commits `main` does not, the work is unreleased and needs a bump:
+
+```bash
+cat VERSION
+gh release view --json tagName --jq .tagName
+git log --oneline origin/main..dev
+```
+
+**Never bump silently, and never pick the number alone.** Use the
+**AskUserQuestion tool** to offer patch / minor / major with the current value
+and what each would become. Recommend one based on what actually changed — a bug
+fix is a patch; a new capability is a minor — but the call is the user's.
+
+Then write the file, run the toolchain, and commit it on its own:
+
+```bash
+git commit -m "Version bump"
+```
+
+**Do not skip this because the change looks small.** If `VERSION` still matches
+the latest tag when the PR merges, CI publishes `:latest` and stops — no pinned
+image, no `v<version>` tag, and no GitHub Release. The in-app update check reads
+GitHub Releases, so existing users are simply never offered the update. Nothing
+errors; the release just quietly doesn't happen.
+
+If the user says the change should not be released at all — internal tooling,
+docs, a follow-up to something already shipped — that is a legitimate answer.
+Skip the bump, and say plainly in the PR that merging refreshes `:latest` only.
 
 ## Creating the PR
 
@@ -99,6 +135,8 @@ what they are and say so.
   `openspec/specs/`, which is the source of truth.
 - **Never commit with a failing toolchain.** Report and stop.
 - **Never skip the archive** to get a PR out faster. Code and specs ship together.
+- **Never open a release PR without checking `VERSION`.** Equal to the latest tag
+  means no release will be cut. Say so explicitly, and confirm that is intended.
 - If the state is ambiguous, say what is ambiguous and ask. Do not guess.
 
 ## Finish
