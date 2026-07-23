@@ -22,6 +22,20 @@ final class PlexException extends RuntimeException
         return new self('Could not connect to the Plex server. Check the URL and token.', 0, $previous);
     }
 
+    public static function itemNotFound(?Throwable $previous = null): self
+    {
+        return new self(
+            'This item no longer exists in Plex, so the poster may be orphaned. Check the Orphans page.',
+            0,
+            $previous,
+        );
+    }
+
+    public static function authFailed(?Throwable $previous = null): self
+    {
+        return new self('The Plex server rejected the token. Check PLEX_TOKEN.', 0, $previous);
+    }
+
     public static function unexpectedResponse(): self
     {
         return new self('The Plex server returned an unexpected response.');
