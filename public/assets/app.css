@@ -324,6 +324,13 @@ h1 {
     animation: shimmer 1.3s linear infinite;
 }
 
+/* Once the image has resolved the shimmer is redundant, so stop animating it.
+   Without :has() support it keeps running, hidden behind the opaque image —
+   the same as before this rule, so the degradation is invisible. */
+.card__frame:has(.card__image.is-loaded)::before {
+    content: none;
+}
+
 .card__image {
     position: relative;
     width: 100%;
