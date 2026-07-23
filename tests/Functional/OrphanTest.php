@@ -67,6 +67,22 @@ final class OrphanTest extends AppTestCase
         self::assertStringContainsString('Delete all orphans', $body);
     }
 
+    public function testOrphansPageExplainsWhatDeletionRemoves(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans')->getBody();
+
+        self::assertStringContainsString('imported from Plex whose media no longer exists', $body);
+        self::assertStringContainsString('removes its poster file and its link to Plex', $body);
+    }
+
+    public function testOrphansPageClaimsNoExemption(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans')->getBody();
+
+        self::assertStringNotContainsString('uploaded yourself', $body);
+        self::assertStringNotContainsString('never treated as orphans', $body);
+    }
+
     public function testDeleteAllRemovesOrphanFiles(): void
     {
         $response = $this->postForm($this->app(), '/orphans/delete-all', []);
