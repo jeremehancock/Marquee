@@ -334,6 +334,19 @@ divergence to look at — drop the flag and merge normally, or rebase.
   `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
 - Every build also gets an immutable `sha-<short>` tag, so you can always pull a
   specific commit's image (handy for rollbacks).
+- Your local `main` branch goes stale, because this workflow never checks it out
+  — PRs are merged on GitHub. That's harmless for releasing (Step 4 reads
+  `origin/main`), but it quietly skews local comparisons: with a stale `main`,
+  `git log main..dev` and `git diff main dev` report commits and changes that
+  already shipped. Refresh it without checking out:
+
+  ```bash
+  git fetch origin main:main
+  ```
+
+  Prefer this over `git branch -f main origin/main` — both move the ref without
+  touching your working tree, but `fetch` refuses a non-fast-forward, whereas
+  `-f` would silently discard local commits if `main` ever had any.
 - Want to re-release the same code under a new number? Bump `VERSION`, merge — the
   version number is independent of the tag name because it comes from the file.
 
