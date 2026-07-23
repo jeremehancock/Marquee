@@ -97,4 +97,74 @@ final class PosterLibraryTest extends TestCase
         self::assertTrue($library->delete(PosterCategory::Movies, 'Gone.png'));
         self::assertSame(0, $library->browse(PosterCategory::Movies, null, 1)->total);
     }
+
+    /**
+     * @param array<string, list<string>> $byCategory
+     */
+    private function libraryAcross(array $byCategory, int $perPage = 24): PosterLibrary
+    {
+        foreach ($byCategory as $category => $filenames) {
+            $dir = $this->dir . '/' . $category;
+            if (!is_dir($dir)) {
+                mkdir($dir, 0o775, true);
+            }
+            foreach ($filenames as $name) {
+                $this->writePng($dir . '/' . $name);
+            }
+        }
+
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true);
+
+        return new PosterLibrary($storage, new PosterSearch(), $config);
+    }
+
+    public function testBrowseAllMergesCategoriesInMixedTitleOrder(): void
+    {
+        $library = $this->libraryAcross([
+            'movies' => ['Zodiac.png'],
+            'tv-shows' => ['Alien.png'],
+            'collections' => ['Matrix.png'],
+        ]);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browseAll(null, 1)->items,
+        );
+
+        // Mixed across types, not grouped by category.
+        self::assertSame(['Alien', 'Matrix', 'Zodiac'], $titles);
+    }
+
+    public function testBrowseAllBreaksTitleTiesByCategoryOrder(): void
+    {
+        $library = $this->libraryAcross([
+            'collections' => ['Alien.png'],
+            'tv-seasons' => ['Alien.png'],
+            'movies' => ['Alien.png'],
+        ]);
+
+        $categories = array_map(
+            static fn ($p): string => $p->category->value,
+            $library->browseAll(null, 1)->items,
+        );
+
+        // Equal titles ordered Movies -> TV Seasons -> Collections.
+        self::assertSame(['movies', 'tv-seasons', 'collections'], $categories);
+    }
+
+    public function testBrowseAllPaginatesCombinedTotal(): void
+    {
+        $library = $this->libraryAcross([
+            'movies' => ['A.png', 'B.png'],
+            'tv-shows' => ['C.png', 'D.png'],
+            'collections' => ['E.png'],
+        ], perPage: 2);
+
+        $page1 = $library->browseAll(null, 1);
+
+        self::assertSame(5, $page1->total);
+        self::assertSame(3, $page1->totalPages());
+        self::assertCount(2, $page1->items);
+    }
 }

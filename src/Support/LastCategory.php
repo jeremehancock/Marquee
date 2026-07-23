@@ -4,31 +4,32 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Poster\PosterCategory;
+use App\Poster\GalleryView;
 use App\Support\Session\SessionInterface;
 
 /**
  * Remembers the library section the user was last viewing so that pages reached
- * from the gallery (Orphans, Import) can send them back to it.
+ * from the gallery (Orphans, Import) can send them back to it. The section may
+ * be a single category or the aggregate All view.
  */
 final class LastCategory
 {
     private const KEY = 'last_category';
 
-    public static function remember(SessionInterface $session, PosterCategory $category): void
+    public static function remember(SessionInterface $session, GalleryView $view): void
     {
-        $session->set(self::KEY, $category->value);
+        $session->set(self::KEY, $view->value);
     }
 
     /**
      * The back-to-library URL for the remembered section, falling back to the
-     * default category when nothing is remembered or the value is unknown.
+     * All view when nothing is remembered or the value is unknown.
      */
     public static function backUrl(SessionInterface $session): string
     {
         $stored = $session->get(self::KEY);
-        $category = is_string($stored) ? PosterCategory::fromSlug($stored) : null;
+        $view = is_string($stored) ? GalleryView::fromSlug($stored) : null;
 
-        return '/library/' . ($category ?? PosterCategory::default())->value;
+        return '/library/' . ($view ?? GalleryView::all())->value;
     }
 }

@@ -1,4 +1,5 @@
-{% set base = '/library/' ~ category.value %}
+{# View-level base drives pagination over the whole (combined or category) list. #}
+{% set base = '/library/' ~ view.value %}
 
 <p class="stats">
     {% if result.total > 0 %}
@@ -10,22 +11,29 @@
 
 <div class="grid">
     {% for poster in result.items %}
-        {% set is_linked = plex_configured and poster.filename in linked %}
+        {# Actions target the poster's OWN category: filenames are unique only
+           within a category, so the page-level base is wrong in the All view. #}
+        {% set poster_base = '/library/' ~ poster.category.value %}
+        {% set is_linked = plex_configured and poster.filename in (linked[poster.category.value] ?? []) %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
+                {% if is_all_view %}
+                    <span class="card__badge card__badge--{{ poster.category.value }}">{{ poster.category.badgeLabel }}</span>
+                {% endif %}
                 <div class="card__overlay">
                     <div class="card__actions">
                         <button type="button" class="btn btn--small btn--accent"
-                                data-action="change" data-filename="{{ poster.filename }}" data-title="{{ poster.title }}">
+                                data-action="change" data-filename="{{ poster.filename }}"
+                                data-title="{{ poster.title }}" data-category="{{ poster.category.value }}">
                             Change poster
                         </button>
                         {% if is_linked %}
-                            <form class="js-mutate" method="post" action="{{ base }}/send-to-plex">
+                            <form class="js-mutate" method="post" action="{{ poster_base }}/send-to-plex">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">Send to Plex</button>
                             </form>
-                            <form class="js-mutate" method="post" action="{{ base }}/fetch-from-plex">
+                            <form class="js-mutate" method="post" action="{{ poster_base }}/fetch-from-plex">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">Fetch from Plex</button>
                             </form>
@@ -33,7 +41,7 @@
                         <a class="btn btn--small" href="{{ poster.url }}" download>Download</a>
                         <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">Copy URL</button>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">Full screen</button>
-                        <form class="js-mutate" method="post" action="{{ base }}/delete"
+                        <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ poster.title }}”? This cannot be undone.">
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
                             <button type="submit" class="btn btn--small btn--danger">Delete</button>

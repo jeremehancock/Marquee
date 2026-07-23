@@ -1,14 +1,14 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}{{ category.label }} · {{ site_title }}{% endblock %}
+{% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
-{% set base = '/library/' ~ category.value %}
+{% set base = '/library/' ~ view.value %}
 
 {% block content %}
 <div data-gallery data-base="{{ base }}" x-data="galleryUI"
      @gallery:view.window="view($event.detail.url)"
      @gallery:copy.window="copyUrl($event.detail.url)"
-     @gallery:change.window="openChange($event.detail.filename, $event.detail.title)"
+     @gallery:change.window="openChange($event.detail.filename, $event.detail.title, $event.detail.category)"
      @gallery:confirm.window="askConfirm($event.detail)"
      @gallery:toast.window="notify($event.detail.text)"
      @gallery:sheet.window="openSheet($event.detail)"
@@ -20,16 +20,16 @@
     {% endif %}
 
     <nav class="tabs">
-        {% for cat in categories %}
-            <a class="tab {{ cat.value == category.value ? 'tab--active' : '' }}"
-               href="/library/{{ cat.value }}">{{ cat.label }}</a>
+        {% for tab in tabs %}
+            <a class="tab {{ tab.active ? 'tab--active' : '' }}"
+               href="/library/{{ tab.value }}">{{ tab.label }}</a>
         {% endfor %}
     </nav>
 
     <div class="toolbar">
         <form class="search" method="get" action="{{ base }}" role="search">
             <input type="search" name="q" value="{{ query }}" autocomplete="off"
-                   placeholder="Search {{ category.label }}…" aria-label="Search">
+                   placeholder="Search {{ view.label }}…" aria-label="Search">
             {% if query is not empty %}
                 <a class="search__clear" href="{{ base }}">Clear</a>
             {% endif %}
@@ -62,7 +62,7 @@
                         @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
             </div>
 
-            <form class="form js-mutate" method="post" action="{{ base }}/change/upload"
+            <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
                   enctype="multipart/form-data" x-show="change.tab === 'upload'">
                 <input type="hidden" name="filename" :value="change.filename">
                 <label for="change-file">Image file (JPG, PNG, or WebP)</label>
@@ -70,7 +70,7 @@
                 <button type="submit" class="btn btn--accent">Update poster</button>
             </form>
 
-            <form class="form js-mutate" method="post" action="{{ base }}/change/url" x-show="change.tab === 'url'">
+            <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'" x-show="change.tab === 'url'">
                 <input type="hidden" name="filename" :value="change.filename">
                 <label for="change-url">Image URL (also supports Mediux URLs)</label>
                 <input id="change-url" type="url" name="url" placeholder="https://…" required>
@@ -89,7 +89,7 @@
                             <img class="find-item__img" :src="url" alt="" loading="lazy"
                                  data-action="view" :data-url="url" title="Preview full screen">
                             <div class="find-item__actions">
-                                <form class="js-mutate" method="post" action="{{ base }}/change/url">
+                                <form class="js-mutate" method="post" :action="'/library/' + change.category + '/change/url'">
                                     <input type="hidden" name="filename" :value="change.filename">
                                     <input type="hidden" name="url" :value="url">
                                     <button type="submit" class="btn btn--small btn--accent">Select</button>

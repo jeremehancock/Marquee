@@ -358,6 +358,34 @@ h1 {
     overflow: hidden;
 }
 
+/* Type badge — shown only in the All view. Sits in a corner of the frame and
+   retreats on hover (pointer devices) so it never competes with the action
+   overlay; on touch there is no overlay, so it simply stays put. */
+.card__badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    padding: 3px 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+/* Per-type tints so the four types — especially TV Show vs. TV Season — are
+   distinguishable at a glance. */
+.card__badge--movies { background: rgba(37, 99, 235, 0.85); }
+.card__badge--tv-shows { background: rgba(22, 163, 74, 0.85); }
+.card__badge--tv-seasons { background: rgba(202, 138, 4, 0.9); }
+.card__badge--collections { background: rgba(147, 51, 234, 0.85); }
+
 /* Actions overlay the poster and reveal on hover (always on touch). */
 .card__overlay {
     position: absolute;
@@ -381,6 +409,12 @@ h1 {
     .card__frame:focus-within .card__overlay {
         opacity: 1;
         pointer-events: auto;
+    }
+
+    /* As the overlay arrives, the badge retreats so they never overlap. */
+    .card__frame:hover .card__badge,
+    .card__frame:focus-within .card__badge {
+        opacity: 0;
     }
 }
 
@@ -527,16 +561,29 @@ h1 {
         padding: 20px 14px;
     }
 
-    /* Tabs become a tidy 2-column grid so nothing overflows the screen. */
+    /* Tabs become a single horizontal scroll-snap row: five tabs (All + the
+       four categories) never overflow the page or wrap into an orphan row.
+       The edge fade hints that the row scrolls. */
     .tabs {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2px 8px;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 2px;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+        mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    }
+
+    .tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .tab {
-        padding: 10px 6px;
-        text-align: center;
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+        padding: 10px 12px;
         white-space: nowrap;
     }
 
