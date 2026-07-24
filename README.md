@@ -37,6 +37,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
   Seasons, and Collections, or use the **All** view (the default) to see your
   whole library in one grid, each poster tagged with its type.
+- **Sort your way** — order the gallery alphabetically or by when each item was
+  added to Plex (newest first). Toggle it in the gallery, or set the install
+  default with `DEFAULT_SORT`.
 - **Poster Wall** — a full-screen, slideshow-style view of your library.
 - **Fast, modern UI** — search as you type, background updates without full page
   reloads, and a touch-friendly action sheet on mobile.
@@ -81,6 +84,7 @@ services:
       # --- Optional tweaks ---
       # SITE_TITLE: "Marquee"
       # IMAGES_PER_PAGE: "24"
+      # DEFAULT_SORT: "alphabetical"  # alphabetical | date_added
       # UPDATE_CHECK_ENABLED: "false"
     volumes:
       - ./marquee/config:/config
@@ -133,6 +137,7 @@ server.
 | `IMAGES_PER_PAGE` | Posters shown per gallery page | `24` |
 | `MAX_FILE_SIZE` | Maximum upload size, in bytes | `5242880` |
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
+| `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` or `date_added` (by date added to Plex, newest first). Users can toggle it in the gallery. | `alphabetical` |
 | `POSTER_SOURCE_URL` | Base URL of the poster search service used by **Find Posters** | `https://posteria.app` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |

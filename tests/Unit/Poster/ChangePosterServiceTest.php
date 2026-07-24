@@ -13,6 +13,7 @@ use App\Plex\Export\PlexExportService;
 use App\Poster\Edit\ChangePosterService;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
+use App\Poster\SortOrder;
 use App\Poster\Upload\UploadException;
 use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\FakePlexPosterWriter;
@@ -55,7 +56,7 @@ final class ChangePosterServiceTest extends TestCase
 
         return new ChangePosterService(
             $this->storage,
-            new PosterConfig(24, 5_000_000, self::EXTS, true),
+            new PosterConfig(24, 5_000_000, self::EXTS, true, SortOrder::Alphabetical),
             $this->items,
             new FakePlexClient(),
             $export,

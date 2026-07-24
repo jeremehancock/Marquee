@@ -19,6 +19,7 @@ final class PlexItemRecord
         public readonly int $updatedAt,
         public readonly string $sectionKey = '',
         public readonly string $thumb = '',
+        public readonly int $addedAt = 0,
     ) {
     }
 
@@ -37,6 +38,7 @@ final class PlexItemRecord
             updatedAt: (int) $row['updated_at'],
             sectionKey: (string) ($row['section_key'] ?? ''),
             thumb: (string) ($row['thumb'] ?? ''),
+            addedAt: (int) ($row['added_at'] ?? 0),
         );
     }
 }

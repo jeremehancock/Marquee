@@ -214,6 +214,17 @@ h1 {
     gap: 8px;
 }
 
+.sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sort__label {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
 .fieldset {
     border: 1px solid var(--border);
     border-radius: 8px;
