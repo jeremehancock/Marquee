@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Config;
 
+use App\Poster\SortOrder;
 use App\Support\Env;
 
 /**
@@ -19,6 +20,7 @@ final class PosterConfig
         public readonly int $maxFileSize,
         public readonly array $allowedExtensions,
         public readonly bool $ignoreArticlesInSort,
+        public readonly SortOrder $defaultSort,
     ) {
     }
 
@@ -29,6 +31,8 @@ final class PosterConfig
             maxFileSize: max(1, Env::int('MAX_FILE_SIZE', 5_242_880)),
             allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
             ignoreArticlesInSort: Env::bool('IGNORE_ARTICLES_IN_SORT', true),
+            // Unset, empty, or unrecognized DEFAULT_SORT falls back to A–Z.
+            defaultSort: SortOrder::fromSlug(Env::str('DEFAULT_SORT', '')) ?? SortOrder::default(),
         );
     }
 }

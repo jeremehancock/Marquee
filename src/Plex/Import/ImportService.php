@@ -130,6 +130,7 @@ final class ImportService
                 updatedAt: time(),
                 sectionKey: $item->sectionKey,
                 thumb: $thumb,
+                addedAt: $item->addedAt ?? 0,
             ));
 
             $result->recordImported($category);

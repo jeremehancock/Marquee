@@ -26,9 +26,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -37,6 +37,7 @@ final class PlexItemRepository
                 title = excluded.title,
                 filename = excluded.filename,
                 thumb = excluded.thumb,
+                added_at = excluded.added_at,
                 updated_at = excluded.updated_at'
         );
 
@@ -49,6 +50,7 @@ final class PlexItemRepository
             ':title' => $record->title,
             ':filename' => $record->filename,
             ':thumb' => $record->thumb,
+            ':added_at' => $record->addedAt,
             ':updated_at' => $record->updatedAt,
         ]);
     }
@@ -82,6 +84,30 @@ final class PlexItemRepository
         }
 
         return $filenames;
+    }
+
+    /**
+     * The Plex "added at" timestamp for each mapped poster in a category, keyed
+     * by filename. Rows with no known timestamp (added_at = 0) are omitted so
+     * the caller can fall back to the file's modification time.
+     *
+     * @return array<string, int>
+     */
+    public function addedAtForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, added_at FROM plex_items WHERE category = :category AND added_at > 0'
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['added_at'])) {
+                $map[(string) $row['filename']] = (int) $row['added_at'];
+            }
+        }
+
+        return $map;
     }
 
     public function deleteByRatingKey(string $ratingKey): void

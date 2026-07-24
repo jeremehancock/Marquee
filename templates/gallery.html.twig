@@ -34,6 +34,16 @@
                 <a class="search__clear" href="{{ base }}">Clear</a>
             {% endif %}
         </form>
+        {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+        <div class="sort" role="group" aria-label="Sort order">
+            <span class="sort__label">Sort</span>
+            <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
+               href="{{ base }}?sort=alphabetical{{ sort_q }}"
+               {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
+            <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
+               href="{{ base }}?sort=date_added{{ sort_q }}"
+               {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+        </div>
         <div class="toolbar__actions">
             <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
             <a class="btn" href="/plex">Import from Plex</a>

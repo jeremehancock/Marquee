@@ -79,6 +79,9 @@ final class Database
         // Plex's poster path carries a version token; storing it lets an import
         // skip re-downloading posters that have not changed in Plex.
         $this->ensureColumn($pdo, 'plex_items', 'thumb', "TEXT NOT NULL DEFAULT ''");
+        // Plex's "added at" timestamp lets the gallery order posters by when
+        // their media was added to Plex. 0 means unknown (falls back to mtime).
+        $this->ensureColumn($pdo, 'plex_items', 'added_at', 'INTEGER NOT NULL DEFAULT 0');
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

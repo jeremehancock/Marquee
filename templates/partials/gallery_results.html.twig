@@ -56,6 +56,9 @@
 
 {% if result.totalPages > 1 %}
     {% set q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+    {# Carry a non-default sort so paging keeps the chosen order; A–Z is the
+       default and needs no parameter. #}
+    {% set q = q ~ (sort is defined and sort == 'date_added' ? '&sort=date_added' : '') %}
     <nav class="pagination">
         {% if result.hasPrevious %}
             <a class="btn" href="{{ base }}?page={{ result.page - 1 }}{{ q }}">Previous</a>

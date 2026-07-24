@@ -67,6 +67,21 @@ final class HttpPlexClientTest extends TestCase
         self::assertSame('/t/10', $items[0]->thumb);
     }
 
+    public function testParsesAddedAtTimestampWhenPresent(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video ratingKey="10" type="movie" title="Solaris" thumb="/t/10" addedAt="1700000000"/>'
+            . '<Video ratingKey="11" type="movie" title="Dune" thumb="/t/11"/>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        self::assertSame(1700000000, $items[0]->addedAt);
+        // Absent (or non-positive) addedAt surfaces as null so the gallery can
+        // fall back to the file's modification time.
+        self::assertNull($items[1]->addedAt);
+    }
+
     public function testParsesSeasonsWithParentTitle(): void
     {
         $xml = '<MediaContainer>'

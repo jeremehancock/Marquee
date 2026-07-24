@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Config\PlexConfig;
+use App\Config\PosterConfig;
 use App\Database\PlexItemRepository;
 use App\Poster\GalleryView;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
+use App\Poster\SortOrder;
 use App\Support\Flash;
 use App\Support\LastCategory;
 use App\Support\Session\SessionInterface;
+use App\Support\SortPreference;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpNotFoundException;
@@ -29,6 +32,7 @@ final class GalleryController
         private readonly PlexConfig $plexConfig,
         private readonly PlexItemRepository $plexItems,
         private readonly SessionInterface $session,
+        private readonly PosterConfig $posterConfig,
     ) {
     }
 
@@ -53,10 +57,23 @@ final class GalleryController
         $query = isset($params['q']) && is_string($params['q']) ? $params['q'] : '';
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
+        // Effective sort: a valid ?sort= wins and is remembered, else the
+        // session's stored choice, else the DEFAULT_SORT config default.
+        $sort = SortPreference::resolve($this->session, $params, $this->posterConfig->defaultSort);
+
+        // Date-added sort needs each poster's Plex "added at" timestamp, keyed
+        // by category then filename. Only fetched when it will be used.
+        $addedAt = [];
+        if ($sort === SortOrder::DateAdded) {
+            foreach ($view->categories() as $cat) {
+                $addedAt[$cat->value] = $this->plexItems->addedAtForCategory($cat->value);
+            }
+        }
+
         $category = $view->category;
         $result = $category === null
-            ? $this->library->browseAll($query, $page)
-            : $this->library->browse($category, $query, $page);
+            ? $this->library->browseAll($query, $page, $sort, $addedAt)
+            : $this->library->browse($category, $query, $page, $sort, $addedAt);
 
         // Remember the section so Orphans/Import can send the user back to it.
         LastCategory::remember($this->session, $view);
@@ -80,6 +97,7 @@ final class GalleryController
             'flash' => $this->flash->pull(),
             'plex_configured' => $plexConfigured,
             'linked' => $linked,
+            'sort' => $sort->value,
         ]);
     }
 

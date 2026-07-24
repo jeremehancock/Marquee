@@ -65,6 +65,38 @@ final class ImportServiceTest extends TestCase
         self::assertNotNull($this->items->findByRatingKey('10'));
     }
 
+    public function testImportPersistsPlexAddedAt(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies', addedAt: 1700000000);
+        $service = $this->service(new FakePlexClient([$library], ['1' => [$movie]]));
+
+        $service->import(['1'], [PlexMediaType::Movie]);
+
+        $record = $this->items->findByRatingKey('10');
+        self::assertNotNull($record);
+        self::assertSame(1700000000, $record->addedAt);
+
+        // The stored timestamp is exposed to the date-added sort, keyed by filename.
+        $map = $this->items->addedAtForCategory('movies');
+        self::assertSame(1700000000, $map[$record->filename] ?? null);
+    }
+
+    public function testImportWithoutAddedAtStoresZeroAndOmitsFromLookup(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('11', PlexMediaType::Movie, 'Dune', 2021, '/t/11', 'Movies');
+        $service = $this->service(new FakePlexClient([$library], ['1' => [$movie]]));
+
+        $service->import(['1'], [PlexMediaType::Movie]);
+
+        $record = $this->items->findByRatingKey('11');
+        self::assertNotNull($record);
+        self::assertSame(0, $record->addedAt);
+        // added_at = 0 means "unknown" and is excluded so the caller falls back to mtime.
+        self::assertSame([], $this->items->addedAtForCategory('movies'));
+    }
+
     public function testReimportOverwritesWithoutDuplicating(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');

@@ -82,6 +82,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
                 libraryTitle: $show->libraryTitle,
                 parentTitle: $show->title,
                 sectionKey: $show->sectionKey,
+                addedAt: $this->intAttr($directory, 'addedAt'),
             );
         }
 
@@ -192,12 +193,27 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             thumb: $this->attr($element, 'thumb'),
             libraryTitle: $library->title,
             sectionKey: $library->key,
+            addedAt: $this->intAttr($element, 'addedAt'),
         );
     }
 
     private function attr(SimpleXMLElement $element, string $name): ?string
     {
         return isset($element[$name]) ? (string) $element[$name] : null;
+    }
+
+    /**
+     * Read an integer attribute (e.g. Plex's `addedAt` Unix timestamp), or null
+     * when it is absent or non-positive.
+     */
+    private function intAttr(SimpleXMLElement $element, string $name): ?int
+    {
+        if (!isset($element[$name])) {
+            return null;
+        }
+        $value = (int) $element[$name];
+
+        return $value > 0 ? $value : null;
     }
 
     private function get(string $path): SimpleXMLElement

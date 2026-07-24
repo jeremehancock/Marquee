@@ -9,6 +9,7 @@ use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Poster\Search\PosterSearch;
+use App\Poster\SortOrder;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\TestCase;
 
@@ -39,7 +40,7 @@ final class PosterLibraryTest extends TestCase
         }
 
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
-        $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], $ignoreArticles);
+        $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], $ignoreArticles, SortOrder::Alphabetical);
 
         return new PosterLibrary($storage, new PosterSearch(), $config);
     }
@@ -54,6 +55,58 @@ final class PosterLibraryTest extends TestCase
         );
 
         self::assertSame(['Alien', 'The Matrix', 'Zodiac'], $titles);
+    }
+
+    public function testDateAddedSortOrdersNewestFirst(): void
+    {
+        $library = $this->library(['Alien.png', 'Matrix.png', 'Zodiac.png']);
+
+        $addedAt = ['movies' => [
+            'Alien.png' => 100,
+            'Matrix.png' => 300,
+            'Zodiac.png' => 200,
+        ]];
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $addedAt)->items,
+        );
+
+        self::assertSame(['Matrix', 'Zodiac', 'Alien'], $titles);
+    }
+
+    public function testDateAddedSortFallsBackToFileMtime(): void
+    {
+        $library = $this->library(['Old.png', 'Mid.png', 'New.png']);
+
+        // No Plex timestamps: ordering must come from file modification time.
+        touch($this->dir . '/movies/Old.png', 1_000);
+        touch($this->dir . '/movies/Mid.png', 2_000);
+        touch($this->dir . '/movies/New.png', 3_000);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, [])->items,
+        );
+
+        self::assertSame(['New', 'Mid', 'Old'], $titles);
+    }
+
+    public function testDateAddedSortMixesStoredTimestampWithMtimeFallback(): void
+    {
+        $library = $this->library(['Stored.png', 'Fallback.png']);
+
+        // Stored has an explicit (older) Plex timestamp; Fallback has none and
+        // uses its newer file mtime — so Fallback should sort first.
+        touch($this->dir . '/movies/Fallback.png', 5_000);
+        $addedAt = ['movies' => ['Stored.png' => 1_000]];
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $addedAt)->items,
+        );
+
+        self::assertSame(['Fallback', 'Stored'], $titles);
     }
 
     public function testPagination(): void
@@ -114,7 +167,7 @@ final class PosterLibraryTest extends TestCase
         }
 
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
-        $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true);
+        $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
 
         return new PosterLibrary($storage, new PosterSearch(), $config);
     }
