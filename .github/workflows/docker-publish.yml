@@ -15,7 +15,10 @@ name: Publish Docker image
 #
 # Publishing is gated on CI: it runs when the CI workflow completes
 # successfully for a commit, never in parallel with it. A red CI publishes
-# nothing. workflow_dispatch stays available as a manual override.
+# nothing. Only push-triggered CI drives an automatic publish — the pull_request
+# CI that reruns the same dev tip during a ship is ignored, so a commit publishes
+# exactly once instead of racing a duplicate. workflow_dispatch stays available
+# as a manual override.
 # NOTE: workflow_run reads THIS file from the default branch and its
 # github.ref/github.sha point at the default branch, not the tested commit —
 # so branch and sha below are derived from the workflow_run payload.
@@ -39,12 +42,15 @@ jobs:
     name: Build and push (linux/amd64, linux/arm64)
     runs-on: ubuntu-latest
     # Skip on forks (only the source repo has the Docker Hub credentials), and
-    # for the automatic path only publish when CI actually passed. A manual
-    # dispatch deliberately bypasses the CI-success check.
+    # for the automatic path only publish when CI actually passed AND that CI was
+    # triggered by a push — a pull_request CI run for the same commit must not
+    # spawn a second, racing publish. A manual dispatch deliberately bypasses
+    # both checks.
     if: >-
       github.repository_owner == 'jeremehancock' &&
       (github.event_name == 'workflow_dispatch' ||
-       github.event.workflow_run.conclusion == 'success')
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push'))
     steps:
       - uses: actions/checkout@v4
         with:
