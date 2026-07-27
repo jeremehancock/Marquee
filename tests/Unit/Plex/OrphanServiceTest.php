@@ -13,6 +13,7 @@ use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
 use App\Poster\FilesystemPosterStorage;
+use App\Poster\PosterCategory;
 use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\TestCase;
@@ -88,6 +89,49 @@ final class OrphanServiceTest extends TestCase
         self::assertFileDoesNotExist($this->dir . '/movies/Gone.jpg');
         self::assertFileExists($this->dir . '/movies/Solaris.jpg');
         self::assertNull($this->items->findByRatingKey('99'));
+    }
+
+    public function testDeleteRemovesASingleOrphan(): void
+    {
+        $this->seed('Solaris.jpg', '10');
+        $this->seed('Gone.jpg', '99');
+
+        $deleted = $this->service()->delete(PosterCategory::Movies, 'Gone.jpg');
+
+        self::assertTrue($deleted);
+        self::assertFileDoesNotExist($this->dir . '/movies/Gone.jpg');
+        self::assertNull($this->items->findByRatingKey('99'));
+        self::assertFileExists($this->dir . '/movies/Solaris.jpg');
+        self::assertNotNull($this->items->findByRatingKey('10'));
+    }
+
+    public function testDeleteLeavesNonOrphansUntouched(): void
+    {
+        $this->seed('Solaris.jpg', '10');
+
+        // "Solaris" still exists in Plex (rating key 10), so it is not an orphan
+        // and must never be removed through the orphan-delete path.
+        $deleted = $this->service()->delete(PosterCategory::Movies, 'Solaris.jpg');
+
+        self::assertFalse($deleted);
+        self::assertFileExists($this->dir . '/movies/Solaris.jpg');
+        self::assertNotNull($this->items->findByRatingKey('10'));
+    }
+
+    public function testDeleteUnknownFilenameIsANoOp(): void
+    {
+        $this->seed('Gone.jpg', '99');
+
+        self::assertFalse($this->service()->delete(PosterCategory::Movies, 'Missing.jpg'));
+        self::assertFileExists($this->dir . '/movies/Gone.jpg');
+    }
+
+    public function testDeleteThrowsWhenPlexUnconfigured(): void
+    {
+        $this->seed('Gone.jpg', '99');
+
+        $this->expectException(PlexException::class);
+        $this->service(configured: false)->delete(PosterCategory::Movies, 'Gone.jpg');
     }
 
     public function testUnconfiguredPlexThrows(): void

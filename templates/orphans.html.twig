@@ -32,6 +32,17 @@
             </div>
         </div>
 
+        {# Delete progress overlay — the delete is verified against Plex, which
+           can take a few seconds on a large library. Shown for both a single
+           delete and delete-all. #}
+        <div class="overlay" x-show="deleting" x-cloak style="display:none">
+            <div class="overlay__box">
+                <div class="spinner"></div>
+                <p><strong>Deleting&hellip;</strong></p>
+                <p class="stats">Removing orphaned posters from Plex. Please keep this page open.</p>
+            </div>
+        </div>
+
         {# Delete-all confirmation — count is filled in after the scan. #}
         <div class="modal" x-show="confirmOpen" x-cloak @keydown.escape.window="confirmOpen = false" style="display:none">
             <div class="modal__backdrop" @click="confirmOpen = false"></div>
@@ -43,12 +54,15 @@
                 <p class="stats">This permanently removes <span x-text="count"></span> orphaned poster<span x-show="count !== 1">s</span>. This cannot be undone.</p>
                 <div class="modal__actions">
                     <button type="button" class="btn" @click="confirmOpen = false">Cancel</button>
-                    <form method="post" action="/orphans/delete-all">
+                    <form method="post" action="/orphans/delete-all" @submit="confirmOpen = false; deleting = true">
                         <button type="submit" class="btn btn--danger">Delete all</button>
                     </form>
                 </div>
             </div>
         </div>
+
+        {# Shared per-orphan confirm dialog, mobile action tray, viewer, toast. #}
+        {% include 'partials/_overlays.html.twig' %}
     {% endif %}
 </div>
 {% endblock %}

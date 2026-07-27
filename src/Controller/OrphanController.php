@@ -7,11 +7,13 @@ namespace App\Controller;
 use App\Plex\Orphan\OrphanService;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
+use App\Poster\PosterCategory;
 use App\Support\Flash;
 use App\Support\LastCategory;
 use App\Support\Session\SessionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
 
 /**
@@ -66,6 +68,33 @@ final class OrphanController
         try {
             $count = $this->orphans->deleteAll();
             $this->flash->add('success', sprintf('Removed %d orphaned poster%s.', $count, $count === 1 ? '' : 's'));
+        } catch (PlexException $e) {
+            $this->flash->add('error', $e->getMessage());
+        }
+
+        return $response->withHeader('Location', '/orphans')->withStatus(302);
+    }
+
+    /**
+     * Delete a single orphan, named by its category and filename.
+     */
+    public function delete(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $categorySlug = isset($body['category']) && is_string($body['category']) ? $body['category'] : '';
+        $filename = isset($body['filename']) && is_string($body['filename']) ? $body['filename'] : '';
+
+        $category = PosterCategory::fromSlug($categorySlug);
+        if ($category === null) {
+            throw new HttpNotFoundException($request);
+        }
+
+        try {
+            if ($this->orphans->delete($category, $filename)) {
+                $this->flash->add('success', 'Orphan deleted.');
+            } else {
+                $this->flash->add('error', 'That orphan could not be deleted.');
+            }
         } catch (PlexException $e) {
             $this->flash->add('error', $e->getMessage());
         }

@@ -136,4 +136,49 @@ final class OrphanTest extends AppTestCase
         self::assertFileDoesNotExist($this->postersDir . '/movies/Gone.jpg');
         self::assertFileExists($this->postersDir . '/movies/Solaris.jpg');
     }
+
+    public function testOrphanListOffersPerOrphanDownloadAndDelete(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans/list')->getBody();
+
+        self::assertStringContainsString('href="/posters/movies/Gone.jpg" download', $body);
+        self::assertStringContainsString('action="/orphans/delete"', $body);
+        self::assertStringContainsString('>Delete</button>', $body);
+    }
+
+    public function testDeleteRemovesASingleOrphan(): void
+    {
+        $response = $this->postForm($this->app(), '/orphans/delete', [
+            'category' => 'movies',
+            'filename' => 'Gone.jpg',
+        ]);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertFileDoesNotExist($this->postersDir . '/movies/Gone.jpg');
+        self::assertFileExists($this->postersDir . '/movies/Solaris.jpg');
+    }
+
+    public function testDeleteLeavesNonOrphansUntouched(): void
+    {
+        // "Solaris" still exists in Plex, so it is not an orphan; the request
+        // must be a no-op that leaves the poster in place.
+        $response = $this->postForm($this->app(), '/orphans/delete', [
+            'category' => 'movies',
+            'filename' => 'Solaris.jpg',
+        ]);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertFileExists($this->postersDir . '/movies/Solaris.jpg');
+    }
+
+    public function testDeleteWithUnknownCategoryIs404(): void
+    {
+        $response = $this->postForm($this->app(), '/orphans/delete', [
+            'category' => 'not-a-category',
+            'filename' => 'Gone.jpg',
+        ]);
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertFileExists($this->postersDir . '/movies/Gone.jpg');
+    }
 }

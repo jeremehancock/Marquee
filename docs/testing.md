@@ -188,6 +188,11 @@ create an orphan on purpose:
 5. Click **Delete all orphans**, confirm the modal, and verify the poster
    disappears from both the Orphans page and the Collections tab.
 
+You can also remove orphans one at a time: each orphan card carries its own
+**Download** and **Delete** actions — shown in the hover overlay on a pointer
+device, or in the tap-to-open action tray on touch — and deleting one removes
+just that orphan while leaving the rest in place.
+
 ### With a movie (your example — destructive)
 
 Same flow, but be aware deleting a movie in Plex removes its media files:

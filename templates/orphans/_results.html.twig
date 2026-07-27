@@ -12,10 +12,22 @@
 
     <div class="grid">
         {% for orphan in orphans %}
-            <figure class="card">
+            {% set orphan_url = '/posters/' ~ orphan.category ~ '/' ~ orphan.filename|url_encode %}
+            <figure class="card" data-category="{{ orphan.category }}" data-filename="{{ orphan.filename }}">
                 <div class="card__frame">
-                    <img class="card__image" src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
+                    <img class="card__image" src="{{ orphan_url }}"
                          alt="{{ orphan.title }}" loading="lazy">
+                    <div class="card__overlay">
+                        <div class="card__actions">
+                            <a class="btn btn--small" href="{{ orphan_url }}" download>Download</a>
+                            <form class="js-mutate" method="post" action="/orphans/delete"
+                                  data-confirm="Permanently delete the orphaned poster “{{ orphan.title }}”? This cannot be undone.">
+                                <input type="hidden" name="category" value="{{ orphan.category }}">
+                                <input type="hidden" name="filename" value="{{ orphan.filename }}">
+                                <button type="submit" class="btn btn--small btn--danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <figcaption class="card__caption" title="{{ orphan.title }}">{{ orphan.title }}</figcaption>
             </figure>

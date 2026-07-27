@@ -48,6 +48,35 @@ final class OrphanService
         return $orphans;
     }
 
+    /**
+     * Delete a single orphan, identified by its category and filename.
+     *
+     * The record is removed only once it is confirmed to be a true orphan — its
+     * Plex item is gone — so a live poster can never be un-imported through this
+     * path. Returns false when no such record exists or its media still exists.
+     */
+    public function delete(PosterCategory $category, string $filename): bool
+    {
+        if (!$this->plex->isConfigured()) {
+            throw PlexException::notConfigured();
+        }
+
+        $record = $this->items->findByFilename($category->value, $filename);
+        if ($record === null) {
+            return false;
+        }
+
+        $current = $this->collectCurrentRatingKeys($this->items->distinctMediaTypes());
+        if (isset($current[$record->ratingKey])) {
+            return false;
+        }
+
+        $this->storage->delete($category, $record->filename);
+        $this->items->deleteByRatingKey($record->ratingKey);
+
+        return true;
+    }
+
     public function deleteAll(): int
     {
         $count = 0;
