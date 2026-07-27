@@ -22,7 +22,7 @@ final class PosterSearch
     {
         $terms = $this->terms($query);
         if ($terms === []) {
-            return array_values($posters);
+            return $posters;
         }
 
         /** @var list<array{score: int, title: string, poster: Poster}> $scored */
@@ -82,7 +82,7 @@ final class PosterSearch
         $value = mb_strtolower($value);
 
         $decomposed = Normalizer::normalize($value, Normalizer::FORM_D);
-        if ($decomposed !== false) {
+        if (is_string($decomposed)) {
             $value = preg_replace('/\p{Mn}+/u', '', $decomposed) ?? $value;
         }
 

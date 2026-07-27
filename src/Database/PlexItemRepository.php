@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Support\Scalar;
+
 /**
  * Maps Plex items (by rating key) to the poster files imported for them.
  */
@@ -79,7 +81,7 @@ final class PlexItemRepository
         $filenames = [];
         foreach ($stmt->fetchAll() as $row) {
             if (is_array($row) && isset($row['filename'])) {
-                $filenames[] = (string) $row['filename'];
+                $filenames[] = Scalar::string($row['filename']);
             }
         }
 
@@ -103,7 +105,7 @@ final class PlexItemRepository
         $map = [];
         foreach ($stmt->fetchAll() as $row) {
             if (is_array($row) && isset($row['filename'], $row['added_at'])) {
-                $map[(string) $row['filename']] = (int) $row['added_at'];
+                $map[Scalar::string($row['filename'])] = Scalar::int($row['added_at']);
             }
         }
 
@@ -128,7 +130,7 @@ final class PlexItemRepository
         $types = [];
         foreach ($stmt !== false ? $stmt->fetchAll() : [] as $row) {
             if (is_array($row) && isset($row['media_type'])) {
-                $types[] = (string) $row['media_type'];
+                $types[] = Scalar::string($row['media_type']);
             }
         }
 

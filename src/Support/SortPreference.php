@@ -18,7 +18,7 @@ final class SortPreference
     private const KEY = 'sort_order';
 
     /**
-     * @param array<string, mixed> $queryParams
+     * @param array<array-key, mixed> $queryParams
      */
     public static function resolve(SessionInterface $session, array $queryParams, SortOrder $default): SortOrder
     {

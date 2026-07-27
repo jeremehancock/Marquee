@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Auth;
 
 use App\Config\AuthConfig;
+use App\Support\Scalar;
 use App\Support\Session\SessionInterface;
 
 /**
@@ -32,7 +33,7 @@ final class SessionAuthenticator
             return false;
         }
 
-        $expiresAt = (int) $this->session->get(self::KEY_EXPIRES_AT, 0);
+        $expiresAt = Scalar::int($this->session->get(self::KEY_EXPIRES_AT, 0));
         if (time() >= $expiresAt) {
             $this->logout();
 

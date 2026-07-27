@@ -118,7 +118,7 @@ selection/file as context.
 ```bash
 composer install
 composer test           # PHPUnit
-composer stan           # PHPStan (level 8)
+composer stan           # PHPStan (level 10, max)
 composer cs             # PHP-CS-Fixer (dry-run)
 ```
 
@@ -391,7 +391,7 @@ claude                     # launch in the integrated terminal
 
 # Quality gates
 composer test              # PHPUnit
-composer stan              # PHPStan level 8
+composer stan              # PHPStan level 10 (max)
 composer cs                # PHP-CS-Fixer (dry-run)
 composer cs:fix            # PHP-CS-Fixer (apply)
 

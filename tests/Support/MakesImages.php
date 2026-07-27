@@ -13,6 +13,10 @@ use RecursiveIteratorIterator;
  */
 trait MakesImages
 {
+    /**
+     * @param positive-int $width
+     * @param positive-int $height
+     */
     protected function pngBytes(int $width = 2, int $height = 3): string
     {
         $image = imagecreatetruecolor($width, $height);
@@ -47,7 +51,10 @@ trait MakesImages
             RecursiveIteratorIterator::CHILD_FIRST,
         );
         foreach ($items as $item) {
-            $path = (string) $item;
+            if (!$item instanceof \SplFileInfo) {
+                continue;
+            }
+            $path = $item->getPathname();
             is_dir($path) ? rmdir($path) : unlink($path);
         }
         rmdir($dir);

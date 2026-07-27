@@ -227,13 +227,13 @@ entirely.
 
 ## Development
 
-Requires PHP 8.3+ and Composer.
+Requires PHP 8.4+ and Composer.
 
 ```bash
 composer install
 
 composer test          # PHPUnit
-composer stan          # PHPStan (level 8)
+composer stan          # PHPStan (level 10, max)
 composer cs            # PHP-CS-Fixer (dry-run)
 composer cs:fix        # PHP-CS-Fixer (apply)
 
@@ -249,12 +249,12 @@ VSCodium + Claude Code + OpenSpec setup and the `dev`/`main` branch flow, and
 
 ### Tech stack
 
-- **PHP 8.3+**, Composer, PSR-4 autoloading, `strict_types` throughout
+- **PHP 8.4+**, Composer, PSR-4 autoloading, `strict_types` throughout
 - **[Slim 4](https://www.slimframework.com/)** (PSR-7 / PSR-15) with **PHP-DI**
 - **Twig** server-rendered templates + **Alpine.js** (no build step)
 - **Guzzle** for outbound HTTP, **SQLite** (PDO) for metadata, **Monolog** for logs
 - **Docker**: LinuxServer Alpine-nginx base with s6-overlay and cron
-- Quality gates: **PHPUnit**, **PHPStan** (level 8), **PHP-CS-Fixer**, GitHub Actions
+- Quality gates: **PHPUnit**, **PHPStan** (level 10, max), **PHP-CS-Fixer**, GitHub Actions
 
 ### Spec-driven development with OpenSpec
 
