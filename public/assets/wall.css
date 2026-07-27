@@ -46,23 +46,6 @@ body {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 
-.wall__exit {
-    position: fixed;
-    top: 14px;
-    right: 20px;
-    z-index: 10;
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 2rem;
-    line-height: 1;
-    text-decoration: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.wall:hover .wall__exit {
-    opacity: 1;
-}
-
 .wall__empty {
     position: fixed;
     inset: 0;

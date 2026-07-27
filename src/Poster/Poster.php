@@ -28,6 +28,60 @@ final class Poster
         return trim(preg_replace('/[._]+/', ' ', $base) ?? $base);
     }
 
+    /**
+     * Title for the gallery caption. Plex import appends the library name to the
+     * filename to keep names unique across libraries, so it surfaces as a
+     * trailing token in title() (e.g. "…2003 Movies"). Given that library name
+     * this drops the token, because the type is already conveyed by the All-view
+     * badge and the active tab. Non-Plex posters (or an unrecognised token) pass
+     * null and keep their full title. title() itself is untouched, so sorting is
+     * unaffected.
+     */
+    public function captionTitle(?string $libraryTitle = null): string
+    {
+        $title = $this->title();
+        $token = $this->trailingLibraryToken($title, $libraryTitle);
+
+        return $token === null ? $title : rtrim(mb_substr($title, 0, -mb_strlen($token)));
+    }
+
+    /**
+     * Title for the mobile action sheet: like {@see captionTitle()} but the
+     * library is kept and shown in parentheses (e.g. "…2003 (Movies)") rather
+     * than dropped, so a tapped poster names both its title and its library.
+     */
+    public function sheetTitle(?string $libraryTitle = null): string
+    {
+        $title = $this->title();
+        $token = $this->trailingLibraryToken($title, $libraryTitle);
+        if ($token === null) {
+            return $title;
+        }
+
+        return rtrim(mb_substr($title, 0, -mb_strlen($token))) . ' (' . $token . ')';
+    }
+
+    /**
+     * The library name as it appears at the end of $title, or null if $title
+     * does not end with it. The stored library name went through the same
+     * filename sanitising and title() rendering as the rest of the name, so it
+     * is normalised the same way before matching.
+     */
+    private function trailingLibraryToken(string $title, ?string $libraryTitle): ?string
+    {
+        if ($libraryTitle === null || $libraryTitle === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^A-Za-z0-9._-]+/', '_', $libraryTitle) ?? $libraryTitle;
+        $normalized = trim(preg_replace('/[._]+/', ' ', $normalized) ?? $normalized);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return str_ends_with($title, ' ' . $normalized) ? $normalized : null;
+    }
+
     public function extension(): string
     {
         return strtolower(pathinfo($this->filename, PATHINFO_EXTENSION));

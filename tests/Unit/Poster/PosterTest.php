@@ -50,4 +50,50 @@ final class PosterTest extends TestCase
 
         self::assertSame('/posters/tv-shows/The%20Wire.png?v=42', $poster->url());
     }
+
+    public function testCaptionDropsTheTrailingLibraryToken(): void
+    {
+        // Import bakes the library into the filename ("…2003 Movies"); given the
+        // library name, the caption drops it.
+        $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
+
+        self::assertSame('Louis and the Nazis 2003', $poster->captionTitle('Movies'));
+    }
+
+    public function testCaptionDropsAMultiWordLibraryToken(): void
+    {
+        $poster = new Poster(PosterCategory::TvShows, 'Breaking_Bad_TV_Shows.png', 1024, 42);
+
+        self::assertSame('Breaking Bad', $poster->captionTitle('TV Shows'));
+    }
+
+    public function testCaptionKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    {
+        // Non-Plex posters (uploaded/URL) have no library to strip.
+        $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
+
+        self::assertSame('Solaris', $poster->captionTitle());
+    }
+
+    public function testCaptionKeepsTheTitleWhenTheLibraryIsNotTheTrailingToken(): void
+    {
+        // "Movies" appears in the title but not at the end, so nothing is trimmed.
+        $poster = new Poster(PosterCategory::Movies, 'The_Movies_Are_Great.png', 1024, 42);
+
+        self::assertSame('The Movies Are Great', $poster->captionTitle('Movies'));
+    }
+
+    public function testSheetTitleParenthesisesTheLibrary(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
+
+        self::assertSame('Louis and the Nazis 2003 (Movies)', $poster->sheetTitle('Movies'));
+    }
+
+    public function testSheetTitleKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
+
+        self::assertSame('Solaris', $poster->sheetTitle());
+    }
 }

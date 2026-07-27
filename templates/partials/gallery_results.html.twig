@@ -30,6 +30,9 @@
            within a category, so the page-level base is wrong in the All view. #}
         {% set poster_base = '/library/' ~ poster.category.value %}
         {% set is_linked = plex_configured and poster.filename in (linked[poster.category.value] ?? []) %}
+        {# Library name for this poster (import baked it into the filename): drop
+           it from the caption/tooltip, keep it parenthesised for the mobile sheet. #}
+        {% set poster_library = (plex_libraries[poster.category.value] ?? {})[poster.filename] ?? null %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
@@ -64,7 +67,9 @@
                     </div>
                 </div>
             </div>
-            <figcaption class="card__caption" title="{{ poster.title }}">{{ poster.title }}</figcaption>
+            {% set caption_title = poster.captionTitle(poster_library) %}
+            <figcaption class="card__caption" data-tooltip="{{ caption_title }}"
+                        data-sheet-title="{{ poster.sheetTitle(poster_library) }}">{{ caption_title }}</figcaption>
         </figure>
     {% endfor %}
 </div>
@@ -76,8 +81,8 @@
     {% set q = q ~ (sort is defined and sort == 'date_added' ? '&sort=date_added' : '') %}
     <nav class="pagination" aria-label="Gallery pages">
         {% if result.hasPrevious %}
-            <a class="btn pagination__step" href="{{ base }}?page=1{{ q }}" aria-label="First page" title="First page">&laquo;</a>
-            <a class="btn pagination__step" href="{{ base }}?page={{ result.page - 1 }}{{ q }}" aria-label="Previous page" title="Previous page">&lsaquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page=1{{ q }}" aria-label="First page" data-tooltip="First page">&laquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.page - 1 }}{{ q }}" aria-label="Previous page" data-tooltip="Previous page">&lsaquo;</a>
         {% endif %}
         <ol class="pagination__pages">
             {% for token in result.paginationWindow %}
@@ -91,8 +96,8 @@
             {% endfor %}
         </ol>
         {% if result.hasNext %}
-            <a class="btn pagination__step" href="{{ base }}?page={{ result.page + 1 }}{{ q }}" aria-label="Next page" title="Next page">&rsaquo;</a>
-            <a class="btn pagination__step" href="{{ base }}?page={{ result.totalPages }}{{ q }}" aria-label="Last page" title="Last page">&raquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.page + 1 }}{{ q }}" aria-label="Next page" data-tooltip="Next page">&rsaquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.totalPages }}{{ q }}" aria-label="Last page" data-tooltip="Last page">&raquo;</a>
         {% endif %}
     </nav>
 {% endif %}

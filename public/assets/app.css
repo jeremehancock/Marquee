@@ -302,7 +302,10 @@ h1 {
 }
 
 .choice span {
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     padding: 10px 18px;
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -386,10 +389,43 @@ h1 {
     font-size: 0.84rem;
     line-height: 1.3;
     text-align: center;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    /* Keep the title to a single line no wider than the poster: it truncates
+       with an ellipsis instead of wrapping, so a long title never adds a second
+       line and pushes the following grid row down. The full title is available
+       through the custom tooltip. */
+    max-width: 100%;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Shared custom tooltip — one floating element positioned by app.js, replacing
+   the browser's native title= tooltip everywhere. Themed to the app so hint text
+   (and full, truncated poster titles) match the rest of the UI. */
+.tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    max-width: 320px;
+    padding: 6px 10px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    font-size: 0.8rem;
+    line-height: 1.35;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.tooltip--visible {
+    opacity: 1;
 }
 
 /* Type badge — shown only in the All view. Sits in a corner of the frame and
@@ -413,12 +449,13 @@ h1 {
     transition: opacity 0.18s ease;
 }
 
-/* Per-type tints so the four types — especially TV Show vs. TV Season — are
-   distinguishable at a glance. */
-.card__badge--movies { background: rgba(37, 99, 235, 0.85); }
-.card__badge--tv-shows { background: rgba(22, 163, 74, 0.85); }
-.card__badge--tv-seasons { background: rgba(202, 138, 4, 0.9); }
-.card__badge--collections { background: rgba(147, 51, 234, 0.85); }
+/* Per-type tints drawn from the app palette — muted gold / teal / blue / violet
+   so the four types (especially TV Show vs. TV Season) stay distinguishable at a
+   glance without the stock web primaries fighting the slate-and-gold theme. */
+.card__badge--movies { background: rgba(200, 135, 26, 0.92); }
+.card__badge--tv-shows { background: rgba(47, 143, 127, 0.92); }
+.card__badge--tv-seasons { background: rgba(63, 123, 181, 0.92); }
+.card__badge--collections { background: rgba(109, 90, 192, 0.92); }
 
 /* Actions overlay the poster and reveal on hover (always on touch). */
 .card__overlay {
@@ -473,6 +510,35 @@ h1 {
     text-align: center;
     padding: 6px 8px;
     font-size: 0.8rem;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Make the control under the pointer (or keyboard focus) unmistakable before
+   it is clicked. Scoped to the overlay so buttons elsewhere are unaffected. */
+.card__actions .btn:hover,
+.card__actions .btn:focus-visible {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    color: var(--ink);
+}
+
+.card__actions .btn--accent:hover,
+.card__actions .btn--accent:focus-visible {
+    background: var(--accent-dim);
+    border-color: var(--accent-dim);
+    color: #1a1300;
+}
+
+.card__actions .btn--danger:hover,
+.card__actions .btn--danger:focus-visible {
+    background: rgba(228, 120, 95, 0.16);
+    border-color: rgba(228, 120, 95, 0.7);
+    color: #e4785f;
+}
+
+.card__actions .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 @keyframes shimmer {

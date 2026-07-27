@@ -112,6 +112,30 @@ final class PlexItemRepository
         return $map;
     }
 
+    /**
+     * The Plex library name for each mapped poster in a category, keyed by
+     * filename. Import bakes the library into the filename, so the gallery uses
+     * this to drop it from captions and parenthesise it in the mobile sheet.
+     *
+     * @return array<string, string>
+     */
+    public function librariesForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, library_title FROM plex_items WHERE category = :category AND library_title <> \'\''
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['library_title'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::string($row['library_title']);
+            }
+        }
+
+        return $map;
+    }
+
     public function deleteByRatingKey(string $ratingKey): void
     {
         $stmt = $this->database->pdo()->prepare('DELETE FROM plex_items WHERE rating_key = :key');
