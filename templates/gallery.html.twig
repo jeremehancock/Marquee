@@ -101,7 +101,7 @@
                     <template x-for="url in finder.results" :key="url">
                         <figure class="find-item">
                             <img class="find-item__img" :src="url" alt="" loading="lazy"
-                                 data-action="view" :data-url="url" title="Preview full screen">
+                                 data-action="view" :data-url="url" data-tooltip="Preview full screen">
                             <div class="find-item__actions">
                                 <form class="js-mutate" method="post" :action="'/library/' + change.category + '/change/url'">
                                     <input type="hidden" name="filename" :value="change.filename">

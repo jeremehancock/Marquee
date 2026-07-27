@@ -62,7 +62,7 @@
                     <label class="check" x-show="{{ compat|raw }}" x-cloak>
                         <input type="checkbox" name="sections[]" value="{{ library.key }}" x-model="sections">
                         {{ library.title }}
-                        <span class="check__meta">{{ library.isMovie ? 'Movies' : 'TV' }}</span>
+                        <span class="check__meta">({{ library.isMovie ? 'Movies' : 'TV' }})</span>
                     </label>
                 {% endfor %}
             </fieldset>

@@ -50,4 +50,28 @@ final class PosterTest extends TestCase
 
         self::assertSame('/posters/tv-shows/The%20Wire.png?v=42', $poster->url());
     }
+
+    public function testCaptionTitleDropsTheTrailingLibraryToken(): void
+    {
+        // Import names files "Title (Year) [Library]", which reads as a redundant
+        // type suffix under the poster; the caption drops it.
+        $poster = new Poster(PosterCategory::Movies, 'Solaris (1972) [Movies].png', 1024, 42);
+
+        self::assertSame('Solaris (1972)', $poster->captionTitle());
+    }
+
+    public function testCaptionTitleLeavesTitlesWithoutABracketUnchanged(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
+
+        self::assertSame('Solaris', $poster->captionTitle());
+    }
+
+    public function testCaptionTitleOnlyTrimsABracketAtTheEnd(): void
+    {
+        // A bracket that is part of the name, not a trailing token, is kept.
+        $poster = new Poster(PosterCategory::Movies, 'Fear [and] Loathing.png', 1024, 42);
+
+        self::assertSame('Fear [and] Loathing', $poster->captionTitle());
+    }
 }

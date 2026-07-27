@@ -28,6 +28,20 @@ final class Poster
         return trim(preg_replace('/[._]+/', ' ', $base) ?? $base);
     }
 
+    /**
+     * Title for the gallery caption: the same as {@see title()} but with the
+     * trailing bracketed library token that import appends (e.g. "[Movies]")
+     * removed, since the type is already conveyed by the All-view badge and the
+     * active tab. The untrimmed title() is kept for sorting and the hover
+     * tooltip, so nothing is lost.
+     */
+    public function captionTitle(): string
+    {
+        $title = $this->title();
+
+        return trim(preg_replace('/\s*\[[^\]]*\]$/', '', $title) ?? $title);
+    }
+
     public function extension(): string
     {
         return strtolower(pathinfo($this->filename, PATHINFO_EXTENSION));
