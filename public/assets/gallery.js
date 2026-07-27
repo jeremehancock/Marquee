@@ -124,6 +124,16 @@
             tabsEl.scrollLeft = Math.max(0, activeTab.offsetLeft - (tabsEl.clientWidth - activeTab.clientWidth) / 2);
         }
 
+        // Mark the tab whose path matches as active (used on tab switch and when
+        // back/forward navigation lands on a different view).
+        function syncActiveTab(pathname) {
+            if (!tabsEl) { return; }
+            var tabLinks = tabsEl.querySelectorAll('.tab');
+            for (var i = 0; i < tabLinks.length; i++) {
+                tabLinks[i].classList.toggle('tab--active', tabLinks[i].pathname === pathname);
+            }
+        }
+
         function setResults(html) {
             results.innerHTML = html;
             initImages(results);
@@ -230,6 +240,25 @@
                     return;
                 }
             }
+            // Switching views (tabs) keeps the active search: rebuild the tab's
+            // URL with the live query so the new view opens filtered, and load it
+            // through the same no-reload path used for search and pagination.
+            var tabLink = e.target.closest('.tabs a');
+            if (tabLink && root.contains(tabLink)) {
+                e.preventDefault();
+                var tabQuery = search ? search.value.trim() : '';
+                syncActiveTab(tabLink.pathname);
+                load(tabLink.pathname + (tabQuery ? '?q=' + encodeURIComponent(tabQuery) : ''), true);
+                return;
+            }
+            // Clearing the search returns to the full, unfiltered view.
+            var clearLink = e.target.closest('.search__clear');
+            if (clearLink && root.contains(clearLink)) {
+                e.preventDefault();
+                if (search) { search.value = ''; }
+                load(clearLink.pathname, true);
+                return;
+            }
             var pageLink = e.target.closest('.pagination a');
             if (pageLink && root.contains(pageLink)) {
                 e.preventDefault();
@@ -289,6 +318,13 @@
         });
 
         window.addEventListener('popstate', function () {
+            // A history entry can be a different view and/or query, so restore
+            // the active tab and the search box to match before reloading.
+            syncActiveTab(window.location.pathname);
+            if (search) {
+                var params = new URLSearchParams(window.location.search);
+                search.value = params.get('q') || '';
+            }
             load(currentUrl(), false);
         });
     });
