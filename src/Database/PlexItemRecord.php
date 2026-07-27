@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Support\Scalar;
+
 /**
  * A stored mapping between a Plex item (rating key) and its poster file.
  */
@@ -24,21 +26,21 @@ final class PlexItemRecord
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param array<array-key, mixed> $row
      */
     public static function fromRow(array $row): self
     {
         return new self(
-            ratingKey: (string) $row['rating_key'],
-            mediaType: (string) $row['media_type'],
-            category: (string) $row['category'],
-            libraryTitle: (string) $row['library_title'],
-            title: (string) $row['title'],
-            filename: (string) $row['filename'],
-            updatedAt: (int) $row['updated_at'],
-            sectionKey: (string) ($row['section_key'] ?? ''),
-            thumb: (string) ($row['thumb'] ?? ''),
-            addedAt: (int) ($row['added_at'] ?? 0),
+            ratingKey: Scalar::string($row['rating_key'] ?? null),
+            mediaType: Scalar::string($row['media_type'] ?? null),
+            category: Scalar::string($row['category'] ?? null),
+            libraryTitle: Scalar::string($row['library_title'] ?? null),
+            title: Scalar::string($row['title'] ?? null),
+            filename: Scalar::string($row['filename'] ?? null),
+            updatedAt: Scalar::int($row['updated_at'] ?? null),
+            sectionKey: Scalar::string($row['section_key'] ?? null),
+            thumb: Scalar::string($row['thumb'] ?? null),
+            addedAt: Scalar::int($row['added_at'] ?? null),
         );
     }
 }

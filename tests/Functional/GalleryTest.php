@@ -213,6 +213,7 @@ final class GalleryTest extends AppTestCase
         putenv('AUTH_BYPASS=false');
         putenv('DATA_DIR=' . sys_get_temp_dir() . '/marquee-test-data');
         $twig = \App\buildContainer()->get(\Slim\Views\Twig::class);
+        self::assertInstanceOf(\Slim\Views\Twig::class, $twig);
 
         $html = $twig->fetch('layout.html.twig', ['app_version' => '0.0.0']);
 

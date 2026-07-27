@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Database;
 
 use App\Plex\PlexLibrary;
+use App\Support\Scalar;
 
 /**
  * Records the Plex libraries seen during import.
@@ -45,9 +46,9 @@ final class PlexLibraryRepository
         foreach ($stmt !== false ? $stmt->fetchAll() : [] as $row) {
             if (is_array($row)) {
                 $libraries[] = new PlexLibrary(
-                    key: (string) $row['section_key'],
-                    title: (string) $row['title'],
-                    type: (string) $row['type'],
+                    key: Scalar::string($row['section_key'] ?? null),
+                    title: Scalar::string($row['title'] ?? null),
+                    type: Scalar::string($row['type'] ?? null),
                 );
             }
         }

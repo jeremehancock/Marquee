@@ -14,7 +14,6 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -145,24 +144,19 @@ final class HttpPlexClientTest extends TestCase
         $this->client([$error])->libraries();
     }
 
-    /**
-     * @param list<array<string, mixed>> $history
-     */
-    private function recordingClient(array &$history): HttpPlexClient
+    private function recordingClient(MockHandler $mock): HttpPlexClient
     {
-        $stack = HandlerStack::create(new MockHandler([new Response(200), new Response(200), new Response(200)]));
-        $stack->push(Middleware::history($history));
-        $guzzle = new Client(['handler' => $stack]);
+        $guzzle = new Client(['handler' => HandlerStack::create($mock)]);
 
         return new HttpPlexClient($guzzle, new PlexConfig('http://plex:32400', 'token', 10, 60));
     }
 
     public function testUploadPosterPostsImageBytes(): void
     {
-        $history = [];
-        $this->recordingClient($history)->uploadPoster('10', 'IMAGE-BYTES');
+        $mock = new MockHandler([new Response(200), new Response(200), new Response(200)]);
+        $this->recordingClient($mock)->uploadPoster('10', 'IMAGE-BYTES');
 
-        $request = $this->lastRequest($history);
+        $request = $this->lastRequest($mock);
         self::assertSame('POST', $request->getMethod());
         self::assertSame('/library/metadata/10/posters', $request->getUri()->getPath());
         self::assertSame('IMAGE-BYTES', (string) $request->getBody());
@@ -170,10 +164,10 @@ final class HttpPlexClientTest extends TestCase
 
     public function testLockPosterPutsLockFlag(): void
     {
-        $history = [];
-        $this->recordingClient($history)->lockPoster('10');
+        $mock = new MockHandler([new Response(200), new Response(200), new Response(200)]);
+        $this->recordingClient($mock)->lockPoster('10');
 
-        $request = $this->lastRequest($history);
+        $request = $this->lastRequest($mock);
         self::assertSame('PUT', $request->getMethod());
         self::assertSame('/library/metadata/10', $request->getUri()->getPath());
         self::assertStringContainsString('thumb.locked=1', $request->getUri()->getQuery());
@@ -181,10 +175,10 @@ final class HttpPlexClientTest extends TestCase
 
     public function testRemoveOverlayLabelPutsLabelEdit(): void
     {
-        $history = [];
-        $this->recordingClient($history)->removeOverlayLabel('5', 1, '10');
+        $mock = new MockHandler([new Response(200), new Response(200), new Response(200)]);
+        $this->recordingClient($mock)->removeOverlayLabel('5', 1, '10');
 
-        $request = $this->lastRequest($history);
+        $request = $this->lastRequest($mock);
         self::assertSame('PUT', $request->getMethod());
         self::assertSame('/library/sections/5/all', $request->getUri()->getPath());
         $query = urldecode($request->getUri()->getQuery());
@@ -193,12 +187,9 @@ final class HttpPlexClientTest extends TestCase
         self::assertStringContainsString('Overlay', $query);
     }
 
-    /**
-     * @param list<array<string, mixed>> $history
-     */
-    private function lastRequest(array $history): RequestInterface
+    private function lastRequest(MockHandler $mock): RequestInterface
     {
-        $request = $history[count($history) - 1]['request'] ?? null;
+        $request = $mock->getLastRequest();
         self::assertInstanceOf(RequestInterface::class, $request);
 
         return $request;

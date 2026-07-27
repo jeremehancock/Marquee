@@ -101,7 +101,7 @@ final class PosterLibrary
 
         $items = array_slice($posters, ($page - 1) * $perPage, $perPage);
 
-        return new Page(array_values($items), $page, $perPage, $total);
+        return new Page($items, $page, $perPage, $total);
     }
 
     /**
