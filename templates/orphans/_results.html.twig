@@ -13,7 +13,7 @@
     <div class="grid">
         {% for orphan in orphans %}
             {% set orphan_url = '/posters/' ~ orphan.category ~ '/' ~ orphan.filename|url_encode %}
-            <figure class="card">
+            <figure class="card" data-category="{{ orphan.category }}" data-filename="{{ orphan.filename }}">
                 <div class="card__frame">
                     <img class="card__image" src="{{ orphan_url }}"
                          alt="{{ orphan.title }}" loading="lazy">

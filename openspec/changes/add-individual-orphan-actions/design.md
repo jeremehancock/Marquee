@@ -94,16 +94,18 @@ Download link.
   This preserves the capability's safety guarantee that a live poster is never
   un-imported through the orphan path.
 - **Frontend**: the orphan delete form is `js-mutate` with `data-confirm`, so it
-  flows through the shared confirm modal. On success the orphans component
-  re-fetches `GET /orphans/list` (the same path `orphansPage.init()` already
-  uses), re-wires the fragment, updates `count`, and shows a toast — no full
-  reload. The 302 body from the POST is ignored; the re-fetch is the source of
-  truth for the new list.
+  flows through the shared confirm modal. On success the component removes just
+  that orphan's card from the DOM (matched by `data-category` + `data-filename`),
+  decrements the count and updates the toolbar, swaps in the in-sync message when
+  the last orphan is gone, and shows a toast — no full reload. Success/failure is
+  read from the followed 302's flash (`.alert--success`); that redirect target
+  (`GET /orphans`) only renders the shell and runs no scan, so it is cheap.
 
-_Alternative considered:_ have the POST return the refreshed `_results`
-fragment directly. Rejected: re-fetching `/orphans/list` reuses the exact wiring
-in `init()` (image fade-in, count, delete-all button) with no new response
-contract, and keeps the non-JS redirect path clean.
+_Why not re-fetch `GET /orphans/list` after a delete:_ that endpoint re-runs a
+full Plex library scan — the slow operation the page shows a spinner for on
+load. Deleting one orphan does not change whether the others are orphans, so a
+re-scan buys nothing and stalls the page. Removing the single card client-side
+matches what a fresh scan would show, and the next page open scans fresh anyway.
 
 ### 5. Verify orphan status without a per-delete full Plex scan where possible
 

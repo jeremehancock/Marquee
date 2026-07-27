@@ -185,9 +185,17 @@
                     });
                 },
 
-                // Delete one orphan, then refresh the list in place and report.
+                // Delete one orphan. On success just drop its card and adjust the
+                // count — the others are unaffected, so re-scanning Plex would only
+                // stall the page for no gain; the next page open scans fresh.
                 submitDelete: function (form) {
                     var self = this;
+                    var field = function (name) {
+                        var el = form.querySelector('input[name="' + name + '"]');
+                        return el ? el.value : '';
+                    };
+                    var category = field('category');
+                    var filename = field('filename');
                     fetch(form.getAttribute('action'), {
                         method: 'POST',
                         body: new FormData(form),
@@ -197,13 +205,38 @@
                         .then(function (r) { return r.text(); })
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, 'text/html');
-                            var alert = doc.querySelector('.alert');
-                            var message = alert ? alert.textContent.trim() : '';
-                            return self.reload().then(function () {
-                                if (message) { self.notify(message); }
-                            });
+                            if (doc.querySelector('.alert--success')) {
+                                self.removeOrphanCard(category, filename);
+                                self.notify('Orphan deleted');
+                            } else {
+                                var alert = doc.querySelector('.alert');
+                                self.notify(alert ? alert.textContent.trim() : 'That orphan could not be deleted.');
+                            }
                         })
-                        .catch(function () {});
+                        .catch(function () { self.notify('That orphan could not be deleted.'); });
+                },
+
+                // Drop one orphan's card and reflect the new count, swapping in the
+                // in-sync message once the last orphan is gone.
+                removeOrphanCard: function (category, filename) {
+                    var target = this.$refs.results;
+                    var card = target.querySelector(
+                        '.card[data-category="' + CSS.escape(category) + '"][data-filename="' + CSS.escape(filename) + '"]'
+                    );
+                    if (card) { card.remove(); }
+
+                    this.count = Math.max(0, this.count - 1);
+                    var toolbar = target.querySelector('.toolbar');
+                    if (toolbar) {
+                        toolbar.setAttribute('data-count', String(this.count));
+                        var stats = toolbar.querySelector('.stats');
+                        if (stats) {
+                            stats.textContent = this.count + ' orphaned poster' + (this.count === 1 ? '' : 's') + '.';
+                        }
+                    }
+                    if (this.count === 0) {
+                        target.innerHTML = '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>';
+                    }
                 },
             });
         });
