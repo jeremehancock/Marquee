@@ -2,6 +2,7 @@
     color-scheme: light dark;
     --bg: #1c1e24;
     --surface: #282a2d;
+    --surface-2: #33363d;
     --ink: #e9e6df;
     --muted: #9aa0aa;
     --accent: #e5a00d;
@@ -202,6 +203,12 @@ h1 {
     border-bottom-color: var(--accent);
 }
 
+/* Desktop tabs are text only; the icon and short label are a phone affordance. */
+.tab__icon,
+.tab__text--short {
+    display: none;
+}
+
 /* Toolbar */
 .toolbar {
     display: flex;
@@ -264,6 +271,24 @@ h1 {
 .sort__label {
     color: var(--muted);
     font-size: 0.9rem;
+}
+
+/* Square icon button (e.g. the phone sort trigger). Hidden on desktop, where the
+   inline sort control is used instead. */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.sort-trigger {
+    display: none;
 }
 
 .fieldset {
@@ -684,30 +709,50 @@ h1 {
         padding: 20px 14px;
     }
 
-    /* Tabs become a single horizontal scroll-snap row: five tabs (All + the
-       four categories) never overflow the page or wrap into an orphan row.
-       The edge fade hints that the row scrolls. */
+    /* Tabs become a native-style bottom-tab bar: all five share the width as
+       equal columns, each an icon over a short label, so nothing scrolls or
+       overflows. */
     .tabs {
         display: flex;
-        flex-wrap: nowrap;
-        gap: 2px;
-        overflow-x: auto;
-        scroll-snap-type: x proximity;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-        mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-    }
-
-    .tabs::-webkit-scrollbar {
-        display: none;
+        gap: 0;
+        margin-bottom: 16px;
     }
 
     .tab {
-        flex: 0 0 auto;
-        scroll-snap-align: start;
-        padding: 10px 12px;
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        padding: 8px 2px;
+        font-size: 0.62rem;
+        text-align: center;
+    }
+
+    .tab__icon {
+        display: block;
+    }
+
+    .tab__icon .icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    .tab__text {
+        display: none;
+    }
+
+    .tab__text--short {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .tab--active {
+        color: var(--accent);
     }
 
     /* Reveal the menu button; the desktop Log out link moves into the tray. */
@@ -719,13 +764,18 @@ h1 {
         display: none;
     }
 
-    /* Keep the phone gallery focused on posters: the secondary navigation
-       (Poster Wall, Import from Plex, Orphans) now lives in the menu tray, so
-       hide it here. Search stays full-width; the sort toggle stays inline. */
+    /* Keep the phone gallery focused on posters: the secondary navigation lives
+       in the menu tray and sort moves into its own tray, so the toolbar is just
+       search plus the sort trigger sharing one row. */
     .search {
-        flex-basis: 100%;
+        flex: 1 1 auto;
     }
 
+    .sort-trigger {
+        display: inline-flex;
+    }
+
+    .sort,
     .toolbar__actions {
         display: none;
     }
@@ -926,14 +976,37 @@ h1 {
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: 16px 16px 0 0;
-    padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
     animation: sheet-up 0.2s ease;
+    transition: transform 0.2s ease;
+}
+
+/* Import tray holds a whole form; give it more of the screen. */
+.sheet__panel--tall {
+    max-height: 92vh;
 }
 
 @keyframes sheet-up {
     from {
         transform: translateY(100%);
     }
+}
+
+/* Grab handle: the app-style affordance that replaces a close button. Dragging
+   it (or the head) down dismisses the tray; see initSheetGestures in gallery.js. */
+.sheet__grip {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0 4px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.sheet__handle {
+    width: 40px;
+    height: 5px;
+    border-radius: 999px;
+    background: #4b4f57;
 }
 
 .sheet__head {
@@ -943,15 +1016,28 @@ h1 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 0;
+    padding: 6px 0 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
+    touch-action: none;
 }
 
 .sheet__title {
     font-weight: 600;
     line-height: 1.3;
+}
+
+/* Tray buttons need to read as tappable cards against the sheet surface, which
+   is the same colour as a default button. Lift the plain ones onto an elevated
+   tone with a clearer border; accent/danger keep their own colour. */
+.sheet__body .btn:not(.btn--accent):not(.btn--danger) {
+    background: var(--surface-2);
+    border-color: #474c55;
+}
+
+.sheet__body .btn:not(.btn--accent):not(.btn--danger):active {
+    background: #3c4048;
 }
 
 .sheet__body .card__actions {

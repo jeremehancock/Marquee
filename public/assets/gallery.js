@@ -98,6 +98,58 @@
         };
     }
 
+    // ---- App-style sheet gestures ----
+    // Every tray uses the .sheet markup and closes when its .sheet__backdrop is
+    // clicked. A downward drag that starts on the grab handle or the head (not the
+    // scrollable body) dismisses the sheet by reusing that same backdrop close, so
+    // the gesture works for every tray — poster actions, menu, sort, import —
+    // without knowing which Alpine scope owns it.
+    (function () {
+        var drag = null;
+        document.addEventListener('touchstart', function (e) {
+            var grip = e.target.closest('.sheet__grip, .sheet__head');
+            var panel = grip && grip.closest('.sheet__panel');
+            if (!panel) { return; }
+            drag = { panel: panel, startY: e.touches[0].clientY, dy: 0, h: panel.offsetHeight };
+            panel.style.transition = 'none';
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function (e) {
+            if (!drag) { return; }
+            var dy = e.touches[0].clientY - drag.startY;
+            drag.dy = dy > 0 ? dy : 0;
+            drag.panel.style.transform = 'translateY(' + drag.dy + 'px)';
+        }, { passive: true });
+
+        function endDrag() {
+            if (!drag) { return; }
+            var panel = drag.panel;
+            var dismissed = drag.dy > Math.min(120, drag.h * 0.3);
+            panel.style.transition = '';
+            panel.style.transform = '';
+            if (dismissed) {
+                var sheet = panel.closest('.sheet');
+                var backdrop = sheet && sheet.querySelector('.sheet__backdrop');
+                if (backdrop) { backdrop.click(); }
+            }
+            drag = null;
+        }
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag);
+    }());
+
+    // ---- Import link -> tray (phone) ----
+    // On a touch device the "Import from Plex" link opens the import tray in place
+    // instead of navigating, but only on a page that actually has the gallery
+    // (and its tray). Elsewhere, and on pointer devices, it navigates normally.
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('a[data-import]');
+        if (!link) { return; }
+        if (!isTouch() || !document.querySelector('[data-gallery]')) { return; }
+        e.preventDefault();
+        dispatch('gallery:import', {});
+    });
+
     // ---- Alpine component: the orphans page ----
     // The shell renders instantly with the spinner up (loading), then fetches
     // the slow orphan scan and swaps the result in. The delete-all overlay
@@ -258,6 +310,46 @@
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
                 finder: { loading: false, error: '', results: [] },
+                sortOpen: false,
+                importOpen: false,
+                importLoading: false,
+                importLoaded: false,
+
+                // Open the import tray. The Plex import form (with its libraries
+                // and Alpine wiring) is server-rendered at /plex, so fetch it once
+                // and drop it into the tray, re-initialising Alpine on the fragment
+                // so its stepper works. Submitting still POSTs to /plex/import and
+                // redirects to the gallery, exactly as the full page does.
+                openImport: function () {
+                    var self = this;
+                    this.importOpen = true;
+                    if (this.importLoaded || this.importLoading) { return; }
+                    this.importLoading = true;
+                    fetch('/plex', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            var content = doc.querySelector('main.container');
+                            var target = self.$refs.importBody;
+                            // Drop the "Back to gallery" link and page heading — the
+                            // tray has its own title and dismisses by swipe/backdrop.
+                            if (content) {
+                                var back = content.querySelector('.search__clear');
+                                if (back && back.closest('p')) { back.closest('p').remove(); }
+                                var h1 = content.querySelector('h1');
+                                if (h1) { h1.remove(); }
+                            }
+                            target.innerHTML = content ? content.innerHTML : '<p class="alert" role="alert">Could not load import.</p>';
+                            if (window.Alpine && window.Alpine.initTree) { window.Alpine.initTree(target); }
+                            initImages(target);
+                            self.importLoaded = true;
+                        })
+                        .catch(function () {
+                            self.$refs.importBody.innerHTML =
+                                '<p class="alert" role="alert">Could not load import. Open the <a href="/plex">Import page</a> instead.</p>';
+                        })
+                        .finally(function () { self.importLoading = false; });
+                },
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };

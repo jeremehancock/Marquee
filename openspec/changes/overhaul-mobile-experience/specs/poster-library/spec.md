@@ -2,28 +2,20 @@
 
 ### Requirement: Responsive gallery layout
 The gallery SHALL remain usable on small screens without horizontal overflow:
-the category tabs — now including the All tab, five in total — scroll rather than
-overflow or crowd the screen, toolbar controls wrap to their own rows, and
-posters are sized so at least two fit per row on a phone. On a narrow screen the
-tab strip SHALL lay the tabs out in a single horizontal row that scrolls
-(rather than a wrapping grid), so adding the All tab does not push tabs off the
-edge of the screen or leave an awkward orphaned row.
+the category tabs — including the All tab, five in total — fit on screen without
+scrolling or crowding, toolbar controls fit their row, and posters are sized so
+at least two fit per row on a phone.
 
 On a narrow screen the gallery view SHALL stay focused on the posters: the
 secondary navigation actions (Poster Wall, Import from Plex, Orphans) SHALL move
-out of the gallery toolbar and into the app-wide menu tray, leaving the mobile
-toolbar to the primary gallery controls — search and the sort toggle — above the
-poster grid. On a pointer/desktop screen those secondary actions SHALL remain in
-the toolbar exactly as before.
+out of the gallery toolbar into the app-wide menu tray, and sort SHALL move out of
+the toolbar into its own tray, leaving the mobile toolbar to search plus a sort
+trigger above the poster grid. On a pointer/desktop screen the secondary actions
+and the inline sort control SHALL remain in the toolbar exactly as before.
 
 #### Scenario: No overflow on a phone
 - **WHEN** the gallery is viewed on a narrow (phone-width) screen
 - **THEN** the tabs, toolbar, and poster grid fit without horizontal page overflow
-
-#### Scenario: Tabs fit on a phone
-- **WHEN** the gallery is viewed on a narrow screen with all five tabs present
-- **THEN** the tabs are laid out in a scrollable horizontal row without
-  overflowing the page width or crowding the other controls
 
 #### Scenario: Secondary navigation is behind the menu on a phone
 - **WHEN** the gallery is viewed on a narrow screen
@@ -31,12 +23,63 @@ the toolbar exactly as before.
   the gallery toolbar
 - **AND** they are reachable from the app menu tray instead
 
-#### Scenario: Primary gallery controls stay on the phone toolbar
-- **WHEN** the gallery is viewed on a narrow screen
-- **THEN** search and the sort toggle remain directly available above the grid
-  without opening the menu
-
 #### Scenario: Desktop toolbar is unchanged
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
-- **THEN** the secondary navigation actions render in the gallery toolbar as they
-  did before this change
+- **THEN** the secondary navigation actions and the inline sort control render in
+  the gallery toolbar as they did before this change
+
+### Requirement: Native-style category tab bar on small screens
+On a narrow screen the category tabs SHALL be presented as an equal-width tab bar
+in which all five tabs fit the screen at once — each tab an icon above a short
+label — rather than a scrolling row, so switching categories feels like a native
+app tab bar. On a pointer/desktop screen the tabs SHALL remain text tabs as
+before. Each tab SHALL retain its full category name as its accessible name
+regardless of which presentation is shown.
+
+#### Scenario: All tabs fit at once on a phone
+- **WHEN** the gallery is viewed on a narrow screen with all five tabs present
+- **THEN** the tabs are laid out as equal-width columns that all fit on screen
+  without scrolling, each showing an icon and a short label
+
+#### Scenario: Active tab is indicated
+- **WHEN** a category is active on a phone
+- **THEN** its tab is visually highlighted as the current one
+
+#### Scenario: Desktop tabs are unchanged
+- **WHEN** the gallery is viewed on a pointer/desktop-width screen
+- **THEN** the tabs render as the text tabs used before this change
+
+### Requirement: Sort selection via a tray on small screens
+On a narrow screen the sort control SHALL be presented as a tray opened from a
+sort trigger in the toolbar, offering the same sort orders (Alphabetical and Date
+added) as the desktop control and indicating the current order, so the toolbar
+stays uncluttered.
+
+#### Scenario: Sort trigger opens the sort tray
+- **WHEN** a user on a narrow screen activates the sort trigger
+- **THEN** a tray opens offering Alphabetical and Date added, with the current
+  order indicated
+
+#### Scenario: Choosing an order sorts the gallery
+- **WHEN** the user chooses a sort order from the tray
+- **THEN** the gallery is ordered accordingly
+
+### Requirement: Import from Plex via a tray on small screens
+On a touch device viewing the gallery, choosing Import from Plex SHALL open the
+import experience in a tray over the gallery rather than navigating to a separate
+page, loading the same Plex import form used by the import page. On a pointer
+device, or on a page without the gallery, Import from Plex SHALL navigate to the
+import page as before.
+
+#### Scenario: Import opens in a tray on a phone
+- **WHEN** a user on a touch device taps Import from Plex from the gallery menu
+- **THEN** the import form opens in a tray over the gallery without navigating away
+
+#### Scenario: Import navigates on desktop
+- **WHEN** a user on a pointer device chooses Import from Plex
+- **THEN** the import page opens as a normal page
+
+#### Scenario: Submitting the import still works from the tray
+- **WHEN** a user completes and submits the import form inside the tray
+- **THEN** the import runs and the user is returned to the gallery with the result
+  reported

@@ -1,5 +1,6 @@
 {% extends 'layout.html.twig' %}
 {% import 'partials/_nav_macros.html.twig' as nav %}
+{% import 'partials/_icons.html.twig' as icons %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
@@ -14,6 +15,7 @@
      @gallery:toast.window="notify($event.detail.text)"
      @gallery:sheet.window="openSheet($event.detail)"
      @gallery:sheet-close.window="closeSheet()"
+     @gallery:import.window="openImport()"
      @gallery:done.window="change.open = false">
 
     {% if flash %}
@@ -24,10 +26,18 @@
        switching views keeps the current filter even without JavaScript. #}
     {% set tab_query = query is not empty ? 'q=' ~ query|url_encode : '' %}
     {% set tab_query = tab_query ~ (sort == 'date_added' ? (tab_query is not empty ? '&' : '') ~ 'sort=date_added' : '') %}
+    {# Short labels drop the "TV " prefix so all five tabs fit the phone tab bar
+       under their icons; the full label stays as the link's accessible name. #}
+    {% set tab_short = { 'all': 'All', 'movies': 'Movies', 'tv-shows': 'Shows', 'tv-seasons': 'Seasons', 'collections': 'Collections' } %}
     <nav class="tabs">
         {% for tab in tabs %}
             <a class="tab {{ tab.active ? 'tab--active' : '' }}"
-               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}">{{ tab.label }}</a>
+               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}"
+               aria-label="{{ tab.label }}" {{ tab.active ? 'aria-current="page"' : '' }}>
+                <span class="tab__icon" aria-hidden="true">{{ icons.icon(tab.value) }}</span>
+                <span class="tab__text" aria-hidden="true">{{ tab.label }}</span>
+                <span class="tab__text tab__text--short" aria-hidden="true">{{ tab_short[tab.value] ?? tab.label }}</span>
+            </a>
         {% endfor %}
     </nav>
 
@@ -40,6 +50,12 @@
             {% endif %}
         </form>
         {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+        {# Phone-only affordance: opens the sort tray. The inline .sort group below
+           stays for desktop. #}
+        <button type="button" class="icon-btn sort-trigger" @click="sortOpen = true"
+                aria-label="Sort order" data-tooltip="Sort">
+            {{ icons.icon('sort') }}
+        </button>
         <div class="sort" role="group" aria-label="Sort order">
             <span class="sort__label">Sort</span>
             <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
@@ -112,6 +128,37 @@
                         </figure>
                     </template>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# Sort tray (phone): the same sort links as the desktop toolbar, presented as
+       an app-style sheet to keep the toolbar uncluttered. #}
+    <div class="sheet" x-show="sortOpen" x-cloak @keydown.escape.window="sortOpen = false" style="display:none">
+        <div class="sheet__backdrop" @click="sortOpen = false"></div>
+        <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Sort order">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Sort</span></div>
+            <div class="sheet__body menu__body">
+                <a class="btn {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=alphabetical{{ sort_q }}"
+                   {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
+                <a class="btn {{ sort == 'date_added' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=date_added{{ sort_q }}"
+                   {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+            </div>
+        </div>
+    </div>
+
+    {# Import tray (phone): the Import from Plex link opens this instead of
+       navigating; its body is fetched from /plex and wired on first open. #}
+    <div class="sheet" x-show="importOpen" x-cloak @keydown.escape.window="importOpen = false" style="display:none">
+        <div class="sheet__backdrop" @click="importOpen = false"></div>
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Import from Plex</span></div>
+            <div class="sheet__body" x-ref="importBody">
+                <p class="stats" x-show="importLoading">Loading…</p>
             </div>
         </div>
     </div>

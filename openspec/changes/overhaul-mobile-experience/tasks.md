@@ -59,3 +59,21 @@
   menu tray (both reuse `.sheet` but are independent scopes).
 - [x] 5.5 Run existing checks (PHP-CS-Fixer, PHPStan, PHPUnit) to confirm no
   template/asset change broke the build.
+
+## 6. Native-app polish (second pass)
+
+- [x] 6.0 Show the menu even when `AUTH_BYPASS` is set (gate only Log out), so
+  secondary nav stays reachable on a phone.
+- [x] 6.1 App-style trays: replace the × close with a centered grab handle and
+  add swipe-down-to-dismiss, shared across the menu, poster, sort, and import
+  trays via one generic gesture handler that reuses each tray's backdrop close.
+- [x] 6.2 Make tray buttons pop: lift plain buttons onto an elevated surface tone
+  with a clearer border (accent/danger keep their colour), scoped to `.sheet__body`
+  so the desktop hover overlay is untouched.
+- [x] 6.3 Native-style tab bar on mobile: equal-width icon+label tabs that all fit
+  the screen (icons partial + short labels), desktop text tabs unchanged.
+- [x] 6.4 Sort tray on mobile: a sort trigger opens a tray with the same orders;
+  inline sort stays on desktop.
+- [x] 6.5 Import tray on mobile: intercept Import from Plex on touch to fetch the
+  /plex form into a tray and re-init Alpine on it; desktop still navigates.
+- [x] 6.6 Verify: Twig compile, JS syntax, PHPUnit/PHPStan/CS, update delta specs.
