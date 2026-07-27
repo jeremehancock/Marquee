@@ -1,11 +1,12 @@
 :root {
     color-scheme: light dark;
-    --bg: #14161c;
-    --surface: #1c1f27;
+    --bg: #1c1e24;
+    --surface: #282a2d;
     --ink: #e9e6df;
-    --muted: #979ca7;
-    --accent: #e7a93e;
-    --border: #2a2e39;
+    --muted: #9aa0aa;
+    --accent: #e5a00d;
+    --accent-dim: #b9800c;
+    --border: #34373d;
 }
 
 * {
@@ -25,14 +26,26 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 14px 24px;
+    background: var(--surface);
     border-bottom: 1px solid var(--border);
 }
 
 .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.35rem;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--accent);
     text-decoration: none;
+}
+
+.brand__logo {
+    display: block;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
 }
 
 .topbar a {

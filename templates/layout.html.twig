@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#14161c">
+    <meta name="theme-color" content="#1c1e24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
     <title>{% block title %}{{ site_title }}{% endblock %}</title>
@@ -17,7 +17,16 @@
 </head>
 <body>
     <header class="topbar">
-        <a class="brand" href="/">{{ site_title }}</a>
+        <a class="brand" href="/">
+            <svg class="brand__logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                <rect width="64" height="64" rx="12" fill="#1c1e24"/>
+                <rect x="12" y="16" width="17" height="32" rx="3" fill="#b9800c" transform="rotate(-10 20.5 32)"/>
+                <rect x="35" y="16" width="17" height="32" rx="3" fill="#b9800c" transform="rotate(10 43.5 32)"/>
+                <rect x="21" y="15" width="22" height="34" rx="3" fill="#e5a00d"/>
+                <path d="M27.8 25.2 L27.8 38.8 L39 32 Z" fill="#1c1e24" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ site_title }}</span>
+        </a>
         {% block nav %}
             {% if not auth_bypass %}
                 <nav><a href="/logout">Log out</a></nav>
