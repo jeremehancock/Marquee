@@ -74,13 +74,25 @@
     {# Carry a non-default sort so paging keeps the chosen order; A–Z is the
        default and needs no parameter. #}
     {% set q = q ~ (sort is defined and sort == 'date_added' ? '&sort=date_added' : '') %}
-    <nav class="pagination">
+    <nav class="pagination" aria-label="Gallery pages">
         {% if result.hasPrevious %}
-            <a class="btn" href="{{ base }}?page={{ result.page - 1 }}{{ q }}">Previous</a>
+            <a class="btn pagination__step" href="{{ base }}?page=1{{ q }}" aria-label="First page" title="First page">&laquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.page - 1 }}{{ q }}" aria-label="Previous page" title="Previous page">&lsaquo;</a>
         {% endif %}
-        <span class="pagination__status">Page {{ result.page }} of {{ result.totalPages }}</span>
+        <ol class="pagination__pages">
+            {% for token in result.paginationWindow %}
+                {% if token is null %}
+                    <li class="pagination__ellipsis" aria-hidden="true">&hellip;</li>
+                {% elseif token == result.page %}
+                    <li><span class="pagination__page pagination__page--current" aria-current="page">{{ token }}</span></li>
+                {% else %}
+                    <li><a class="pagination__page" href="{{ base }}?page={{ token }}{{ q }}">{{ token }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ol>
         {% if result.hasNext %}
-            <a class="btn" href="{{ base }}?page={{ result.page + 1 }}{{ q }}">Next</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.page + 1 }}{{ q }}" aria-label="Next page" title="Next page">&rsaquo;</a>
+            <a class="btn pagination__step" href="{{ base }}?page={{ result.totalPages }}{{ q }}" aria-label="Last page" title="Last page">&raquo;</a>
         {% endif %}
     </nav>
 {% endif %}
