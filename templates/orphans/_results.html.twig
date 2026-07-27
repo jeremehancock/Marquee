@@ -1,0 +1,24 @@
+{# Orphan scan result, rendered both on a full render and by GET /orphans/list.
+   Plain HTML with data-* hooks — the delete-all overlay lives in the shell. #}
+{% if error %}
+    <p class="alert" role="alert">{{ error }}</p>
+{% elseif orphans is empty %}
+    <div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>
+{% else %}
+    <div class="toolbar" data-count="{{ orphans|length }}">
+        <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>
+        <button type="button" class="btn btn--danger" data-action="delete-all">Delete all orphans</button>
+    </div>
+
+    <div class="grid">
+        {% for orphan in orphans %}
+            <figure class="card">
+                <div class="card__frame">
+                    <img class="card__image" src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
+                         alt="{{ orphan.title }}" loading="lazy">
+                </div>
+                <figcaption class="card__caption" title="{{ orphan.title }}">{{ orphan.title }}</figcaption>
+            </figure>
+        {% endfor %}
+    </div>
+{% endif %}

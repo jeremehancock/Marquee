@@ -33,6 +33,40 @@
         (scope || document).querySelectorAll('.card__image').forEach(markLoaded);
     }
 
+    // ---- Alpine component: the orphans page ----
+    // The shell renders instantly with the spinner up (loading), then fetches
+    // the slow orphan scan and swaps the result in. The delete-all overlay
+    // lives in the shell; the fetched fragment is plain HTML, so its "Delete
+    // all" button and count are wired here rather than through injected Alpine.
+    document.addEventListener('alpine:init', function () {
+        window.Alpine.data('orphansPage', function (configured) {
+            return {
+                loading: !!configured,
+                confirmOpen: false,
+                count: 0,
+                init: function () {
+                    if (!configured) { return; }
+                    var self = this;
+                    var target = this.$refs.results;
+                    fetch('/orphans/list', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            target.innerHTML = html;
+                            initImages(target);
+                            var toolbar = target.querySelector('.toolbar');
+                            self.count = toolbar ? (parseInt(toolbar.getAttribute('data-count'), 10) || 0) : 0;
+                            var del = target.querySelector('[data-action="delete-all"]');
+                            if (del) { del.addEventListener('click', function () { self.confirmOpen = true; }); }
+                        })
+                        .catch(function () {
+                            target.innerHTML = '<p class="alert" role="alert">Could not check for orphans. Please reload the page.</p>';
+                        })
+                        .finally(function () { self.loading = false; });
+                },
+            };
+        });
+    });
+
     // ---- Alpine component: the overlays ----
     document.addEventListener('alpine:init', function () {
         window.Alpine.data('galleryUI', function () {

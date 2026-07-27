@@ -3,7 +3,7 @@
 {% block title %}Orphaned posters · {{ site_title }}{% endblock %}
 
 {% block content %}
-<div x-data="{ confirmOpen: false }">
+<div x-data="orphansPage({{ configured ? 'true' : 'false' }})">
     <p><a class="search__clear" href="{{ back_url }}">&larr; Back to library</a></p>
     <h1>Orphaned posters</h1>
     <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.
@@ -15,29 +15,24 @@
 
     {% if not configured %}
         <div class="panel"><p>Plex must be configured to detect orphans.</p></div>
-    {% elseif error %}
-        <p class="alert" role="alert">{{ error }}</p>
-    {% elseif orphans is empty %}
-        <div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>
     {% else %}
-        <div class="toolbar">
-            <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>
-            <button type="button" class="btn btn--danger" @click="confirmOpen = true">Delete all orphans</button>
+        {# Filled by GET /orphans/list once the scan resolves. #}
+        <div id="orphan-results" x-ref="results">
+            <noscript>
+                <div class="panel"><p>Orphan detection requires JavaScript. Please enable it and reload the page.</p></div>
+            </noscript>
         </div>
 
-        <div class="grid">
-            {% for orphan in orphans %}
-                <figure class="card">
-                    <div class="card__frame">
-                        <img class="card__image" src="/posters/{{ orphan.category }}/{{ orphan.filename|url_encode }}"
-                             alt="{{ orphan.title }}" loading="lazy">
-                    </div>
-                    <figcaption class="card__caption" title="{{ orphan.title }}">{{ orphan.title }}</figcaption>
-                </figure>
-            {% endfor %}
+        {# Loading overlay — visible until the scan resolves. #}
+        <div class="overlay" x-show="loading" x-cloak style="display:none">
+            <div class="overlay__box">
+                <div class="spinner"></div>
+                <p><strong>Checking Plex for orphans&hellip;</strong></p>
+                <p class="stats">This can take a while for large libraries. Please keep this page open.</p>
+            </div>
         </div>
 
-        {# Delete-all confirmation #}
+        {# Delete-all confirmation — count is filled in after the scan. #}
         <div class="modal" x-show="confirmOpen" x-cloak @keydown.escape.window="confirmOpen = false" style="display:none">
             <div class="modal__backdrop" @click="confirmOpen = false"></div>
             <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm delete">
@@ -45,7 +40,7 @@
                     <h2>Delete all orphans?</h2>
                     <button type="button" class="modal__close" @click="confirmOpen = false" aria-label="Close">&times;</button>
                 </div>
-                <p class="stats">This permanently removes {{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}. This cannot be undone.</p>
+                <p class="stats">This permanently removes <span x-text="count"></span> orphaned poster<span x-show="count !== 1">s</span>. This cannot be undone.</p>
                 <div class="modal__actions">
                     <button type="button" class="btn" @click="confirmOpen = false">Cancel</button>
                     <form method="post" action="/orphans/delete-all">

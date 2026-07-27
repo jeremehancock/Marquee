@@ -48,6 +48,7 @@ function registerRoutes(App $app): void
     $app->post('/plex/import', [PlexImportController::class, 'run']);
 
     $app->get('/orphans', [OrphanController::class, 'show']);
+    $app->get('/orphans/list', [OrphanController::class, 'results']);
     $app->post('/orphans/delete-all', [OrphanController::class, 'deleteAll']);
 
     $app->get('/wall', [PosterWallController::class, 'show']);
