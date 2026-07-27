@@ -54,15 +54,32 @@ short `transition`. Reuses the same `color-mix`/token idiom already in
 `.btn:hover` — rejected to avoid unintended changes to buttons elsewhere in the
 app; scope to the overlay.
 
-**Caption trim — a display-only `Poster` accessor.** Add
-`Poster::captionTitle()` returning `title()` with a trailing bracketed token
-removed via `preg_replace('/\s*\[[^\]]*\]\s*$/', '', ...)`. In
-[gallery_results.html.twig](templates/partials/gallery_results.html.twig) the
-caption renders `poster.captionTitle` as visible text while `title="{{
-poster.title }}"` keeps the full title in the tooltip. `title()` (sort key +
-tooltip) is unchanged, so ordering and disambiguation are preserved. _Alternative
-considered:_ stripping in the template with a Twig regex — rejected; keeping the
-rule in one tested PHP method is cleaner and reusable.
+**Caption trim — library-name-driven, sourced from the DB.** The trailing token
+is the Plex library name, which import bakes into the filename; the file-safe
+sanitiser flattens the `(year)`/`[library]` structure to underscores, so there is
+no bracket to strip and the token is otherwise indistinguishable from title words.
+The reliable source of the library name is the existing `plex_items` table (it
+stores `library_title` keyed by category + filename). So
+`PlexItemRepository::librariesForCategory()` returns `filename => library_title`;
+[GalleryController](src/Controller/GalleryController.php) builds one map per
+category (always — the filename carries the library even when Plex is currently
+unconfigured) and passes `plex_libraries` to the template.
+`Poster::captionTitle(?string $library)` normalises the library name the same way
+the filename was (`[^A-Za-z0-9._-]`→`_`, then `_`/`.`→space) and strips it only
+when it is the exact trailing token, so the year survives and non-Plex posters
+(null library) keep their full title. The caption text and its `data-tooltip` both
+use this trimmed title; `title()` (sort key) is untouched. _Alternative
+considered:_ stripping a bracket in the display layer (the first attempt) —
+rejected because the sanitiser already destroyed the brackets, so it stripped
+nothing. _Alternative considered:_ using the DB's clean `title` column directly —
+rejected because it omits the year users expect in the caption.
+
+**Mobile sheet keeps the library in parentheses.** `Poster::sheetTitle(?string
+$library)` does the same match but rewrites the trailing token to ` (Library)`
+instead of dropping it. The card exposes it as `data-sheet-title`; the touch
+controller in [gallery.js](public/assets/gallery.js) already titled the sheet from
+the caption's text, so it now prefers `data-sheet-title` and falls back to that
+text. This is the one place the library is intentionally shown.
 
 **Single-line caption with ellipsis.** Replace the caption's two-line
 `-webkit-line-clamp` with a single-line clamp: `white-space: nowrap; overflow:
@@ -85,20 +102,18 @@ contexts, and viewport-edge clipping that a pure-CSS `::after` tooltip cannot
 handle here; event delegation means AJAX pagination and Alpine-rendered previews
 work with no re-binding. The bubble is styled from theme tokens in
 [app.css](public/assets/app.css) (`.tooltip`). All native tooltips become
-`data-tooltip`: poster captions (gallery + orphans), pagination arrows, the Find
-Posters preview image, and the wall exit. Icon-only controls that used `title`
-as their only name keep an `aria-label` (pagination already has one; the wall's
-`×` exit gains one). _Alternative considered:_ a pure-CSS `[data-tooltip]::after`
-— rejected because the caption clips its own overflow for the ellipsis and edge
-columns would overflow the viewport.
+`data-tooltip`: poster captions (gallery + orphans), pagination arrows, and the
+Find Posters preview image. Icon-only controls that used `title` as their only
+name keep an `aria-label` (pagination already has one). _Alternative considered:_
+a pure-CSS `[data-tooltip]::after` — rejected because the caption clips its own
+overflow for the ellipsis and edge columns would overflow the viewport.
 
-**Wall reuse.** The wall ([wall.html.twig](templates/wall.html.twig)) is a
-standalone page that loads neither `app.css` nor `app.js`. To give its exit
-button the *same* tooltip, load `app.js` there (its service-worker/version code
-no-ops harmlessly) and duplicate the small `.tooltip` block into
-[wall.css](public/assets/wall.css) with literal colors (wall.css defines no theme
-vars). _Alternative considered:_ leaving the wall on a native tooltip — rejected;
-the request is explicitly "anywhere we have tooltips."
+**Wall shows only posters.** The wall is for unattended display on a monitor, so
+its on-screen exit control is removed entirely (`.wall__exit` markup and styles);
+a viewer leaves by closing the tab. Because that was the wall's only tooltip, the
+wall keeps loading neither `app.js` nor the tooltip CSS — the custom tooltip stays
+scoped to the main app. _Alternative considered:_ keeping the exit but hiding it
+until hover — rejected; the user wants no chrome on the wall at all.
 
 **Import type in parentheses.** In [plex.html.twig](templates/plex.html.twig)
 render the type label as `({{ library.isMovie ? 'Movies' : 'TV' }})` inside the
@@ -115,9 +130,16 @@ given a shared width later.
 
 - [New badge hues fail contrast over bright posters] → keep white text with the
   existing subtle border and dark tints; verify each hue against a light poster.
-- [`captionTitle()` over-trims a real title that legitimately ends in brackets]
-  → the regex only strips a single trailing `[...]` segment; the full title stays
-  in the tooltip, so nothing is truly lost. Acceptable for a display caption.
+- [`captionTitle()` drops a real title word that happens to equal the library
+  name] → it only strips the library when it is the *exact trailing* token
+  (` <library>` at the end), so an interior "Movies" is kept; a title whose real
+  last word is the library name is a rare, low-cost cosmetic case.
+- [A uniqueness suffix (`…-1`) sits after the library token] → then the token is
+  not the exact ending and is left in place; rare (only on name collisions) and
+  cosmetic.
+- [Library map adds a DB query per category on every gallery load] → one indexed
+  lookup on `plex_items` per category, same pattern as the existing `linked`/
+  `addedAt` maps; negligible.
 - [Scoped hover rules miss a button variant] → cover base, `--accent`, and
   `--danger`; the overlay only uses these three.
 
@@ -131,5 +153,9 @@ touch viewport.
 ## Open Questions
 
 - _Resolved:_ the "type at the end of the title" is the poster name shown in the
-  caption under each poster — i.e. the trailing bracketed library token (e.g.
-  `[Movies]`). The caption-trim decision above addresses exactly this.
+  caption under each poster — the baked-in library name (e.g. "… 2003 Movies").
+  The library-name-driven caption-trim decision above addresses exactly this, and
+  the mobile sheet keeps it in parentheses.
+- Orphans: the orphans grid still shows the filename-derived title (it has no
+  `plex_libraries` map, and orphans are unlinked posters under review). Left as-is
+  unless the library should be trimmed there too.

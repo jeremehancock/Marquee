@@ -88,6 +88,15 @@ final class GalleryController
             }
         }
 
+        // Library name per poster, keyed by category then filename: import baked
+        // it into the filename, so the gallery uses it to drop the library from
+        // captions and parenthesise it in the mobile sheet. Kept even when Plex
+        // is not currently configured, since the filenames still carry it.
+        $plexLibraries = [];
+        foreach ($view->categories() as $cat) {
+            $plexLibraries[$cat->value] = $this->plexItems->librariesForCategory($cat->value);
+        }
+
         return $this->twig->render($response, 'gallery.html.twig', [
             'view' => $view,
             'tabs' => $this->tabs($view),
@@ -97,6 +106,7 @@ final class GalleryController
             'flash' => $this->flash->pull(),
             'plex_configured' => $plexConfigured,
             'linked' => $linked,
+            'plex_libraries' => $plexLibraries,
             'sort' => $sort->value,
         ]);
     }

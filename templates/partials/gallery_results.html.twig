@@ -30,6 +30,9 @@
            within a category, so the page-level base is wrong in the All view. #}
         {% set poster_base = '/library/' ~ poster.category.value %}
         {% set is_linked = plex_configured and poster.filename in (linked[poster.category.value] ?? []) %}
+        {# Library name for this poster (import baked it into the filename): drop
+           it from the caption/tooltip, keep it parenthesised for the mobile sheet. #}
+        {% set poster_library = (plex_libraries[poster.category.value] ?? {})[poster.filename] ?? null %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
@@ -64,7 +67,9 @@
                     </div>
                 </div>
             </div>
-            <figcaption class="card__caption" data-tooltip="{{ poster.title }}">{{ poster.captionTitle }}</figcaption>
+            {% set caption_title = poster.captionTitle(poster_library) %}
+            <figcaption class="card__caption" data-tooltip="{{ caption_title }}"
+                        data-sheet-title="{{ poster.sheetTitle(poster_library) }}">{{ caption_title }}</figcaption>
         </figure>
     {% endfor %}
 </div>

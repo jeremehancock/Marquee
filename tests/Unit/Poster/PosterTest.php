@@ -51,27 +51,49 @@ final class PosterTest extends TestCase
         self::assertSame('/posters/tv-shows/The%20Wire.png?v=42', $poster->url());
     }
 
-    public function testCaptionTitleDropsTheTrailingLibraryToken(): void
+    public function testCaptionDropsTheTrailingLibraryToken(): void
     {
-        // Import names files "Title (Year) [Library]", which reads as a redundant
-        // type suffix under the poster; the caption drops it.
-        $poster = new Poster(PosterCategory::Movies, 'Solaris (1972) [Movies].png', 1024, 42);
+        // Import bakes the library into the filename ("…2003 Movies"); given the
+        // library name, the caption drops it.
+        $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
 
-        self::assertSame('Solaris (1972)', $poster->captionTitle());
+        self::assertSame('Louis and the Nazis 2003', $poster->captionTitle('Movies'));
     }
 
-    public function testCaptionTitleLeavesTitlesWithoutABracketUnchanged(): void
+    public function testCaptionDropsAMultiWordLibraryToken(): void
     {
+        $poster = new Poster(PosterCategory::TvShows, 'Breaking_Bad_TV_Shows.png', 1024, 42);
+
+        self::assertSame('Breaking Bad', $poster->captionTitle('TV Shows'));
+    }
+
+    public function testCaptionKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    {
+        // Non-Plex posters (uploaded/URL) have no library to strip.
         $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
 
         self::assertSame('Solaris', $poster->captionTitle());
     }
 
-    public function testCaptionTitleOnlyTrimsABracketAtTheEnd(): void
+    public function testCaptionKeepsTheTitleWhenTheLibraryIsNotTheTrailingToken(): void
     {
-        // A bracket that is part of the name, not a trailing token, is kept.
-        $poster = new Poster(PosterCategory::Movies, 'Fear [and] Loathing.png', 1024, 42);
+        // "Movies" appears in the title but not at the end, so nothing is trimmed.
+        $poster = new Poster(PosterCategory::Movies, 'The_Movies_Are_Great.png', 1024, 42);
 
-        self::assertSame('Fear [and] Loathing', $poster->captionTitle());
+        self::assertSame('The Movies Are Great', $poster->captionTitle('Movies'));
+    }
+
+    public function testSheetTitleParenthesisesTheLibrary(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
+
+        self::assertSame('Louis and the Nazis 2003 (Movies)', $poster->sheetTitle('Movies'));
+    }
+
+    public function testSheetTitleKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
+
+        self::assertSame('Solaris', $poster->sheetTitle());
     }
 }

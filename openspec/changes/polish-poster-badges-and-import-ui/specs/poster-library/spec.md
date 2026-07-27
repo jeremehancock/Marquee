@@ -41,34 +41,40 @@ posters large enough for the overlay action stack to fit, and lazy-load images
 with a subtle placeholder animation that resolves when the image loads. The
 placeholder animation and fade-in SHALL apply on every page that renders poster
 cards, not only the gallery, and SHALL resolve whether the image loads or fails.
-The visible caption SHALL omit the trailing bracketed library/type token that the
-stored filename carries (e.g. `[Movies]`), because the type is already conveyed by
-the badge and the active tab. The caption SHALL be constrained to a single line no
-wider than the poster above it, truncating with an ellipsis rather than wrapping,
-so a long title never pushes the following row of posters down. The full,
-untrimmed title SHALL remain available through the poster's tooltip.
+Plex import bakes the source library name into the poster's filename, so it
+surfaces as a trailing token in the derived title (e.g. "… 2003 Movies"). The
+visible caption and its tooltip SHALL omit that library token, because the type is
+already conveyed by the badge and the active tab; the token is identified using
+the poster's known library name so the rest of the title (including any year) is
+preserved. The caption SHALL be constrained to a single line no wider than the
+poster above it, truncating with an ellipsis rather than wrapping, so a long title
+never pushes the following row of posters down.
 
 #### Scenario: Title beneath the poster
 - **WHEN** the gallery renders a poster
 - **THEN** its title appears in a caption below the image rather than inside the
   hover overlay
 
-#### Scenario: Caption omits the redundant type token
-- **WHEN** the gallery renders a poster whose stored title ends in a bracketed
-  library/type token such as `[Movies]`
-- **THEN** the visible caption text drops that trailing bracketed token while the
-  rest of the title is unchanged
+#### Scenario: Caption omits the library token
+- **WHEN** the gallery renders a Plex-imported poster whose derived title ends in
+  its library name (e.g. "Louis and the Nazis 2003 Movies" from the "Movies"
+  library)
+- **THEN** the visible caption drops that trailing library token (showing "Louis
+  and the Nazis 2003") while the rest of the title is unchanged
+
+#### Scenario: Tooltip also omits the library token
+- **WHEN** a user hovers a poster whose caption dropped its library token
+- **THEN** the tooltip shows the same title without the library token
+
+#### Scenario: Non-Plex poster keeps its full title
+- **WHEN** the gallery renders a poster with no known library (e.g. an uploaded
+  poster)
+- **THEN** the caption shows the full derived title unchanged
 
 #### Scenario: Long caption truncates instead of wrapping
 - **WHEN** a poster's caption is longer than the poster is wide
 - **THEN** the caption stays on a single line no wider than the poster and ends
   in an ellipsis, and the posters below it are not pushed down
-
-#### Scenario: Full title still available on hover
-- **WHEN** a user hovers the caption of a poster whose title was trimmed or
-  truncated
-- **THEN** the tooltip shows the full, untrimmed title including the bracketed
-  token
 
 #### Scenario: Lazy-load animation
 - **WHEN** a poster image has not yet loaded
@@ -85,6 +91,33 @@ untrimmed title SHALL remain available through the poster's tooltip.
 - **WHEN** a poster image request fails
 - **THEN** the placeholder animation stops rather than continuing to suggest the
   image is still loading
+
+### Requirement: Poster actions on touch devices
+On touch devices the poster actions SHALL be presented in a bottom action sheet
+opened by tapping the poster, rather than overlaid on the poster itself, so every
+action is shown at full size and none can be triggered by accident. The sheet's
+heading SHALL name the poster; for a Plex-imported poster the heading SHALL keep
+the source library and show it in parentheses (e.g. "Louis and the Nazis 2003
+(Movies)"), even though the caption drops it.
+
+#### Scenario: Tapping a poster opens the action sheet
+- **WHEN** a user taps a poster on a touch device
+- **THEN** a sheet opens listing that poster's actions (change, send/fetch to
+  Plex when linked, download, copy URL, full screen, delete) with its title
+
+#### Scenario: Sheet heading shows the library in parentheses
+- **WHEN** the action sheet opens for a Plex-imported poster
+- **THEN** its heading shows the poster title with the source library in
+  parentheses
+
+#### Scenario: No tap-through
+- **WHEN** a user taps a poster on a touch device
+- **THEN** the tap opens the sheet only and does not trigger any poster action
+
+#### Scenario: Dismissing the sheet
+- **WHEN** the user taps outside the sheet, presses Escape, or runs one of its
+  actions
+- **THEN** the sheet closes
 
 ### Requirement: Poster actions on pointer devices
 On pointer (hover-capable) devices the gallery SHALL reveal a poster's action

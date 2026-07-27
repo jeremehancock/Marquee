@@ -46,23 +46,6 @@ body {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 
-.wall__exit {
-    position: fixed;
-    top: 14px;
-    right: 20px;
-    z-index: 10;
-    color: rgba(255, 255, 255, 0.45);
-    font-size: 2rem;
-    line-height: 1;
-    text-decoration: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.wall:hover .wall__exit {
-    opacity: 1;
-}
-
 .wall__empty {
     position: fixed;
     inset: 0;
@@ -83,33 +66,4 @@ body {
     .wall__layer {
         transition: none;
     }
-}
-
-/* Shared custom tooltip — same component as app.css, positioned by app.js. The
-   wall loads no theme variables, so the app palette values are inlined here. */
-.tooltip {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 100;
-    max-width: 320px;
-    padding: 6px 10px;
-    background: #282a2d;
-    color: #e9e6df;
-    border: 1px solid #34373d;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size: 0.8rem;
-    line-height: 1.35;
-    text-align: center;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.12s ease;
-}
-
-.tooltip--visible {
-    opacity: 1;
 }

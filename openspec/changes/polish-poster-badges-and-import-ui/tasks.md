@@ -18,16 +18,24 @@
       and a visible keyboard-focus state when tabbing through the overlay.
       _(needs a running instance — for the user to confirm.)_
 
-## 3. Caption trims the redundant type token
+## 3. Caption drops the baked-in library (and sheet keeps it in parens)
 
-- [x] 3.1 Add `Poster::captionTitle()` in [src/Poster/Poster.php](src/Poster/Poster.php)
-      that returns `title()` with a single trailing `[...]` token stripped; leave
-      `title()` unchanged.
-- [x] 3.2 In [templates/partials/gallery_results.html.twig](templates/partials/gallery_results.html.twig)
-      render `poster.captionTitle` as the visible caption text while keeping
-      `title="{{ poster.title }}"` for the full-title tooltip.
-- [x] 3.3 Add a unit test for `captionTitle()` covering a title with a trailing
-      bracket, one without, and one whose only bracket is not at the end.
+- [x] 3.1 Add `PlexItemRepository::librariesForCategory()` returning
+      `filename => library_title`, and build a `plex_libraries` map per category in
+      [GalleryController](src/Controller/GalleryController.php), passed to the template.
+- [x] 3.2 In [src/Poster/Poster.php](src/Poster/Poster.php) make
+      `captionTitle(?string $library)` normalise the library name the way the
+      filename was and strip it only as the exact trailing token; add
+      `sheetTitle(?string $library)` that instead rewrites the token to ` (Library)`.
+      Leave `title()` unchanged.
+- [x] 3.3 In [gallery_results.html.twig](templates/partials/gallery_results.html.twig)
+      resolve each poster's library, render `poster.captionTitle(lib)` as the caption
+      text and `data-tooltip`, and emit `data-sheet-title="{{ poster.sheetTitle(lib) }}"`.
+- [x] 3.4 In [gallery.js](public/assets/gallery.js) make the mobile sheet prefer
+      `data-sheet-title` (library in parentheses), falling back to the caption text.
+- [x] 3.5 Unit-test `captionTitle()`/`sheetTitle()`: single- and multi-word library
+      tokens, no-library (full title kept), and a library word that is not the
+      trailing token.
 
 ## 4. Import screen presentation
 
@@ -59,16 +67,20 @@
       (caption + the four pagination arrows),
       [orphans/_results.html.twig](templates/orphans/_results.html.twig) (caption),
       and [gallery.html.twig](templates/gallery.html.twig) (preview image). The
-      caption's `data-tooltip` uses the full `poster.title`.
-- [x] 6.4 In [wall.html.twig](templates/wall.html.twig) convert the exit button to
-      `data-tooltip`, add `aria-label="Exit the wall"`, and load `app.js`; copy the
-      `.tooltip` styles into [public/assets/wall.css](public/assets/wall.css) with
-      literal colors so the wall shows the same tooltip.
+      caption's `data-tooltip` uses the library-stripped title.
 
-## 7. Verification
+## 7. Poster Wall shows only posters
 
-- [x] 7.1 Run `composer` checks (PHP-CS-Fixer, PHPStan, PHPUnit) and confirm they
-      pass. _(175 tests pass; PHPStan clean; CS clean — re-run after the additions.)_
-- [ ] 7.2 Load the All view, import screen, orphans, Find Posters, and the wall on
-      a pointer and a touch viewport and confirm captions truncate with the full
-      title in the custom tooltip, and every former native tooltip now uses it.
+- [x] 7.1 Remove the exit control from [wall.html.twig](templates/wall.html.twig)
+      and delete the `.wall__exit` (and hover) rules from
+      [public/assets/wall.css](public/assets/wall.css); the wall keeps loading no
+      tooltip assets since it now has no tooltip.
+
+## 8. Verification
+
+- [x] 8.1 Run `composer` checks (PHP-CS-Fixer, PHPStan, PHPUnit) and confirm they
+      pass. _(178 tests pass; PHPStan clean; CS clean.)_
+- [ ] 8.2 Load the All view, import screen, orphans, Find Posters, and the wall on
+      a pointer and a touch viewport: captions truncate and drop the library, the
+      tooltip matches, the mobile sheet shows the library in parentheses, and the
+      wall has no exit control.
