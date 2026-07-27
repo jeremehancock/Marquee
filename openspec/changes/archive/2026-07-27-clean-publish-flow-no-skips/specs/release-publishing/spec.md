@@ -18,14 +18,19 @@ start a CI run or a publish.
 - **WHEN** a commit is pushed to `dev` or `main` and its `push` CI run succeeds
 - **THEN** exactly one image publish runs for that commit
 
-#### Scenario: A pushed commit is built by CI exactly once
+#### Scenario: Pull-request CI does not trigger a publish
 
-- **WHEN** a commit is pushed to a branch and a pull request containing that same
-  commit is opened or updated
-- **THEN** CI runs once for the commit, driven by the `push`
-- **AND** no additional CI run is started by the pull request
-- **AND** exactly one publish runs for that commit, with no cancelled, skipped,
-  or failed duplicate publish
+- **WHEN** a pull request is opened or updated for a commit
+- **THEN** it does not start a CI run at all
+- **AND** it therefore triggers no publish
+
+#### Scenario: A commit built for both a push and a pull request publishes once
+
+- **WHEN** a commit is pushed to a branch and that same commit also appears in an
+  open pull request
+- **THEN** only the `push` builds it in CI, so exactly one publish runs for that
+  commit
+- **AND** there is no cancelled, skipped, or failed duplicate publish
 
 #### Scenario: Manual dispatch still publishes
 
