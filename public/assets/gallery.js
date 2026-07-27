@@ -33,6 +33,67 @@
         (scope || document).querySelectorAll('.card__image').forEach(markLoaded);
     }
 
+    // ---- Shared overlay behavior ----
+    // The fullscreen viewer, confirm dialog, mobile action tray, and toast are
+    // identical on every page that shows poster cards. This factory is spread
+    // into each page's Alpine root (galleryUI, orphansPage) so they share one
+    // implementation and can include the same overlay markup partial.
+    function overlayComponent() {
+        return {
+            viewer: null,
+            confirm: { open: false, title: '', message: '', label: 'Confirm' },
+            sheet: { open: false, title: '', actions: '' },
+            toast: { show: false, text: '' },
+            _toastTimer: null,
+
+            view: function (url) {
+                if (url) { this.viewer = url; }
+            },
+            openSheet: function (detail) {
+                this.sheet = { open: true, title: detail.title || '', actions: detail.actions || '' };
+            },
+            closeSheet: function () {
+                this.sheet.open = false;
+            },
+            askConfirm: function (detail) {
+                this.confirm = {
+                    open: true,
+                    title: detail.title || 'Are you sure?',
+                    message: detail.message || '',
+                    label: detail.label || 'Confirm',
+                };
+            },
+            doConfirm: function () {
+                this.confirm.open = false;
+                dispatch('gallery:confirmed', {});
+            },
+            notify: function (text) {
+                var self = this;
+                this.toast = { show: true, text: text };
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(function () { self.toast.show = false; }, 2400);
+            },
+        };
+    }
+
+    // A touch device has no hover, so there is no room for a card overlay; taps
+    // open the action tray instead.
+    function isTouch() {
+        return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+    }
+
+    // The tray shows a tapped card's own actions at full size, titled by its
+    // caption.
+    function sheetDetailFor(frame) {
+        var actions = frame.querySelector('.card__actions');
+        var card = frame.closest('.card');
+        var caption = card ? card.querySelector('.card__caption') : null;
+        return {
+            title: caption ? caption.textContent.trim() : '',
+            actions: actions ? actions.outerHTML : '',
+        };
+    }
+
     // ---- Alpine component: the orphans page ----
     // The shell renders instantly with the spinner up (loading), then fetches
     // the slow orphan scan and swaps the result in. The delete-all overlay
@@ -40,15 +101,30 @@
     // all" button and count are wired here rather than through injected Alpine.
     document.addEventListener('alpine:init', function () {
         window.Alpine.data('orphansPage', function (configured) {
-            return {
+            return Object.assign(overlayComponent(), {
                 loading: !!configured,
                 confirmOpen: false,
                 count: 0,
+                _pendingForm: null,
+
                 init: function () {
+                    this.bindInteractions();
                     if (!configured) { return; }
                     var self = this;
+                    this.reload()
+                        .catch(function () {
+                            self.$refs.results.innerHTML = '<p class="alert" role="alert">Could not check for orphans. Please reload the page.</p>';
+                        })
+                        .finally(function () { self.loading = false; });
+                },
+
+                // Fetch the scan fragment and (re)wire it: image fade-in, the
+                // orphan count, and the delete-all button. Used for the initial
+                // load and after a single orphan is deleted.
+                reload: function () {
+                    var self = this;
                     var target = this.$refs.results;
-                    fetch('/orphans/list', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+                    return fetch('/orphans/list', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                         .then(function (r) { return r.text(); })
                         .then(function (html) {
                             target.innerHTML = html;
@@ -57,37 +133,89 @@
                             self.count = toolbar ? (parseInt(toolbar.getAttribute('data-count'), 10) || 0) : 0;
                             var del = target.querySelector('[data-action="delete-all"]');
                             if (del) { del.addEventListener('click', function () { self.confirmOpen = true; }); }
-                        })
-                        .catch(function () {
-                            target.innerHTML = '<p class="alert" role="alert">Could not check for orphans. Please reload the page.</p>';
-                        })
-                        .finally(function () { self.loading = false; });
+                        });
                 },
-            };
+
+                // Per-orphan card interactions: the same overlay-on-pointer,
+                // tray-on-touch pattern the library uses, plus in-place delete.
+                bindInteractions: function () {
+                    var self = this;
+                    var root = this.$el;
+
+                    root.addEventListener('click', function (e) {
+                        // Tapping Download inside the tray: let it download, close.
+                        if (e.target.closest('.sheet__body a[download]')) { self.closeSheet(); return; }
+                        // Tapping a card: touch opens the tray (no room for a
+                        // hover overlay on a phone); pointer opens it full screen.
+                        var frame = e.target.closest('.card__frame');
+                        if (!frame || !root.contains(frame)) { return; }
+                        if (e.target.closest('.card__actions')) { return; }
+                        if (isTouch()) {
+                            self.openSheet(sheetDetailFor(frame));
+                        } else {
+                            var image = frame.querySelector('.card__image');
+                            if (image) { self.view(image.getAttribute('src')); }
+                        }
+                    });
+
+                    root.addEventListener('submit', function (e) {
+                        var form = e.target;
+                        if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-mutate')) { return; }
+                        e.preventDefault();
+                        // The form may live in the tray; close it either way.
+                        self.closeSheet();
+                        if (form.hasAttribute('data-confirm')) {
+                            self._pendingForm = form;
+                            self.askConfirm({
+                                title: 'Delete orphan?',
+                                message: form.getAttribute('data-confirm'),
+                                label: 'Delete',
+                            });
+                            return;
+                        }
+                        self.submitDelete(form);
+                    });
+
+                    window.addEventListener('gallery:confirmed', function () {
+                        if (self._pendingForm) {
+                            var form = self._pendingForm;
+                            self._pendingForm = null;
+                            self.submitDelete(form);
+                        }
+                    });
+                },
+
+                // Delete one orphan, then refresh the list in place and report.
+                submitDelete: function (form) {
+                    var self = this;
+                    fetch(form.getAttribute('action'), {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'fetch' },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            var alert = doc.querySelector('.alert');
+                            var message = alert ? alert.textContent.trim() : '';
+                            return self.reload().then(function () {
+                                if (message) { self.notify(message); }
+                            });
+                        })
+                        .catch(function () {});
+                },
+            });
         });
     });
 
     // ---- Alpine component: the overlays ----
     document.addEventListener('alpine:init', function () {
         window.Alpine.data('galleryUI', function () {
-            return {
-                viewer: null,
+            return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
                 finder: { loading: false, error: '', results: [] },
-                confirm: { open: false, title: '', message: '', label: 'Confirm' },
-                sheet: { open: false, title: '', actions: '' },
-                toast: { show: false, text: '' },
-                _toastTimer: null,
 
-                view: function (url) {
-                    if (url) { this.viewer = url; }
-                },
-                openSheet: function (detail) {
-                    this.sheet = { open: true, title: detail.title || '', actions: detail.actions || '' };
-                },
-                closeSheet: function () {
-                    this.sheet.open = false;
-                },
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
                     this.finder = { loading: false, error: '', results: [] };
@@ -116,25 +244,7 @@
                         .then(function () { self.notify('URL copied to clipboard'); })
                         .catch(function () {});
                 },
-                askConfirm: function (detail) {
-                    this.confirm = {
-                        open: true,
-                        title: detail.title || 'Are you sure?',
-                        message: detail.message || '',
-                        label: detail.label || 'Confirm',
-                    };
-                },
-                doConfirm: function () {
-                    this.confirm.open = false;
-                    dispatch('gallery:confirmed', {});
-                },
-                notify: function (text) {
-                    var self = this;
-                    this.toast = { show: true, text: text };
-                    clearTimeout(this._toastTimer);
-                    this._toastTimer = setTimeout(function () { self.toast.show = false; }, 2400);
-                },
-            };
+            });
         });
     });
 
@@ -306,23 +416,13 @@
             if (frame && root.contains(frame)) {
                 if (e.target.closest('.card__actions')) { return; }
                 if (isTouch()) {
-                    var actions = frame.querySelector('.card__actions');
-                    var card = frame.closest('.card');
-                    var caption = card ? card.querySelector('.card__caption') : null;
-                    dispatch('gallery:sheet', {
-                        title: caption ? caption.textContent.trim() : '',
-                        actions: actions ? actions.outerHTML : '',
-                    });
+                    dispatch('gallery:sheet', sheetDetailFor(frame));
                 } else {
                     var image = frame.querySelector('.card__image');
                     if (image) { dispatch('gallery:view', { url: image.getAttribute('src') }); }
                 }
             }
         });
-
-        function isTouch() {
-            return !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
-        }
 
         // Delegated submit for every AJAX mutation form.
         document.addEventListener('submit', function (e) {

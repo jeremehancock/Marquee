@@ -49,6 +49,7 @@ function registerRoutes(App $app): void
 
     $app->get('/orphans', [OrphanController::class, 'show']);
     $app->get('/orphans/list', [OrphanController::class, 'results']);
+    $app->post('/orphans/delete', [OrphanController::class, 'delete']);
     $app->post('/orphans/delete-all', [OrphanController::class, 'deleteAll']);
 
     $app->get('/wall', [PosterWallController::class, 'show']);
