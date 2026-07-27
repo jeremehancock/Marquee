@@ -1,9 +1,14 @@
 name: CI
 
+# Push-only: every commit is built once, on any branch. Pull requests do NOT
+# trigger CI — GitHub attaches check runs to the commit SHA, so the push-CI
+# result is visible on the PR without a second, redundant run. This keeps a
+# single pushed commit to exactly one CI run (and therefore one publish),
+# with no skipped or cancelled duplicate. Trade-off: external fork PRs get no
+# CI here, which is acceptable for this solo dev -> main flow.
 on:
   push:
     branches: ['**']
-  pull_request:
 
 permissions:
   contents: read
