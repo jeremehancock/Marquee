@@ -15,10 +15,10 @@ name: Publish Docker image
 #
 # Publishing is gated on CI: it runs when the CI workflow completes
 # successfully for a commit, never in parallel with it. A red CI publishes
-# nothing. Only push-triggered CI drives an automatic publish — the pull_request
-# CI that reruns the same dev tip during a ship is ignored, so a commit publishes
-# exactly once instead of racing a duplicate. workflow_dispatch stays available
-# as a manual override.
+# nothing. CI is push-only (see ci.yml), so each commit has exactly one CI run
+# and therefore publishes exactly once — no duplicate to race or cancel. The
+# push-triggered job guard below stays as belt-and-suspenders. workflow_dispatch
+# stays available as a manual override.
 # NOTE: workflow_run reads THIS file from the default branch and its
 # github.ref/github.sha point at the default branch, not the tested commit —
 # so branch and sha below are derived from the workflow_run payload.
@@ -29,10 +29,12 @@ on:
     branches: [main, dev]
   workflow_dispatch:
 
-# Don't let two publishes race; a newer push supersedes an in-flight one.
+# Serialize publishes for a branch so two never race. A superseding publish
+# queues behind the in-flight one and runs after it, rather than cancelling it —
+# no publish is ever cancelled automatically.
 concurrency:
   group: docker-publish-${{ github.event.workflow_run.head_branch || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write   # create the release tag + GitHub Release on a version bump

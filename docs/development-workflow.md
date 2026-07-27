@@ -26,12 +26,13 @@ file. Every build also gets an immutable `sha-<short>` tag.
 **Publishing waits for a green CI.** The publish workflow no longer races CI —
 it runs only *after* the CI workflow (lint, static analysis, tests, and the
 image smoke test) succeeds for that commit. A failing or cancelled CI publishes
-nothing: no moving tag, no pinned version image, no git tag, no release. Only a
-**push**-triggered CI run drives an automatic publish; the pull-request CI that
-re-runs the same `dev` tip during a ship is ignored, so each commit publishes
-exactly once instead of a push and a PR both firing racing, mutually-cancelling
-builds. You can still run the publish workflow by hand from the Actions tab,
-which deliberately skips both checks.
+nothing: no moving tag, no pinned version image, no git tag, no release. CI is
+**push-only** — pull requests don't trigger it, so each commit is built exactly
+once (its status still shows on the PR, because checks attach to the commit
+SHA). That single build drives a single publish, and publishes for a branch
+**queue** rather than cancel one another, so the automatic flow never produces a
+skipped or cancelled build. You can still run the publish workflow by hand from
+the Actions tab, which deliberately skips the CI gate.
 
 **The loop:** build a feature on a branch off `dev` → merge into `dev` (CI
 publishes `:dev`) → test the `:dev` image → **bump `VERSION` on `dev`** → open a
