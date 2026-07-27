@@ -1,4 +1,5 @@
 {% extends 'layout.html.twig' %}
+{% import 'partials/_nav_macros.html.twig' as nav %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
@@ -49,9 +50,7 @@
                {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
         </div>
         <div class="toolbar__actions">
-            <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
-            <a class="btn" href="/plex">Import from Plex</a>
-            <a class="btn" href="/orphans">Orphans</a>
+            {{ nav.secondary_links() }}
         </div>
     </div>
 

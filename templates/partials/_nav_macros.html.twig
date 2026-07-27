@@ -1,0 +1,20 @@
+{# Single source of truth for the secondary navigation links. Rendered both in
+   the desktop gallery toolbar and in the mobile menu tray, so the same links
+   appear in both places without divergent markup. #}
+
+{% macro secondary_links() %}
+    <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
+    <a class="btn" href="/plex">Import from Plex</a>
+    <a class="btn" href="/orphans">Orphans</a>
+{% endmacro %}
+
+{# Log out link. The topbar renders it as a plain nav link (desktop, unchanged);
+   the mobile tray renders it as a full-size button. Callers gate it on
+   auth_bypass, matching the existing behavior. #}
+{% macro logout_link(as_button = false) %}
+    {% if as_button %}
+        <a class="btn" href="/logout">Log out</a>
+    {% else %}
+        <nav><a href="/logout">Log out</a></nav>
+    {% endif %}
+{% endmacro %}

@@ -1,0 +1,25 @@
+{# App-wide mobile navigation tray. Reuses the bottom-sheet (.sheet) presentation
+   shared with the poster action sheet. Driven by the standalone `menuOpen` scope
+   on the topbar (see layout.html.twig), so it is independent of any page's Alpine
+   root and works on every page that renders the topbar nav. Shown only on narrow
+   screens — the menu button that opens it is hidden on desktop. #}
+{% import 'partials/_nav_macros.html.twig' as nav %}
+
+<div class="sheet" x-show="menuOpen" x-cloak
+     @keydown.escape.window="menuOpen = false" style="display:none">
+    <div class="sheet__backdrop" @click="menuOpen = false"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+        <div class="sheet__head">
+            <span class="sheet__title">Menu</span>
+            <button type="button" class="modal__close" @click="menuOpen = false" aria-label="Close">&times;</button>
+        </div>
+        {# Choosing a link navigates away; close the tray on any click so it is
+           dismissed for same-page and new-tab (Poster Wall) destinations alike. #}
+        <div class="sheet__body menu__body" @click="menuOpen = false">
+            {{ nav.secondary_links() }}
+            {% if not auth_bypass %}
+                {{ nav.logout_link(true) }}
+            {% endif %}
+        </div>
+    </div>
+</div>
