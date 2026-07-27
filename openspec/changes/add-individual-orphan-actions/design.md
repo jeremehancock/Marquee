@@ -107,6 +107,14 @@ load. Deleting one orphan does not change whether the others are orphans, so a
 re-scan buys nothing and stalls the page. Removing the single card client-side
 matches what a fresh scan would show, and the next page open scans fresh anyway.
 
+_Progress overlay during a delete:_ the delete itself is still slow because
+`OrphanService::delete` verifies the target against a fresh Plex scan before
+removing it (see decision 5), so both the single delete (AJAX) and delete-all
+(native form post) raise a `deleting` flag that shows the existing scan-style
+overlay until the operation resolves. A cheaper single-rating-key existence
+check would shrink this to a blink, but that needs a new `PlexClient` method
+across the real and fake clients — deferred as a separate optimization.
+
 ### 5. Verify orphan status without a per-delete full Plex scan where possible
 
 `OrphanService::delete` needs to confirm the target is an orphan. Reusing

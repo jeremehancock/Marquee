@@ -103,6 +103,7 @@
         window.Alpine.data('orphansPage', function (configured) {
             return Object.assign(overlayComponent(), {
                 loading: !!configured,
+                deleting: false,
                 confirmOpen: false,
                 count: 0,
                 _pendingForm: null,
@@ -196,6 +197,10 @@
                     };
                     var category = field('category');
                     var filename = field('filename');
+                    // Verifying the orphan against Plex happens server-side and can
+                    // take a few seconds on a large library, so show the progress
+                    // overlay until the delete resolves.
+                    this.deleting = true;
                     fetch(form.getAttribute('action'), {
                         method: 'POST',
                         body: new FormData(form),
@@ -213,7 +218,8 @@
                                 self.notify(alert ? alert.textContent.trim() : 'That orphan could not be deleted.');
                             }
                         })
-                        .catch(function () { self.notify('That orphan could not be deleted.'); });
+                        .catch(function () { self.notify('That orphan could not be deleted.'); })
+                        .finally(function () { self.deleting = false; });
                 },
 
                 // Drop one orphan's card and reflect the new count, swapping in the
