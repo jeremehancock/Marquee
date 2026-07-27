@@ -639,13 +639,51 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 6px;
     margin: 28px 0;
 }
 
-.pagination__status {
+.pagination__step {
+    padding: 6px 12px;
+    line-height: 1;
+}
+
+.pagination__pages {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination__page {
+    display: inline-block;
+    min-width: 38px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    text-align: center;
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.pagination__page--current {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1a1300;
+    font-weight: 600;
+    cursor: default;
+}
+
+.pagination__ellipsis {
+    padding: 6px 4px;
     color: var(--muted);
-    font-size: 0.9rem;
     font-variant-numeric: tabular-nums;
 }
 
