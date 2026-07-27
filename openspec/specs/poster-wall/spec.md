@@ -6,13 +6,14 @@ A full-screen, slideshow-style view of the library — posters drawn at random
 from every category, cross-fading indefinitely. Intended for a spare display or
 a TV, which is why it opens in its own tab and why kiosk use is expected to rely
 on the authentication-bypass option rather than a separate access path.
-
 ## Requirements
-
 ### Requirement: Full-screen rotating wall
 The system SHALL provide a full-screen page that continuously displays posters
 drawn at random from the library, transitioning between them automatically. The
 wall SHALL open in a separate browser tab so the gallery stays open behind it.
+The wall is intended for unattended display on a monitor, so it SHALL present the
+posters without on-screen navigational chrome such as an exit control; a viewer
+leaves by closing the tab.
 
 #### Scenario: Wall displays posters
 - **WHEN** an authenticated user opens the wall and the library has posters
@@ -22,6 +23,10 @@ wall SHALL open in a separate browser tab so the gallery stays open behind it.
 #### Scenario: Open the wall
 - **WHEN** a user opens the Poster Wall from the gallery
 - **THEN** it opens in a new tab
+
+#### Scenario: No on-screen exit control
+- **WHEN** the wall is displayed
+- **THEN** it shows no exit or navigation control overlaid on the posters
 
 #### Scenario: Empty library
 - **WHEN** the library has no posters
@@ -43,3 +48,4 @@ app (a kiosk uses the authentication-bypass option).
 #### Scenario: Unauthenticated access is redirected
 - **WHEN** an unauthenticated user opens the wall
 - **THEN** the system redirects to the login page
+
