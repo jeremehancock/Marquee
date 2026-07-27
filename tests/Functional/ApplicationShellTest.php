@@ -38,9 +38,10 @@ final class ApplicationShellTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         // Assert the brand link specifically: a bare substring check would also
-        // pass on the tab title, and so could not tell the two apart.
+        // pass on the tab <title>, and so could not tell the two apart. The
+        // brand carries the logo mark plus the title in a <span>.
         self::assertStringContainsString(
-            '<a class="brand" href="/">My Wall</a>',
+            '<span>My Wall</span>',
             (string) $response->getBody(),
         );
     }

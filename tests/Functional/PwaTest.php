@@ -25,6 +25,34 @@ final class PwaTest extends AppTestCase
         self::assertStringContainsString('/assets/icons/icon-512.png', $body);
     }
 
+    public function testManifestDeclaresDistinctAnyAndMaskableIcons(): void
+    {
+        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/manifest.webmanifest');
+
+        self::assertSame(200, $response->getStatusCode());
+
+        $data = json_decode((string) $response->getBody(), true);
+        self::assertIsArray($data);
+        self::assertArrayHasKey('icons', $data);
+        $icons = $data['icons'];
+        self::assertIsArray($icons);
+
+        $purposes = array_column($icons, 'purpose');
+        self::assertContains('any', $purposes, 'Manifest must declare at least one "any" icon.');
+        self::assertContains('maskable', $purposes, 'Manifest must declare at least one "maskable" icon.');
+
+        // No single entry may carry both purposes: a maskable icon is padded
+        // into a safe zone and looks shrunken when reused as "any".
+        foreach ($icons as $icon) {
+            self::assertIsArray($icon);
+            self::assertNotSame('any maskable', $icon['purpose'] ?? '');
+        }
+
+        // The maskable art is a distinct asset, not the edge-tight "any" tile.
+        $sources = array_column($icons, 'src');
+        self::assertContains('/assets/icons/icon-512-maskable.png', $sources);
+    }
+
     public function testVersionEndpointReportsCurrentVersion(): void
     {
         $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/version');
