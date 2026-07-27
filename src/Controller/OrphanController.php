@@ -28,26 +28,36 @@ final class OrphanController
     ) {
     }
 
+    /**
+     * The page shell: renders immediately so the client can show a loading
+     * state. The slow scan runs separately via {@see results()}.
+     */
     public function show(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $configured = $this->plex->isConfigured();
+        return $this->twig->render($response, 'orphans.html.twig', [
+            'configured' => $this->plex->isConfigured(),
+            'flash' => $this->flash->pull(),
+            'back_url' => LastCategory::backUrl($this->session),
+        ]);
+    }
+
+    /**
+     * The orphan scan, rendered as a fragment the shell fetches after it paints.
+     */
+    public function results(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
         $orphans = [];
         $error = null;
 
-        if ($configured) {
-            try {
-                $orphans = $this->orphans->findOrphans();
-            } catch (PlexException $e) {
-                $error = $e->getMessage();
-            }
+        try {
+            $orphans = $this->orphans->findOrphans();
+        } catch (PlexException $e) {
+            $error = $e->getMessage();
         }
 
-        return $this->twig->render($response, 'orphans.html.twig', [
-            'configured' => $configured,
+        return $this->twig->render($response, 'orphans/_results.html.twig', [
             'orphans' => $orphans,
             'error' => $error,
-            'flash' => $this->flash->pull(),
-            'back_url' => LastCategory::backUrl($this->session),
         ]);
     }
 

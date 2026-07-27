@@ -58,9 +58,23 @@ final class OrphanTest extends AppTestCase
         );
     }
 
-    public function testOrphansPageListsOnlyOrphans(): void
+    /**
+     * The shell renders instantly with the spinner up and does NOT run the scan;
+     * the orphan listing arrives separately from GET /orphans/list.
+     */
+    public function testOrphansShellRendersSpinnerWithoutScanning(): void
     {
         $body = (string) $this->get($this->app(), '/orphans')->getBody();
+
+        self::assertStringContainsString('orphansPage(true)', $body);
+        self::assertStringContainsString('Checking Plex for orphans', $body);
+        self::assertStringNotContainsString('Gone', $body);
+        self::assertStringNotContainsString('Solaris', $body);
+    }
+
+    public function testOrphansListReturnsOnlyOrphans(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans/list')->getBody();
 
         self::assertStringContainsString('Gone', $body);
         self::assertStringNotContainsString('Solaris', $body);
@@ -83,6 +97,22 @@ final class OrphanTest extends AppTestCase
         self::assertStringNotContainsString('never treated as orphans', $body);
     }
 
+    public function testOrphansPageWithoutPlexShowsMessageAndNoSpinner(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $unconfigured = new FakePlexClient([$library], [], [], [], [], false);
+        $app = $this->makeApp(
+            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
+            [PlexClient::class => static fn (): PlexClient => $unconfigured],
+        );
+
+        $body = (string) $this->get($app, '/orphans')->getBody();
+
+        self::assertStringContainsString('Plex must be configured', $body);
+        self::assertStringContainsString('orphansPage(false)', $body);
+        self::assertStringNotContainsString('Checking Plex for orphans', $body);
+    }
+
     /**
      * The shared fade-in script reveals posters by finding `.card__image`
      * inside a `.card__frame`; without that markup an orphan renders as a
@@ -90,7 +120,7 @@ final class OrphanTest extends AppTestCase
      */
     public function testOrphanUsesSharedCardMarkup(): void
     {
-        $body = (string) $this->get($this->app(), '/orphans')->getBody();
+        $body = (string) $this->get($this->app(), '/orphans/list')->getBody();
 
         self::assertMatchesRegularExpression(
             '/class="card__frame">\s*<img class="card__image"/',
