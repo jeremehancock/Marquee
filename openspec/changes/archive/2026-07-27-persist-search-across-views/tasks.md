@@ -18,5 +18,5 @@
 
 - [x] 4.1 Extend [tests/Functional/GalleryTest.php](../../../tests/Functional/GalleryTest.php) to assert that requesting a specific view with `?q=` returns the filtered grid and that the results summary names the query and match count.
 - [x] 4.2 Add a functional assertion that a filtered view with zero matches renders the filtered empty state (query named) rather than the "import from Plex" empty state.
-- [ ] 4.3 Manually verify in the browser: search in All, switch to Movies/TV Shows/etc. — the query persists, the grid is filtered, the box stays populated, the summary + Clear appear, the URL updates, and back/forward + Clear behave correctly.
+- [x] 4.3 Manually verify in the browser: search in All, switch to Movies/TV Shows/etc. — the query persists, the grid is filtered, the box stays populated, the summary + Clear appear, the URL updates, and back/forward + Clear behave correctly.
 - [x] 4.4 Run `composer` checks (PHP-CS-Fixer, PHPStan max level, PHPUnit) and confirm all pass.
