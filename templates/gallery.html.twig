@@ -19,10 +19,14 @@
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
     {% endif %}
 
+    {# Carry the active search (and a non-default sort) into every tab so
+       switching views keeps the current filter even without JavaScript. #}
+    {% set tab_query = query is not empty ? 'q=' ~ query|url_encode : '' %}
+    {% set tab_query = tab_query ~ (sort == 'date_added' ? (tab_query is not empty ? '&' : '') ~ 'sort=date_added' : '') %}
     <nav class="tabs">
         {% for tab in tabs %}
             <a class="tab {{ tab.active ? 'tab--active' : '' }}"
-               href="/library/{{ tab.value }}">{{ tab.label }}</a>
+               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}">{{ tab.label }}</a>
         {% endfor %}
     </nav>
 

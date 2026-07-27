@@ -73,6 +73,49 @@ final class GalleryTest extends AppTestCase
         self::assertSame(404, $this->get($this->app(), '/library/books')->getStatusCode());
     }
 
+    public function testSearchFiltersAViewAndSummarisesTheQuery(): void
+    {
+        $this->writePoster('Solaris.png');
+        $this->writePoster('Stalker.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
+
+        // The grid is filtered to the matching poster only.
+        self::assertStringContainsString('Solaris', $body);
+        self::assertStringNotContainsString('Stalker', $body);
+        // The filtered-state summary names the query, count, and view.
+        self::assertStringContainsString('1 match for', $body);
+        self::assertStringContainsString('solaris', $body);
+        self::assertStringContainsString('in Movies', $body);
+        // And offers a clear control back to the unfiltered view.
+        self::assertStringContainsString('href="/library/movies"', $body);
+        self::assertStringContainsString('Clear search', $body);
+    }
+
+    public function testTabsCarryTheActiveQuery(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
+
+        // Switching to another view keeps the search, even without JavaScript.
+        self::assertStringContainsString('href="/library/all?q=solaris"', $body);
+        self::assertStringContainsString('href="/library/tv-shows?q=solaris"', $body);
+    }
+
+    public function testFilteredEmptyStateIsDistinctFromEmptyLibrary(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=nomatch')->getBody();
+
+        // A filtered view with no matches names the query, not "import from Plex".
+        self::assertStringContainsString('No matches for', $body);
+        self::assertStringContainsString('nomatch', $body);
+        self::assertStringNotContainsString('import from Plex to get started', $body);
+        self::assertStringContainsString('Clear search', $body);
+    }
+
     public function testAllViewMergesEveryCategory(): void
     {
         $this->writePosterIn('movies', 'Solaris.png');

@@ -1,13 +1,28 @@
 {# View-level base drives pagination over the whole (combined or category) list. #}
 {% set base = '/library/' ~ view.value %}
 
-<p class="stats">
-    {% if result.total > 0 %}
-        Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
-    {% else %}
-        No posters{{ query is not empty ? ' match your search' : ' yet — import from Plex to get started' }}.
-    {% endif %}
-</p>
+{% if query is not empty %}
+    {# A search is active: name the query and its match count for THIS view, and
+       offer a clear control so the filtered state is unmistakable. #}
+    <div class="stats stats--filter">
+        <span>
+            {% if result.total > 0 %}
+                {{ result.total }} {{ result.total == 1 ? 'match' : 'matches' }} for “{{ query }}” in {{ view.label }}
+            {% else %}
+                No matches for “{{ query }}” in {{ view.label }}
+            {% endif %}
+        </span>
+        <a class="search__clear" href="/library/{{ view.value }}">Clear search</a>
+    </div>
+{% else %}
+    <p class="stats">
+        {% if result.total > 0 %}
+            Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
+        {% else %}
+            No posters yet — import from Plex to get started.
+        {% endif %}
+    </p>
+{% endif %}
 
 <div class="grid">
     {% for poster in result.items %}

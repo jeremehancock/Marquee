@@ -209,6 +209,16 @@ h1 {
     margin: 8px 0 16px;
 }
 
+.stats--filter {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 8px 0 16px;
+}
+
 .toolbar__actions {
     display: flex;
     gap: 8px;
