@@ -309,7 +309,7 @@
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             if (doc.querySelector('.alert--success')) {
                                 self.$refs.results.innerHTML =
-                                    '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p>' +
+                                    '<div class="panel"><p>No orphaned posters found.</p>' +
                                     '<button type="button" class="btn" data-action="recheck">Re-check for orphans</button></div>';
                                 self.count = 0;
                                 self.notify('Orphans deleted');
@@ -341,7 +341,7 @@
                         }
                     }
                     if (this.count === 0) {
-                        target.innerHTML = '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p>' +
+                        target.innerHTML = '<div class="panel"><p>No orphaned posters found.</p>' +
                             '<button type="button" class="btn" data-action="recheck">Re-check for orphans</button></div>';
                     }
                 },
