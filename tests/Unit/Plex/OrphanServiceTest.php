@@ -78,6 +78,47 @@ final class OrphanServiceTest extends TestCase
         self::assertSame([], $this->service()->findOrphans());
     }
 
+    public function testMissingFileMappingIsPrunedNotOrphaned(): void
+    {
+        // A live poster and a stale mapping whose file was already deleted.
+        $this->seed('Solaris.jpg', '10');
+        $this->items->upsert(
+            new PlexItemRecord('99', 'movie', 'movies', 'Movies', 'Gone.jpg', 'Gone.jpg', time(), '1'),
+        );
+
+        $orphans = $this->service()->findOrphans();
+
+        // The file-less mapping is pruned during detection, not listed.
+        self::assertSame([], $orphans);
+        self::assertNull($this->items->findByRatingKey('99'));
+        // The live poster's mapping is left untouched.
+        self::assertNotNull($this->items->findByRatingKey('10'));
+    }
+
+    public function testRecreatedItemDoesNotYieldDuplicateOrphans(): void
+    {
+        // The stale mapping from the original item (rating key 99), file already
+        // deleted, alongside the re-imported item (rating key 100) sharing the
+        // same filename. Only the live-but-missing-from-Plex one is an orphan.
+        $this->items->upsert(
+            new PlexItemRecord('99', 'movie', 'movies', 'Movies', 'Test Collection.jpg', 'Test Collection.jpg', time(), '1'),
+        );
+        $this->seed('Test Collection.jpg', '100');
+
+        $orphans = $this->service()->findOrphans();
+
+        // Listed exactly once for the shared file; the redundant mapping is
+        // pruned, leaving exactly one of the two behind (which one is immaterial
+        // — both point at the same poster).
+        self::assertCount(1, $orphans);
+        self::assertSame('Test Collection.jpg', $orphans[0]->filename);
+        $remaining = array_filter(
+            ['99', '100'],
+            fn (string $key): bool => $this->items->findByRatingKey($key) !== null,
+        );
+        self::assertCount(1, $remaining);
+    }
+
     public function testDeleteAllRemovesOrphansOnly(): void
     {
         $this->seed('Solaris.jpg', '10');

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Poster;
 
 use App\Config\PosterConfig;
+use App\Database\Database;
+use App\Database\PlexItemRecord;
+use App\Database\PlexItemRepository;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
@@ -18,11 +21,13 @@ final class PosterLibraryTest extends TestCase
     use MakesImages;
 
     private string $dir;
+    private PlexItemRepository $items;
 
     protected function setUp(): void
     {
         $this->dir = $this->makeTempDir();
         mkdir($this->dir . '/movies');
+        $this->items = new PlexItemRepository(new Database(':memory:'));
     }
 
     protected function tearDown(): void
@@ -42,7 +47,7 @@ final class PosterLibraryTest extends TestCase
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], $ignoreArticles, SortOrder::Alphabetical);
 
-        return new PosterLibrary($storage, new PosterSearch(), $config);
+        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items);
     }
 
     public function testArticleAwareSort(): void
@@ -151,6 +156,48 @@ final class PosterLibraryTest extends TestCase
         self::assertSame(0, $library->browse(PosterCategory::Movies, null, 1)->total);
     }
 
+    public function testDeleteClearsThePlexMapping(): void
+    {
+        $library = $this->library(['Gone.png']);
+        $this->items->upsert(
+            new PlexItemRecord('42', 'movie', 'movies', 'Movies', 'Gone.png', 'Gone.png', time(), '1'),
+        );
+
+        self::assertTrue($library->delete(PosterCategory::Movies, 'Gone.png'));
+        self::assertNull($this->items->findByRatingKey('42'));
+    }
+
+    public function testDeleteClearsEveryMappingSharingTheFilename(): void
+    {
+        // A stale mapping (from a since-recreated Plex item) and the live one
+        // point at the same file; deleting the poster must forget both so the
+        // stale row can never resurface as a duplicate orphan.
+        $library = $this->library(['Test Collection.png']);
+        $this->items->upsert(
+            new PlexItemRecord('99', 'movie', 'movies', 'Movies', 'Test Collection.png', 'Test Collection.png', time(), '1'),
+        );
+        $this->items->upsert(
+            new PlexItemRecord('100', 'movie', 'movies', 'Movies', 'Test Collection.png', 'Test Collection.png', time(), '1'),
+        );
+
+        self::assertTrue($library->delete(PosterCategory::Movies, 'Test Collection.png'));
+        self::assertNull($this->items->findByRatingKey('99'));
+        self::assertNull($this->items->findByRatingKey('100'));
+    }
+
+    public function testDeleteOfMissingFileDoesNotTouchMappings(): void
+    {
+        // No file on disk: storage delete fails, so the mapping is left intact
+        // rather than being cleared on a failed delete.
+        $library = $this->library([]);
+        $this->items->upsert(
+            new PlexItemRecord('7', 'movie', 'movies', 'Movies', 'Absent.png', 'Absent.png', time(), '1'),
+        );
+
+        self::assertFalse($library->delete(PosterCategory::Movies, 'Absent.png'));
+        self::assertNotNull($this->items->findByRatingKey('7'));
+    }
+
     /**
      * @param array<string, list<string>> $byCategory
      */
@@ -169,7 +216,7 @@ final class PosterLibraryTest extends TestCase
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
 
-        return new PosterLibrary($storage, new PosterSearch(), $config);
+        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items);
     }
 
     public function testBrowseAllMergesCategoriesInMixedTitleOrder(): void

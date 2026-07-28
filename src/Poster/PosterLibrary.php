@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Poster;
 
 use App\Config\PosterConfig;
+use App\Database\PlexItemRepository;
 use App\Poster\Search\PosterSearch;
 
 /**
@@ -16,6 +17,7 @@ final class PosterLibrary
         private readonly PosterStorage $storage,
         private readonly PosterSearch $search,
         private readonly PosterConfig $config,
+        private readonly PlexItemRepository $items,
     ) {
     }
 
@@ -117,6 +119,15 @@ final class PosterLibrary
 
     public function delete(PosterCategory $category, string $filename): bool
     {
-        return $this->storage->delete($category, $filename);
+        if (!$this->storage->delete($category, $filename)) {
+            return false;
+        }
+
+        // Deleting the file must also forget its Plex mapping; otherwise the
+        // stale row lingers and can resurface as a duplicate orphan once the
+        // same item is recreated and re-imported.
+        $this->items->deleteByCategoryAndFilename($category->value, $filename);
+
+        return true;
     }
 }
