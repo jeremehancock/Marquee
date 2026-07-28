@@ -204,6 +204,12 @@
                     var root = this.$el;
 
                     root.addEventListener('click', function (e) {
+                        // Re-run the scan (offered only from the in-sync empty state).
+                        if (e.target.closest('[data-action="recheck"]')) {
+                            self.loading = true;
+                            self.reload().finally(function () { self.loading = false; });
+                            return;
+                        }
                         // Tapping Download inside the tray: let it download, close.
                         if (e.target.closest('.sheet__body a[download]')) { self.closeSheet(); return; }
                         // Tapping a card: touch opens the tray (no room for a
@@ -298,7 +304,8 @@
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             if (doc.querySelector('.alert--success')) {
                                 self.$refs.results.innerHTML =
-                                    '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>';
+                                    '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p>' +
+                                    '<button type="button" class="btn" data-action="recheck">Re-check for orphans</button></div>';
                                 self.count = 0;
                                 self.notify('Orphans deleted');
                             } else {
@@ -329,7 +336,8 @@
                         }
                     }
                     if (this.count === 0) {
-                        target.innerHTML = '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>';
+                        target.innerHTML = '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p>' +
+                            '<button type="button" class="btn" data-action="recheck">Re-check for orphans</button></div>';
                     }
                 },
             });
@@ -341,7 +349,7 @@
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
-                finder: { loading: false, error: '', results: [] },
+                finder: { loading: false, error: '', results: [], preview: null, confirming: false },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -418,6 +426,9 @@
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var alert = doc.querySelector('.alert');
                             self.importOpen = false;
+                            // Drop the cached form so reopening Import starts fresh
+                            // from step one instead of the last selection.
+                            self.importLoaded = false;
                             self.notify(alert ? alert.textContent.trim() : 'Import complete.');
                             dispatch('gallery:refresh', {});
                         })
@@ -453,11 +464,11 @@
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
-                    this.finder = { loading: false, error: '', results: [] };
+                    this.finder = { loading: false, error: '', results: [], preview: null, confirming: false };
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', results: [] };
+                    this.finder = { loading: true, error: '', results: [], preview: null, confirming: false };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
@@ -466,9 +477,47 @@
                                 loading: false,
                                 error: d.error || '',
                                 results: Array.isArray(d.posters) ? d.posters : [],
+                                preview: null,
+                                confirming: false,
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', results: [] }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', results: [], preview: null, confirming: false }; });
+                },
+
+                // Find Posters preview: tap a candidate to see it full screen, then
+                // choose to use it (with a confirm step) or close. Replaces the old
+                // inline Select/View buttons; works on desktop and touch alike.
+                openFinderPreview: function (url) {
+                    this.finder.preview = url;
+                    this.finder.confirming = false;
+                },
+                closeFinderPreview: function () {
+                    this.finder.preview = null;
+                    this.finder.confirming = false;
+                },
+                applyFinderSelection: function () {
+                    var self = this;
+                    var url = this.finder.preview;
+                    if (!url) { return; }
+                    var body = new FormData();
+                    body.append('filename', this.change.filename);
+                    body.append('url', url);
+                    fetch('/library/' + this.change.category + '/change/url', {
+                        method: 'POST',
+                        body: body,
+                        headers: { 'X-Requested-With': 'fetch' },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            var alert = doc.querySelector('.alert');
+                            self.closeFinderPreview();
+                            self.change.open = false;
+                            self.notify(alert ? alert.textContent.trim() : 'Poster updated');
+                            dispatch('gallery:refresh', {});
+                        })
+                        .catch(function () { self.notify('Could not update the poster.'); self.finder.confirming = false; });
                 },
                 copyUrl: function (url) {
                     var self = this;
@@ -717,6 +766,7 @@
                 e.preventDefault();
                 var tabQuery = search ? search.value.trim() : '';
                 syncActiveTab(tabLink.pathname);
+                window.scrollTo(0, 0);
                 load(tabLink.pathname + (tabQuery ? '?q=' + encodeURIComponent(tabQuery) : ''), true);
                 return;
             }

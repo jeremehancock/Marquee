@@ -3,7 +3,10 @@
 {% if error %}
     <p class="alert" role="alert">{{ error }}</p>
 {% elseif orphans is empty %}
-    <div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>
+    <div class="panel">
+        <p>No orphaned posters found. Your library is in sync with Plex.</p>
+        <button type="button" class="btn" data-action="recheck">Re-check for orphans</button>
+    </div>
 {% else %}
     <div class="toolbar" data-count="{{ orphans|length }}">
         <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>

@@ -111,24 +111,35 @@
                 <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
                 <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
-                    Click a poster to preview it, or choose <strong>Select</strong> to apply it.
+                    Tap a poster to preview it full screen, then choose to use it.
                 </p>
                 <div class="find-grid">
                     <template x-for="url in finder.results" :key="url">
                         <figure class="find-item">
                             <img class="find-item__img" :src="url" alt="" loading="lazy"
-                                 data-action="view" :data-url="url" data-tooltip="Preview full screen">
-                            <div class="find-item__actions">
-                                <form class="js-mutate" method="post" :action="'/library/' + change.category + '/change/url'">
-                                    <input type="hidden" name="filename" :value="change.filename">
-                                    <input type="hidden" name="url" :value="url">
-                                    <button type="submit" class="btn btn--small btn--accent">Select</button>
-                                </form>
-                                <button type="button" class="btn btn--small" data-action="view" :data-url="url">View</button>
-                            </div>
+                                 @click="openFinderPreview(url)" data-tooltip="Tap to preview">
                         </figure>
                     </template>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# Find Posters preview: a candidate shown full screen with a use/close choice
+       and an inline confirm step, on both desktop and touch. #}
+    <div class="viewer viewer--finder" x-show="finder.preview" x-cloak
+         @click.self="closeFinderPreview()"
+         @keydown.escape.window="closeFinderPreview()" style="display:none">
+        <img :src="finder.preview" alt="">
+        <div class="viewer__bar">
+            <div class="viewer__actions" x-show="!finder.confirming">
+                <button type="button" class="btn btn--accent" @click="finder.confirming = true">Use this poster</button>
+                <button type="button" class="btn" @click="closeFinderPreview()">Close</button>
+            </div>
+            <div class="viewer__actions" x-show="finder.confirming" x-cloak>
+                <span class="viewer__ask">Change the poster to this one?</span>
+                <button type="button" class="btn btn--accent" @click="applyFinderSelection()">Change poster</button>
+                <button type="button" class="btn" @click="finder.confirming = false">Cancel</button>
             </div>
         </div>
     </div>

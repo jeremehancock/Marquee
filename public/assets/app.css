@@ -12,6 +12,9 @@
 
 * {
     box-sizing: border-box;
+    /* No blue/grey native tap flash on touch — it clashes with the theme; taps
+       get their own themed :active feedback instead. */
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -561,6 +564,18 @@ h1 {
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+/* On the dark hover overlay a plain surface button reads as half-transparent;
+   lift the non-accent ones onto the elevated tone with a clearer border, and
+   make the delete button's outline read solidly. */
+.card__actions .btn:not(.btn--accent) {
+    background: var(--surface-2);
+    border-color: #4b515b;
+}
+
+.card__actions .btn--danger {
+    border-color: rgba(228, 120, 95, 0.7);
+}
+
 /* Make the control under the pointer (or keyboard focus) unmistakable before
    it is clicked. Scoped to the overlay so buttons elsewhere are unaffected. */
 .card__actions .btn:hover,
@@ -644,9 +659,14 @@ h1 {
 
 .toast {
     position: fixed;
-    left: 50%;
+    /* Anchor to both edges and auto-center: a single `left: 50%` caps the
+       shrink-to-fit width at ~50vw, which wrapped short messages needlessly. */
+    left: 0;
+    right: 0;
     bottom: 28px;
-    transform: translateX(-50%);
+    margin: 0 auto;
+    width: fit-content;
+    max-width: calc(100vw - 32px);
     z-index: 80;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -655,6 +675,7 @@ h1 {
     border-radius: 999px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     font-size: 0.9rem;
+    text-align: center;
 }
 
 .overlay {
@@ -890,6 +911,45 @@ h1 {
     border-radius: 6px;
 }
 
+/* Find Posters preview: the image plus a use/close (then confirm) action bar. */
+.viewer--finder {
+    flex-direction: column;
+    gap: 16px;
+    cursor: default;
+}
+
+.viewer--finder img {
+    max-height: calc(100% - 72px);
+}
+
+.viewer__bar {
+    flex: 0 0 auto;
+}
+
+.viewer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.viewer__actions .btn {
+    padding: 11px 18px;
+}
+
+.viewer__ask {
+    color: var(--ink);
+    font-weight: 600;
+    width: 100%;
+    text-align: center;
+}
+
+/* Re-check button sits below the in-sync message in the orphans empty state. */
+.panel [data-action="recheck"] {
+    margin-top: 14px;
+}
+
 /* Mobile action sheet: a poster's actions slide up from the bottom. */
 .sheet {
     position: fixed;
@@ -963,7 +1023,7 @@ h1 {
 .sheet__grip {
     display: flex;
     justify-content: center;
-    padding: 10px 0 4px;
+    padding: 12px 0 0;
     cursor: grab;
     touch-action: none;
 }
@@ -981,7 +1041,7 @@ h1 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 4px 16px 10px;
+    padding: 14px 16px 12px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
     touch-action: none;
@@ -1189,7 +1249,7 @@ h1 {
         display: block;
         width: 40px;
         height: 5px;
-        margin: 8px auto 14px;
+        margin: 12px auto 14px;
         border-radius: 999px;
         background: #4b4f57;
     }

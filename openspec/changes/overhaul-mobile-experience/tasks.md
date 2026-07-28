@@ -115,3 +115,19 @@
 - [x] 9.4 Fix sort resetting to the All view: the toolbar goes stale after a
   no-reload tab switch, so sort now rebuilds its URL from the live pathname (and
   search does the same), keeping the current tab.
+
+## 10. Polish (sixth pass)
+
+- [x] 10.1 Consistent, roomier space below every tray/modal grab handle.
+- [x] 10.2 Remove the blue native tap-highlight (`-webkit-tap-highlight-color`).
+- [x] 10.3 Drop the description under "Re-download unchanged posters".
+- [x] 10.4 Reset the import form to step one when reopened after an import.
+- [x] 10.5 Add a "Re-check for orphans" button, shown only in the in-sync empty
+  state, on both the orphans tray and the desktop page.
+- [x] 10.6 Make the desktop hover delete/action buttons read solidly (elevated
+  surface, stronger danger border) instead of half-transparent.
+- [x] 10.7 Scroll the gallery to the top when changing tabs or sort.
+- [x] 10.8 Find Posters: tap a candidate to preview it full screen, then use it
+  (with an inline confirm) or close — no more inline View/Select buttons.
+- [x] 10.9 Stop the toast wrapping on mobile (it was capped at ~50vw by a single
+  `left: 50%`); auto-center with a real max-width instead.
