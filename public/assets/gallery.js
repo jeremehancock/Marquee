@@ -111,7 +111,12 @@
         var drag = null;
         document.addEventListener('touchstart', function (e) {
             var grip = e.target.closest('.sheet__grip, .sheet__head, .modal__head');
-            var panel = grip && grip.closest('.sheet__panel, .modal__panel');
+            var panel = grip ? grip.closest('.sheet__panel, .modal__panel') : null;
+            // A modal draws its grab handle as a ::before on the panel, so also let
+            // a drag start on the panel's own top area (a direct touch on it).
+            if (!panel && e.target.classList && e.target.classList.contains('modal__panel')) {
+                panel = e.target;
+            }
             if (!panel) { return; }
             drag = { panel: panel, startY: e.touches[0].clientY, dy: 0, h: panel.offsetHeight };
             panel.style.transition = 'none';
@@ -409,6 +414,17 @@
                         })
                         .finally(function () { self.importLoading = false; });
                 },
+                // Closing the import tray discards the loaded form so reopening it
+                // starts fresh from step one rather than the previous selection.
+                _resetImport: function () {
+                    this.importLoaded = false;
+                    this._importForm = null;
+                    if (this.$refs.importBody) { this.$refs.importBody.innerHTML = ''; }
+                },
+                closeImport: function () {
+                    this.importOpen = false;
+                    this._resetImport();
+                },
 
                 // Run the import in place: the form's @submit already shows its
                 // spinner (contained to the tray); on completion close the tray,
@@ -426,9 +442,8 @@
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var alert = doc.querySelector('.alert');
                             self.importOpen = false;
-                            // Drop the cached form so reopening Import starts fresh
-                            // from step one instead of the last selection.
-                            self.importLoaded = false;
+                            // Discard the cached form so reopening starts fresh.
+                            self._resetImport();
                             self.notify(alert ? alert.textContent.trim() : 'Import complete.');
                             dispatch('gallery:refresh', {});
                         })

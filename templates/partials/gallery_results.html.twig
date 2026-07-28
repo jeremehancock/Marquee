@@ -43,7 +43,7 @@
                     <div class="card__actions">
                         <button type="button" class="btn btn--small btn--accent"
                                 data-action="change" data-filename="{{ poster.filename }}"
-                                data-title="{{ poster.title }}" data-category="{{ poster.category.value }}">
+                                data-title="{{ poster.sheetTitle(poster_library) }}" data-category="{{ poster.category.value }}">
                             Change poster
                         </button>
                         {% if is_linked %}

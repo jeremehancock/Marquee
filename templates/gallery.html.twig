@@ -164,13 +164,14 @@
 
     {# Import tray (phone): the Import from Plex link opens this instead of
        navigating; its body is fetched from /plex and wired on first open. #}
-    <div class="sheet" x-show="importOpen" x-cloak @keydown.escape.window="importOpen = false" style="display:none">
-        <div class="sheet__backdrop" @click="importOpen = false"></div>
+    <div class="sheet" x-show="importOpen" x-cloak @keydown.escape.window="closeImport()" style="display:none">
+        <div class="sheet__backdrop" @click="closeImport()"></div>
         <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Import from Plex</span></div>
-            <div class="sheet__body" x-ref="importBody" data-nested-scope>
+            <div class="sheet__body">
                 <p class="stats" x-show="importLoading">Loading…</p>
+                <div x-ref="importBody" data-nested-scope></div>
             </div>
         </div>
     </div>
