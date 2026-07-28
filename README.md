@@ -9,7 +9,8 @@
 Marquee is a self-hosted web app for managing your Plex media posters — for
 Movies, TV Shows, TV Seasons, and Collections. Import every poster from Plex,
 then refine each one in place: upload your own art, paste an image URL, or pick a
-replacement from an online poster search. When you update a poster, Marquee sends
+replacement from an online poster search powered by
+[posteria.app](https://posteria.app). When you update a poster, Marquee sends
 it back to Plex and locks it so Plex keeps your choice.
 
 Marquee is a ground-up rewrite of [Posteria](https://github.com/jeremehancock/Posteria):
@@ -22,7 +23,8 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   shows only the libraries that can provide it.
 - **Edit posters in place** — for any poster:
   - **Change poster** by uploading a file, pasting an image URL (Mediux URLs
-    included), or choosing from **Find Posters** (an online poster search).
+    included), or choosing from **Find Posters** — an online poster search
+    served by [posteria.app](https://posteria.app).
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
   - **Download**, **Copy URL**, view **Full screen**, or **Delete**.
@@ -214,9 +216,7 @@ usually because you removed that content from Plex. Posters you uploaded yoursel
 are never treated as orphans.
 
 **Where do "Find Posters" results come from?**
-From the poster search service at `POSTER_SOURCE_URL` (default
-[posteria.app](https://posteria.app)), which aggregates online poster sources.
-Point it at your own instance if you self-host the service.
+From [posteria.app](https://posteria.app), an online poster search service.
 
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
@@ -282,3 +282,6 @@ openspec archive <change>     # fold an implemented change into the specs
 
 Marquee is a rewrite of [Posteria](https://github.com/jeremehancock/Posteria) by
 Jereme Hancock. Built with the help of AI.
+
+**Find Posters** is served by [posteria.app](https://posteria.app), an online
+poster search service.

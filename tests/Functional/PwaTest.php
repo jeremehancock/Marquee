@@ -81,8 +81,10 @@ final class PwaTest extends AppTestCase
             '/library/movies',
         )->getBody();
 
+        // The product name is wrapped in the project-site link; the version that
+        // follows it is not.
         self::assertMatchesRegularExpression(
-            '#<footer class="footer">Marquee &middot; v\d+\.\d+\.\d+#',
+            '#<footer class="footer"><a [^>]*>Marquee</a> &middot; v\d+\.\d+\.\d+#',
             $body,
         );
         self::assertStringContainsString(

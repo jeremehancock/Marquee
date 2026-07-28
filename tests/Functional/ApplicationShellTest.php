@@ -45,4 +45,32 @@ final class ApplicationShellTest extends AppTestCase
             (string) $response->getBody(),
         );
     }
+
+    public function testBothFootersLinkTheProductNameToTheProjectSite(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        // The page footer and the mobile tray's footer show the same credit
+        // line, so both link the product name — and both open a new tab, which
+        // requires rel="noopener".
+        foreach (['<footer class="footer">', '<div class="menu__footer">'] as $open) {
+            self::assertMatchesRegularExpression(
+                '#' . preg_quote($open, '#') . '<a ([^>]*)>Marquee</a>#s',
+                $body,
+                $open . ' must wrap the product name in a link.',
+            );
+
+            // Attributes may wrap across lines, but no single attribute does,
+            // so the raw capture can be searched as-is.
+            preg_match('#' . preg_quote($open, '#') . '<a ([^>]*)>#s', $body, $m);
+            $attributes = $m[1] ?? '';
+
+            self::assertStringContainsString('href="https://marquee.dumbprojects.com"', $attributes);
+            self::assertStringContainsString('target="_blank"', $attributes);
+            self::assertStringContainsString('rel="noopener"', $attributes);
+        }
+    }
 }
