@@ -143,6 +143,19 @@ final class PlexItemRepository
     }
 
     /**
+     * Remove every mapping for a poster file. Deleting a poster can leave more
+     * than one row behind — a stale mapping from a since-recreated Plex item and
+     * the live one can share a filename — so all matching rows are cleared.
+     */
+    public function deleteByCategoryAndFilename(string $category, string $filename): void
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'DELETE FROM plex_items WHERE category = :category AND filename = :filename'
+        );
+        $stmt->execute([':category' => $category, ':filename' => $filename]);
+    }
+
+    /**
      * Distinct Plex media types that currently have a stored poster.
      *
      * @return list<string>

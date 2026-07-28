@@ -81,12 +81,11 @@ final class OrphanTest extends AppTestCase
         self::assertStringContainsString('Delete all orphans', $body);
     }
 
-    public function testOrphansPageExplainsWhatDeletionRemoves(): void
+    public function testOrphansPageExplainsWhatAnOrphanIs(): void
     {
         $body = (string) $this->get($this->app(), '/orphans')->getBody();
 
         self::assertStringContainsString('imported from Plex whose media no longer exists', $body);
-        self::assertStringContainsString('removes its poster file and its link to Plex', $body);
     }
 
     public function testOrphansPageClaimsNoExemption(): void
@@ -169,6 +168,49 @@ final class OrphanTest extends AppTestCase
 
         self::assertSame(302, $response->getStatusCode());
         self::assertFileExists($this->postersDir . '/movies/Solaris.jpg');
+    }
+
+    /**
+     * The reported edge case end-to-end: an item imported, regular-deleted (its
+     * mapping left behind by the old behavior), recreated in Plex with a new
+     * rating key and re-imported to the same filename, then deleted from Plex
+     * again. The Orphans page must show one entry for that poster, not two.
+     */
+    public function testRecreatedItemDoesNotListDuplicateOrphans(): void
+    {
+        $repo = new PlexItemRepository(new Database($this->dataDir . '/marquee.sqlite'));
+        // Stale mapping from the original import (rating key gone from Plex).
+        $repo->upsert(new PlexItemRecord('199', 'movie', 'movies', 'Movies', 'Recreated.jpg', 'Recreated.jpg', time(), '1'));
+        // Re-import after recreate: new rating key, same filename, file present.
+        $this->writePng($this->postersDir . '/movies/Recreated.jpg');
+        $repo->upsert(new PlexItemRecord('200', 'movie', 'movies', 'Movies', 'Recreated.jpg', 'Recreated.jpg', time(), '1'));
+
+        $body = (string) $this->get($this->app(), '/orphans/list')->getBody();
+
+        // Listed exactly once (one per-orphan download link), and the redundant
+        // mapping is pruned so exactly one of the two remains (which one is
+        // immaterial — both point at the same poster).
+        self::assertSame(1, substr_count($body, 'href="/posters/movies/Recreated.jpg" download'));
+        $remaining = array_filter(
+            ['199', '200'],
+            static fn (string $key): bool => $repo->findByRatingKey($key) !== null,
+        );
+        self::assertCount(1, $remaining);
+    }
+
+    public function testGalleryDeleteClearsThePlexMapping(): void
+    {
+        // A regular gallery delete must remove the mapping too, so the poster
+        // cannot later resurface as an orphan.
+        $response = $this->postForm($this->app(), '/library/movies/delete', [
+            'filename' => 'Gone.jpg',
+        ]);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertFileDoesNotExist($this->postersDir . '/movies/Gone.jpg');
+
+        $repo = new PlexItemRepository(new Database($this->dataDir . '/marquee.sqlite'));
+        self::assertNull($repo->findByRatingKey('99'));
     }
 
     public function testDeleteWithUnknownCategoryIs404(): void

@@ -6,8 +6,7 @@
 <div x-data="orphansPage({{ configured ? 'true' : 'false' }})">
     <p><a class="search__clear" href="{{ back_url }}">&larr; Back to gallery</a></p>
     <h1>Orphaned posters</h1>
-    <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.
-       Deleting an orphan removes its poster file and its link to Plex.</p>
+    <p class="stats">Orphans are posters imported from Plex whose media no longer exists there.</p>
 
     {% if flash %}
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>

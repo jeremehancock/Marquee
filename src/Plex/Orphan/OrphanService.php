@@ -34,15 +34,47 @@ final class OrphanService
 
         $current = $this->collectCurrentRatingKeys($this->items->distinctMediaTypes());
 
-        $orphans = [];
+        // First pass: drop mappings whose file is already gone (stale rows left
+        // by a regular delete before the mapping was cleared), and note which
+        // surviving files are still backed by a live Plex item. Grouping by
+        // (category, filename) lets a poster be judged once even when several
+        // mappings — e.g. a since-recreated item and its replacement — point at
+        // the same file.
+        $live = [];
+        $records = [];
         foreach ($this->items->all() as $record) {
             $category = PosterCategory::fromSlug($record->category);
-            if ($category === null || !$this->storage->exists($category, $record->filename)) {
+            if ($category === null) {
                 continue;
             }
-            if (!isset($current[$record->ratingKey])) {
-                $orphans[] = $record;
+            if (!$this->storage->exists($category, $record->filename)) {
+                $this->items->deleteByRatingKey($record->ratingKey);
+
+                continue;
             }
+            $key = $record->category . '|' . $record->filename;
+            if (isset($current[$record->ratingKey])) {
+                $live[$key] = true;
+            }
+            $records[] = [$key, $record];
+        }
+
+        // Second pass: a file is an orphan when no mapping for it is live. List
+        // it once; any further absent mappings for that same file are redundant
+        // duplicates and are pruned so the orphan can never resurface.
+        $orphans = [];
+        $seen = [];
+        foreach ($records as [$key, $record]) {
+            if (isset($live[$key])) {
+                continue;
+            }
+            if (isset($seen[$key])) {
+                $this->items->deleteByRatingKey($record->ratingKey);
+
+                continue;
+            }
+            $seen[$key] = true;
+            $orphans[] = $record;
         }
 
         return $orphans;
