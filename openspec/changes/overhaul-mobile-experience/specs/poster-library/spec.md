@@ -29,17 +29,19 @@ and the inline sort control SHALL remain in the toolbar exactly as before.
   the gallery toolbar as they did before this change
 
 ### Requirement: Native-style category tab bar on small screens
-On a narrow screen the category tabs SHALL be presented as an equal-width tab bar
-in which all five tabs fit the screen at once — each tab an icon above a short
-label — rather than a scrolling row, so switching categories feels like a native
-app tab bar. On a pointer/desktop screen the tabs SHALL remain text tabs as
-before. Each tab SHALL retain its full category name as its accessible name
-regardless of which presentation is shown.
+On a narrow screen the category tabs SHALL be presented as a fixed, always-visible
+bottom tab bar in which all five tabs fit the screen at once — each tab an icon
+above a short label — rather than a scrolling row, so switching categories feels
+like a native app tab bar. The gallery content SHALL reserve space so the tab bar
+never hides the last posters or the footer. On a pointer/desktop screen the tabs
+SHALL remain text tabs in their original position. Each tab SHALL retain its full
+category name as its accessible name regardless of which presentation is shown.
 
-#### Scenario: All tabs fit at once on a phone
+#### Scenario: All tabs fit at once in a bottom bar on a phone
 - **WHEN** the gallery is viewed on a narrow screen with all five tabs present
-- **THEN** the tabs are laid out as equal-width columns that all fit on screen
-  without scrolling, each showing an icon and a short label
+- **THEN** the tabs are shown as a fixed bottom bar of equal-width columns that all
+  fit on screen without scrolling, each an icon over a short label
+- **AND** content is not hidden behind the bar
 
 #### Scenario: Active tab is indicated
 - **WHEN** a category is active on a phone
@@ -47,7 +49,52 @@ regardless of which presentation is shown.
 
 #### Scenario: Desktop tabs are unchanged
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
-- **THEN** the tabs render as the text tabs used before this change
+- **THEN** the tabs render as the text tabs used before this change, in their
+  original position
+
+### Requirement: Infinite scroll on small screens
+On a narrow screen the gallery SHALL load posters by infinite scroll instead of
+pagination: it SHALL append the next page of posters as the user nears the bottom
+of the current results, continuing until the last page is reached, so the whole
+library becomes reachable by scrolling without loading it all at once. The
+pagination controls SHALL be hidden on a narrow screen and SHALL remain on a
+pointer/desktop screen.
+
+#### Scenario: Scrolling loads more posters
+- **WHEN** a user on a narrow screen scrolls near the bottom of the current
+  posters and more pages exist
+- **THEN** the next page of posters is appended below without a manual page change
+
+#### Scenario: Loading stops at the last page
+- **WHEN** the last page of posters has been appended
+- **THEN** no further loading is attempted
+
+#### Scenario: Desktop keeps pagination
+- **WHEN** the gallery is viewed on a pointer/desktop-width screen
+- **THEN** the pagination controls are shown and used as before
+
+### Requirement: Import and orphans run inside their trays on small screens
+When the import or orphans experience is opened in a tray on a phone, it SHALL be
+fully contained: running an import or deleting orphans SHALL happen in place
+without navigating away, progress SHALL be shown contained within the tray rather
+than as a full-screen overlay, and the result SHALL be reported to the user. After
+an import completes the gallery SHALL reflect the newly imported posters, and after
+orphans are deleted the gallery SHALL reflect their removal.
+
+#### Scenario: Import completes without leaving the tray
+- **WHEN** a user submits the import form inside the import tray
+- **THEN** progress is shown within the tray, the import runs without navigating to
+  another page, the result is reported, and the gallery reflects any new posters
+
+#### Scenario: Deleting orphans stays within the tray
+- **WHEN** a user deletes one or all orphans from the orphans tray
+- **THEN** progress is shown within the tray, the deletion happens without
+  navigating away, and the result is reported
+
+#### Scenario: Tray progress is contained
+- **WHEN** an import or orphan operation is running inside a tray
+- **THEN** its progress indicator is confined to the tray rather than covering the
+  whole screen
 
 ### Requirement: Sort selection via a tray on small screens
 On a narrow screen the sort control SHALL be presented as a tray opened from a

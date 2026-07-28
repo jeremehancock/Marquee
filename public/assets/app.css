@@ -709,13 +709,28 @@ h1 {
         padding: 20px 14px;
     }
 
-    /* Tabs become a native-style bottom-tab bar: all five share the width as
-       equal columns, each an icon over a short label, so nothing scrolls or
-       overflows. */
+    /* Leave room for the fixed bottom tab bar so the last posters and the footer
+       are never hidden behind it. */
+    body {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    /* Tabs become a native-style bottom tab bar: pinned to the bottom of the
+       screen, always visible, all five sharing the width as equal columns, each
+       an icon over a short label. */
     .tabs {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
         display: flex;
         gap: 0;
-        margin-bottom: 16px;
+        margin: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-bottom: none;
+        padding-bottom: env(safe-area-inset-bottom);
     }
 
     .tab {
@@ -724,10 +739,11 @@ h1 {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 3px;
-        padding: 8px 2px;
-        font-size: 0.62rem;
+        gap: 4px;
+        padding: 9px 2px;
+        font-size: 0.68rem;
         text-align: center;
+        border-bottom: none;
     }
 
     .tab__icon {
@@ -735,8 +751,8 @@ h1 {
     }
 
     .tab__icon .icon {
-        width: 22px;
-        height: 22px;
+        width: 26px;
+        height: 26px;
     }
 
     .tab__text {
@@ -789,6 +805,36 @@ h1 {
     .find-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }
+
+    /* Infinite scroll replaces pagination on a phone: pages are appended as the
+       sentinel nears the viewport, so the page controls are hidden. */
+    .pagination {
+        display: none;
+    }
+
+    /* Lift toasts above the fixed bottom tab bar. */
+    .toast {
+        bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+}
+
+/* Sentinel spinner shown while the next page of posters loads (phone infinite
+   scroll). Hidden until the script marks it busy. */
+.scroll-sentinel {
+    display: none;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.scroll-sentinel.is-busy {
+    display: flex;
+}
+
+.scroll-sentinel .spinner {
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    border-width: 3px;
 }
 
 /* Pagination */
@@ -966,24 +1012,50 @@ h1 {
     background: rgba(0, 0, 0, 0.6);
 }
 
+/* The panel clips; its body scrolls. Keeping the scroll on the body (not the
+   panel) lets a progress overlay pin to the whole tray instead of scrolling
+   away with the content — see `.sheet .overlay` below. */
 .sheet__panel {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 520px;
     max-height: 85vh;
-    overflow-y: auto;
+    overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: 16px 16px 0 0;
-    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
     animation: sheet-up 0.2s ease;
     transition: transform 0.2s ease;
 }
 
-/* Import tray holds a whole form; give it more of the screen. */
+/* Import/orphans trays hold a whole page; give them more of the screen. */
 .sheet__panel--tall {
     max-height: 92vh;
+    min-height: 60vh;
+}
+
+.sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+/* Progress overlays reused inside a tray (import spinner, orphan scan/delete)
+   are contained to the tray and pinned over it, instead of covering the screen.
+   The panel is the positioned ancestor and does not scroll, so the overlay stays
+   put while the body scrolls under it. */
+.sheet .overlay {
+    position: absolute;
+    z-index: 5;
+    border-radius: inherit;
+}
+
+.sheet .overlay__box {
+    max-width: 84%;
 }
 
 @keyframes sheet-up {
@@ -1010,14 +1082,12 @@ h1 {
 }
 
 .sheet__head {
-    position: sticky;
-    top: 0;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 6px 0 10px;
-    background: var(--surface);
+    padding: 4px 16px 10px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
     touch-action: none;

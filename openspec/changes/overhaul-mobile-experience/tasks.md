@@ -77,3 +77,19 @@
 - [x] 6.5 Import tray on mobile: intercept Import from Plex on touch to fetch the
   /plex form into a tray and re-init Alpine on it; desktop still navigates.
 - [x] 6.6 Verify: Twig compile, JS syntax, PHPUnit/PHPStan/CS, update delta specs.
+
+## 7. Native-app polish (third pass)
+
+- [x] 7.1 Enlarge the mobile tab icons/labels and move the tab bar to a fixed,
+  always-visible bottom bar; pad the body so content clears it.
+- [x] 7.2 Contain progress inside trays: restructure the sheet so its body scrolls
+  while the panel clips, and pin reused `.overlay` progress to the tray instead of
+  the full screen.
+- [x] 7.3 Import fully in the tray: intercept the import form submit to run via
+  fetch, report the result, close, and refresh the gallery — no navigation.
+- [x] 7.4 Orphans in a tray: open /orphans in a tray (reusing its scan/delete
+  component), and make delete-all run in place (fetch) so nothing navigates; guard
+  the gallery's delegation against nested tray scopes.
+- [x] 7.5 Replace pagination with infinite scroll on the phone: append the next
+  page as a sentinel nears the viewport.
+- [x] 7.6 Verify: Twig compile, JS syntax, PHPUnit/PHPStan/CS, update delta specs.

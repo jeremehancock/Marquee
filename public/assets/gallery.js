@@ -138,16 +138,17 @@
         document.addEventListener('touchcancel', endDrag);
     }());
 
-    // ---- Import link -> tray (phone) ----
-    // On a touch device the "Import from Plex" link opens the import tray in place
-    // instead of navigating, but only on a page that actually has the gallery
-    // (and its tray). Elsewhere, and on pointer devices, it navigates normally.
+    // ---- Secondary destinations -> trays (phone) ----
+    // On a touch device the "Import from Plex" and "Orphans" links open in a tray
+    // over the gallery instead of navigating, but only on a page that actually has
+    // the gallery (and its trays). Elsewhere, and on pointer devices, they navigate
+    // normally.
     document.addEventListener('click', function (e) {
-        var link = e.target.closest('a[data-import]');
+        var link = e.target.closest('a[data-import], a[data-orphans]');
         if (!link) { return; }
         if (!isTouch() || !document.querySelector('[data-gallery]')) { return; }
         e.preventDefault();
-        dispatch('gallery:import', {});
+        dispatch(link.hasAttribute('data-import') ? 'gallery:import' : 'gallery:orphans', {});
     });
 
     // ---- Alpine component: the orphans page ----
@@ -278,6 +279,34 @@
                         .finally(function () { self.deleting = false; });
                 },
 
+                // Delete every orphan at once, in place (no navigation), so this
+                // works both on the standalone page and inside the gallery tray.
+                deleteAllNow: function () {
+                    var self = this;
+                    this.confirmOpen = false;
+                    this.deleting = true;
+                    fetch('/orphans/delete-all', {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'fetch' },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            if (doc.querySelector('.alert--success')) {
+                                self.$refs.results.innerHTML =
+                                    '<div class="panel"><p>No orphaned posters found. Your library is in sync with Plex.</p></div>';
+                                self.count = 0;
+                                self.notify('Orphans deleted');
+                            } else {
+                                var alert = doc.querySelector('.alert');
+                                self.notify(alert ? alert.textContent.trim() : 'Could not delete the orphans.');
+                            }
+                        })
+                        .catch(function () { self.notify('Could not delete the orphans.'); })
+                        .finally(function () { self.deleting = false; });
+                },
+
                 // Drop one orphan's card and reflect the new count, swapping in the
                 // in-sync message once the last orphan is gone.
                 removeOrphanCard: function (category, filename) {
@@ -314,23 +343,22 @@
                 importOpen: false,
                 importLoading: false,
                 importLoaded: false,
+                orphansOpen: false,
+                orphansLoading: false,
+                orphansLoaded: false,
 
-                // Open the import tray. The Plex import form (with its libraries
-                // and Alpine wiring) is server-rendered at /plex, so fetch it once
-                // and drop it into the tray, re-initialising Alpine on the fragment
-                // so its stepper works. Submitting still POSTs to /plex/import and
-                // redirects to the gallery, exactly as the full page does.
-                openImport: function () {
+                // Fetch a page's content and drop it into a tray, re-initialising
+                // Alpine on the fragment so its own wiring (the import stepper, the
+                // orphans scan/delete component) works inside the tray. Progress
+                // overlays inside the fragment are contained to the tray by CSS.
+                _loadTray: function (url, ref) {
                     var self = this;
-                    this.importOpen = true;
-                    if (this.importLoaded || this.importLoading) { return; }
-                    this.importLoading = true;
-                    fetch('/plex', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+                    return fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                         .then(function (r) { return r.text(); })
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var content = doc.querySelector('main.container');
-                            var target = self.$refs.importBody;
+                            var target = self.$refs[ref];
                             // Drop the "Back to gallery" link and page heading — the
                             // tray has its own title and dismisses by swipe/backdrop.
                             if (content) {
@@ -339,9 +367,29 @@
                                 var h1 = content.querySelector('h1');
                                 if (h1) { h1.remove(); }
                             }
-                            target.innerHTML = content ? content.innerHTML : '<p class="alert" role="alert">Could not load import.</p>';
+                            target.innerHTML = content ? content.innerHTML : '';
                             if (window.Alpine && window.Alpine.initTree) { window.Alpine.initTree(target); }
                             initImages(target);
+                            return target;
+                        });
+                },
+
+                // Open the import tray. The Plex import form (libraries + stepper) is
+                // server-rendered at /plex; fetch it once, then intercept its submit
+                // so the import runs and reports inside the tray instead of navigating
+                // away, reusing the form's own (now tray-contained) progress overlay.
+                openImport: function () {
+                    var self = this;
+                    this.importOpen = true;
+                    if (this.importLoaded || this.importLoading) { return; }
+                    this.importLoading = true;
+                    this._loadTray('/plex', 'importBody')
+                        .then(function (target) {
+                            var form = target.querySelector('form[action="/plex/import"]');
+                            if (form) {
+                                self._importForm = form;
+                                form.addEventListener('submit', function (e) { e.preventDefault(); self.runImport(form); });
+                            }
                             self.importLoaded = true;
                         })
                         .catch(function () {
@@ -349,6 +397,55 @@
                                 '<p class="alert" role="alert">Could not load import. Open the <a href="/plex">Import page</a> instead.</p>';
                         })
                         .finally(function () { self.importLoading = false; });
+                },
+
+                // Run the import in place: the form's @submit already shows its
+                // spinner (contained to the tray); on completion close the tray,
+                // report the summary, and refresh the gallery grid behind it.
+                runImport: function (form) {
+                    var self = this;
+                    fetch('/plex/import', {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'fetch' },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (r) { return r.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, 'text/html');
+                            var alert = doc.querySelector('.alert');
+                            self.importOpen = false;
+                            self.notify(alert ? alert.textContent.trim() : 'Import complete.');
+                            dispatch('gallery:refresh', {});
+                        })
+                        .catch(function () { self.notify('Import failed. Please try again.'); })
+                        .finally(function () {
+                            if (window.Alpine && self._importForm) {
+                                try { window.Alpine.$data(self._importForm).importing = false; } catch (e) { /* form gone */ }
+                            }
+                        });
+                },
+
+                // Open the orphans tray. The whole orphans page (its scan/delete
+                // component and progress overlays) is reused inside the tray.
+                openOrphans: function () {
+                    var self = this;
+                    this.orphansOpen = true;
+                    if (this.orphansLoaded || this.orphansLoading) { return; }
+                    this.orphansLoading = true;
+                    this._loadTray('/orphans', 'orphansBody')
+                        .then(function () { self.orphansLoaded = true; })
+                        .catch(function () {
+                            self.$refs.orphansBody.innerHTML =
+                                '<p class="alert" role="alert">Could not load orphans. Open the <a href="/orphans">Orphans page</a> instead.</p>';
+                        })
+                        .finally(function () { self.orphansLoading = false; });
+                },
+                closeOrphans: function () {
+                    this.orphansOpen = false;
+                    // Deleting orphans removes posters that may be shown in the
+                    // gallery, so refresh the grid when the tray closes.
+                    dispatch('gallery:refresh', {});
                 },
 
                 openChange: function (filename, title, category) {
@@ -416,6 +513,67 @@
         function setResults(html) {
             results.innerHTML = html;
             initImages(results);
+            setupInfinite();
+        }
+
+        // ---- Infinite scroll (phone) ----
+        // On a narrow screen, pagination is replaced by appending the next page as
+        // a sentinel below the grid nears the viewport, so posters keep loading in
+        // batches as the user scrolls rather than all at once or a page at a time.
+        var infinite = null;
+        function isPhone() {
+            return !!(window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
+        }
+        function teardownInfinite() {
+            if (infinite && infinite.observer) { infinite.observer.disconnect(); }
+            if (infinite && infinite.sentinel && infinite.sentinel.parentNode) { infinite.sentinel.remove(); }
+            infinite = null;
+        }
+        function setupInfinite() {
+            teardownInfinite();
+            if (!isPhone() || typeof IntersectionObserver === 'undefined') { return; }
+            var grid = results.querySelector('.grid');
+            if (!grid) { return; }
+            var page = parseInt(grid.getAttribute('data-page'), 10) || 1;
+            var totalPages = parseInt(grid.getAttribute('data-total-pages'), 10) || 1;
+            if (totalPages <= page) { return; }
+            var sentinel = document.createElement('div');
+            sentinel.className = 'scroll-sentinel';
+            sentinel.innerHTML = '<div class="spinner"></div>';
+            grid.parentNode.insertBefore(sentinel, grid.nextSibling);
+            infinite = { page: page, totalPages: totalPages, grid: grid, sentinel: sentinel, loading: false };
+            infinite.observer = new IntersectionObserver(function (entries) {
+                if (entries[0].isIntersecting) { loadMore(); }
+            }, { rootMargin: '600px 0px' });
+            infinite.observer.observe(sentinel);
+        }
+        function loadMore() {
+            if (!infinite || infinite.loading || infinite.page >= infinite.totalPages) { return; }
+            infinite.loading = true;
+            infinite.sentinel.classList.add('is-busy');
+            var next = infinite.page + 1;
+            var params = new URLSearchParams(window.location.search);
+            params.set('page', next);
+            fetch(base + '?' + params.toString(), { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var newGrid = doc.querySelector('.grid');
+                    if (newGrid) {
+                        var frag = document.createDocumentFragment();
+                        newGrid.querySelectorAll('.card').forEach(function (card) { frag.appendChild(card); });
+                        infinite.grid.appendChild(frag);
+                        initImages(infinite.grid);
+                    }
+                    infinite.page = next;
+                })
+                .catch(function () {})
+                .finally(function () {
+                    if (!infinite) { return; }
+                    infinite.loading = false;
+                    infinite.sentinel.classList.remove('is-busy');
+                    if (infinite.page >= infinite.totalPages) { teardownInfinite(); }
+                });
         }
 
         function extractResults(doc) {
@@ -489,6 +647,9 @@
 
         // Delegated clicks for card + finder actions and pagination.
         root.addEventListener('click', function (e) {
+            // A tray with its own component (orphans, import) handles its own
+            // clicks; don't let the gallery's delegation double-handle them.
+            if (e.target.closest('[data-nested-scope]')) { return; }
             // Tapping the download link inside the sheet: let it download, close.
             if (e.target.closest('.sheet__body a[download]')) {
                 dispatch('gallery:sheet-close', {});
@@ -563,6 +724,9 @@
         document.addEventListener('submit', function (e) {
             var form = e.target;
             if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-mutate')) { return; }
+            // Forms inside a tray with its own component (orphans) are handled by
+            // that component; skip them here.
+            if (form.closest('[data-nested-scope]')) { return; }
             e.preventDefault();
             // A form may live in the mobile sheet; close it either way.
             dispatch('gallery:sheet-close', {});
@@ -596,5 +760,12 @@
             }
             load(currentUrl(), false);
         });
+
+        // A tray action (import, orphan delete) can change what belongs in the
+        // gallery; refresh the current view's grid in place when asked.
+        window.addEventListener('gallery:refresh', function () { load(currentUrl(), false); });
+
+        // Wire infinite scroll for the server-rendered first page.
+        setupInfinite();
     });
 })();
