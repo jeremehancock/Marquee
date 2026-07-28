@@ -93,3 +93,12 @@
 - [x] 7.5 Replace pagination with infinite scroll on the phone: append the next
   page as a sentinel nears the viewport.
 - [x] 7.6 Verify: Twig compile, JS syntax, PHPUnit/PHPStan/CS, update delta specs.
+
+## 8. Native-app polish (fourth pass)
+
+- [x] 8.1 Fix infinite scroll: the sentinel must occupy layout (not `display:none`)
+  so the observer can see it; keep loading until it leaves the viewport.
+- [x] 8.2 Move the version/footer into the menu tray (bottom of the tray), hide the
+  page footer on mobile, and update the version note in every instance.
+- [x] 8.3 Make modals app-like on mobile: dock to the bottom as a sheet and slide
+  up, with large, full-width, stacked actions (primary/destructive on top).

@@ -9,8 +9,10 @@
         });
     }
 
-    var note = document.getElementById('update-note');
-    if (!note) {
+    // The version note appears both in the desktop footer and in the mobile menu
+    // tray (only one is visible per breakpoint), so update every instance.
+    var notes = document.querySelectorAll('.js-update-note');
+    if (!notes.length) {
         return;
     }
 
@@ -18,7 +20,9 @@
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
             if (data && data.updateAvailable && data.latest) {
-                note.textContent = ' · Update available (v' + data.latest + ')';
+                notes.forEach(function (note) {
+                    note.textContent = ' · Update available (v' + data.latest + ')';
+                });
             }
         })
         .catch(function () { /* ignore */ });

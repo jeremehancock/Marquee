@@ -709,10 +709,15 @@ h1 {
         padding: 20px 14px;
     }
 
-    /* Leave room for the fixed bottom tab bar so the last posters and the footer
-       are never hidden behind it. */
+    /* Leave room for the fixed bottom tab bar so the last posters are never
+       hidden behind it. */
     body {
         padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    /* The version footer moves into the menu tray on a phone. */
+    .footer {
+        display: none;
     }
 
     /* Tabs become a native-style bottom tab bar: pinned to the bottom of the
@@ -816,18 +821,55 @@ h1 {
     .toast {
         bottom: calc(88px + env(safe-area-inset-bottom));
     }
+
+    /* Modals (delete confirmations, change poster) dock to the bottom like an app
+       sheet and slide up, with large, full-width, stacked actions — the primary
+       or destructive one on top, Cancel beneath it. */
+    .modal {
+        align-items: flex-end;
+    }
+
+    .modal__panel,
+    .modal__panel--narrow,
+    .modal__panel--wide {
+        width: 100%;
+        max-width: none;
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 22px 18px calc(20px + env(safe-area-inset-bottom));
+        animation: sheet-up 0.2s ease;
+    }
+
+    .modal__actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+        margin-top: 22px;
+    }
+
+    .modal__actions form {
+        display: block;
+        width: 100%;
+    }
+
+    .modal__actions .btn,
+    .modal__actions form .btn {
+        width: 100%;
+        padding: 13px 12px;
+        font-size: 0.95rem;
+        text-align: center;
+    }
 }
 
-/* Sentinel spinner shown while the next page of posters loads (phone infinite
-   scroll). Hidden until the script marks it busy. */
+/* Infinite-scroll sentinel (phone). It must occupy layout so the
+   IntersectionObserver can see it, so it always reserves a little height; only
+   its spinner fades in while the next page loads. */
 .scroll-sentinel {
-    display: none;
-    justify-content: center;
-    padding: 20px 0;
-}
-
-.scroll-sentinel.is-busy {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 0;
 }
 
 .scroll-sentinel .spinner {
@@ -835,6 +877,12 @@ h1 {
     height: 26px;
     margin: 0;
     border-width: 3px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.scroll-sentinel.is-busy .spinner {
+    opacity: 1;
 }
 
 /* Pagination */
@@ -1131,6 +1179,18 @@ h1 {
     text-align: center;
     padding: 13px 12px;
     font-size: 0.95rem;
+}
+
+/* Product name + version pinned at the bottom of the menu tray (the page footer
+   is hidden on mobile). */
+.menu__footer {
+    flex: 0 0 auto;
+    margin-top: 4px;
+    padding: 14px 16px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -572,7 +572,15 @@
                     if (!infinite) { return; }
                     infinite.loading = false;
                     infinite.sentinel.classList.remove('is-busy');
-                    if (infinite.page >= infinite.totalPages) { teardownInfinite(); }
+                    if (infinite.page >= infinite.totalPages) {
+                        teardownInfinite();
+                        return;
+                    }
+                    // If the appended page did not push the sentinel past the
+                    // viewport (a short page, or a tall screen), keep loading so the
+                    // grid always fills the screen without a manual scroll.
+                    var rect = infinite.sentinel.getBoundingClientRect();
+                    if (rect.top < window.innerHeight + 600) { loadMore(); }
                 });
         }
 
