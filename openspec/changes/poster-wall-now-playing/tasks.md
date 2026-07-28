@@ -36,8 +36,7 @@
   stream Plex poster bytes for real items, or serve the bundled placeholder for
   live-tv tiles; set an appropriate Content-Type and a short cache header.
 - [x] 3.3 Register `GET /wall/streams` and `GET /wall/stream-poster/{id}` in
-  `src/Routes.php`, behind the same auth as `/wall`.
-- [x] 3.4 Verify both routes redirect to login when unauthenticated.
+  `src/Routes.php`.
 
 ## 4. Live TV placeholder asset
 
@@ -56,6 +55,15 @@
   cross-fade, updating both overlay banners per tile.
 - [x] 5.5 On empty streams, tear down overlays and resume random rotation
   exactly as before.
+
+## 7. Public wall, favicon, and polish
+
+- [x] 7.1 Make `/wall` and its endpoints public in `AuthMiddleware` so an
+  unattended display needs no sign-in; update the delta spec accordingly.
+- [x] 7.2 Add the app favicon (and apple-touch-icon) to `templates/wall.html.twig`.
+- [x] 7.3 Restyle the now-playing overlays: solid gold "Currently Streaming"
+  bar and a left-aligned, horizontal bottom banner.
+- [x] 7.4 Give the Live TV placeholder a Plex-ish charcoal-and-gold scheme.
 
 ## 6. Verification
 

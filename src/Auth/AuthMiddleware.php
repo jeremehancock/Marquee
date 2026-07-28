@@ -14,14 +14,19 @@ use Slim\Psr7\Response;
 /**
  * Guards every route except the public ones (health, login/logout, assets),
  * redirecting unauthenticated visitors to the login page.
+ *
+ * The Poster Wall is intentionally public: it is meant for an unattended
+ * display (a spare monitor or TV) that should show posters and now-playing
+ * without anyone signing in on the device. Its endpoints expose only poster
+ * art and the current now-playing details, never any management action.
  */
 final class AuthMiddleware implements MiddlewareInterface
 {
     /** @var list<string> */
-    private array $publicPaths = ['/health', '/login', '/logout', '/manifest.webmanifest'];
+    private array $publicPaths = ['/health', '/login', '/logout', '/manifest.webmanifest', '/wall'];
 
     /** @var list<string> */
-    private array $publicPrefixes = ['/assets/'];
+    private array $publicPrefixes = ['/assets/', '/wall/'];
 
     public function __construct(
         private readonly SessionAuthenticator $authenticator,

@@ -42,8 +42,10 @@ final class PosterWallTest extends AppTestCase
     {
         $response = $this->get($this->app(), '/wall');
 
+        $body = (string) $response->getBody();
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('wall__layer', (string) $response->getBody());
+        self::assertStringContainsString('wall__layer', $body);
+        self::assertStringContainsString('/assets/favicon.svg', $body);
     }
 
     public function testPostersEndpointReturnsJson(): void
@@ -55,12 +57,13 @@ final class PosterWallTest extends AppTestCase
         self::assertStringContainsString('/posters/movies/Solaris.png', (string) $response->getBody());
     }
 
-    public function testWallRequiresAuthentication(): void
+    public function testWallIsPublic(): void
     {
+        // No AUTH_BYPASS: the wall must still render for an unattended display.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall');
 
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/login', $response->getHeaderLine('Location'));
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('wall__layer', (string) $response->getBody());
     }
 
     /**
@@ -122,11 +125,12 @@ final class PosterWallTest extends AppTestCase
         self::assertSame(404, $response->getStatusCode());
     }
 
-    public function testStreamsRequireAuthentication(): void
+    public function testStreamsArePublic(): void
     {
+        // No AUTH_BYPASS: the now-playing endpoint must be reachable too.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall/streams');
 
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/login', $response->getHeaderLine('Location'));
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('"streams"', (string) $response->getBody());
     }
 }

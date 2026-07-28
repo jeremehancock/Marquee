@@ -105,13 +105,31 @@ A movie SHALL use its own poster and an episode SHALL use its show's poster.
 - **WHEN** the now-playing item is a TV episode
 - **THEN** the wall shows the show's poster
 
-### Requirement: Now-playing endpoints require authentication
+### Requirement: Wall is publicly accessible
 
-The endpoints that report active streams and serve now-playing posters SHALL
-require authentication like the rest of the wall (a kiosk uses the
-authentication-bypass option).
+The wall page and its supporting endpoints — random poster batches, active
+streams, and now-playing posters — SHALL be reachable without authentication so
+the wall can run on an unattended display without anyone signing in on the
+device. These endpoints expose only poster art and now-playing details; they
+SHALL NOT perform or expose any action that changes the library or the server.
 
-#### Scenario: Unauthenticated access is redirected
-- **WHEN** an unauthenticated user requests the active-streams data or a
+#### Scenario: Wall opens without signing in
+- **WHEN** an unauthenticated visitor opens the wall
+- **THEN** the system serves the wall instead of redirecting to login
+
+#### Scenario: Now-playing endpoints are reachable without signing in
+- **WHEN** an unauthenticated visitor requests the active-streams data or a
   now-playing poster
-- **THEN** the system redirects to the login page
+- **THEN** the system serves it instead of redirecting to login
+
+## REMOVED Requirements
+
+### Requirement: Wall requires authentication
+
+**Reason**: The wall is meant for an unattended display (a spare monitor or TV)
+that should show posters and now-playing without anyone signing in on the
+device; requiring authentication defeated that. The wall exposes only poster
+art and now-playing details, never a management action.
+**Migration**: None. The wall and its endpoints no longer redirect
+unauthenticated visitors to login; no configuration change is required, and the
+authentication-bypass option is no longer needed to run a kiosk.

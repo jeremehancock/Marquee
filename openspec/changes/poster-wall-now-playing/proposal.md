@@ -31,6 +31,11 @@ point of putting the wall on a screen in the first place.
 - **Graceful degradation**: if Plex is unconfigured or unreachable, the wall
   stays on random art silently — the display never shows an error. Paused
   sessions still count as watching.
+- **Public wall**: the wall page and its endpoints (random batches, streams,
+  now-playing posters) are reachable without authentication, so an unattended
+  display needs no sign-in and no auth-bypass. They expose only poster art and
+  now-playing details, never a management action.
+- The wall page carries the app's favicon.
 - Add a Plex session-reading capability to the Plex client and a new endpoint the
   wall polls for active streams, plus an endpoint that proxies a stream's poster.
 
