@@ -84,7 +84,7 @@ final class ChangePosterController
 
         try {
             $this->change->sendToPlex($category, $filename);
-            $this->flash->add('success', 'Sent the current poster to Plex and locked it.');
+            $this->flash->add('success', 'Sent the current poster to Plex.');
         } catch (ExportException | PlexException $e) {
             $this->flash->add('error', $e->getMessage());
         }

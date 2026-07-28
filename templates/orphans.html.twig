@@ -54,9 +54,7 @@
                 <p class="stats">This permanently removes <span x-text="count"></span> orphaned poster<span x-show="count !== 1">s</span>. This cannot be undone.</p>
                 <div class="modal__actions">
                     <button type="button" class="btn" @click="confirmOpen = false">Cancel</button>
-                    <form method="post" action="/orphans/delete-all" @submit="confirmOpen = false; deleting = true">
-                        <button type="submit" class="btn btn--danger">Delete all</button>
-                    </form>
+                    <button type="button" class="btn btn--danger" @click="deleteAllNow()">Delete all</button>
                 </div>
             </div>
         </div>

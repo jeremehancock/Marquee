@@ -24,7 +24,7 @@
     </p>
 {% endif %}
 
-<div class="grid">
+<div class="grid" data-page="{{ result.page }}" data-total-pages="{{ result.totalPages }}">
     {% for poster in result.items %}
         {# Actions target the poster's OWN category: filenames are unique only
            within a category, so the page-level base is wrong in the All view. #}
@@ -43,7 +43,7 @@
                     <div class="card__actions">
                         <button type="button" class="btn btn--small btn--accent"
                                 data-action="change" data-filename="{{ poster.filename }}"
-                                data-title="{{ poster.title }}" data-category="{{ poster.category.value }}">
+                                data-title="{{ poster.sheetTitle(poster_library) }}" data-category="{{ poster.category.value }}">
                             Change poster
                         </button>
                         {% if is_linked %}

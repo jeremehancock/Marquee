@@ -42,7 +42,8 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   default with `DEFAULT_SORT`.
 - **Poster Wall** — a full-screen, slideshow-style view of your library.
 - **Fast, modern UI** — search as you type, background updates without full page
-  reloads, and a touch-friendly action sheet on mobile.
+  reloads, and a mobile experience built around trays: a navigation menu and a
+  full-size poster action sheet keep the phone view focused on your posters.
 - **Installable PWA** — add it to your phone or desktop home screen.
 
 ## Quick start (Docker Compose)
@@ -213,8 +214,9 @@ From the poster search service at `POSTER_SOURCE_URL` (default
 Point it at your own instance if you self-host the service.
 
 **Does it work on mobile?**
-Yes. Marquee is responsive and installable as a PWA; on touch devices, tapping a
-poster opens a full-size action sheet.
+Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
+front and center: secondary navigation lives behind a menu, and tapping a poster
+opens a full-size action sheet.
 
 ## Security considerations
 

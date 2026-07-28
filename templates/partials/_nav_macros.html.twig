@@ -1,0 +1,35 @@
+{# Single source of truth for the secondary navigation links. Rendered both in
+   the desktop gallery toolbar and in the mobile menu tray, so the same links
+   appear in both places without divergent markup. Each link carries an icon that
+   only shows in the menu tray (hidden on the desktop toolbar). #}
+
+{# Small inline icon set for the nav items, kept here so the macros stay
+   self-contained (referenced via _self). #}
+{% macro ic(name) %}
+    {% set paths = {
+        'wall': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.3l4.5 2.7-4.5 2.7z"/>',
+        'import': '<path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M5 20h14"/>',
+        'orphans': '<path d="M10.5 13.5a4 4 0 0 0 5.5-.2l2-2a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M13.5 10.5a4 4 0 0 0-5.5.2l-2 2a4 4 0 0 0 5.7 5.7l1-1"/><path d="M4 4l16 16"/>',
+        'logout': '<path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 12H3"/><path d="M6 9l-3 3 3 3"/>'
+    } %}
+    <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
+         stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+         stroke-linejoin="round" aria-hidden="true" focusable="false">{{ paths[name]|default('')|raw }}</svg>
+{% endmacro %}
+
+{% macro secondary_links() %}
+    <a class="btn nav-item" href="/wall" target="_blank" rel="noopener"><span class="nav-ico">{{ _self.ic('wall') }}</span><span class="nav-label">Poster Wall</span></a>
+    <a class="btn nav-item" href="/plex" data-import><span class="nav-ico">{{ _self.ic('import') }}</span><span class="nav-label">Import from Plex</span></a>
+    <a class="btn nav-item" href="/orphans" data-orphans><span class="nav-ico">{{ _self.ic('orphans') }}</span><span class="nav-label">Orphans</span></a>
+{% endmacro %}
+
+{# Log out link. The topbar renders it as a plain nav link (desktop, unchanged);
+   the mobile tray renders it as a full-size button with an icon. Callers gate it
+   on auth_bypass, matching the existing behavior. #}
+{% macro logout_link(as_button = false) %}
+    {% if as_button %}
+        <a class="btn nav-item" href="/logout"><span class="nav-ico">{{ _self.ic('logout') }}</span><span class="nav-label">Log out</span></a>
+    {% else %}
+        <nav><a href="/logout">Log out</a></nav>
+    {% endif %}
+{% endmacro %}

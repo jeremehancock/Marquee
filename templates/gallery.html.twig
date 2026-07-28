@@ -1,4 +1,6 @@
 {% extends 'layout.html.twig' %}
+{% import 'partials/_nav_macros.html.twig' as nav %}
+{% import 'partials/_icons.html.twig' as icons %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
@@ -13,6 +15,8 @@
      @gallery:toast.window="notify($event.detail.text)"
      @gallery:sheet.window="openSheet($event.detail)"
      @gallery:sheet-close.window="closeSheet()"
+     @gallery:import.window="openImport()"
+     @gallery:orphans.window="openOrphans()"
      @gallery:done.window="change.open = false">
 
     {% if flash %}
@@ -23,10 +27,18 @@
        switching views keeps the current filter even without JavaScript. #}
     {% set tab_query = query is not empty ? 'q=' ~ query|url_encode : '' %}
     {% set tab_query = tab_query ~ (sort == 'date_added' ? (tab_query is not empty ? '&' : '') ~ 'sort=date_added' : '') %}
+    {# Short labels drop the "TV " prefix so all five tabs fit the phone tab bar
+       under their icons; the full label stays as the link's accessible name. #}
+    {% set tab_short = { 'all': 'All', 'movies': 'Movies', 'tv-shows': 'Shows', 'tv-seasons': 'Seasons', 'collections': 'Collections' } %}
     <nav class="tabs">
         {% for tab in tabs %}
             <a class="tab {{ tab.active ? 'tab--active' : '' }}"
-               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}">{{ tab.label }}</a>
+               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}"
+               aria-label="{{ tab.label }}" {{ tab.active ? 'aria-current="page"' : '' }}>
+                <span class="tab__icon" aria-hidden="true">{{ icons.icon(tab.value) }}</span>
+                <span class="tab__text" aria-hidden="true">{{ tab.label }}</span>
+                <span class="tab__text tab__text--short" aria-hidden="true">{{ tab_short[tab.value] ?? tab.label }}</span>
+            </a>
         {% endfor %}
     </nav>
 
@@ -39,19 +51,23 @@
             {% endif %}
         </form>
         {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+        {# Phone-only affordance: opens the sort tray. The inline .sort group below
+           stays for desktop. #}
+        <button type="button" class="icon-btn sort-trigger" @click="sortOpen = true"
+                aria-label="Sort order" data-tooltip="Sort">
+            {{ icons.icon('sort') }}
+        </button>
         <div class="sort" role="group" aria-label="Sort order">
             <span class="sort__label">Sort</span>
             <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=alphabetical{{ sort_q }}"
+               href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
                {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
             <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=date_added{{ sort_q }}"
+               href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
                {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
         </div>
         <div class="toolbar__actions">
-            <a class="btn" href="/wall" target="_blank" rel="noopener">Poster Wall</a>
-            <a class="btn" href="/plex">Import from Plex</a>
-            <a class="btn" href="/orphans">Orphans</a>
+            {{ nav.secondary_links() }}
         </div>
     </div>
 
@@ -92,27 +108,84 @@
             </form>
 
             <div x-show="change.tab === 'find'">
-                <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
+                <p class="stats" x-show="finder.loading">Finding posters…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
                 <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
-                    Click a poster to preview it, or choose <strong>Select</strong> to apply it.
+                    Tap a poster to preview it.
                 </p>
                 <div class="find-grid">
                     <template x-for="url in finder.results" :key="url">
                         <figure class="find-item">
                             <img class="find-item__img" :src="url" alt="" loading="lazy"
-                                 data-action="view" :data-url="url" data-tooltip="Preview full screen">
-                            <div class="find-item__actions">
-                                <form class="js-mutate" method="post" :action="'/library/' + change.category + '/change/url'">
-                                    <input type="hidden" name="filename" :value="change.filename">
-                                    <input type="hidden" name="url" :value="url">
-                                    <button type="submit" class="btn btn--small btn--accent">Select</button>
-                                </form>
-                                <button type="button" class="btn btn--small" data-action="view" :data-url="url">View</button>
-                            </div>
+                                 @click="openFinderPreview(url)" data-tooltip="Tap to preview">
                         </figure>
                     </template>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# Find Posters preview: a candidate shown full screen with a use/close choice
+       and an inline confirm step, on both desktop and touch. #}
+    <div class="viewer viewer--finder" x-show="finder.preview" x-cloak
+         @click.self="closeFinderPreview()"
+         @keydown.escape.window="closeFinderPreview()" style="display:none">
+        <img :src="finder.preview" alt="">
+        <div class="viewer__bar">
+            <div class="viewer__actions" x-show="!finder.confirming">
+                <button type="button" class="btn btn--accent" @click="finder.confirming = true">Use this poster</button>
+                <button type="button" class="btn" @click="closeFinderPreview()">Close</button>
+            </div>
+            <div class="viewer__actions" x-show="finder.confirming" x-cloak>
+                <span class="viewer__ask">Change the poster to this one?</span>
+                <button type="button" class="btn btn--accent" @click="applyFinderSelection()">Change poster</button>
+                <button type="button" class="btn" @click="finder.confirming = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    {# Sort tray (phone): the same sort links as the desktop toolbar, presented as
+       an app-style sheet to keep the toolbar uncluttered. #}
+    <div class="sheet" x-show="sortOpen" x-cloak @keydown.escape.window="sortOpen = false" style="display:none">
+        <div class="sheet__backdrop" @click="sortOpen = false"></div>
+        <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Sort order">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Sort</span></div>
+            <div class="sheet__body menu__body">
+                <a class="btn {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
+                   {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
+                <a class="btn {{ sort == 'date_added' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
+                   {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+            </div>
+        </div>
+    </div>
+
+    {# Import tray (phone): the Import from Plex link opens this instead of
+       navigating; its body is fetched from /plex and wired on first open. #}
+    <div class="sheet" x-show="importOpen" x-cloak @keydown.escape.window="closeImport()" style="display:none">
+        <div class="sheet__backdrop" @click="closeImport()"></div>
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Import from Plex</span></div>
+            <div class="sheet__body">
+                <p class="stats" x-show="importLoading">Loading…</p>
+                <div x-ref="importBody" data-nested-scope></div>
+            </div>
+        </div>
+    </div>
+
+    {# Orphans tray (phone): the Orphans link opens this instead of navigating. Its
+       body is the /orphans page content, fetched and wired on first open so its
+       own scan/delete logic and (now tray-contained) progress overlays are reused. #}
+    <div class="sheet" x-show="orphansOpen" x-cloak @keydown.escape.window="closeOrphans()" style="display:none">
+        <div class="sheet__backdrop" @click="closeOrphans()"></div>
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Orphaned posters">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Orphaned posters</span></div>
+            <div class="sheet__body" x-ref="orphansBody" data-nested-scope>
+                <p class="stats" x-show="orphansLoading">Loading…</p>
             </div>
         </div>
     </div>

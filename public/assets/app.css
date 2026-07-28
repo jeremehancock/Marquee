@@ -2,6 +2,7 @@
     color-scheme: light dark;
     --bg: #1c1e24;
     --surface: #282a2d;
+    --surface-2: #33363d;
     --ink: #e9e6df;
     --muted: #9aa0aa;
     --accent: #e5a00d;
@@ -11,6 +12,9 @@
 
 * {
     box-sizing: border-box;
+    /* No blue/grey native tap flash on touch — it clashes with the theme; taps
+       get their own themed :active feedback instead. */
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -51,6 +55,30 @@ body {
 .topbar a {
     color: var(--muted);
     text-decoration: none;
+}
+
+.topnav {
+    display: flex;
+    align-items: center;
+}
+
+/* Nav-item icons show only in the mobile menu tray; the desktop toolbar keeps
+   plain text buttons. */
+.nav-ico {
+    display: none;
+}
+
+/* Mobile menu button: hidden on desktop, revealed on narrow screens (see the
+   max-width media query below). The desktop keeps the plain Log out link. */
+.menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: none;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
 }
 
 .container {
@@ -184,6 +212,12 @@ h1 {
     border-bottom-color: var(--accent);
 }
 
+/* Desktop tabs are text only; the icon and short label are a phone affordance. */
+.tab__icon,
+.tab__text--short {
+    display: none;
+}
+
 /* Toolbar */
 .toolbar {
     display: flex;
@@ -248,6 +282,24 @@ h1 {
     font-size: 0.9rem;
 }
 
+/* Square icon button (e.g. the phone sort trigger). Hidden on desktop, where the
+   inline sort control is used instead. */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.sort-trigger {
+    display: none;
+}
+
 .fieldset {
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -310,14 +362,17 @@ h1 {
     border: 1px solid var(--border);
     border-radius: 999px;
     cursor: pointer;
-    color: var(--muted);
+    color: var(--ink);
+    /* Elevated fill so an unselected choice reads as a button rather than blending
+       into the surface behind it. */
+    background: var(--surface-2);
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .choice input:checked + span {
     border-color: var(--accent);
     color: var(--ink);
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
 }
 
 .choice input:focus-visible + span {
@@ -389,6 +444,11 @@ h1 {
     font-size: 0.84rem;
     line-height: 1.3;
     text-align: center;
+    /* Non-interactive tooltip host: signal that hovering reveals more (the full,
+       truncated title) with a help cursor rather than the text/I-beam cursor.
+       Interactive tooltip hosts (pagination steps, find-item preview) keep their
+       own pointer cursor. */
+    cursor: help;
     /* Keep the title to a single line no wider than the poster: it truncates
        with an ellipsis instead of wrapping, so a long title never adds a second
        line and pushes the following grid row down. The full title is available
@@ -513,6 +573,18 @@ h1 {
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+/* On the dark hover overlay a plain surface button reads as half-transparent;
+   lift the non-accent ones onto the elevated tone with a clearer border, and
+   make the delete button's outline read solidly. */
+.card__actions .btn:not(.btn--accent) {
+    background: var(--surface-2);
+    border-color: #4b515b;
+}
+
+.card__actions .btn--danger {
+    border-color: rgba(228, 120, 95, 0.7);
+}
+
 /* Make the control under the pointer (or keyboard focus) unmistakable before
    it is clicked. Scoped to the overlay so buttons elsewhere are unaffected. */
 .card__actions .btn:hover,
@@ -531,9 +603,9 @@ h1 {
 
 .card__actions .btn--danger:hover,
 .card__actions .btn--danger:focus-visible {
-    background: rgba(228, 120, 95, 0.16);
-    border-color: rgba(228, 120, 95, 0.7);
-    color: #e4785f;
+    background: color-mix(in srgb, #e4785f 26%, var(--surface-2));
+    border-color: rgba(228, 120, 95, 0.9);
+    color: #f3b0a1;
 }
 
 .card__actions .btn:focus-visible {
@@ -596,9 +668,14 @@ h1 {
 
 .toast {
     position: fixed;
-    left: 50%;
+    /* Anchor to both edges and auto-center: a single `left: 50%` caps the
+       shrink-to-fit width at ~50vw, which wrapped short messages needlessly. */
+    left: 0;
+    right: 0;
     bottom: 28px;
-    transform: translateX(-50%);
+    margin: 0 auto;
+    width: fit-content;
+    max-width: calc(100vw - 32px);
     z-index: 80;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -607,6 +684,7 @@ h1 {
     border-radius: 999px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     font-size: 0.9rem;
+    text-align: center;
 }
 
 .overlay {
@@ -655,62 +733,32 @@ h1 {
     }
 }
 
-/* Mobile: keep the layout from overflowing and shrink oversized posters. */
-@media (max-width: 640px) {
-    .container {
-        padding: 20px 14px;
-    }
+/* NOTE: the mobile `@media (max-width: 640px)` block lives at the END of this
+   file so its overrides win over every base component rule (several of which —
+   .pagination, .modal, .sheet — are defined below this point). */
 
-    /* Tabs become a single horizontal scroll-snap row: five tabs (All + the
-       four categories) never overflow the page or wrap into an orphan row.
-       The edge fade hints that the row scrolls. */
-    .tabs {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 2px;
-        overflow-x: auto;
-        scroll-snap-type: x proximity;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-        mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-    }
+/* Infinite-scroll sentinel (phone). It must occupy layout so the
+   IntersectionObserver can see it, so it always reserves a little height; only
+   its spinner fades in while the next page loads. */
+.scroll-sentinel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 0;
+}
 
-    .tabs::-webkit-scrollbar {
-        display: none;
-    }
+.scroll-sentinel .spinner {
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    border-width: 3px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
 
-    .tab {
-        flex: 0 0 auto;
-        scroll-snap-align: start;
-        padding: 10px 12px;
-        white-space: nowrap;
-    }
-
-    /* Search and the action buttons each take a full row. */
-    .search {
-        flex-basis: 100%;
-    }
-
-    .toolbar__actions {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .toolbar__actions .btn {
-        flex: 1 1 auto;
-        text-align: center;
-    }
-
-    /* Smaller posters: at least two per row on a phone. */
-    .grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 12px;
-    }
-
-    .find-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    }
+.scroll-sentinel.is-busy .spinner {
+    opacity: 1;
 }
 
 /* Pagination */
@@ -872,6 +920,67 @@ h1 {
     border-radius: 6px;
 }
 
+/* Find Posters preview: the image plus a use/close (then confirm) action bar. */
+.viewer--finder {
+    flex-direction: column;
+    gap: 16px;
+    cursor: default;
+}
+
+.viewer--finder img {
+    /* Reserve room for the tallest bar state (the confirm step) so switching
+       between "use/close" and the confirm does not move the image. */
+    max-height: calc(100% - 132px);
+}
+
+.viewer__bar {
+    flex: 0 0 auto;
+    display: flex;
+    /* Bottom-anchor the actions so the button row stays put when the confirm
+       step adds its question line above the buttons. */
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 96px;
+}
+
+.viewer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.viewer__actions .btn {
+    padding: 11px 18px;
+}
+
+/* Fixed widths per role so the row is the same size in both states ("Use this
+   poster" vs "Change poster", "Close" vs "Cancel") and nothing shifts sideways. */
+.viewer__actions .btn--accent {
+    min-width: 168px;
+}
+
+.viewer__actions .btn:not(.btn--accent) {
+    min-width: 104px;
+}
+
+.viewer__ask {
+    color: var(--ink);
+    font-weight: 600;
+    width: 100%;
+    text-align: center;
+}
+
+/* Re-check button sits below the in-sync message in the orphans empty state.
+   Lift it onto the elevated tone with a clear border so it reads as a button and
+   does not blend into the panel. */
+.panel [data-action="recheck"] {
+    margin-top: 14px;
+    background: var(--surface-2);
+    border-color: #4b515b;
+}
+
 /* Mobile action sheet: a poster's actions slide up from the bottom. */
 .sheet {
     position: fixed;
@@ -888,18 +997,50 @@ h1 {
     background: rgba(0, 0, 0, 0.6);
 }
 
+/* The panel clips; its body scrolls. Keeping the scroll on the body (not the
+   panel) lets a progress overlay pin to the whole tray instead of scrolling
+   away with the content — see `.sheet .overlay` below. */
 .sheet__panel {
     position: relative;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 520px;
     max-height: 85vh;
-    overflow-y: auto;
+    overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: 16px 16px 0 0;
-    padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
     animation: sheet-up 0.2s ease;
+    transition: transform 0.2s ease;
+}
+
+/* Import/orphans trays hold a whole page; give them more of the screen. */
+.sheet__panel--tall {
+    max-height: 92vh;
+    min-height: 60vh;
+}
+
+.sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+/* Progress overlays reused inside a tray (import spinner, orphan scan/delete)
+   are contained to the tray and pinned over it, instead of covering the screen.
+   The panel is the positioned ancestor and does not scroll, so the overlay stays
+   put while the body scrolls under it. */
+.sheet .overlay {
+    position: absolute;
+    z-index: 5;
+    border-radius: inherit;
+}
+
+.sheet .overlay__box {
+    max-width: 84%;
 }
 
 @keyframes sheet-up {
@@ -908,22 +1049,50 @@ h1 {
     }
 }
 
+/* Grab handle: the app-style affordance that replaces a close button. Dragging
+   it (or the head) down dismisses the tray; see initSheetGestures in gallery.js. */
+.sheet__grip {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 0;
+    cursor: grab;
+    touch-action: none;
+}
+
+.sheet__handle {
+    width: 40px;
+    height: 5px;
+    border-radius: 999px;
+    background: #4b4f57;
+}
+
 .sheet__head {
-    position: sticky;
-    top: 0;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 0;
-    background: var(--surface);
+    padding: 14px 16px 12px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
+    touch-action: none;
 }
 
 .sheet__title {
     font-weight: 600;
     line-height: 1.3;
+}
+
+/* Tray buttons need to read as tappable cards against the sheet surface, which
+   is the same colour as a default button. Lift the plain ones onto an elevated
+   tone with a clearer border; accent/danger keep their own colour. */
+.sheet__body .btn:not(.btn--accent):not(.btn--danger) {
+    background: var(--surface-2);
+    border-color: #474c55;
+}
+
+.sheet__body .btn:not(.btn--accent):not(.btn--danger):active {
+    background: #3c4048;
 }
 
 .sheet__body .card__actions {
@@ -935,8 +1104,304 @@ h1 {
     font-size: 0.95rem;
 }
 
+/* Menu tray body: the navigation links stack as full-width, tap-friendly rows. */
+.menu__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Menu items read like a native app menu: full-width rows with a leading icon and
+   a left-aligned label, on the elevated tray-button surface. */
+.menu__body .btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 13px;
+    width: 100%;
+    text-align: left;
+    padding: 13px 15px;
+    font-size: 0.95rem;
+}
+
+.menu__body .nav-ico {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--accent);
+}
+
+/* Product name + version pinned at the bottom of the menu tray (the page footer
+   is hidden on mobile). */
+.menu__footer {
+    flex: 0 0 auto;
+    margin-top: 4px;
+    padding: 14px 16px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sheet__panel {
         animation: none;
+    }
+}
+
+/* ==========================================================================
+   Mobile overrides. Placed last so they win over every base component rule
+   (.pagination, .modal, .sheet, … are defined above), which a mid-file media
+   query could not do at equal specificity.
+   ========================================================================== */
+@media (max-width: 640px) {
+    .container {
+        padding: 20px 14px;
+    }
+
+    /* Room for the fixed bottom tab bar so the last posters are never hidden. */
+    body {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    /* The version footer moves into the menu tray on a phone. */
+    .footer {
+        display: none;
+    }
+
+    /* Tabs become a native-style bottom tab bar: pinned to the bottom, always
+       visible, all five sharing the width as equal icon-over-label columns. */
+    .tabs {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        display: flex;
+        gap: 0;
+        margin: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-bottom: none;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .tab {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 9px 2px;
+        font-size: 0.68rem;
+        text-align: center;
+        border-bottom: none;
+    }
+
+    .tab__icon {
+        display: block;
+    }
+
+    .tab__icon .icon {
+        width: 26px;
+        height: 26px;
+    }
+
+    .tab__text {
+        display: none;
+    }
+
+    .tab__text--short {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tab--active {
+        color: var(--accent);
+    }
+
+    /* Reveal the menu button; the desktop Log out link moves into the tray. */
+    .menu-btn {
+        display: flex;
+    }
+
+    .topnav__desktop {
+        display: none;
+    }
+
+    /* The toolbar is just search plus the sort trigger; the rest moved to trays. */
+    .search {
+        flex: 1 1 auto;
+    }
+
+    .sort-trigger {
+        display: inline-flex;
+    }
+
+    .sort,
+    .toolbar__actions {
+        display: none;
+    }
+
+    /* At least two posters per row on a phone. */
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .find-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+
+    /* Infinite scroll replaces pagination on a phone. */
+    .pagination {
+        display: none;
+    }
+
+    /* Lift toasts above the fixed bottom tab bar. */
+    .toast {
+        bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+
+    /* Modals (delete confirmations, change poster) become app-style sheets: they
+       dock to the bottom and slide up, show a grab handle instead of a close (×)
+       button, can be swiped down to dismiss, and stack large full-width actions
+       with the primary/destructive one on top. */
+    .modal {
+        align-items: flex-end;
+    }
+
+    .modal__panel,
+    .modal__panel--narrow,
+    .modal__panel--wide {
+        width: 100%;
+        max-width: none;
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+        animation: sheet-up 0.2s ease;
+        transition: transform 0.2s ease;
+    }
+
+    .modal__panel::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 5px;
+        margin: 12px auto 14px;
+        border-radius: 999px;
+        background: #4b4f57;
+    }
+
+    .modal__close {
+        display: none;
+    }
+
+    .modal__head {
+        touch-action: none;
+    }
+
+    .modal__actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+        margin-top: 22px;
+    }
+
+    .modal__actions form {
+        display: block;
+        width: 100%;
+    }
+
+    .modal__actions .btn,
+    .modal__actions form .btn {
+        width: 100%;
+        padding: 13px 12px;
+        font-size: 0.95rem;
+        text-align: center;
+    }
+
+    /* Native-app styling for the import form inside its tray: the media-type
+       choices become selectable pills and the libraries become tappable rows,
+       instead of bare radio buttons and checkboxes. Scoped to a tray body so the
+       desktop /plex page keeps its own form styling. */
+    .sheet__body .panel {
+        background: none;
+        border: none;
+        padding: 0;
+    }
+
+    .sheet__body .fieldset {
+        border: none;
+        padding: 0;
+        margin: 0 0 18px;
+    }
+
+    .sheet__body .fieldset legend {
+        padding: 0;
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .sheet__body .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Build on the base pill (.choice span) — just make the pills fill the row
+       and grow the tap target; the base handles the checked highlight. */
+    .sheet__body .choice {
+        flex: 1 1 auto;
+        display: flex;
+    }
+
+    .sheet__body .choice span {
+        flex: 1;
+        padding: 13px 16px;
+    }
+
+    .sheet__body .check {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 13px 14px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-2);
+        cursor: pointer;
+    }
+
+    .sheet__body .check input {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        accent-color: var(--accent);
+    }
+
+    .sheet__body .check__meta {
+        width: 100%;
+        padding-left: 30px;
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    .sheet__body .check__hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .sheet__body form .btn--accent {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+        margin-top: 8px;
     }
 }
