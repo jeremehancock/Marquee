@@ -43,4 +43,19 @@ interface PlexClient
      * Raw bytes of the current Plex poster for an item, looked up by rating key.
      */
     public function itemPoster(string $ratingKey): string;
+
+    /**
+     * The currently active playback sessions, in the order Plex reports them.
+     * Returns an empty list when nothing is playing.
+     *
+     * @return list<PlexSession>
+     */
+    public function sessions(): array;
+
+    /**
+     * Raw bytes of the poster at a Plex image path (a session's `thumb` or
+     * `grandparentThumb`). The path must originate from a session this client
+     * produced; callers never pass an untrusted path directly.
+     */
+    public function sessionPoster(string $thumb): string;
 }

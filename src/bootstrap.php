@@ -10,6 +10,7 @@ use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
+use App\Controller\PosterWallController;
 use App\Database\Database;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
@@ -18,6 +19,9 @@ use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
 use App\Poster\Source\PosteriaApiPosterSource;
 use App\Poster\Source\PosterSource;
+use App\Poster\Wall\NowPlayingService;
+use App\Poster\Wall\PosterWallService;
+use App\Poster\Wall\StreamToken;
 use App\Support\Env;
 use App\Support\Session\NativeSession;
 use App\Support\Session\SessionInterface;
@@ -73,6 +77,24 @@ function buildContainer(array $overrides = []): Container
             => new HttpPlexClient($http, $plex),
         PlexClient::class => \DI\get(HttpPlexClient::class),
         PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
+        // The wall's now-playing poster tokens are signed with the Plex token:
+        // a secret the server already holds, stable across requests, and empty
+        // only when Plex is unconfigured (when the wall never leaves random mode).
+        StreamToken::class => static fn (PlexConfig $plex): StreamToken => new StreamToken($plex->token),
+        PosterWallController::class => static fn (
+            Twig $twig,
+            PosterWallService $wall,
+            NowPlayingService $nowPlaying,
+            PlexClient $plex,
+            StreamToken $token,
+        ): PosterWallController => new PosterWallController(
+            $twig,
+            $wall,
+            $nowPlaying,
+            $plex,
+            $token,
+            dirname(__DIR__) . '/public/assets/live-tv.svg',
+        ),
         LatestReleaseProvider::class => static fn (ClientInterface $http): LatestReleaseProvider
             => new GitHubLatestReleaseProvider(
                 $http,

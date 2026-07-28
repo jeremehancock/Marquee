@@ -8,6 +8,7 @@ use App\Plex\PlexClient;
 use App\Plex\PlexException;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
+use App\Plex\PlexSession;
 
 /**
  * In-memory PlexClient for tests: canned libraries/items and generated posters.
@@ -23,6 +24,7 @@ final class FakePlexClient implements PlexClient
      * @param array<array-key, list<PlexItem>> $seasonsByShow    keyed by show rating key
      * @param array<array-key, list<PlexItem>> $collectionsByKey keyed by library key
      * @param list<string>                     $failingKeys      rating keys that fail download
+     * @param list<PlexSession>                $sessions         active playback sessions
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -31,6 +33,7 @@ final class FakePlexClient implements PlexClient
         private readonly array $collectionsByKey = [],
         private readonly array $failingKeys = [],
         private readonly bool $configured = true,
+        private readonly array $sessions = [],
     ) {
     }
 
@@ -75,6 +78,20 @@ final class FakePlexClient implements PlexClient
             throw PlexException::connectionFailed();
         }
 
+        return $this->png();
+    }
+
+    public function sessions(): array
+    {
+        if (!$this->configured) {
+            throw PlexException::notConfigured();
+        }
+
+        return $this->sessions;
+    }
+
+    public function sessionPoster(string $thumb): string
+    {
         return $this->png();
     }
 

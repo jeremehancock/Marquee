@@ -46,6 +46,86 @@ body {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 
+.wall__banner {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: none;
+    padding: 24px 32px;
+    color: #fff;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+    z-index: 1;
+}
+
+/* Banners belong to a layer only while it is showing a stream. */
+.wall__layer.is-now-playing .wall__banner {
+    display: block;
+}
+
+.wall__banner--top {
+    top: 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    font-size: clamp(0.9rem, 2.2vw, 1.4rem);
+    font-weight: 700;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+
+.wall__banner--bottom {
+    bottom: 0;
+    text-align: center;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0));
+}
+
+.wall__banner--bottom .wall__title {
+    display: block;
+    font-size: clamp(1.3rem, 3.6vw, 2.4rem);
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.wall__banner--bottom .wall__detail {
+    display: block;
+    margin-top: 6px;
+    font-size: clamp(0.95rem, 2.2vw, 1.35rem);
+    color: #d3d8e2;
+}
+
+.wall__banner--bottom .wall__detail:empty {
+    display: none;
+}
+
+.wall__banner--bottom .wall__user {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 5px 16px 5px 30px;
+    position: relative;
+    font-size: clamp(0.85rem, 1.9vw, 1.15rem);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+}
+
+/* The "streaming now" dot before the user's name. */
+.wall__banner--bottom .wall__user::before {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #38d17a;
+    box-shadow: 0 0 10px rgba(56, 209, 122, 0.9);
+}
+
+.wall__banner--bottom .wall__user:empty {
+    display: none;
+}
+
 .wall__empty {
     position: fixed;
     inset: 0;

@@ -54,4 +54,6 @@ function registerRoutes(App $app): void
 
     $app->get('/wall', [PosterWallController::class, 'show']);
     $app->get('/wall/posters', [PosterWallController::class, 'posters']);
+    $app->get('/wall/streams', [PosterWallController::class, 'streams']);
+    $app->get('/wall/stream-poster/{id}', [PosterWallController::class, 'streamPoster']);
 }
