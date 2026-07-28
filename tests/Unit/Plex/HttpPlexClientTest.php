@@ -10,6 +10,7 @@ use App\Plex\PlexException;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
+use App\Plex\PlexSessionType;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
@@ -102,6 +103,76 @@ final class HttpPlexClientTest extends TestCase
         $bytes = $this->client([new Response(200, [], 'IMAGE-BYTES')])->downloadPoster($item);
 
         self::assertSame('IMAGE-BYTES', $bytes);
+    }
+
+    public function testParsesSessionsByType(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video type="movie" title="The Matrix" year="1999" thumb="/t/movie">'
+            . '<User title="jereme"/></Video>'
+            . '<Video type="episode" title="Free Churro" grandparentTitle="BoJack Horseman"'
+            . ' grandparentThumb="/t/show" parentIndex="6" index="6"><User title="kim"/></Video>'
+            . '<Video type="clip" live="1" title="SportsCenter" grandparentTitle="ESPN">'
+            . '<User title="guest"/></Video>'
+            . '<Track type="track" title="A Song"><User title="dj"/></Track>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertCount(4, $sessions);
+
+        self::assertSame(PlexSessionType::Movie, $sessions[0]->type);
+        self::assertSame('The Matrix', $sessions[0]->title);
+        self::assertSame(1999, $sessions[0]->year);
+        self::assertSame('/t/movie', $sessions[0]->thumb);
+        self::assertSame('jereme', $sessions[0]->user);
+        self::assertFalse($sessions[0]->live);
+
+        self::assertSame(PlexSessionType::Episode, $sessions[1]->type);
+        self::assertSame('BoJack Horseman', $sessions[1]->grandparentTitle);
+        self::assertSame('/t/show', $sessions[1]->thumb);
+        self::assertSame('S06E06', $sessions[1]->episodeLabel());
+        self::assertSame('kim', $sessions[1]->user);
+
+        self::assertSame(PlexSessionType::LiveTv, $sessions[2]->type);
+        self::assertTrue($sessions[2]->live);
+        self::assertSame('ESPN', $sessions[2]->grandparentTitle);
+
+        self::assertSame(PlexSessionType::Music, $sessions[3]->type);
+    }
+
+    public function testNonLiveClipIsClassifiedAsOther(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video type="clip" title="Trailer"><User title="jereme"/></Video>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame(PlexSessionType::Other, $sessions[0]->type);
+    }
+
+    public function testSessionWithoutUserYieldsEmptyUser(): void
+    {
+        $xml = '<MediaContainer><Video type="movie" title="Solaris" thumb="/t/1"/></MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame('', $sessions[0]->user);
+    }
+
+    public function testEmptySessionsWhenNothingPlaying(): void
+    {
+        $sessions = $this->client([new Response(200, [], '<MediaContainer/>')])->sessions();
+
+        self::assertSame([], $sessions);
+    }
+
+    public function testSessionPosterFetchesBytesAtThumbPath(): void
+    {
+        $bytes = $this->client([new Response(200, [], 'POSTER-BYTES')])->sessionPoster('/t/show');
+
+        self::assertSame('POSTER-BYTES', $bytes);
     }
 
     public function testUnconfiguredServerThrows(): void

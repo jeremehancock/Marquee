@@ -142,6 +142,84 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         return (string) $response->getBody();
     }
 
+    public function sessions(): array
+    {
+        $xml = $this->get('/status/sessions');
+
+        $sessions = [];
+        foreach ($xml->children() as $node) {
+            $session = $this->session($node);
+            if ($session !== null) {
+                $sessions[] = $session;
+            }
+        }
+
+        return $sessions;
+    }
+
+    public function sessionPoster(string $thumb): string
+    {
+        if ($thumb === '') {
+            throw PlexException::unexpectedResponse();
+        }
+
+        try {
+            $response = $this->http->request('GET', $this->config->serverUrl . $thumb, $this->options());
+        } catch (GuzzleException $e) {
+            throw $this->classify($e);
+        }
+
+        return (string) $response->getBody();
+    }
+
+    /**
+     * Map one `/status/sessions` child element to a session, or null when the
+     * element carries no usable type. Music and unrecognised types are still
+     * returned (typed accordingly) so the caller decides what to drop.
+     */
+    private function session(SimpleXMLElement $node): ?PlexSession
+    {
+        $rawType = (string) $node['type'];
+        if ($rawType === '') {
+            return null;
+        }
+
+        $live = ((string) $node['live']) === '1';
+        $user = $this->attr($node->User, 'title') ?? '';
+
+        return match ($rawType) {
+            'movie' => new PlexSession(
+                type: PlexSessionType::Movie,
+                title: (string) $node['title'],
+                user: $user,
+                live: $live,
+                thumb: $this->attr($node, 'thumb'),
+                year: $this->intAttr($node, 'year'),
+            ),
+            'episode' => new PlexSession(
+                type: PlexSessionType::Episode,
+                title: (string) $node['title'],
+                user: $user,
+                live: $live,
+                thumb: $this->attr($node, 'grandparentThumb'),
+                grandparentTitle: $this->attr($node, 'grandparentTitle'),
+                seasonNumber: $this->intAttr($node, 'parentIndex'),
+                episodeNumber: $this->intAttr($node, 'index'),
+            ),
+            'clip' => $live
+                ? new PlexSession(
+                    type: PlexSessionType::LiveTv,
+                    title: (string) $node['title'],
+                    user: $user,
+                    live: true,
+                    grandparentTitle: $this->attr($node, 'grandparentTitle'),
+                )
+                : new PlexSession(PlexSessionType::Other, (string) $node['title'], $user, $live),
+            'track' => new PlexSession(PlexSessionType::Music, (string) $node['title'], $user, $live),
+            default => new PlexSession(PlexSessionType::Other, (string) $node['title'], $user, $live),
+        };
+    }
+
     public function uploadPoster(string $ratingKey, string $imageBytes): void
     {
         $this->write(

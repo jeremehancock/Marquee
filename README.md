@@ -40,7 +40,12 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Sort your way** — order the gallery alphabetically or by when each item was
   added to Plex (newest first). Toggle it in the gallery, or set the install
   default with `DEFAULT_SORT`.
-- **Poster Wall** — a full-screen, slideshow-style view of your library.
+- **Poster Wall** — a full-screen, slideshow-style view of your library that
+  turns into a live "now playing" board when someone is watching: it shows the
+  poster of what each person is streaming, with a *Currently Streaming* banner
+  and the media details and Plex user, cycling when more than one stream is
+  active (Live TV gets a placeholder; music is ignored). The wall needs no
+  sign-in, so you can point a spare monitor or TV straight at `/wall`.
 - **Fast, modern UI** — search as you type, background updates without full page
   reloads, and a mobile experience built around trays: a navigation menu and a
   full-size poster action sheet keep the phone view focused on your posters.

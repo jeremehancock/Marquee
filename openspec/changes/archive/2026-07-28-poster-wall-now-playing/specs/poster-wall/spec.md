@@ -1,46 +1,4 @@
-# Poster Wall Specification
-
-## Purpose
-
-A full-screen, slideshow-style view of the library — posters drawn at random
-from every category, cross-fading indefinitely — that becomes a live now-playing
-board while Plex is streaming. Intended for a spare display or a TV, which is why
-it opens in its own tab and is reachable without signing in, so an unattended
-device needs no login and no authentication-bypass.
-## Requirements
-### Requirement: Full-screen rotating wall
-The system SHALL provide a full-screen page that continuously displays posters
-drawn at random from the library, transitioning between them automatically. The
-wall SHALL open in a separate browser tab so the gallery stays open behind it.
-The wall is intended for unattended display on a monitor, so it SHALL present the
-posters without on-screen navigational chrome such as an exit control; a viewer
-leaves by closing the tab.
-
-#### Scenario: Wall displays posters
-- **WHEN** a visitor opens the wall and the library has posters
-- **THEN** the system presents a full-screen display that rotates through random
-  posters
-
-#### Scenario: Open the wall
-- **WHEN** a user opens the Poster Wall from the gallery
-- **THEN** it opens in a new tab
-
-#### Scenario: No on-screen exit control
-- **WHEN** the wall is displayed
-- **THEN** it shows no exit or navigation control overlaid on the posters
-
-#### Scenario: Empty library
-- **WHEN** the library has no posters
-- **THEN** the wall shows a message that there is nothing to display yet
-
-### Requirement: Random poster batches
-The system SHALL expose an endpoint that returns a fresh batch of random poster
-references so the wall can keep refreshing without a full reload.
-
-#### Scenario: Batch of random posters
-- **WHEN** the wall requests more posters
-- **THEN** the system returns a batch of poster references selected at random
-  from across the library's categories
+## ADDED Requirements
 
 ### Requirement: Now Playing takeover
 
@@ -164,3 +122,14 @@ SHALL NOT perform or expose any action that changes the library or the server.
   now-playing poster
 - **THEN** the system serves it instead of redirecting to login
 
+## REMOVED Requirements
+
+### Requirement: Wall requires authentication
+
+**Reason**: The wall is meant for an unattended display (a spare monitor or TV)
+that should show posters and now-playing without anyone signing in on the
+device; requiring authentication defeated that. The wall exposes only poster
+art and now-playing details, never a management action.
+**Migration**: None. The wall and its endpoints no longer redirect
+unauthenticated visitors to login; no configuration change is required, and the
+authentication-bypass option is no longer needed to run a kiosk.

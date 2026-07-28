@@ -18,6 +18,9 @@ body {
 .wall__layer {
     position: absolute;
     inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     opacity: 0;
     transition: opacity 1.2s ease;
 }
@@ -35,15 +38,124 @@ body {
     transform: scale(1.15);
 }
 
-.wall__poster {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    max-width: 92%;
+/* The poster's own box: a portrait frame the banners are pinned to, so they
+   never spill past the poster onto the letterboxed background. Plex posters
+   are 2:3, so the frame is too. */
+.wall__frame {
+    position: relative;
+    height: 92%;
     max-height: 92%;
-    object-fit: contain;
+    max-width: 92%;
+    aspect-ratio: 2 / 3;
     border-radius: 6px;
+    overflow: hidden;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.wall__poster {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.wall__banner {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    z-index: 1;
+}
+
+/* Banners belong to a layer only while it is showing a stream. */
+.wall__layer.is-now-playing .wall__banner {
+    display: block;
+}
+
+/* A solid gold bar rather than a fade, so the label stays legible over a
+   bright or busy poster. */
+.wall__banner--top {
+    top: 0;
+    padding: 16px 32px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    font-size: clamp(0.9rem, 2.1vw, 1.35rem);
+    font-weight: 800;
+    color: #1a1205;
+    background: #e5a00d;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Bottom banner: left-aligned, laid out horizontally, over a dark fade. */
+.wall__banner--bottom {
+    bottom: 0;
+    padding: 96px 40px 34px;
+    text-align: left;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 12%, rgba(0, 0, 0, 0));
+}
+
+.wall__banner--bottom .wall__title {
+    display: block;
+    font-size: clamp(1.4rem, 3.8vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.wall__banner--bottom .wall__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+    margin-top: 10px;
+    font-size: clamp(0.95rem, 2.1vw, 1.3rem);
+}
+
+.wall__banner--bottom .wall__detail {
+    color: #d3d8e2;
+}
+
+.wall__banner--bottom .wall__detail:empty {
+    display: none;
+}
+
+.wall__banner--bottom .wall__user {
+    position: relative;
+    padding-left: 20px;
+    font-weight: 600;
+    color: #fff;
+}
+
+/* The "streaming now" dot before the user's name. */
+.wall__banner--bottom .wall__user::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #38d17a;
+    box-shadow: 0 0 10px rgba(56, 209, 122, 0.9);
+}
+
+.wall__banner--bottom .wall__user:empty {
+    display: none;
+}
+
+/* Gold accent rule under the details, echoing the top bar. */
+.wall__banner--bottom::after {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 4px;
+    margin-top: 18px;
+    border-radius: 2px;
+    background: #e5a00d;
 }
 
 .wall__empty {

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" role="img" aria-label="Live TV">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2a28"/>
+      <stop offset="0.55" stop-color="#191817"/>
+      <stop offset="1" stop-color="#0d0c0b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.7">
+      <stop offset="0" stop-color="#e5a00d" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#e5a00d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a2f1a"/>
+      <stop offset="1" stop-color="#1d1913"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="600" height="900" fill="url(#bg)"/>
+  <rect width="600" height="900" fill="url(#glow)"/>
+
+  <!-- Television + label, centered vertically as one group -->
+  <g transform="translate(300 470)">
+    <!-- antennae -->
+    <g stroke="#e5a00d" stroke-width="7" stroke-linecap="round" fill="none">
+      <path d="M-38 -150 L-96 -232"/>
+      <path d="M38 -150 L96 -232"/>
+    </g>
+    <circle cx="-96" cy="-232" r="9" fill="#e5a00d"/>
+    <circle cx="96" cy="-232" r="9" fill="#e5a00d"/>
+
+    <!-- body -->
+    <rect x="-190" y="-150" width="380" height="270" rx="26" fill="#26241f"/>
+    <rect x="-190" y="-150" width="380" height="270" rx="26" fill="none" stroke="#e5a00d" stroke-width="4"/>
+
+    <!-- screen -->
+    <rect x="-158" y="-120" width="270" height="210" rx="14" fill="url(#screen)"/>
+    <rect x="-158" y="-120" width="270" height="210" rx="14" fill="none" stroke="#b9800c" stroke-width="3"/>
+
+    <!-- LIVE pill on the screen -->
+    <g transform="translate(-23 -15)">
+      <rect x="-84" y="-31" width="168" height="62" rx="31" fill="#e0473c"/>
+      <circle cx="-46" cy="0" r="12" fill="#fff"/>
+      <text x="20" y="10" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="700" letter-spacing="3" fill="#fff">LIVE</text>
+    </g>
+
+    <!-- speaker / controls column -->
+    <g transform="translate(150 -120)">
+      <rect x="-18" y="24" width="36" height="10" rx="5" fill="#12100c"/>
+      <rect x="-18" y="48" width="36" height="10" rx="5" fill="#12100c"/>
+      <rect x="-18" y="72" width="36" height="10" rx="5" fill="#12100c"/>
+      <rect x="-18" y="96" width="36" height="10" rx="5" fill="#12100c"/>
+    </g>
+
+    <!-- label -->
+    <text x="0" y="196" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="46" font-weight="600" letter-spacing="6" fill="#e5a00d">LIVE TV</text>
+  </g>
+</svg>
