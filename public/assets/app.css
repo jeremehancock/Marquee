@@ -356,14 +356,17 @@ h1 {
     border: 1px solid var(--border);
     border-radius: 999px;
     cursor: pointer;
-    color: var(--muted);
+    color: var(--ink);
+    /* Elevated fill so an unselected choice reads as a button rather than blending
+       into the surface behind it. */
+    background: var(--surface-2);
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .choice input:checked + span {
     border-color: var(--accent);
     color: var(--ink);
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
 }
 
 .choice input:focus-visible + span {
@@ -927,7 +930,9 @@ h1 {
 .viewer__bar {
     flex: 0 0 auto;
     display: flex;
-    align-items: center;
+    /* Bottom-anchor the actions so the button row stays put when the confirm
+       step adds its question line above the buttons. */
+    align-items: flex-end;
     justify-content: center;
     min-height: 96px;
 }
