@@ -594,9 +594,9 @@ h1 {
 
 .card__actions .btn--danger:hover,
 .card__actions .btn--danger:focus-visible {
-    background: rgba(228, 120, 95, 0.16);
-    border-color: rgba(228, 120, 95, 0.7);
-    color: #e4785f;
+    background: color-mix(in srgb, #e4785f 26%, var(--surface-2));
+    border-color: rgba(228, 120, 95, 0.9);
+    color: #f3b0a1;
 }
 
 .card__actions .btn:focus-visible {
@@ -919,11 +919,17 @@ h1 {
 }
 
 .viewer--finder img {
-    max-height: calc(100% - 72px);
+    /* Reserve room for the tallest bar state (the confirm step) so switching
+       between "use/close" and the confirm does not move the image. */
+    max-height: calc(100% - 132px);
 }
 
 .viewer__bar {
     flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 96px;
 }
 
 .viewer__actions {
@@ -945,9 +951,13 @@ h1 {
     text-align: center;
 }
 
-/* Re-check button sits below the in-sync message in the orphans empty state. */
+/* Re-check button sits below the in-sync message in the orphans empty state.
+   Lift it onto the elevated tone with a clear border so it reads as a button and
+   does not blend into the panel. */
 .panel [data-action="recheck"] {
     margin-top: 14px;
+    background: var(--surface-2);
+    border-color: #4b515b;
 }
 
 /* Mobile action sheet: a poster's actions slide up from the bottom. */

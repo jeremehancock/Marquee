@@ -108,10 +108,10 @@
             </form>
 
             <div x-show="change.tab === 'find'">
-                <p class="stats" x-show="finder.loading">Searching posteria.app…</p>
+                <p class="stats" x-show="finder.loading">Finding posters…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
                 <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
-                    Tap a poster to preview it full screen, then choose to use it.
+                    Tap a poster to preview it.
                 </p>
                 <div class="find-grid">
                     <template x-for="url in finder.results" :key="url">
