@@ -62,6 +62,12 @@ body {
     align-items: center;
 }
 
+/* Nav-item icons show only in the mobile menu tray; the desktop toolbar keeps
+   plain text buttons. */
+.nav-ico {
+    display: none;
+}
+
 /* Mobile menu button: hidden on desktop, revealed on narrow screens (see the
    max-width media query below). The desktop keeps the plain Log out link. */
 .menu-btn {
@@ -949,6 +955,16 @@ h1 {
     padding: 11px 18px;
 }
 
+/* Fixed widths per role so the row is the same size in both states ("Use this
+   poster" vs "Change poster", "Close" vs "Cancel") and nothing shifts sideways. */
+.viewer__actions .btn--accent {
+    min-width: 168px;
+}
+
+.viewer__actions .btn:not(.btn--accent) {
+    min-width: 104px;
+}
+
 .viewer__ask {
     color: var(--ink);
     font-weight: 600;
@@ -1095,11 +1111,24 @@ h1 {
     gap: 8px;
 }
 
+/* Menu items read like a native app menu: full-width rows with a leading icon and
+   a left-aligned label, on the elevated tray-button surface. */
 .menu__body .btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 13px;
     width: 100%;
-    text-align: center;
-    padding: 13px 12px;
+    text-align: left;
+    padding: 13px 15px;
     font-size: 0.95rem;
+}
+
+.menu__body .nav-ico {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--accent);
 }
 
 /* Product name + version pinned at the bottom of the menu tray (the page footer
