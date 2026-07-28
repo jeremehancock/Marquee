@@ -17,6 +17,11 @@ and the inline sort control SHALL remain in the toolbar exactly as before.
 - **WHEN** the gallery is viewed on a narrow (phone-width) screen
 - **THEN** the tabs, toolbar, and poster grid fit without horizontal page overflow
 
+#### Scenario: Tabs fit on a phone
+- **WHEN** the gallery is viewed on a narrow screen with all five tabs present
+- **THEN** the tabs all fit on screen without overflowing the page width or
+  crowding the other controls (see the native-style bottom tab bar)
+
 #### Scenario: Secondary navigation is behind the menu on a phone
 - **WHEN** the gallery is viewed on a narrow screen
 - **THEN** the Poster Wall, Import from Plex, and Orphans actions are not shown in
@@ -27,6 +32,8 @@ and the inline sort control SHALL remain in the toolbar exactly as before.
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
 - **THEN** the secondary navigation actions and the inline sort control render in
   the gallery toolbar as they did before this change
+
+## ADDED Requirements
 
 ### Requirement: Native-style category tab bar on small screens
 On a narrow screen the category tabs SHALL be presented as a fixed, always-visible
