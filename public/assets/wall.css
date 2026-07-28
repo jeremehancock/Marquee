@@ -18,6 +18,9 @@ body {
 .wall__layer {
     position: absolute;
     inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     opacity: 0;
     transition: opacity 1.2s ease;
 }
@@ -35,15 +38,25 @@ body {
     transform: scale(1.15);
 }
 
-.wall__poster {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    max-width: 92%;
+/* The poster's own box: a portrait frame the banners are pinned to, so they
+   never spill past the poster onto the letterboxed background. Plex posters
+   are 2:3, so the frame is too. */
+.wall__frame {
+    position: relative;
+    height: 92%;
     max-height: 92%;
-    object-fit: contain;
+    max-width: 92%;
+    aspect-ratio: 2 / 3;
     border-radius: 6px;
+    overflow: hidden;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.wall__poster {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .wall__banner {
