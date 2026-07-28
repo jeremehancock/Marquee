@@ -96,6 +96,27 @@ body {
     text-align: center;
 }
 
+/* The product name in either footer links to the project site. Both are muted
+   credit lines, so the link inherits their color instead of reading as a
+   default browser link. */
+.footer a,
+.menu__footer a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.footer a:hover,
+.menu__footer a:hover {
+    text-decoration: underline;
+}
+
+.footer a:focus-visible,
+.menu__footer a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .panel {
     background: var(--surface);
     border: 1px solid var(--border);

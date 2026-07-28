@@ -21,6 +21,9 @@
                 {{ nav.logout_link(true) }}
             {% endif %}
         </div>
-        <div class="menu__footer">{{ app_name }} &middot; v{{ app_version }}<span class="js-update-note"></span></div>
+        {# Sits outside .sheet__body, so it closes the tray itself — matching how
+           every other new-tab destination in the tray behaves. #}
+        <div class="menu__footer"><a href="https://marquee.dumbprojects.com" target="_blank"
+                rel="noopener" @click="menuOpen = false">{{ app_name }}</a> &middot; v{{ app_version }}<span class="js-update-note"></span></div>
     </div>
 </div>
