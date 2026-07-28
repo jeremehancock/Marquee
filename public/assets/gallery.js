@@ -104,11 +104,14 @@
     // scrollable body) dismisses the sheet by reusing that same backdrop close, so
     // the gesture works for every tray — poster actions, menu, sort, import —
     // without knowing which Alpine scope owns it.
+    // Applies to both trays (.sheet, dragged from the grab handle or head) and the
+    // app-style mobile modals (.modal, dragged from the head above its handle),
+    // each dismissed by clicking its own backdrop.
     (function () {
         var drag = null;
         document.addEventListener('touchstart', function (e) {
-            var grip = e.target.closest('.sheet__grip, .sheet__head');
-            var panel = grip && grip.closest('.sheet__panel');
+            var grip = e.target.closest('.sheet__grip, .sheet__head, .modal__head');
+            var panel = grip && grip.closest('.sheet__panel, .modal__panel');
             if (!panel) { return; }
             drag = { panel: panel, startY: e.touches[0].clientY, dy: 0, h: panel.offsetHeight };
             panel.style.transition = 'none';
@@ -128,8 +131,8 @@
             panel.style.transition = '';
             panel.style.transform = '';
             if (dismissed) {
-                var sheet = panel.closest('.sheet');
-                var backdrop = sheet && sheet.querySelector('.sheet__backdrop');
+                var overlay = panel.closest('.sheet, .modal');
+                var backdrop = overlay && overlay.querySelector('.sheet__backdrop, .modal__backdrop');
                 if (backdrop) { backdrop.click(); }
             }
             drag = null;
@@ -554,7 +557,7 @@
             var next = infinite.page + 1;
             var params = new URLSearchParams(window.location.search);
             params.set('page', next);
-            fetch(base + '?' + params.toString(), { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+            fetch(window.location.pathname + '?' + params.toString(), { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
@@ -648,7 +651,9 @@
                 clearTimeout(timer);
                 timer = setTimeout(function () {
                     var q = search.value.trim();
-                    load(base + (q ? '?q=' + encodeURIComponent(q) : ''), true);
+                    // Use the live pathname, not the page-load base: a no-reload tab
+                    // switch changes the view without replacing the toolbar.
+                    load(window.location.pathname + (q ? '?q=' + encodeURIComponent(q) : ''), true);
                 }, 250);
             });
         }
@@ -687,6 +692,22 @@
                     });
                     return;
                 }
+            }
+            // Sorting must stay on the current view. The sort links are rendered
+            // once and go stale after a no-reload tab switch (the toolbar is not
+            // re-rendered), so rebuild the URL from the live pathname rather than
+            // trusting the link's href, which could still point at the old view.
+            var sortLink = e.target.closest('a[data-sort]');
+            if (sortLink && root.contains(sortLink)) {
+                e.preventDefault();
+                var sortQ = search ? search.value.trim() : '';
+                // Full navigation so the sort control's active state (in the
+                // toolbar, outside #results) re-renders correctly too.
+                window.location.assign(
+                    window.location.pathname + '?sort=' + encodeURIComponent(sortLink.getAttribute('data-sort'))
+                    + (sortQ ? '&q=' + encodeURIComponent(sortQ) : '')
+                );
+                return;
             }
             // Switching views (tabs) keeps the active search: rebuild the tab's
             // URL with the live query so the new view opens filtered, and load it

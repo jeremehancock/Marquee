@@ -111,6 +111,11 @@ stays uncluttered.
 - **WHEN** the user chooses a sort order from the tray
 - **THEN** the gallery is ordered accordingly
 
+#### Scenario: Sorting stays on the current view
+- **WHEN** the user changes the sort order after switching to a category
+- **THEN** the gallery re-sorts within that same category rather than reverting to
+  the aggregate All view
+
 ### Requirement: Import from Plex via a tray on small screens
 On a touch device viewing the gallery, choosing Import from Plex SHALL open the
 import experience in a tray over the gallery rather than navigating to a separate

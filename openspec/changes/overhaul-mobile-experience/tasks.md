@@ -102,3 +102,16 @@
   page footer on mobile, and update the version note in every instance.
 - [x] 8.3 Make modals app-like on mobile: dock to the bottom as a sheet and slide
   up, with large, full-width, stacked actions (primary/destructive on top).
+
+## 9. Native-app polish (fifth pass)
+
+- [x] 9.1 Fix the CSS cascade bug: move the mobile `@media` block to the end of the
+  file so its overrides win over base rules defined later (.pagination, .modal,
+  .sheet) — this is why pagination showed on mobile and the modals never docked.
+- [x] 9.2 Modals fully app-like: grab handle instead of a close (×), swipe-down to
+  dismiss (generalised the tray gesture to modals), stacked full-width actions.
+- [x] 9.3 Native styling for the import form in its tray: media-type choices as
+  filling pills, libraries as tappable rows, a full-width Import button.
+- [x] 9.4 Fix sort resetting to the All view: the toolbar goes stale after a
+  no-reload tab switch, so sort now rebuilds its URL from the live pathname (and
+  search does the same), keeping the current tab.

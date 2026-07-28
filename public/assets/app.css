@@ -703,163 +703,9 @@ h1 {
     }
 }
 
-/* Mobile: keep the layout from overflowing and shrink oversized posters. */
-@media (max-width: 640px) {
-    .container {
-        padding: 20px 14px;
-    }
-
-    /* Leave room for the fixed bottom tab bar so the last posters are never
-       hidden behind it. */
-    body {
-        padding-bottom: calc(76px + env(safe-area-inset-bottom));
-    }
-
-    /* The version footer moves into the menu tray on a phone. */
-    .footer {
-        display: none;
-    }
-
-    /* Tabs become a native-style bottom tab bar: pinned to the bottom of the
-       screen, always visible, all five sharing the width as equal columns, each
-       an icon over a short label. */
-    .tabs {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 40;
-        display: flex;
-        gap: 0;
-        margin: 0;
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        border-bottom: none;
-        padding-bottom: env(safe-area-inset-bottom);
-    }
-
-    .tab {
-        flex: 1 1 0;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 9px 2px;
-        font-size: 0.68rem;
-        text-align: center;
-        border-bottom: none;
-    }
-
-    .tab__icon {
-        display: block;
-    }
-
-    .tab__icon .icon {
-        width: 26px;
-        height: 26px;
-    }
-
-    .tab__text {
-        display: none;
-    }
-
-    .tab__text--short {
-        display: block;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .tab--active {
-        color: var(--accent);
-    }
-
-    /* Reveal the menu button; the desktop Log out link moves into the tray. */
-    .menu-btn {
-        display: flex;
-    }
-
-    .topnav__desktop {
-        display: none;
-    }
-
-    /* Keep the phone gallery focused on posters: the secondary navigation lives
-       in the menu tray and sort moves into its own tray, so the toolbar is just
-       search plus the sort trigger sharing one row. */
-    .search {
-        flex: 1 1 auto;
-    }
-
-    .sort-trigger {
-        display: inline-flex;
-    }
-
-    .sort,
-    .toolbar__actions {
-        display: none;
-    }
-
-    /* Smaller posters: at least two per row on a phone. */
-    .grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 12px;
-    }
-
-    .find-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    }
-
-    /* Infinite scroll replaces pagination on a phone: pages are appended as the
-       sentinel nears the viewport, so the page controls are hidden. */
-    .pagination {
-        display: none;
-    }
-
-    /* Lift toasts above the fixed bottom tab bar. */
-    .toast {
-        bottom: calc(88px + env(safe-area-inset-bottom));
-    }
-
-    /* Modals (delete confirmations, change poster) dock to the bottom like an app
-       sheet and slide up, with large, full-width, stacked actions — the primary
-       or destructive one on top, Cancel beneath it. */
-    .modal {
-        align-items: flex-end;
-    }
-
-    .modal__panel,
-    .modal__panel--narrow,
-    .modal__panel--wide {
-        width: 100%;
-        max-width: none;
-        max-height: 90vh;
-        overflow-y: auto;
-        border-radius: 16px 16px 0 0;
-        padding: 22px 18px calc(20px + env(safe-area-inset-bottom));
-        animation: sheet-up 0.2s ease;
-    }
-
-    .modal__actions {
-        flex-direction: column-reverse;
-        gap: 8px;
-        margin-top: 22px;
-    }
-
-    .modal__actions form {
-        display: block;
-        width: 100%;
-    }
-
-    .modal__actions .btn,
-    .modal__actions form .btn {
-        width: 100%;
-        padding: 13px 12px;
-        font-size: 0.95rem;
-        text-align: center;
-    }
-}
+/* NOTE: the mobile `@media (max-width: 640px)` block lives at the END of this
+   file so its overrides win over every base component rule (several of which —
+   .pagination, .modal, .sheet — are defined below this point). */
 
 /* Infinite-scroll sentinel (phone). It must occupy layout so the
    IntersectionObserver can see it, so it always reserves a little height; only
@@ -1196,5 +1042,262 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
     .sheet__panel {
         animation: none;
+    }
+}
+
+/* ==========================================================================
+   Mobile overrides. Placed last so they win over every base component rule
+   (.pagination, .modal, .sheet, … are defined above), which a mid-file media
+   query could not do at equal specificity.
+   ========================================================================== */
+@media (max-width: 640px) {
+    .container {
+        padding: 20px 14px;
+    }
+
+    /* Room for the fixed bottom tab bar so the last posters are never hidden. */
+    body {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+
+    /* The version footer moves into the menu tray on a phone. */
+    .footer {
+        display: none;
+    }
+
+    /* Tabs become a native-style bottom tab bar: pinned to the bottom, always
+       visible, all five sharing the width as equal icon-over-label columns. */
+    .tabs {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        display: flex;
+        gap: 0;
+        margin: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-bottom: none;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .tab {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 9px 2px;
+        font-size: 0.68rem;
+        text-align: center;
+        border-bottom: none;
+    }
+
+    .tab__icon {
+        display: block;
+    }
+
+    .tab__icon .icon {
+        width: 26px;
+        height: 26px;
+    }
+
+    .tab__text {
+        display: none;
+    }
+
+    .tab__text--short {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tab--active {
+        color: var(--accent);
+    }
+
+    /* Reveal the menu button; the desktop Log out link moves into the tray. */
+    .menu-btn {
+        display: flex;
+    }
+
+    .topnav__desktop {
+        display: none;
+    }
+
+    /* The toolbar is just search plus the sort trigger; the rest moved to trays. */
+    .search {
+        flex: 1 1 auto;
+    }
+
+    .sort-trigger {
+        display: inline-flex;
+    }
+
+    .sort,
+    .toolbar__actions {
+        display: none;
+    }
+
+    /* At least two posters per row on a phone. */
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .find-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+
+    /* Infinite scroll replaces pagination on a phone. */
+    .pagination {
+        display: none;
+    }
+
+    /* Lift toasts above the fixed bottom tab bar. */
+    .toast {
+        bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+
+    /* Modals (delete confirmations, change poster) become app-style sheets: they
+       dock to the bottom and slide up, show a grab handle instead of a close (×)
+       button, can be swiped down to dismiss, and stack large full-width actions
+       with the primary/destructive one on top. */
+    .modal {
+        align-items: flex-end;
+    }
+
+    .modal__panel,
+    .modal__panel--narrow,
+    .modal__panel--wide {
+        width: 100%;
+        max-width: none;
+        max-height: 90vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+        animation: sheet-up 0.2s ease;
+        transition: transform 0.2s ease;
+    }
+
+    .modal__panel::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 5px;
+        margin: 8px auto 14px;
+        border-radius: 999px;
+        background: #4b4f57;
+    }
+
+    .modal__close {
+        display: none;
+    }
+
+    .modal__head {
+        touch-action: none;
+    }
+
+    .modal__actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+        margin-top: 22px;
+    }
+
+    .modal__actions form {
+        display: block;
+        width: 100%;
+    }
+
+    .modal__actions .btn,
+    .modal__actions form .btn {
+        width: 100%;
+        padding: 13px 12px;
+        font-size: 0.95rem;
+        text-align: center;
+    }
+
+    /* Native-app styling for the import form inside its tray: the media-type
+       choices become selectable pills and the libraries become tappable rows,
+       instead of bare radio buttons and checkboxes. Scoped to a tray body so the
+       desktop /plex page keeps its own form styling. */
+    .sheet__body .panel {
+        background: none;
+        border: none;
+        padding: 0;
+    }
+
+    .sheet__body .fieldset {
+        border: none;
+        padding: 0;
+        margin: 0 0 18px;
+    }
+
+    .sheet__body .fieldset legend {
+        padding: 0;
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .sheet__body .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Build on the base pill (.choice span) — just make the pills fill the row
+       and grow the tap target; the base handles the checked highlight. */
+    .sheet__body .choice {
+        flex: 1 1 auto;
+        display: flex;
+    }
+
+    .sheet__body .choice span {
+        flex: 1;
+        padding: 13px 16px;
+    }
+
+    .sheet__body .check {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 13px 14px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-2);
+        cursor: pointer;
+    }
+
+    .sheet__body .check input {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        accent-color: var(--accent);
+    }
+
+    .sheet__body .check__meta {
+        width: 100%;
+        padding-left: 30px;
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    .sheet__body .check__hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .sheet__body form .btn--accent {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+        margin-top: 8px;
     }
 }

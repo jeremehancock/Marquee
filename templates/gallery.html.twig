@@ -60,10 +60,10 @@
         <div class="sort" role="group" aria-label="Sort order">
             <span class="sort__label">Sort</span>
             <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=alphabetical{{ sort_q }}"
+               href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
                {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
             <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=date_added{{ sort_q }}"
+               href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
                {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
         </div>
         <div class="toolbar__actions">
@@ -142,10 +142,10 @@
             <div class="sheet__head"><span class="sheet__title">Sort</span></div>
             <div class="sheet__body menu__body">
                 <a class="btn {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=alphabetical{{ sort_q }}"
+                   href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
                    {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
                 <a class="btn {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=date_added{{ sort_q }}"
+                   href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
                    {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
             </div>
         </div>
