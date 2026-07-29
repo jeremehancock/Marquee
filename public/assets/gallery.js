@@ -659,6 +659,11 @@
             var el = doc.querySelector('.alert');
             return el ? el.textContent.trim() : '';
         }
+        function extractTitle(doc) {
+            var el = doc.querySelector('title');
+            var text = el ? el.textContent.trim() : '';
+            return text || null;
+        }
 
         function load(url, push) {
             root.classList.add('is-loading');
@@ -668,6 +673,13 @@
                     var doc = new DOMParser().parseFromString(html, 'text/html');
                     var inner = extractResults(doc);
                     if (inner !== null) { setResults(inner); }
+                    // The server already renders the right title for the view
+                    // being fetched, so carry it over rather than rebuilding it
+                    // here. Set before the pushState branch: a back/forward or
+                    // refresh load changes the view too, and its title must
+                    // follow.
+                    var title = extractTitle(doc);
+                    if (title !== null) { document.title = title; }
                     if (push) { history.pushState({}, '', url); }
                 })
                 .catch(function () {})
