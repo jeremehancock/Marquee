@@ -285,3 +285,10 @@ Jereme Hancock. Built with the help of AI.
 
 **Find Posters** is served by [posteria.app](https://posteria.app), an online
 poster search service.
+
+## Support Development
+
+Marquee is free and self-hosted, and it stays that way. If it has been useful to
+you and you'd like to help keep it maintained, you can support development at
+[getmarquee.now/#support](https://getmarquee.now/#support). Feedback and bug
+reports are just as welcome.
