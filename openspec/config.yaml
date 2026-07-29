@@ -11,7 +11,8 @@ context: |
   requirement with the old on-disk layout.
 
   Tech stack:
-    - PHP 8.3+ (targets 8.3; dev runs 8.4), Composer, PSR-4 autoload (App\).
+    - PHP 8.4 (composer requires >=8.4 and pins platform 8.4.0, matching the
+      runtime image and CI), Composer, PSR-4 autoload (App\).
     - Slim 4 (PSR-7 / PSR-15) for routing and middleware.
     - Twig for server-rendered templates; Alpine.js + ES modules for
       interactivity. No Node build step in the runtime image.

@@ -282,7 +282,9 @@ php -S localhost:8080 -t public public/index.php
 ```
 
 See [`docs/development-workflow.md`](docs/development-workflow.md) for the
-VSCodium + Claude Code + OpenSpec setup and the `dev`/`main` branch flow, and
+VSCodium + Claude Code + OpenSpec setup and the `dev`/`main` branch flow,
+[`docs/docker.md`](docs/docker.md) for how the image sets the PHP version and
+how to smoke-test a Dockerfile change locally, and
 [`docs/testing.md`](docs/testing.md) for validating the live Plex round-trip
 (poster locking and the Kometa label), including the
 [`scripts/marquee-plex-test.py`](scripts/marquee-plex-test.py) tester.
