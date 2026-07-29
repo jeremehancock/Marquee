@@ -61,6 +61,17 @@ docker rm -f marquee-test && docker rmi marquee:ci-test
 
 ---
 
+## Keeping repo-only files out of the image
+
+The Dockerfile does `COPY . /app/www/`, so anything not listed in
+`.dockerignore` ends up in the image. When adding a directory that exists only
+for developers — docs, specs, tooling — add it to `.dockerignore` too.
+
+Watch the glob rule: **`*` does not match across `/`**, so the `*.md` entry
+excludes `README.md` and `CLAUDE.md` at the root but *not* `docs/anything.md`.
+Ignore the directory by name (`docs`) rather than relying on the extension
+pattern. Use `**/*.md` if you want Markdown excluded at any depth.
+
 ## Other image notes
 
 - **Env var changes require recreating the container** (`docker compose up -d`),
