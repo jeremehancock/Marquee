@@ -16,20 +16,20 @@
   the correct per-view title — verified server-side for all five tabs plus a
   search and a paginated URL (`All ·`, `Movies ·`, `TV Shows ·`,
   `TV Seasons ·`, `Collections ·`, each with `#results` present)
-- [ ] 2.1 Switch between All, Movies, TV Shows, TV Seasons, and Collections and
+- [x] 2.1 Switch between All, Movies, TV Shows, TV Seasons, and Collections and
   confirm the browser tab title changes to match each view with no refresh
-- [ ] 2.2 Type a search query, then clear it, and confirm the title still names
+- [x] 2.2 Type a search query, then clear it, and confirm the title still names
   the current view
-- [ ] 2.3 Move between pages with the pagination control and confirm the title
+- [x] 2.3 Move between pages with the pagination control and confirm the title
   stays correct
-- [ ] 2.4 Use browser back and forward across several tab switches and confirm
+- [x] 2.4 Use browser back and forward across several tab switches and confirm
   the title, the active tab, and the search box all match the restored view
-- [ ] 2.5 Confirm a bookmark taken after a tab switch is labelled with the
+- [x] 2.5 Confirm a bookmark taken after a tab switch is labelled with the
   displayed view rather than the previous one
 
-NOTE: 2.1–2.5 need a live browser against a real Plex-backed library and were
-not run in the implementation session (no browser automation available here).
-2.0 covers the server half of each of them.
+NOTE: 2.1–2.5 were verified by the maintainer against the `:dev` image; they
+need a live browser and a real Plex-backed library, so they were not run in the
+implementation session.
 
 ## 3. Checks
 
