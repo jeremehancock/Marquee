@@ -56,10 +56,19 @@ final class NowPlayingTile
     /**
      * Live TV (and any video session missing library art) uses the placeholder
      * sentinel; everything else gets a signed token for its Plex poster path.
+     *
+     * A thumb that is not a Plex-relative path — artwork hosted by a DVR tuner,
+     * say — also falls back to the placeholder. Signing it would mint a token
+     * that {@see StreamToken::thumbFor()} is bound to refuse, leaving the wall
+     * with a poster URL that can never resolve.
      */
     private static function tokenFor(PlexSession $session, StreamToken $token): string
     {
         if ($session->type === PlexSessionType::LiveTv || $session->thumb === null || $session->thumb === '') {
+            return StreamToken::LIVE;
+        }
+
+        if (!str_starts_with($session->thumb, '/')) {
             return StreamToken::LIVE;
         }
 

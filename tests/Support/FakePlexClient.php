@@ -25,6 +25,7 @@ final class FakePlexClient implements PlexClient
      * @param array<array-key, list<PlexItem>> $collectionsByKey keyed by library key
      * @param list<string>                     $failingKeys      rating keys that fail download
      * @param list<PlexSession>                $sessions         active playback sessions
+     * @param list<string>                     $failingThumbs    thumb paths whose poster fetch fails
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -34,6 +35,7 @@ final class FakePlexClient implements PlexClient
         private readonly array $failingKeys = [],
         private readonly bool $configured = true,
         private readonly array $sessions = [],
+        private readonly array $failingThumbs = [],
     ) {
     }
 
@@ -92,6 +94,10 @@ final class FakePlexClient implements PlexClient
 
     public function sessionPoster(string $thumb): string
     {
+        if (in_array($thumb, $this->failingThumbs, true)) {
+            throw PlexException::connectionFailed();
+        }
+
         return $this->png();
     }
 

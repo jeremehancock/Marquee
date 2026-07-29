@@ -8,6 +8,12 @@
     var ROTATE_MS = 8000;
     var STREAM_POLL_MS = 10000;
     var REFILL_AT = 5;
+    // The bundled placeholder, served for any stream whose poster cannot be
+    // resolved. Standing in for a failed poster keeps a tile from going blank.
+    var PLACEHOLDER = '/wall/stream-poster/live';
+    // How many unloadable posters to skip in one tick before giving up, so a
+    // batch that is wholly unreachable cannot spin the rotation.
+    var MAX_SKIPS = 5;
     var fetching = false;
 
     // Now-playing state. `streams` is the latest poll result; `streamIndex`
@@ -58,17 +64,22 @@
         active = next;
     }
 
-    function showStream(tile) {
+    // `src` is passed separately from the tile so a stream whose poster failed
+    // to load can keep its overlays while showing the placeholder.
+    function showStream(tile, src) {
         var next = (active + 1) % layers.length;
         var incoming = layers[next];
         incoming.querySelector('.wall__title').textContent = tile.title || '';
         incoming.querySelector('.wall__detail').textContent = tile.detail || '';
         incoming.querySelector('.wall__user').textContent = tile.user || '';
-        reveal(tile.poster, true);
+        reveal(src, true);
     }
 
     // Advance the random wall by one poster, refilling the queue as it drains.
-    function rotateRandom() {
+    // A poster that will not load is skipped rather than revealed as a broken
+    // frame; `skipped` bounds how many times that can happen in one tick.
+    function rotateRandom(skipped) {
+        var tries = skipped || 0;
         var maybeRefill = queue.length <= REFILL_AT ? fetchBatch() : Promise.resolve();
         return maybeRefill.then(function () {
             if (queue.length === 0) {
@@ -77,7 +88,13 @@
             }
             if (emptyMessage) { emptyMessage.hidden = true; }
             var src = queue.shift();
-            return preload(src).then(function () { reveal(src, false); });
+            return preload(src).then(function (ok) {
+                if (ok) {
+                    reveal(src, false);
+                } else if (tries < MAX_SKIPS) {
+                    return rotateRandom(tries + 1);
+                }
+            });
         });
     }
 
@@ -97,7 +114,9 @@
             return Promise.resolve();
         }
         shownKey = key;
-        return preload(tile.poster).then(function () { showStream(tile); });
+        return preload(tile.poster).then(function (ok) {
+            showStream(tile, ok ? tile.poster : PLACEHOLDER);
+        });
     }
 
     function rotate() {
