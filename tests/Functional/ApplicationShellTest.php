@@ -68,7 +68,7 @@ final class ApplicationShellTest extends AppTestCase
             preg_match('#' . preg_quote($open, '#') . '<a ([^>]*)>#s', $body, $m);
             $attributes = $m[1] ?? '';
 
-            self::assertStringContainsString('href="https://marquee.dumbprojects.com"', $attributes);
+            self::assertStringContainsString('href="https://getmarquee.now"', $attributes);
             self::assertStringContainsString('target="_blank"', $attributes);
             self::assertStringContainsString('rel="noopener"', $attributes);
         }
