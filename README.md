@@ -225,12 +225,21 @@ opens a full-size action sheet.
 
 ## Security considerations
 
-- **Change the default username and password.**
+Marquee protects your poster collection with basic authentication — set your
+username and password in `docker-compose.yml` before you start it. All
+communication with your Plex server is done securely using your Plex
+authentication token.
+
+- **Change the default username and password**, and pick a strong one.
 - **Use HTTPS** (behind a reverse proxy) if you expose Marquee to the internet.
 - **Back up your `/config` directory** regularly.
 
 Only enable `AUTH_BYPASS` on a network you fully trust — it disables login
 entirely.
+
+If you want to reach Marquee from outside your network, prefer a VPN over
+opening a port to the internet. <a href="https://www.tailscale.com/" target="_blank" rel="noopener">Tailscale™</a>
+or a similar solution keeps it off the public internet entirely.
 
 ## Development
 
@@ -281,7 +290,7 @@ openspec archive <change>     # fold an implemented change into the specs
 ## Acknowledgements
 
 Marquee is a rewrite of [Posteria](https://github.com/jeremehancock/Posteria) by
-Jereme Hancock. Built with the help of AI.
+Jereme Hancock.
 
 **Find Posters** is served by [posteria.app](https://posteria.app), an online
 poster search service.
@@ -292,3 +301,7 @@ Marquee is free and self-hosted, and it stays that way. If it has been useful to
 you and you'd like to help keep it maintained, you can support development at
 [getmarquee.now/#support](https://getmarquee.now/#support). Feedback and bug
 reports are just as welcome.
+
+## AI Disclosure
+
+This project was created with the help of AI.
