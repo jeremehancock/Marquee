@@ -79,7 +79,9 @@ matches. Common triggers — treat as prompts to go read, not a whitelist:
 | `.github/workflows/*` (CI/publish behavior, tags, release flow) | `docs/development-workflow.md` (Branches & tags, Promoting & releasing, Notes) and the README "Docker images" section |
 | Environment variables / config surface (`src/**Config**`, bootstrap, compose examples) | README config/env tables and any `docs/` setup steps |
 | `composer.json` scripts / quality gates | the toolchain commands in `docs/development-workflow.md` (Part 1, cheat sheet) and README |
-| `.claude/commands/*` or the OpenSpec flow | the command tables and mental-model in `docs/development-workflow.md` |
+| `.claude/commands/*` or the OpenSpec flow | the command tables and mental-model in `docs/development-workflow.md`, and the `/ship` section of `CLAUDE.md` |
+| `Dockerfile`, the PHP version, or the image build | `docs/docker.md` (base-tag rule, the PHP-bump checklist) and the PHP versions in `README.md` / `openspec/config.yaml` |
+| Conventions, gates, or workflow rules an agent must follow | `CLAUDE.md` — it is loaded into every session, so a stale rule there misleads silently |
 | A new top-level directory or moved layout | the "Repo layout" tree in `docs/development-workflow.md` |
 | User-facing features, routes, or behavior | README feature list / usage and any relevant `docs/` page |
 

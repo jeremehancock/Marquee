@@ -136,6 +136,10 @@ Keep these green — CI runs the same on every push.
 - **`.claude/commands/opsx/`** — the OpenSpec slash commands, committed to the
   repo, so Claude Code has them the moment you open the folder: `/opsx:explore`,
   `/opsx:propose`, `/opsx:apply`, `/opsx:update`, `/opsx:sync`, `/opsx:archive`.
+- **`CLAUDE.md`** — loaded into every Claude Code session automatically. It
+  carries the rules that apply while working (spec-first, the quality gates, the
+  code conventions) and points here for the rest; `.claude/commands/ship.md`
+  stays the authority on the release flow itself.
 
 ### Install the OpenSpec CLI
 
@@ -427,13 +431,14 @@ git checkout dev && git fetch origin && git merge --ff-only origin/main && git p
 
 ```
 Marquee/
+├─ CLAUDE.md          # always-loaded project rules for Claude Code
 ├─ public/            # web root (index.php, assets, sw.js)
 ├─ src/               # PHP: controllers, services, Plex client, config, DB
 ├─ templates/         # Twig views + partials/
 ├─ tests/             # PHPUnit (Unit, Functional)
 ├─ docker/            # s6 services, nginx conf, auto-import cron
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
-├─ docs/              # this file + testing.md
+├─ docs/              # this file + testing.md + docker.md
 ├─ openspec/          # config.yaml, specs/, changes/
 └─ .claude/commands/  # the /opsx:* slash commands
 ```
