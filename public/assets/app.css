@@ -408,6 +408,10 @@ h1 {
     gap: 18px;
 }
 
+/* Loading dim for an in-place view change. These values are only half the
+   story: the class is applied on a delay and held for a minimum by the busy
+   tracker in gallery.js, so a fast tab switch never reaches this rule at all.
+   Retune the timing there, not here. */
 [data-gallery].is-loading #results {
     opacity: 0.55;
     transition: opacity 0.1s ease;
