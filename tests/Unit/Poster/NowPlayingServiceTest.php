@@ -80,6 +80,27 @@ final class NowPlayingServiceTest extends TestCase
         self::assertSame('/wall/stream-poster/' . StreamToken::LIVE, $tiles[0]->posterUrl);
     }
 
+    /**
+     * The wall must never mint a token the poster proxy is bound to refuse, so
+     * a thumb that is not a Plex path falls back to the placeholder.
+     */
+    public function testNonPlexThumbFallsBackToThePlaceholderToken(): void
+    {
+        $tiles = $this->service([
+            new PlexSession(
+                PlexSessionType::Episode,
+                'Evening News',
+                'jereme',
+                false,
+                'https://tuner.example/api/programs/abc/artwork/poster',
+                grandparentTitle: 'Channel 4',
+            ),
+        ])->tiles();
+
+        self::assertSame('/wall/stream-poster/' . StreamToken::LIVE, $tiles[0]->posterUrl);
+        self::assertSame('Channel 4', $tiles[0]->title);
+    }
+
     public function testNoTilesWhenPlexUnconfigured(): void
     {
         self::assertSame([], $this->service([

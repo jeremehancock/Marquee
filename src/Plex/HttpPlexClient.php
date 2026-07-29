@@ -187,6 +187,21 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         $live = ((string) $node['live']) === '1';
         $user = $this->attr($node->User, 'title') ?? '';
 
+        // Live television is recognised by Plex's `live` flag rather than by
+        // media type. A DVR tuner reports its programmes as movies or episodes
+        // and points their artwork at the tuner rather than at the library, so
+        // type alone would send them down the library-art path. Music is exempt
+        // so live radio stays music and stays off the wall.
+        if ($live && $rawType !== 'track') {
+            return new PlexSession(
+                type: PlexSessionType::LiveTv,
+                title: (string) $node['title'],
+                user: $user,
+                live: true,
+                grandparentTitle: $this->attr($node, 'grandparentTitle'),
+            );
+        }
+
         return match ($rawType) {
             'movie' => new PlexSession(
                 type: PlexSessionType::Movie,
@@ -206,15 +221,8 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
                 seasonNumber: $this->intAttr($node, 'parentIndex'),
                 episodeNumber: $this->intAttr($node, 'index'),
             ),
-            'clip' => $live
-                ? new PlexSession(
-                    type: PlexSessionType::LiveTv,
-                    title: (string) $node['title'],
-                    user: $user,
-                    live: true,
-                    grandparentTitle: $this->attr($node, 'grandparentTitle'),
-                )
-                : new PlexSession(PlexSessionType::Other, (string) $node['title'], $user, $live),
+            // A clip that is not live is a trailer or extra, which the wall
+            // ignores; the live case is handled above.
             'track' => new PlexSession(PlexSessionType::Music, (string) $node['title'], $user, $live),
             default => new PlexSession(PlexSessionType::Other, (string) $node['title'], $user, $live),
         };

@@ -25,6 +25,24 @@ final class PosterWallController
 {
     private const BATCH_SIZE = 30;
 
+    /**
+     * The Live TV sentinel always resolves to the same bundled art, so it caches
+     * for as long as anything here does.
+     */
+    private const LIVE_TV_CACHE = 'private, max-age=3600';
+
+    /**
+     * A placeholder standing in for art that could not be fetched must expire
+     * quickly. A poster token is deterministic for a given item, so a long cache
+     * would pin that item to the placeholder for the whole cache lifetime, well
+     * after Plex recovered, with nothing to trigger a retry.
+     *
+     * Short rather than uncacheable: one reveal touches the poster URL three
+     * times (the preload probe, the img, and the background), so `no-store`
+     * would triple the requests on the path that is already failing.
+     */
+    private const FALLBACK_CACHE = 'private, max-age=10';
+
     public function __construct(
         private readonly Twig $twig,
         private readonly PosterWallService $wall,
@@ -76,12 +94,15 @@ final class PosterWallController
         $id = $args['id'] ?? '';
 
         if ($this->token->isLive($id)) {
-            return $this->placeholder($request, $response);
+            return $this->placeholder($request, $response, self::LIVE_TV_CACHE);
         }
 
+        // An unresolvable token — unsigned, tampered with, or carrying a path
+        // the proxy will not fetch — falls back to the placeholder rather than
+        // erroring, so a now-playing tile never renders without a poster.
         $thumb = $this->token->thumbFor($id);
         if ($thumb === null) {
-            throw new HttpNotFoundException($request);
+            return $this->placeholder($request, $response, self::FALLBACK_CACHE);
         }
 
         try {
@@ -89,7 +110,7 @@ final class PosterWallController
         } catch (PlexException) {
             // The stream may have ended between the poll and this request; fall
             // back to the placeholder rather than erroring the display.
-            return $this->placeholder($request, $response);
+            return $this->placeholder($request, $response, self::FALLBACK_CACHE);
         }
 
         $response->getBody()->write($bytes);
@@ -99,8 +120,16 @@ final class PosterWallController
             ->withHeader('Cache-Control', 'private, max-age=60');
     }
 
-    private function placeholder(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
+    /**
+     * The bundled placeholder art. The caller sets the cache policy, because
+     * whether this response is the intended art for a session or a stand-in for
+     * one that could not be fetched is something only the caller knows.
+     */
+    private function placeholder(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        string $cacheControl,
+    ): ResponseInterface {
         $svg = @file_get_contents($this->placeholderPath);
         if ($svg === false) {
             throw new HttpNotFoundException($request);
@@ -110,6 +139,6 @@ final class PosterWallController
 
         return $response
             ->withHeader('Content-Type', 'image/svg+xml')
-            ->withHeader('Cache-Control', 'private, max-age=3600');
+            ->withHeader('Cache-Control', $cacheControl);
     }
 }

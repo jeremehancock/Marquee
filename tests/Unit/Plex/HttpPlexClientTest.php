@@ -152,6 +152,70 @@ final class HttpPlexClientTest extends TestCase
         self::assertSame(PlexSessionType::Other, $sessions[0]->type);
     }
 
+    /**
+     * A DVR tuner reports its programmes with a library media type, so the
+     * `live` flag is what identifies them.
+     */
+    public function testLiveEpisodeIsClassifiedAsLiveTv(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video type="episode" live="1" title="Evening News" grandparentTitle="Channel 4"'
+            . ' grandparentThumb="https://tuner.example/artwork/poster" parentIndex="1" index="3">'
+            . '<User title="jereme"/></Video>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame(PlexSessionType::LiveTv, $sessions[0]->type);
+        self::assertTrue($sessions[0]->live);
+        self::assertSame('Evening News', $sessions[0]->title);
+        self::assertSame('Channel 4', $sessions[0]->grandparentTitle);
+        // The tuner's artwork URL is not a Plex library path, so it is dropped.
+        self::assertNull($sessions[0]->thumb);
+    }
+
+    public function testLiveMovieIsClassifiedAsLiveTv(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video type="movie" live="1" title="Late Show" grandparentTitle="Channel 9"'
+            . ' thumb="https://tuner.example/artwork/poster" year="1998">'
+            . '<User title="kim"/></Video>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame(PlexSessionType::LiveTv, $sessions[0]->type);
+        self::assertSame('Late Show', $sessions[0]->title);
+        self::assertSame('Channel 9', $sessions[0]->grandparentTitle);
+    }
+
+    public function testLiveTrackStaysMusic(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Track type="track" live="1" title="Radio Stream"><User title="dj"/></Track>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame(PlexSessionType::Music, $sessions[0]->type);
+        self::assertTrue($sessions[0]->live);
+    }
+
+    public function testNonLiveEpisodeIsStillAnEpisode(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video type="episode" live="0" title="Free Churro" grandparentTitle="BoJack Horseman"'
+            . ' grandparentThumb="/t/show" parentIndex="6" index="6"><User title="kim"/></Video>'
+            . '</MediaContainer>';
+
+        $sessions = $this->client([new Response(200, [], $xml)])->sessions();
+
+        self::assertSame(PlexSessionType::Episode, $sessions[0]->type);
+        self::assertFalse($sessions[0]->live);
+        self::assertSame('/t/show', $sessions[0]->thumb);
+        self::assertSame('S06E06', $sessions[0]->episodeLabel());
+    }
+
     public function testSessionWithoutUserYieldsEmptyUser(): void
     {
         $xml = '<MediaContainer><Video type="movie" title="Solaris" thumb="/t/1"/></MediaContainer>';
