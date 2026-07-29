@@ -32,11 +32,34 @@
 // the browser's native title= tooltip so hints match the app and can show full
 // poster titles that the caption truncates. Delegated from the document so it
 // also covers AJAX- and Alpine-rendered content without any re-binding.
+//
+// Tooltips are a pointer-device affordance and never appear on touch: a tap has
+// no hover to end, so a bubble raised by one just sits over the interface. Every
+// trigger funnels through show(), which is gated on the device actually having a
+// hovering, fine pointer — so a new [data-tooltip] host inherits this for free.
 (function () {
     'use strict';
 
     var bubble = null;
     var current = null;
+
+    // Live query, read at trigger time rather than cached at load, so a hybrid
+    // device (touchscreen laptop, tablet that gains or loses a mouse) is judged
+    // by its current input. `pointer: fine` also rules out a coarse pointer that
+    // reports hover — a TV/console browser — where a bubble can't be dismissed.
+    var pointerDevice = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+    // When the last touch happened. A tap moves focus to the control it hits,
+    // and FocusEvent carries no pointerType to inspect, so focus tooltips are
+    // suppressed briefly after a touch. A timestamp rather than a flag: there is
+    // no reliable event to clear a flag on, and one left stuck on would kill
+    // keyboard tooltips for the rest of the page's life.
+    var touchedAt = 0;
+    var TOUCH_GRACE_MS = 500;
+
+    function allowed() {
+        return pointerDevice.matches;
+    }
 
     function ensure() {
         if (!bubble) {
@@ -69,6 +92,7 @@
     }
 
     function show(target) {
+        if (!allowed()) { return; }
         var text = target.getAttribute('data-tooltip');
         if (!text) { return; }
         current = target;
@@ -87,6 +111,11 @@
         return node && node.closest ? node.closest('[data-tooltip]') : null;
     }
 
+    // Capture phase, so the timestamp lands even if a handler stops propagation.
+    document.addEventListener('pointerdown', function (e) {
+        touchedAt = e.pointerType === 'touch' ? Date.now() : 0;
+    }, true);
+
     document.addEventListener('pointerover', function (e) {
         if (e.pointerType === 'touch') { return; } // touch would leave it stuck
         var target = closest(e.target);
@@ -98,10 +127,19 @@
         }
     });
     document.addEventListener('focusin', function (e) {
+        // Focus that a tap just placed on a control is not a request for a hint.
+        if (Date.now() - touchedAt < TOUCH_GRACE_MS) { return; }
         var target = closest(e.target);
         if (target) { show(target); }
     });
     document.addEventListener('focusout', hide);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hide(); } });
     window.addEventListener('scroll', hide, true);
+
+    // Never strand a bubble on a device that has stopped qualifying mid-hover.
+    if (pointerDevice.addEventListener) {
+        pointerDevice.addEventListener('change', hide);
+    } else if (pointerDevice.addListener) {
+        pointerDevice.addListener(hide); // Safari < 14
+    }
 })();
