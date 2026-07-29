@@ -61,28 +61,47 @@ the banners switch from `vw`/`rem` to `cqw`. This makes the type's reference
 frame the same box it is pinned to, which is the actual defect — not the specific
 numbers.
 
-Target is roughly half the current rendered size. At the 1920×1080 reference the
-frame is 662.4px wide:
+The sizes are taken from Posteria's Poster Wall, the app this one replaces,
+whose overlay is the look being reproduced. Its geometry is near enough to be
+directly comparable: its poster is `90vh` tall at 2:3, so 648px wide at 1080p
+against Marquee's 662px. Its type is fixed `em` against a 16px root, so the
+values convert straight into a share of the frame:
 
-| Selector | Today (pinned) | Target | `cqw` | @1080p | @1440p | @4K |
+| Selector | Posteria | Marquee before | `cqw` | @1080p | @1440p | @4K |
 |---|---|---|---|---|---|---|
-| `.wall__title` | 41.6px | 20.8px | `3.2cqw` | 21.2px | 28.3px | 42.4px |
-| `.wall__meta` | 20.8px | 10.4px | `1.6cqw` | 10.6px | 14.1px | 21.2px |
-| `.wall__banner--top` | 21.6px | 10.8px | `1.65cqw` | 10.9px | 14.6px | 21.9px |
+| `.wall__title` | `1.5em` = 24px | 41.6px | `3.6cqw` | 23.8px | 31.8px | 47.7px |
+| `.wall__meta` | `1em` = 16px | 20.8px | `2.4cqw` | 15.9px | 21.2px | 31.8px |
+| `.wall__banner--top` | `1.2em` = 19.2px | 21.6px | `2.9cqw` | 19.2px | 25.6px | 38.4px |
+
+This reframes the original complaint. Only the title was genuinely oversized —
+41.6px against Posteria's 24px. The detail line and the badge were close to
+right, so a uniform reduction overshoots them; matching Posteria per-element is
+what actually lands.
 
 The fixed-pixel spacing around the text scales with it, or the banners become
 mostly padding:
 
-| Property | Today | Becomes |
+| Property | Before | Becomes |
 |---|---|---|
-| `--top` padding | `16px 32px` | `1.2cqw 3.5cqw` |
+| `--top` padding | `16px 32px` | `2.1cqw 4.3cqw` |
 | `--top` letter-spacing | `5px` | `0.23em` |
-| `--bottom` padding | `96px 40px 34px` | `9cqw 4cqw 2.6cqw` |
-| `::after` rule | `56px × 4px`, margin `18px` | `4.5cqw × 0.45cqw`, margin `1.5cqw` |
+| `--bottom` padding | `96px 40px 34px` | `8.4cqw 3.5cqw 3cqw` |
+| `.wall__meta` gap / margin-top | `6px 18px` / `10px` | `0.7cqw 2.2cqw` / `1.1cqw` |
+| `.wall__user` padding-left | `20px` | `2.3cqw` |
 | user dot | `9px` | `1cqw` |
 
 Letter-spacing becomes `em` rather than `cqw` so it tracks its own font size
-directly.
+directly. Marquee keeps its own banner treatment — the gold bar, the uppercase
+label, the tracking — since only the type scale is being matched, not the design.
+
+### Drop the gold accent rule under the details
+
+`.wall__banner--bottom::after` drew a short gold dash below the detail line,
+described in the stylesheet as echoing the top bar. At a glance it reads as a
+progress bar that never moves. Posteria's wall did carry a real progress bar
+(`.stream-progress`, driven by playback position), which makes a decorative
+stand-in for one actively misleading rather than merely redundant. It is removed
+outright; the banner's bottom padding already provides the spacing it occupied.
 
 *Alternatives considered.* Simply lowering the clamp maximums keeps the wrong
 reference frame — it fixes 1080p and makes 4K worse. Setting a `cqw` font-size on
@@ -176,10 +195,10 @@ reason about than three.
 - **Container queries may not be supported by the target TV browser** → Verify on
   the actual display before merging. The `em`-on-frame fallback described above
   is a drop-in if needed.
-- **Half size may read as too small for the detail line** → `.wall__meta` lands
-  at 10.6px on a 1080p display, which is small at TV viewing distance. It is a
-  single-value adjustment (`1.6cqw` → ~`1.9cqw`) once the wall has been seen in
-  place; the title stays halved either way.
+- **A uniform reduction reads as too small** → Confirmed on the display and
+  corrected: halving every element left the detail line at 10.6px and the badge
+  at 10.9px, both well under Posteria's 16px and 19.2px. Sizes are now matched
+  per-element against Posteria rather than scaled by a single factor.
 - **Live promotion changes how non-DVR live sessions present** → Any session
   Plex marks live now shows the placeholder rather than library art. For genuine
   Live TV this is the intended behaviour; if some Plex feature marks a normal

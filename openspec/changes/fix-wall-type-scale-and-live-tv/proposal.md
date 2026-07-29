@@ -12,8 +12,11 @@ unattended TV.
 - **Banner type is sized against the poster instead of the viewport.** The
   overlay text currently scales with viewport width while the poster frame is
   sized from viewport height, so the two diverge on every landscape display. The
-  banners become container-relative to the poster frame and the type scale is
-  halved to roughly half its current rendered size.
+  banners become container-relative to the poster frame, at sizes matched to
+  Posteria's Poster Wall — the app this one replaces.
+
+- **The decorative rule under the details is removed.** A short gold dash sat
+  below the detail line; it reads as a progress bar that never moves.
 
 - **DVR-backed sessions are recognised as Live TV.** Plex reports Live TV from a
   DVR tuner (for example a Tunarr channel) as a `movie` or `episode` session
