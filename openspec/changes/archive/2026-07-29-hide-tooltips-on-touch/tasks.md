@@ -33,4 +33,4 @@ the visuals is still worth doing.
 
 ## 5. Close out
 
-- [ ] 5.1 Sync the `application-shell` delta into [openspec/specs/application-shell/spec.md](openspec/specs/application-shell/spec.md) and archive the change.
+- [x] 5.1 Sync the `application-shell` delta into [openspec/specs/application-shell/spec.md](openspec/specs/application-shell/spec.md) and archive the change.
