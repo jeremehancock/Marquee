@@ -22,9 +22,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   Season, and Collection. A step-by-step picker asks what you want first, then
   shows only the libraries that can provide it.
 - **Edit posters in place** — for any poster:
-  - **Change poster** by uploading a file, pasting an image URL (Mediux URLs
-    included), or choosing from **Find Posters** — an online poster search
-    served by [posteria.app](https://posteria.app).
+  - **Change poster** by uploading a file, pasting an image URL, or choosing
+    from **Find Posters** — an online poster search served by
+    [posteria.app](https://posteria.app).
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
   - **Download**, **Copy URL**, view **Full screen**, or **Delete**.
@@ -173,6 +173,30 @@ server.
    to pull the item's current Plex art back into Marquee.
 4. **Tidy up.** Open **Orphans** to remove posters whose media no longer exists
    in Plex, or **Poster Wall** for a full-screen slideshow.
+
+## Moving from Posteria
+
+There is no migration path, and none is needed. Marquee treats Plex as the source
+of truth, so your posters come from Plex rather than from a Posteria export —
+nothing has to be carried across.
+
+1. **Make sure Plex has the posters you want to keep.** Whatever art is on your
+   items in Plex right now is what Marquee will import. If Posteria holds a
+   poster you care about that Plex doesn't, apply it in Plex before you go any
+   further.
+2. **Retire Posteria.** Once Plex is up to date, stop and remove your Posteria
+   container. Keep its data volume around for a while if you'd like a safety net
+   — Marquee never reads it.
+3. **Set up Marquee.** Follow the [Quick start](#quick-start-docker-compose)
+   above.
+4. **Import from Plex.** Run an import for each type you want (Movies, TV Shows,
+   TV Seasons, Collections). Marquee pulls the current poster for every item and
+   maps it back to the Plex item it belongs to.
+5. **Optionally turn on auto-import.** Set `AUTO_IMPORT_ENABLED=true`, pick a
+   schedule with `AUTO_IMPORT_SCHEDULE`, and enable the types you want with the
+   `AUTO_IMPORT_*` variables so new media picks up posters on its own.
+
+From there, use Marquee as described in [Usage](#usage).
 
 ## Updating
 
