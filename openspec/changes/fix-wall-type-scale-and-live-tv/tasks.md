@@ -35,6 +35,6 @@
 
 - [x] 6.1 Run `composer test` and `composer stan` (PHPStan max, PHPUnit) — both must pass
 - [x] 6.2 Run PHP-CS-Fixer over the touched PHP files
-- [ ] 6.3 Load the wall with a live DVR session playing: confirm the placeholder renders with the program title and Live TV details, and no 404s appear in the console
-- [ ] 6.4 Load the wall on the target TV browser and confirm container queries are honoured; if not, fall back to the `em`-on-frame approach in design.md
+- [x] 6.3 Load the wall with a live DVR session playing: confirm the placeholder renders with the program title and Live TV details, and no 404s appear in the console
+- [x] 6.4 Load the wall on the target TV browser and confirm container queries are honoured; if not, fall back to the `em`-on-frame approach in design.md
 - [x] 6.5 Eyeball the banner scale on the target display — a uniform halving read as too small, so sizes were re-matched per-element against Posteria's wall
