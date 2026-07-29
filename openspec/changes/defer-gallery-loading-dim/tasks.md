@@ -58,11 +58,11 @@
 - [x] 6.2 Build the image locally and smoke-test `/health` per
       [docs/docker.md](../../../docs/docker.md) — no Dockerfile change here, so
       this is only a sanity check that assets are served.
-- [ ] 6.3 Manual check on desktop: switch category tabs repeatedly on a normal
+- [x] 6.3 Manual check on desktop: switch category tabs repeatedly on a normal
       connection and confirm the grid never dims.
-- [ ] 6.4 Manual check on a phone-width viewport: switch bottom-bar tabs and
+- [x] 6.4 Manual check on a phone-width viewport: switch bottom-bar tabs and
       confirm the same, and that infinite scroll still shows its sentinel
       spinner.
-- [ ] 6.5 Manual check with the network throttled: confirm a slow view change
+- [x] 6.5 Manual check with the network throttled: confirm a slow view change
       still dims, that the dim does not flash, and that the gallery always ends
       undimmed after rapid back-to-back tab switches.
