@@ -7,6 +7,15 @@
 (function () {
     'use strict';
 
+    // The gallery's dimmed loading state is deliberately NOT tied to the
+    // lifetime of its fetch. Most view changes resolve in tens of milliseconds,
+    // and dimming for that long reads as a flicker rather than as loading — the
+    // feedback ends up creating the impression of slowness it was meant to
+    // soften. So the dim waits out a grace period before appearing at all, and
+    // once up it stays up long enough to be read. See beginBusy/endBusy below.
+    var LOADING_GRACE_MS = 200;
+    var LOADING_MIN_MS = 300;
+
     function dispatch(name, detail) {
         window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
     }
@@ -651,6 +660,58 @@
                 });
         }
 
+        // ---- Deferred loading indication ----
+        // The single owner of `is-loading`; nothing else may add or remove it.
+        // Counts in-flight view changes rather than tracking a boolean, because
+        // submitForm() marks itself busy and then calls load(), which marks
+        // itself busy too — with a flag, the inner load() finishing would clear
+        // the dim while the outer submit was still settling. The counter also
+        // makes overlapping navigations behave: the dim means "something is in
+        // flight", not "the last thing started".
+        var busy = 0;
+        var graceTimer = null;
+        var hideTimer = null;
+        var shownAt = 0;
+
+        function beginBusy() {
+            busy++;
+            // A navigation arriving during the minimum-hold window keeps the
+            // existing dim; cancel the pending removal so it isn't cleared out
+            // from under the new one.
+            if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+            if (busy > 1 || graceTimer || root.classList.contains('is-loading')) { return; }
+            graceTimer = setTimeout(function () {
+                graceTimer = null;
+                shownAt = Date.now();
+                root.classList.add('is-loading');
+            }, LOADING_GRACE_MS);
+        }
+
+        function endBusy() {
+            busy = Math.max(0, busy - 1);
+            if (busy > 0) { return; }
+            if (graceTimer) {
+                // The fast path: resolved inside the grace period, so nothing
+                // was ever shown and nothing needs clearing.
+                clearTimeout(graceTimer);
+                graceTimer = null;
+                return;
+            }
+            if (!root.classList.contains('is-loading')) { return; }
+            var remaining = LOADING_MIN_MS - (Date.now() - shownAt);
+            if (remaining <= 0) {
+                root.classList.remove('is-loading');
+                return;
+            }
+            // Hold the dim out to its minimum so a view change that only just
+            // crossed the grace period doesn't flash. Only the dim waits — the
+            // results themselves were already swapped in by the caller.
+            hideTimer = setTimeout(function () {
+                hideTimer = null;
+                if (busy === 0) { root.classList.remove('is-loading'); }
+            }, remaining);
+        }
+
         function extractResults(doc) {
             var el = doc.querySelector('#results');
             return el ? el.innerHTML : null;
@@ -666,7 +727,7 @@
         }
 
         function load(url, push) {
-            root.classList.add('is-loading');
+            beginBusy();
             return fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
@@ -683,7 +744,7 @@
                     if (push) { history.pushState({}, '', url); }
                 })
                 .catch(function () {})
-                .finally(function () { root.classList.remove('is-loading'); });
+                .finally(function () { endBusy(); });
         }
 
         function currentUrl() {
@@ -693,7 +754,9 @@
         function submitForm(form) {
             var action = form.getAttribute('action');
             var data = new FormData(form);
-            root.classList.add('is-loading');
+            // Nests with the load() below: the counter keeps the indication up
+            // until both have settled.
+            beginBusy();
             fetch(action, {
                 method: 'POST',
                 body: data,
@@ -711,7 +774,7 @@
                 })
                 .catch(function () {})
                 .finally(function () {
-                    root.classList.remove('is-loading');
+                    endBusy();
                     dispatch('gallery:done', {});
                 });
             if (form.reset) { form.reset(); }
