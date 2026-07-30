@@ -37,8 +37,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
   the UI and in every import.
 - **Orphan detection** — find and remove posters whose media no longer exists in
-  Plex, or whose library is now excluded. Posters you added yourself are never
-  treated as orphans.
+  Plex, or whose library is now excluded.
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
   Seasons, and Collections, or use the **All** view (the default) to see your
   whole library in one grid, each poster tagged with its type.
@@ -243,7 +242,10 @@ actually changed in Plex, so re-imports are cheap.)
 **What is orphan detection?**
 It finds posters in Marquee that are no longer linked to any media in Plex —
 usually because you removed that content from Plex, or because you excluded that
-library. Posters you uploaded yourself are never treated as orphans.
+library. Every poster in Marquee came from an import and stays linked to its
+Plex item, so no poster is exempt: replacing one with your own image changes the
+artwork, not the link. Deleting an orphan removes the stored poster and that
+link; it never touches anything in Plex.
 
 **I excluded a library I'd already imported. What happens to its posters?**
 They become orphans. An excluded library doesn't exist as far as Marquee is
