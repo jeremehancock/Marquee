@@ -256,6 +256,23 @@ your mind, remove the library from `EXCLUDED_LIBRARIES`, restart, and its
 posters go back to being ordinary posters; anything you already deleted comes
 back with a fresh import.
 
+**Something's wrong with my posters. Can I start over?**
+Usually you don't need to. If a poster is stale or wrong, run the import again
+with **Re-download unchanged posters** checked — that pulls fresh art from Plex
+for every item you select, overwriting whatever Marquee is holding. If the
+problem is posters left behind by media you removed from Plex, or by a library
+you excluded, use **Orphans** instead.
+
+If you really do want a clean slate, stop the container, delete `posters/` and
+`data/marquee.sqlite*` from your `/config` volume, start it again, and run an
+import. Marquee rebuilds both from scratch. Stopping first matters, and so does
+the `*` — it catches the database's companion files, which otherwise survive and
+leave you half reset.
+
+Know what that costs before you do it: every poster you'd applied to Plex comes
+back, because Plex has it and Marquee locked it there. Anything that only ever
+existed in Marquee — art you uploaded but never sent — is gone.
+
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.
 
@@ -301,7 +318,8 @@ authentication token.
 
 - **Change the default username and password**, and pick a strong one.
 - **Use HTTPS** (behind a reverse proxy) if you expose Marquee to the internet.
-- **Back up your `/config` directory** regularly.
+- **Back up your `/config` directory** regularly — an import can rebuild
+  everything Plex already has, but not art you uploaded and never sent there.
 
 Only enable `AUTH_BYPASS` on a network you fully trust — it disables login
 entirely.

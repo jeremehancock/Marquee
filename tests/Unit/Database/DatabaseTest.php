@@ -38,6 +38,45 @@ final class DatabaseTest extends TestCase
     }
 
     /**
+     * Deleting the database file is a documented way to start over (see the
+     * README FAQ), so an absent file must come back as a working empty one
+     * rather than an error the user has to repair by hand.
+     */
+    public function testAbsentDatabaseIsRecreatedAsAnEmptyFirstRunDatabase(): void
+    {
+        $dir = $this->makeTempDir();
+        try {
+            $path = $dir . '/marquee.sqlite';
+            self::assertFileDoesNotExist($path);
+
+            $repository = new PlexItemRepository(new Database($path));
+
+            self::assertSame([], $repository->all());
+            self::assertNull($repository->findByRatingKey('10'));
+            self::assertFileExists($path);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    /**
+     * The reset also removes the directory the database lives in, so creating
+     * it is part of coming back clean.
+     */
+    public function testAbsentDataDirectoryIsCreated(): void
+    {
+        $dir = $this->makeTempDir();
+        try {
+            $database = new Database($dir . '/data/marquee.sqlite');
+            $database->pdo();
+
+            self::assertDirectoryExists($dir . '/data');
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    /**
      * A database written by the initial release opens and gains every column
      * added since, so upgrading never requires deleting or rebuilding it.
      */
