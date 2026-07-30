@@ -34,8 +34,8 @@
 
 ## 4. Live verification (before archiving)
 
-- [ ] 4.1 Against the `:dev` image: search an item after deliberately storing a
+- [x] 4.1 Against the `:dev` image: search an item after deliberately storing a
       wrong TMDB identifier for it, and confirm the stored identifier is rewritten
       to the one the service matched and the correction is logged
-- [ ] 4.2 Confirm a normal search with a correct identifier still writes nothing,
+- [x] 4.2 Confirm a normal search with a correct identifier still writes nothing,
       and that a collection search writes nothing
