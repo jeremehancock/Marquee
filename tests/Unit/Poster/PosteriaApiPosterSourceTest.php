@@ -255,7 +255,7 @@ final class PosteriaApiPosterSourceTest extends TestCase
         self::assertSame(
             ['q' => 'Spider-Noir B&W', 'type' => 'movie', 'year' => '2026', 'tmdb_id' => '603'],
             $this->sentQuery(),
-            'q stays required and year stays unconditional; the endpoint ignores year when an id is sent',
+            'q stays required and year stays unconditional; the year feeds the title fallback when the id is unknown',
         );
     }
 

@@ -1,3 +1,26 @@
+> **Correction, 2026-07-30 — one claim below is wrong.**
+>
+> This document states twice that the service *ignores* `year` when an identifier
+> is supplied: in the Context list of the contract, and in Decision 3. Both are
+> inaccurate, and the Context framing is the more misleading of the two because it
+> presents the claim as the service's own documented contract.
+>
+> The accurate version: `year` has no effect **while a supplied `tmdb_id` resolves
+> successfully**. If that identifier is unknown upstream, the service falls back to
+> resolving `q` by title — and `year` feeds that fallback, including the provider
+> search, the candidate scoring, and the resolution cache key. An exact normalised
+> title scores 60, and the year adjusts by +20 exact, +10 off-by-one, −10 wider.
+> When two works share a title, the year is the only thing separating them.
+>
+> Decision 3's *conclusion* — keep sending `year` unconditionally — was right, and
+> the behaviour it produced is correct and unchanged. Only its reasoning was wrong,
+> which made the correct code look like a harmless candidate for removal.
+>
+> The original text is left exactly as written; this note is appended rather than
+> substituted, because what this change believed at the time is the point of an
+> archive. Corrected by `correct-year-independence-notes`, which also states the
+> accurate version in `openspec/specs/poster-sources`.
+
 ## Context
 
 `PosteriaApiPosterSource` builds its request from `PosterQuery` — title, media
