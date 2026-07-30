@@ -13,6 +13,12 @@ re-order them.
 - **THEN** the system queries the poster source and shows the candidate posters
   it returns, in the order returned
 
+#### Scenario: No candidates or source unavailable
+- **WHEN** a search produces no usable candidates, whether because nothing
+  matched, the work has no artwork, or the source could not be reached
+- **THEN** the system leaves the user's poster unchanged and reports which of
+  those applied, rather than giving one message for every reason
+
 #### Scenario: Season number sent explicitly
 - **WHEN** a user searches for a TV season poster
 - **THEN** the system sends the Plex season number recorded for that item rather
