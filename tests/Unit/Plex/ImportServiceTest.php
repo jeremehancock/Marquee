@@ -274,6 +274,103 @@ final class ImportServiceTest extends TestCase
         self::assertSame('1726', $items->findByRatingKey('10')?->tmdbId);
     }
 
+    /**
+     * Seasons imported before they carried their show's year are the reason the
+     * skip path backfills at all: an established library skips them every time,
+     * so without this they would keep a null year — and a null year is what lets
+     * a stale season id be corrected to a same-titled show.
+     */
+    public function testSkippedItemGainsAMissingYearWithoutRedownloading(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV', tmdbId: '2316');
+
+        // Imported by a build whose seasons carried no year.
+        $before = new PlexItem('20', PlexMediaType::Season, 'Season 1', null, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1, tmdbId: '2316');
+        $plexBefore = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$before]]);
+        (new ImportService($plexBefore, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+        self::assertNull($items->findByRatingKey('20')?->year);
+
+        // Same artwork, but the season now carries its show's year.
+        $after = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1, tmdbId: '2316');
+        $plexAfter = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$after]]);
+        $result = (new ImportService($plexAfter, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        $backfilled = $items->findByRatingKey('20');
+        self::assertNotNull($backfilled);
+        self::assertSame(2005, $backfilled->year);
+        // Still a skip: the poster was not re-downloaded.
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexAfter->downloads);
+        // The mapping is otherwise untouched.
+        self::assertSame('2316', $backfilled->tmdbId);
+        self::assertSame(1, $backfilled->seasonNumber);
+    }
+
+    /**
+     * A row predating both facts gains both, and pays for one write rather than
+     * one per fact — the skip path exists to cost almost nothing.
+     */
+    public function testSkippedItemGainsBothAMissingYearAndIdentifier(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV', tmdbId: '2316');
+
+        $before = new PlexItem('20', PlexMediaType::Season, 'Season 1', null, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1);
+        $plexBefore = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$before]]);
+        (new ImportService($plexBefore, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        $after = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1, tmdbId: '2316');
+        $plexAfter = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$after]]);
+        $result = (new ImportService($plexAfter, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        $backfilled = $items->findByRatingKey('20');
+        self::assertNotNull($backfilled);
+        self::assertSame(2005, $backfilled->year);
+        self::assertSame('2316', $backfilled->tmdbId);
+        self::assertSame(1, $result->skipped());
+        self::assertSame([], $plexAfter->downloads);
+    }
+
+    /**
+     * Backfill is null → known only, for the year exactly as for the id: a
+     * scheduled import over a populated library must not rewrite every row.
+     */
+    public function testSkippedItemWithAnExistingYearIsNotRewritten(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $stored = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '1726');
+        $plexStored = new FakePlexClient([$library], ['1' => [$stored]]);
+        (new ImportService($plexStored, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        // Same artwork, but Plex now reports a different year. The skip path
+        // must leave the stored one alone — only a real re-import updates it.
+        $changed = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 2002, $thumb, 'Movies', tmdbId: '1726');
+        $plexChanged = new FakePlexClient([$library], ['1' => [$changed]]);
+        $result = (new ImportService($plexChanged, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertSame(1972, $items->findByRatingKey('10')?->year);
+    }
+
     public function testForceReimportsUnchangedPosters(): void
     {
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);

@@ -223,6 +223,42 @@ final class HttpPlexClientTest extends TestCase
         self::assertNull($seasons[0]->tmdbId);
     }
 
+    /**
+     * For the same reason a season carries the show's id: a season search
+     * resolves the show first, so the show's year is the one that identifies
+     * the work. Without it a title fallback cannot separate two shows sharing
+     * a title, and the season's recorded id can be corrected to the wrong one.
+     */
+    public function testSeasonsInheritTheShowsYear(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20" index="1"/>'
+            . '<Directory ratingKey="19" type="season" title="Specials" thumb="/t/19" index="0"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV', tmdbId: '2316');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertSame(2005, $seasons[0]->year);
+        self::assertSame(2005, $seasons[1]->year);
+    }
+
+    /**
+     * The season node carries no year of its own, so a show Plex reports no
+     * year for yields seasons with none rather than failing the import.
+     */
+    public function testSeasonsOfAShowWithNoYearHaveNone(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20" index="1"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Home Movies', null, '/t/2', 'TV');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertNull($seasons[0]->year);
+    }
+
     public function testItemListingRequestsGuids(): void
     {
         $mock = new MockHandler([new Response(200, [], '<MediaContainer/>')]);

@@ -99,7 +99,7 @@ final class ImportService
                 && $existing->thumb === $thumb
                 && $this->storage->exists($category, $existing->filename)
             ) {
-                $this->backfillTmdbId($existing, $item);
+                $this->backfillMissingFacts($existing, $item);
                 $result->recordSkipped();
 
                 return;
@@ -144,16 +144,25 @@ final class ImportService
     }
 
     /**
-     * Record a TMDB id on a mapping that predates it, without downloading the
-     * poster the skip check just decided was unchanged.
+     * Record the search facts a mapping predates — its TMDB id and its release
+     * year — without downloading the poster the skip check just decided was
+     * unchanged.
      *
-     * Only null → known writes. A blanket refresh here would rewrite every row
-     * on every scheduled import, where the skip path's whole purpose is to cost
-     * almost nothing; this fires once per item and then never again.
+     * Only null → known writes, and only when something is actually missing. A
+     * blanket refresh here would rewrite every row on every scheduled import,
+     * where the skip path's whole purpose is to cost almost nothing; this fires
+     * once per item and then never again.
+     *
+     * Both facts move in one upsert rather than one write each, because a
+     * season that predates either is missing both and the skip path should not
+     * pay twice for one item.
      */
-    private function backfillTmdbId(PlexItemRecord $existing, PlexItem $item): void
+    private function backfillMissingFacts(PlexItemRecord $existing, PlexItem $item): void
     {
-        if ($existing->tmdbId !== null || $item->tmdbId === null) {
+        $tmdbId = $existing->tmdbId ?? $item->tmdbId;
+        $year = $existing->year ?? $item->year;
+
+        if ($tmdbId === $existing->tmdbId && $year === $existing->year) {
             return;
         }
 
@@ -168,9 +177,9 @@ final class ImportService
             sectionKey: $existing->sectionKey,
             thumb: $existing->thumb,
             addedAt: $existing->addedAt,
-            year: $existing->year,
+            year: $year,
             seasonNumber: $existing->seasonNumber,
-            tmdbId: $item->tmdbId,
+            tmdbId: $tmdbId,
         ));
     }
 
