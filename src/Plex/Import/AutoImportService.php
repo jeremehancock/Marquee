@@ -9,8 +9,9 @@ use App\Plex\PlexClient;
 use Psr\Log\LoggerInterface;
 
 /**
- * Runs one unattended import of the configured media types across all
- * non-excluded Plex libraries. Scheduling is handled by the container.
+ * Runs one unattended import of the configured media types across every Plex
+ * library the client reports — excluded libraries are already filtered out
+ * there. Scheduling is handled by the container.
  */
 final class AutoImportService
 {
@@ -43,11 +44,11 @@ final class AutoImportService
             return null;
         }
 
+        // libraries() already omits excluded libraries, so an empty list here
+        // means there is genuinely nothing to import.
         $sectionKeys = [];
         foreach ($this->plex->libraries() as $library) {
-            if (!$this->config->isExcluded($library->title)) {
-                $sectionKeys[] = $library->key;
-            }
+            $sectionKeys[] = $library->key;
         }
 
         if ($sectionKeys === []) {

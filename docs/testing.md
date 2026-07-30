@@ -162,10 +162,13 @@ removing something from Plex.
 
 **How Marquee decides:** when you open the **Orphans** page, Marquee asks Plex
 for the current items across your imported libraries and flags any *imported*
-poster whose Plex item is missing. Two things to know:
+poster whose Plex item is missing. Three things to know:
 
 - Only **imported** posters can be orphans. Posters you uploaded yourself (not
   linked to a Plex item) are never flagged.
+- A library listed in `EXCLUDED_LIBRARIES` is invisible to Marquee, so posters
+  imported from it before it was excluded are flagged as orphans too. That is
+  another way to reach this screen without deleting anything from Plex.
 - Detection is **live** — the Orphans page checks Plex every time you open it, so
   you do **not** need to re-import to see an orphan. (Re-importing won't remove
   orphans either; import only adds/updates items that currently exist in Plex, it

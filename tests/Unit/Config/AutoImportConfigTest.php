@@ -18,18 +18,8 @@ final class AutoImportConfigTest extends TestCase
             importShows: false,
             importSeasons: true,
             importCollections: false,
-            excludedLibraries: [],
         );
 
         self::assertSame([PlexMediaType::Movie, PlexMediaType::Season], $config->mediaTypes());
-    }
-
-    public function testExclusionIsCaseInsensitive(): void
-    {
-        $config = new AutoImportConfig(true, true, false, false, false, ['Kids Movies', 'Anime']);
-
-        self::assertTrue($config->isExcluded('kids movies'));
-        self::assertTrue($config->isExcluded('  Anime '));
-        self::assertFalse($config->isExcluded('Movies'));
     }
 }

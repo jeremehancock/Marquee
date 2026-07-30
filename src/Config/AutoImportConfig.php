@@ -10,19 +10,18 @@ use App\Support\Env;
 /**
  * Immutable auto-import configuration, built once from the environment.
  * The schedule interval is handled by the container's crontab, not here.
+ *
+ * Library exclusions are not part of this config: they apply app-wide and are
+ * carried by {@see LibraryExclusions}.
  */
 final class AutoImportConfig
 {
-    /**
-     * @param list<string> $excludedLibraries library names to skip (case-insensitive)
-     */
     public function __construct(
         public readonly bool $enabled,
         public readonly bool $importMovies,
         public readonly bool $importShows,
         public readonly bool $importSeasons,
         public readonly bool $importCollections,
-        public readonly array $excludedLibraries,
     ) {
     }
 
@@ -34,7 +33,6 @@ final class AutoImportConfig
             importShows: Env::bool('AUTO_IMPORT_SHOWS', false),
             importSeasons: Env::bool('AUTO_IMPORT_SEASONS', false),
             importCollections: Env::bool('AUTO_IMPORT_COLLECTIONS', false),
-            excludedLibraries: Env::list('EXCLUDED_LIBRARIES', []),
         );
     }
 
@@ -58,17 +56,5 @@ final class AutoImportConfig
         }
 
         return $types;
-    }
-
-    public function isExcluded(string $libraryTitle): bool
-    {
-        $needle = mb_strtolower(trim($libraryTitle));
-        foreach ($this->excludedLibraries as $excluded) {
-            if (mb_strtolower(trim($excluded)) === $needle) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

@@ -60,6 +60,43 @@ final class PlexImportTest extends AppTestCase
         self::assertStringContainsString('Import', $body);
     }
 
+    public function testPlexPageOmitsExcludedLibraries(): void
+    {
+        $fake = new FakePlexClient(
+            [new PlexLibrary('1', 'Movies', 'movie'), new PlexLibrary('3', 'Kids', 'movie')],
+            excluded: ['Kids'],
+        );
+
+        $app = $this->makeApp(
+            ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Kids'],
+            [PlexClient::class => static fn (): PlexClient => $fake],
+        );
+
+        $body = (string) $this->get($app, '/plex')->getBody();
+
+        self::assertStringContainsString('Movies', $body);
+        self::assertStringNotContainsString('Kids', $body);
+    }
+
+    public function testPlexPageExplainsWhenEveryLibraryIsExcluded(): void
+    {
+        $fake = new FakePlexClient(
+            [new PlexLibrary('1', 'Movies', 'movie'), new PlexLibrary('2', 'TV', 'show')],
+            excluded: ['Movies', 'TV'],
+        );
+
+        $app = $this->makeApp(
+            ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Movies,TV'],
+            [PlexClient::class => static fn (): PlexClient => $fake],
+        );
+
+        $body = (string) $this->get($app, '/plex')->getBody();
+
+        self::assertStringContainsString('EXCLUDED_LIBRARIES', $body);
+        // Not the "your server has no libraries" message, which would be wrong here.
+        self::assertStringNotContainsString('were found on your Plex server', $body);
+    }
+
     public function testImportStoresPosters(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');

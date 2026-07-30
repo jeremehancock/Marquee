@@ -34,8 +34,11 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   changed in Plex (with an option to force a full refresh), reducing load on your
   Plex server.
 - **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h).
+- **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
+  the UI and in every import.
 - **Orphan detection** — find and remove posters whose media no longer exists in
-  Plex. Posters you added yourself are never treated as orphans.
+  Plex, or whose library is now excluded. Posters you added yourself are never
+  treated as orphans.
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
   Seasons, and Collections, or use the **All** view (the default) to see your
   whole library in one grid, each poster tagged with its type.
@@ -87,6 +90,9 @@ services:
       # AUTO_IMPORT_SHOWS: "true"
       # AUTO_IMPORT_SEASONS: "false"
       # AUTO_IMPORT_COLLECTIONS: "false"
+
+      # --- Libraries to hide from Marquee entirely (optional) ---
+      # Library names as they appear in Plex, not section ids.
       # EXCLUDED_LIBRARIES: "4K Movies,Kids"
 
       # --- Optional tweaks ---
@@ -141,7 +147,7 @@ server.
 | `AUTO_IMPORT_SHOWS` | Include TV Shows in the auto-import | `false` |
 | `AUTO_IMPORT_SEASONS` | Include TV Seasons in the auto-import | `false` |
 | `AUTO_IMPORT_COLLECTIONS` | Include Collections in the auto-import | `false` |
-| `EXCLUDED_LIBRARIES` | Library names to skip, comma-separated | _(none)_ |
+| `EXCLUDED_LIBRARIES` | Plex libraries to hide from Marquee entirely, comma-separated. Match is on the **library name** as it appears in Plex (case-insensitive), never the section id. Excluded libraries are not listed on the Import from Plex screen and are skipped by every import, manual or scheduled. See the [FAQ](#faq) for what happens to posters already imported from one. | _(none)_ |
 | `IMAGES_PER_PAGE` | Posters shown per gallery page | `24` |
 | `MAX_FILE_SIZE` | Maximum upload size, in bytes | `5242880` |
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
@@ -236,8 +242,17 @@ actually changed in Plex, so re-imports are cheap.)
 
 **What is orphan detection?**
 It finds posters in Marquee that are no longer linked to any media in Plex —
-usually because you removed that content from Plex. Posters you uploaded yourself
-are never treated as orphans.
+usually because you removed that content from Plex, or because you excluded that
+library. Posters you uploaded yourself are never treated as orphans.
+
+**I excluded a library I'd already imported. What happens to its posters?**
+They become orphans. An excluded library doesn't exist as far as Marquee is
+concerned, so the posters it left behind are no longer linked to anything —
+they show up on the **Orphans** screen, where you can review them and delete
+the ones you don't want. Marquee never deletes them on its own. If you change
+your mind, remove the library from `EXCLUDED_LIBRARIES`, restart, and its
+posters go back to being ordinary posters; anything you already deleted comes
+back with a fresh import.
 
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.

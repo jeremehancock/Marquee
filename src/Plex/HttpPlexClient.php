@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Plex;
 
+use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
@@ -18,6 +19,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
     public function __construct(
         private readonly ClientInterface $http,
         private readonly PlexConfig $config,
+        private readonly LibraryExclusions $exclusions,
     ) {
     }
 
@@ -36,9 +38,18 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             if ($type !== 'movie' && $type !== 'show') {
                 continue;
             }
+            $title = (string) $directory['title'];
+
+            // Excluded libraries are dropped here, at the one place libraries
+            // enter the application, so nothing downstream — the import screen,
+            // an import, a scheduled run, orphan detection — can observe one.
+            if ($this->exclusions->isExcluded($title)) {
+                continue;
+            }
+
             $libraries[] = new PlexLibrary(
                 key: (string) $directory['key'],
-                title: (string) $directory['title'],
+                title: $title,
                 type: $type,
             );
         }
