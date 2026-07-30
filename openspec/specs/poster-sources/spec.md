@@ -3,8 +3,8 @@
 ## Purpose
 
 Finding a better poster than the one Plex has. Marquee queries the posteria.app
-API — a hosted service that aggregates candidates from TMDB, TVDB, Fanart, and
-Mediux — for a specific media item, presents the candidates, and applies the one
+API — a hosted service that aggregates candidates from TMDB, fanart.tv, and
+TheTVDB — for a specific media item, presents the candidates, and applies the one
 the user picks.
 
 The poster source is an external dependency, not part of this repository. It is

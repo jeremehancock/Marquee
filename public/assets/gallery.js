@@ -363,7 +363,7 @@
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
-                finder: { loading: false, error: '', results: [], preview: null, confirming: false },
+                finder: { loading: false, error: '', notice: '', results: [], preview: null, confirming: false },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -488,24 +488,31 @@
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
-                    this.finder = { loading: false, error: '', results: [], preview: null, confirming: false };
+                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, confirming: false };
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', results: [], preview: null, confirming: false };
+                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, confirming: false };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
                         .then(function (d) {
+                            var message = d.error || '';
+                            // A partial result is a success that also carries a
+                            // warning: it has candidates to show, so its message
+                            // goes on the notice line rather than the error line,
+                            // which stands in place of the grid. Results are kept
+                            // in the order the server ranked them.
                             self.finder = {
                                 loading: false,
-                                error: d.error || '',
+                                error: d.partial ? '' : message,
+                                notice: d.partial ? message : '',
                                 results: Array.isArray(d.posters) ? d.posters : [],
                                 preview: null,
                                 confirming: false,
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', results: [], preview: null, confirming: false }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, confirming: false }; });
                 },
 
                 // Find Posters preview: tap a candidate to see it full screen, then

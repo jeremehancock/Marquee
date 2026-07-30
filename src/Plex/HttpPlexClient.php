@@ -83,6 +83,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
                 parentTitle: $show->title,
                 sectionKey: $show->sectionKey,
                 addedAt: $this->intAttr($directory, 'addedAt'),
+                seasonNumber: $this->countAttr($directory, 'index'),
             );
         }
 
@@ -300,6 +301,21 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         $value = (int) $element[$name];
 
         return $value > 0 ? $value : null;
+    }
+
+    /**
+     * Read a counting attribute that may legitimately be zero, such as a
+     * season's `index` — 0 is the Specials season, not a missing value, so
+     * intAttr()'s "non-positive means absent" rule cannot be used here.
+     */
+    private function countAttr(SimpleXMLElement $element, string $name): ?int
+    {
+        if (!isset($element[$name])) {
+            return null;
+        }
+        $value = (int) $element[$name];
+
+        return $value >= 0 ? $value : null;
     }
 
     private function get(string $path): SimpleXMLElement

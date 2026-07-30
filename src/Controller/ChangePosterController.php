@@ -10,6 +10,9 @@ use App\Plex\PlexException;
 use App\Plex\PlexMediaType;
 use App\Poster\Edit\ChangePosterService;
 use App\Poster\PosterCategory;
+use App\Poster\Source\PosterCandidate;
+use App\Poster\Source\PosterQuery;
+use App\Poster\Source\PosterSearchOutcome;
 use App\Poster\Source\PosterSource;
 use App\Poster\Upload\UploadException;
 use App\Support\Flash;
@@ -123,21 +126,64 @@ final class ChangePosterController
         $params = $request->getQueryParams();
         $filename = isset($params['filename']) && is_string($params['filename']) ? $params['filename'] : '';
         $record = $this->items->findByFilename($category->value, $filename);
+        $type = $record === null ? null : PlexMediaType::fromString($record->mediaType);
 
-        $posters = [];
-        $error = null;
-        if ($record === null) {
-            $error = 'This poster is not linked to a Plex item.';
-        } else {
-            $type = PlexMediaType::fromString($record->mediaType);
-            $posters = $type !== null ? $this->source->find($record->title, $type, null) : [];
-            if ($posters === []) {
-                $error = 'No posters found for this title.';
-            }
+        if ($record === null || $type === null) {
+            return $this->json($response, [
+                'posters' => [],
+                'error' => 'This poster is not linked to a Plex item.',
+                'partial' => false,
+            ]);
         }
 
+        $result = $this->source->find(new PosterQuery(
+            title: $record->title,
+            mediaType: $type,
+            seasonNumber: $record->seasonNumber,
+            year: $record->year,
+        ));
+
+        $posters = array_map(
+            static fn (PosterCandidate $c): array => [
+                'url' => $c->url,
+                'thumb' => $c->displayUrl(),
+                'source' => $c->source,
+            ],
+            $result->candidates,
+        );
+
+        return $this->json($response, [
+            'posters' => $posters,
+            'error' => $this->messageFor($result->outcome),
+            'partial' => $result->outcome === PosterSearchOutcome::Partial,
+        ]);
+    }
+
+    /**
+     * The user-facing message for an outcome, or null when there is nothing to
+     * say. Each one tells the user something different about what to do next:
+     * whether to check the title, wait, retry later, or accept that there is no
+     * artwork to find.
+     */
+    private function messageFor(PosterSearchOutcome $outcome): ?string
+    {
+        return match ($outcome) {
+            PosterSearchOutcome::Ok => null,
+            PosterSearchOutcome::Partial => 'Some poster sources did not respond, so these results may be incomplete.',
+            PosterSearchOutcome::NoMatch => 'No match for this title. It may be recorded differently in Plex than the poster sources spell it.',
+            PosterSearchOutcome::NoArtwork => 'This title was found, but no posters are available for it.',
+            PosterSearchOutcome::RateLimited => 'Too many searches just now. Wait a minute and try again.',
+            PosterSearchOutcome::Unavailable => 'Poster search is temporarily unavailable. Trying again shortly may work.',
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function json(ResponseInterface $response, array $payload): ResponseInterface
+    {
         $response->getBody()->write(
-            json_encode(['posters' => $posters, 'error' => $error], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
+            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
         );
 
         return $response->withHeader('Content-Type', 'application/json');

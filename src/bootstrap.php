@@ -70,8 +70,13 @@ function buildContainer(array $overrides = []): Container
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
-        PosterSource::class => static fn (ClientInterface $http): PosterSource
-            => new PosteriaApiPosterSource($http, rtrim(Env::str('POSTER_SOURCE_URL', 'https://posteria.app'), '/')),
+        PosterSource::class => static fn (ClientInterface $http, LoggerInterface $logger): PosterSource
+            => new PosteriaApiPosterSource(
+                $http,
+                rtrim(Env::str('POSTER_SOURCE_URL', 'https://posteria.app'), '/'),
+                readVersion(),
+                $logger,
+            ),
         Database::class => static fn (AppConfig $app): Database => new Database($app->dataDir . '/marquee.sqlite'),
         HttpPlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): HttpPlexClient
             => new HttpPlexClient($http, $plex),

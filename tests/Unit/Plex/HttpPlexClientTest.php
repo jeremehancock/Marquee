@@ -85,8 +85,8 @@ final class HttpPlexClientTest extends TestCase
     public function testParsesSeasonsWithParentTitle(): void
     {
         $xml = '<MediaContainer>'
-            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20"/>'
-            . '<Directory ratingKey="21" type="season" title="Season 2" thumb="/t/21"/>'
+            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20" index="1"/>'
+            . '<Directory ratingKey="21" type="season" title="Season 2" thumb="/t/21" index="2"/>'
             . '</MediaContainer>';
 
         $show = new PlexItem('2', PlexMediaType::Show, 'Severance', null, '/t/2', 'TV');
@@ -94,6 +94,38 @@ final class HttpPlexClientTest extends TestCase
 
         self::assertCount(2, $seasons);
         self::assertSame('Severance - Season 1', $seasons[0]->displayTitle());
+        self::assertSame(1, $seasons[0]->seasonNumber);
+        self::assertSame(2, $seasons[1]->seasonNumber);
+    }
+
+    /**
+     * Plex gives Specials index="0". That has to survive as 0 rather than being
+     * read as "no index", which is what the addedAt-style "non-positive means
+     * absent" rule would have done.
+     */
+    public function testParsesSpecialsSeasonIndexAsZero(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="19" type="season" title="Specials" thumb="/t/19" index="0"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Severance', null, '/t/2', 'TV');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertNotNull($seasons[0]->seasonNumber);
+        self::assertSame(0, $seasons[0]->seasonNumber);
+    }
+
+    public function testSeasonWithNoIndexAttributeHasNoSeasonNumber(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="22" type="season" title="Season 3" thumb="/t/22"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Severance', null, '/t/2', 'TV');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertNull($seasons[0]->seasonNumber);
     }
 
     public function testDownloadsPosterBytes(): void

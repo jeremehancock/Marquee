@@ -97,6 +97,43 @@ final class ImportServiceTest extends TestCase
         self::assertSame([], $this->items->addedAtForCategory('movies'));
     }
 
+    public function testImportPersistsTheReleaseYear(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
+        $service = $this->service(new FakePlexClient([$library], ['1' => [$movie]]));
+
+        $service->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1972, $this->items->findByRatingKey('10')?->year);
+    }
+
+    /**
+     * The season number reaches the stored record, Specials (0) included, so a
+     * poster search never has to parse it back out of the display title.
+     */
+    public function testImportPersistsSeasonNumbersIncludingSpecials(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV');
+        $specials = new PlexItem('21', PlexMediaType::Season, 'Specials', null, '/t/21', 'TV', parentTitle: 'Severance', seasonNumber: 0);
+        $seasonOne = new PlexItem('22', PlexMediaType::Season, 'Season 1', null, '/t/22', 'TV', parentTitle: 'Severance', seasonNumber: 1);
+
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['2' => [$show]],
+            ['20' => [$specials, $seasonOne]],
+        ));
+
+        $service->import(['2'], [PlexMediaType::Season]);
+
+        $stored = $this->items->findByRatingKey('21');
+        self::assertNotNull($stored);
+        self::assertNotNull($stored->seasonNumber, 'Specials must store 0, not null');
+        self::assertSame(0, $stored->seasonNumber);
+        self::assertSame(1, $this->items->findByRatingKey('22')?->seasonNumber);
+    }
+
     public function testReimportOverwritesWithoutDuplicating(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
