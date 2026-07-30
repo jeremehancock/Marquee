@@ -108,6 +108,15 @@ because a Plex collection is a local grouping with no upstream record. An item
 Plex never matched carries none. A missing identifier SHALL be recorded as
 unknown and SHALL NOT be treated as an error.
 
+A season SHALL likewise carry its **show's** release year, for the same reason it
+carries the show's identifier: a season search resolves the show and then the
+season within it, so the year that identifies the work is the show's. A season has
+no release year of its own, and the show's is known at the moment the season is
+imported. Recording it is what lets a search tell two shows that share a title
+apart when the recorded identifier is not one the source recognises — without it
+those shows are indistinguishable and the search resolves to whichever is more
+popular.
+
 #### Scenario: Re-import overwrites, not duplicates
 - **WHEN** a user imports a library and later imports it again
 - **THEN** each item's poster is updated in place and no duplicate poster is
@@ -130,6 +139,16 @@ unknown and SHALL NOT be treated as an error.
 #### Scenario: Release year recorded on import
 - **WHEN** a movie or show that reports a release year is imported
 - **THEN** the system stores that year with the item's poster mapping
+
+#### Scenario: A season records its show's release year
+- **WHEN** a TV season is imported and Plex reports a release year for its show
+- **THEN** the system stores the show's release year with the season's poster
+  mapping, so a search for that season can distinguish shows that share a title
+
+#### Scenario: A season of a show with no release year still imports
+- **WHEN** a TV season is imported and Plex reports no release year for its show
+- **THEN** the system records the mapping with the year left unknown and the
+  poster remains browsable
 
 #### Scenario: Season number recorded on import
 - **WHEN** a TV season is imported
@@ -166,6 +185,18 @@ unknown and SHALL NOT be treated as an error.
 - **THEN** the system records the identifier without downloading the poster, and
   still counts the item as skipped
 
+#### Scenario: A skipped item still gains a missing release year
+- **WHEN** an import skips an item because its poster is unchanged, and the
+  stored mapping has no release year while Plex now reports one
+- **THEN** the system records the year without downloading the poster, and still
+  counts the item as skipped
+
+#### Scenario: A skipped item does not have a recorded year overwritten
+- **WHEN** an import skips an item whose stored mapping already records a release
+  year
+- **THEN** the system leaves the recorded year as it is rather than rewriting it
+  on every import
+
 #### Scenario: Missing year or season number does not fail import
 - **WHEN** an item does not report a release year, or is not a season and so has
   no season number
@@ -175,6 +206,12 @@ unknown and SHALL NOT be treated as an error.
 - **WHEN** a library imported by an earlier version of Marquee is imported again
 - **THEN** the stored mappings are updated with the release year, season number
   and TMDB identifier without requiring the user to delete or rebuild anything
+
+#### Scenario: Existing season mappings gain their show's year without a rebuild
+- **WHEN** a library whose seasons were imported without a release year is
+  imported again and the seasons' posters are unchanged
+- **THEN** those season mappings gain their show's release year without the user
+  deleting, rebuilding, or forcing a re-download of anything
 
 ### Requirement: Safe, unique filenames
 When storing an imported poster the system SHALL derive a filename from the Plex
