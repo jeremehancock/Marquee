@@ -60,10 +60,10 @@
 
 ## 6. Live verification (before archiving)
 
-- [ ] 6.1 Against the `:dev` image and a real library: search an item whose title
+- [x] 6.1 Against the `:dev` image and a real library: search an item whose title
       does not match upstream (a locally annotated title) and confirm candidates
       come back where they previously did not
-- [ ] 6.2 Confirm the parameter is arriving: repeat one search by hand with
+- [x] 6.2 Confirm the parameter is arriving: repeat one search by hand with
       `debug=true` and check `debug.identified_by` reads `tmdb_id`, not `title`
       (Decision 8)
 - [x] 6.3 Resolve the open question: confirm `match.tmdb_id` is the **show's**
@@ -73,5 +73,5 @@
       the show; season carried only as `match.season.number`; no season-level id
       anywhere in the response, on either the title path or the id path). See
       design Decision 9
-- [ ] 6.4 Confirm a collection search still succeeds by title and sends no
+- [x] 6.4 Confirm a collection search still succeeds by title and sends no
       identifier, and that an item with no recorded identifier is unchanged
