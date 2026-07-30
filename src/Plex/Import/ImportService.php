@@ -133,6 +133,7 @@ final class ImportService
                 addedAt: $item->addedAt ?? 0,
                 year: $item->year,
                 seasonNumber: $item->seasonNumber,
+                tmdbId: $item->tmdbId,
             ));
 
             $result->recordImported($category);

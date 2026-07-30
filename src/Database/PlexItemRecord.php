@@ -24,6 +24,7 @@ final class PlexItemRecord
         public readonly int $addedAt = 0,
         public readonly ?int $year = null,
         public readonly ?int $seasonNumber = null,
+        public readonly ?string $tmdbId = null,
     ) {
     }
 
@@ -45,6 +46,7 @@ final class PlexItemRecord
             addedAt: Scalar::int($row['added_at'] ?? null),
             year: Scalar::intOrNull($row['year'] ?? null),
             seasonNumber: Scalar::intOrNull($row['season_number'] ?? null),
+            tmdbId: Scalar::stringOrNull($row['tmdb_id'] ?? null),
         );
     }
 }

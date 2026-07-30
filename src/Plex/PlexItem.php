@@ -20,6 +20,7 @@ final class PlexItem
         public readonly string $sectionKey = '',
         public readonly ?int $addedAt = null,
         public readonly ?int $seasonNumber = null,
+        public readonly ?string $tmdbId = null,
     ) {
     }
 

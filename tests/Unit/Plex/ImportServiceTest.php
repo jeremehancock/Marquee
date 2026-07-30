@@ -234,6 +234,62 @@ final class ImportServiceTest extends TestCase
         self::assertSame(1, $this->countFiles('movies'));
     }
 
+    public function testImportPersistsTmdbIdForMoviesShowsAndSeasons(): void
+    {
+        $movieLibrary = new PlexLibrary('1', 'Movies', 'movie');
+        $showLibrary = new PlexLibrary('2', 'TV', 'show');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies', tmdbId: '1726');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV', tmdbId: '95396');
+        $season = new PlexItem(
+            '200',
+            PlexMediaType::Season,
+            'Season 1',
+            null,
+            '/t/200',
+            'TV',
+            'Severance',
+            seasonNumber: 1,
+            tmdbId: '95396',
+        );
+        $service = $this->service(new FakePlexClient(
+            [$movieLibrary, $showLibrary],
+            ['1' => [$movie], '2' => [$show]],
+            ['20' => [$season]],
+        ));
+
+        $service->import(['1', '2'], [PlexMediaType::Movie, PlexMediaType::Show, PlexMediaType::Season]);
+
+        self::assertSame('1726', $this->items->findByRatingKey('10')?->tmdbId);
+        self::assertSame('95396', $this->items->findByRatingKey('20')?->tmdbId);
+        // A season stores its show's id paired with its own season number.
+        $storedSeason = $this->items->findByRatingKey('200');
+        self::assertSame('95396', $storedSeason?->tmdbId);
+        self::assertSame(1, $storedSeason->seasonNumber);
+    }
+
+    /**
+     * A server that reports no ids at all — an old Plex, or a library on a
+     * legacy agent — imports exactly as before. Nothing fails.
+     */
+    public function testImportWithNoTmdbIdsReportsNoFailures(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
+        $collection = new PlexItem('30', PlexMediaType::Collection, 'Christmas Movies', null, '/t/30', 'Movies');
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['1' => [$movie]],
+            collectionsByKey: ['1' => [$collection]],
+        ));
+
+        $result = $service->import(['1'], [PlexMediaType::Movie, PlexMediaType::Collection]);
+
+        self::assertSame(2, $result->imported());
+        self::assertSame(0, $result->failed());
+        self::assertNull($this->items->findByRatingKey('10')?->tmdbId);
+        self::assertNull($this->items->findByRatingKey('30')?->tmdbId);
+    }
+
     public function testOnlySelectedMediaTypesAreImported(): void
     {
         $library = new PlexLibrary('2', 'TV', 'show');
