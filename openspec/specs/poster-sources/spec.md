@@ -26,6 +26,14 @@ back to when the identifier is not one it recognises. A season SHALL be identifi
 by its **show's** identifier together with its season number, because a season has
 no identifier of its own. A collection SHALL be searched by title only.
 
+The release year and the TMDB identifier are independent: the system SHALL send
+each whenever it is known, and SHALL NOT withhold either because the other is
+present. The year appears to do nothing while an identifier resolves, but that is
+the only case in which it does nothing — when the identifier is not one the source
+recognises, the search falls back to the title, and the year is what separates
+works that share one. Withholding it would leave exactly the searches that depend
+on the fallback unable to tell those works apart.
+
 #### Scenario: Candidates returned
 - **WHEN** a user opens Find Posters for a poster linked to a Plex item
 - **THEN** the system queries the poster source and shows the candidate posters
@@ -52,6 +60,12 @@ no identifier of its own. A collection SHALL be searched by title only.
   recorded for that item
 - **THEN** the system includes that year in the search to disambiguate
   similarly-titled works
+
+#### Scenario: Release year is sent even when an identifier is sent
+- **WHEN** a user searches for an item for which both a release year and a TMDB
+  identifier are recorded
+- **THEN** the system sends both, rather than treating the year as redundant
+  because the identifier is expected to resolve
 
 #### Scenario: Search is unaffected by host clock accuracy
 - **WHEN** the Marquee host's clock differs from real time by minutes or hours
