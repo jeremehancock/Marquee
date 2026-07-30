@@ -16,17 +16,30 @@ to be flagged for deletion.
 ## Requirements
 ### Requirement: Detect orphaned posters
 The system SHALL identify orphaned posters: posters whose mapped Plex rating key
-is no longer present on the Plex server. When a mapping's poster file no longer
-exists on disk, the system SHALL prune that mapping during detection rather than
-retaining or listing it, so that stale mappings cannot resurface as duplicate
-orphans and no two orphan entries are ever backed by the same poster file.
+is no longer present among the Plex items the system can observe. A poster
+imported from a library that is now excluded by `EXCLUDED_LIBRARIES` is
+therefore an orphan, because an excluded library is not observed at all. When a
+mapping's poster file no longer exists on disk, the system SHALL prune that
+mapping during detection rather than retaining or listing it, so that stale
+mappings cannot resurface as duplicate orphans and no two orphan entries are
+ever backed by the same poster file.
+
+The system SHALL NOT delete a poster on account of its library becoming
+excluded; it is listed as an orphan and removed only when the user deletes it.
 
 #### Scenario: Removed Plex item yields an orphan
 - **WHEN** a poster was imported for a Plex item that no longer exists in Plex
 - **THEN** the system lists that poster as an orphan
 
+#### Scenario: Excluded library yields orphans
+- **WHEN** a poster was imported from a library that is now listed in
+  `EXCLUDED_LIBRARIES`
+- **THEN** the system lists that poster as an orphan
+- **AND** does not delete it until the user chooses to
+
 #### Scenario: Present Plex item is not an orphan
-- **WHEN** a poster's Plex item still exists in Plex
+- **WHEN** a poster's Plex item still exists in Plex and its library is not
+  excluded
 - **THEN** the system does not list that poster as an orphan
 
 #### Scenario: Mapping with a missing file is pruned
@@ -71,13 +84,14 @@ while preserving posters whose Plex items still exist.
 - **THEN** posters whose Plex items still exist remain
 
 ### Requirement: The orphans page explains what an orphan is
-The orphans page SHALL describe what an orphan is, and SHALL NOT claim that any
-poster in the library is exempt from orphan detection.
+The orphans page SHALL describe what an orphan is, naming both causes — the
+media no longer exists in Plex, or its library is excluded — and SHALL NOT claim
+that any poster in the library is exempt from orphan detection.
 
 #### Scenario: Page explains the criterion
 - **WHEN** a user opens the orphans page
 - **THEN** it states that orphans are posters imported from Plex whose media no
-  longer exists there
+  longer exists there or whose library is now excluded
 
 #### Scenario: No exemption is claimed
 - **WHEN** a user opens the orphans page
