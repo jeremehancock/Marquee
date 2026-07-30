@@ -65,7 +65,7 @@ final class PosteriaApiPosterSource implements PosterSource
             return PosterSearchResult::failed(PosterSearchOutcome::Unavailable);
         }
 
-        return $this->interpret($status, $data);
+        return $this->interpret($query, $status, $data);
     }
 
     /**
@@ -77,7 +77,7 @@ final class PosteriaApiPosterSource implements PosterSource
      *
      * @param array<array-key, mixed> $data
      */
-    private function interpret(int $status, array $data): PosterSearchResult
+    private function interpret(PosterQuery $query, int $status, array $data): PosterSearchResult
     {
         if (($data['success'] ?? null) !== true) {
             $outcome = $this->failureOutcome($status);
@@ -98,7 +98,7 @@ final class PosteriaApiPosterSource implements PosterSource
             ]);
         }
 
-        return PosterSearchResult::found($candidates, $partial, $this->correctedTmdbId($data));
+        return PosterSearchResult::found($candidates, $partial, $this->correctedTmdbId($query, $data));
     }
 
     /**
@@ -108,25 +108,31 @@ final class PosteriaApiPosterSource implements PosterSource
      * the endpoint fell back to resolving the title and served that work
      * instead. The stored id is stale and this is what it should have been.
      *
-     * Both halves of the comparison are read from the response rather than from
-     * the query, so this is true whenever an id was *sent* — not whenever one
-     * was recorded. Those differ: a collection's recorded id is deliberately
-     * never sent, and "matched something other than what we didn't send" is not
-     * a correction.
+     * The sent half comes from `sendableTmdbId()` — the same method that decided
+     * what went on the wire — and never from the response. `query.tmdb_id`
+     * reports the id the endpoint *resolved*, not the one it was given: a search
+     * that sends no id at all still gets one back there. Comparing the response
+     * against itself therefore compares a number with itself, which is how this
+     * silently never fired in v1.4.0.
+     *
+     * Asking what was *sent* also settles the collection case for free. A
+     * collection's recorded id is withheld, so `sendableTmdbId()` returns null
+     * and there is nothing to disagree with — the same rule that keeps the id
+     * off the request keeps it out of this comparison.
      *
      * @param array<array-key, mixed> $data
      */
-    private function correctedTmdbId(array $data): ?string
+    private function correctedTmdbId(PosterQuery $query, array $data): ?string
     {
-        $query = $data['query'] ?? null;
+        $sent = $this->sendableTmdbId($query);
         $match = $data['match'] ?? null;
-        if (!is_array($query) || !is_array($match)) {
+        if ($sent === null || !is_array($match)) {
             return null;
         }
 
-        $sent = $this->tmdbId($query['tmdb_id'] ?? null);
+        $sent = (string) $sent;
         $matched = $this->tmdbId($match['tmdb_id'] ?? null);
-        if ($sent === null || $matched === null || $sent === $matched) {
+        if ($matched === null || $sent === $matched) {
             return null;
         }
 
