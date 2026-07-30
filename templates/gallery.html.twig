@@ -43,12 +43,12 @@
     </nav>
 
     <div class="toolbar">
+        {# The only clear control lives with the filtered-state summary in
+           #results — the toolbar is never swapped by a no-reload update, so a
+           clear link here would go stale the moment the results change. #}
         <form class="search" method="get" action="{{ base }}" role="search">
             <input type="search" name="q" value="{{ query }}" autocomplete="off"
                    placeholder="Search {{ view.label }}…" aria-label="Search">
-            {% if query is not empty %}
-                <a class="search__clear" href="{{ base }}">Clear</a>
-            {% endif %}
         </form>
         {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
         {# Phone-only affordance: opens the sort tray. The inline .sort group below

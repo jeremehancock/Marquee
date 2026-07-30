@@ -92,6 +92,21 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('Clear search', $body);
     }
 
+    public function testFilteredViewOffersExactlyOneClearControl(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        // A second clear control beside the search box would go stale: the
+        // toolbar sits outside #results and is never swapped by a no-reload
+        // update, so the only clear control belongs with the filtered summary.
+        $filtered = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
+        self::assertSame(1, substr_count($filtered, 'class="search__clear"'));
+
+        // With no query there is no filtered state, and so nothing to clear.
+        $unfiltered = (string) $this->get($this->app(), '/library/movies')->getBody();
+        self::assertStringNotContainsString('search__clear', $unfiltered);
+    }
+
     public function testTabsCarryTheActiveQuery(): void
     {
         $this->writePoster('Solaris.png');
