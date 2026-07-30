@@ -80,7 +80,13 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
                 ratingKey: (string) $directory['ratingKey'],
                 mediaType: PlexMediaType::Season,
                 title: (string) $directory['title'],
-                year: null,
+                // The show's year, for the same reason as the id below, and not
+                // the season's own air year: a season search resolves the show
+                // first and the season within it, so the show is the work the
+                // year has to identify. Plex reports no year on a season node
+                // anyway. Without it a search that falls back to the title
+                // cannot separate two shows that share one.
+                year: $show->year,
                 thumb: $this->attr($directory, 'thumb'),
                 libraryTitle: $show->libraryTitle,
                 parentTitle: $show->title,

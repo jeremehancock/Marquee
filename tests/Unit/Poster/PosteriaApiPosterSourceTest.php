@@ -331,6 +331,26 @@ final class PosteriaApiPosterSourceTest extends TestCase
         self::assertSame('1396', $query['tmdb_id']);
     }
 
+    /**
+     * The show's year rides along with the show's id, not instead of it. While
+     * the id resolves the year does nothing, but that is the only case: when the
+     * id is not one the endpoint knows it falls back to resolving the title, and
+     * the year is what separates two shows sharing one. The endpoint reads it as
+     * the show's first-air year on a season search, which is what Plex reports
+     * for a show.
+     */
+    public function testSeasonSendsTheShowsYearAlongsideItsId(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/s2.jpg']])]);
+        $source->find(new PosterQuery('The Office - Season 2', PlexMediaType::Season, seasonNumber: 2, year: 2005, tmdbId: '2316'));
+
+        self::assertSame(
+            ['q' => 'The Office', 'type' => 'season', 'season' => '2', 'year' => '2005', 'tmdb_id' => '2316'],
+            $this->sentQuery(),
+            'the year is not suppressed because an id is present; it is what rescues the title fallback',
+        );
+    }
+
     // ---- Correcting a stale TMDB id ----
 
     /**

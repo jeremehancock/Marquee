@@ -150,8 +150,12 @@ final class ChangePosterTest extends AppTestCase
     /**
      * Re-record the Solaris mapping with a given TMDB id and a fixed, old
      * `updatedAt`, so a later write to the row is visible as a change to it.
+     *
+     * The year is a parameter because it decides whether a correction is
+     * well-founded: a search that sends one can separate works sharing a title,
+     * and a search that does not cannot.
      */
-    private function storeTmdbId(?string $tmdbId): void
+    private function storeTmdbId(?string $tmdbId, ?int $year = 1972): void
     {
         $this->repository()->upsert(new PlexItemRecord(
             '10',
@@ -162,7 +166,7 @@ final class ChangePosterTest extends AppTestCase
             'Solaris.jpg',
             1000,
             '1',
-            year: 1972,
+            year: $year,
             tmdbId: $tmdbId,
         ));
     }
@@ -252,6 +256,69 @@ final class ChangePosterTest extends AppTestCase
             'an item with no id keeps searching by title, which re-resolves every time',
         );
         self::assertSame(1000, $record->updatedAt);
+    }
+
+    /**
+     * Replacing a stale id is safe only while the replacement is well-founded.
+     * With no year the source's title fallback scores two same-titled works
+     * identically and popularity picks between them, so the matched id is a
+     * guess — and writing a guess is the one move that cannot be undone, since
+     * a wrong-but-valid id resolves cleanly forever.
+     */
+    public function testCorrectionIsRefusedWhenTheSearchCouldNotDisambiguate(): void
+    {
+        $this->storeTmdbId('111', year: null);
+        $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        )));
+
+        $record = $this->storedRecord();
+        self::assertSame('111', $record->tmdbId, 'the stale id is kept rather than replaced by a guess');
+        self::assertSame(1000, $record->updatedAt, 'the row was not written to');
+    }
+
+    /**
+     * The point of refusing: a stale id keeps failing to resolve, so the
+     * mismatch is detected again and the item stays repairable. Writing the
+     * guess is what would have made it permanent.
+     */
+    public function testARefusedCorrectionLeavesTheItemDetectable(): void
+    {
+        $this->storeTmdbId('111', year: null);
+        $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        )));
+
+        $next = $this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        ));
+        $this->findPosters($next);
+
+        self::assertInstanceOf(PosterQuery::class, $next->asked);
+        self::assertSame('111', $next->asked->tmdbId, 'the same stale id goes out again, so the mismatch recurs');
+    }
+
+    /**
+     * A refusal is as silent as a correction: it is a decision about a cached
+     * fact, not something the user asked about or can act on.
+     */
+    public function testARefusedCorrectionDoesNotChangeWhatTheUserSees(): void
+    {
+        $this->storeTmdbId('111', year: null);
+        $refused = $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg', source: 'tmdb')],
+            correctedTmdbId: '603',
+        )));
+
+        $this->storeTmdbId('111', year: null);
+        $plain = $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg', source: 'tmdb')],
+        )));
+
+        self::assertSame($plain, $refused, 'a refusal is silent; nothing about it reaches the user');
     }
 
     public function testCorrectionDoesNotChangeWhatTheUserSees(): void

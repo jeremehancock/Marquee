@@ -140,15 +140,17 @@ final class ChangePosterController
             ]);
         }
 
-        $result = $this->source->find(new PosterQuery(
+        $query = new PosterQuery(
             title: $record->title,
             mediaType: $type,
             seasonNumber: $record->seasonNumber,
             year: $record->year,
             tmdbId: $record->tmdbId,
-        ));
+        );
 
-        $this->correctStaleTmdbId($record, $result);
+        $result = $this->source->find($query);
+
+        $this->correctStaleTmdbId($record, $query, $result);
 
         $posters = array_map(
             static fn (PosterCandidate $c): array => [
@@ -175,15 +177,43 @@ final class ChangePosterController
      * with no later mismatch left to reveal the error. A known-bad id cannot
      * get worse, which is what makes replacing it safe.
      *
+     * That last argument holds only while the replacement is well-founded, so
+     * the search has to have been able to tell works sharing a title apart —
+     * which today means it sent a year. Without one the source's title fallback
+     * scores two same-titled works identically and popularity picks between
+     * them, making the matched id a guess rather than a finding. The two
+     * outcomes are not symmetrical: a stale id fails to resolve on every search
+     * and so stays visible and repairable, while a wrong-but-valid id resolves
+     * cleanly forever and no later mismatch can reveal it. Keeping the stale id
+     * costs one wrong result the item was already getting; writing the guess
+     * costs the ability to ever notice.
+     *
+     * The check is on what *we sent*, never on the source telling us it fell
+     * back to the title. A correction only ever arises when the id we sent was
+     * unrecognised — which is that fallback — so treating the fallback itself
+     * as disqualifying would suppress every correction rather than the
+     * unfounded ones.
+     *
      * This is a repair of a Plex-derived cache, not an override of Plex: a full
      * re-import writes the id from Plex again. If Plex is still wrong the next
      * search detects it and repairs it again, which costs one request and no
      * schema change.
      */
-    private function correctStaleTmdbId(PlexItemRecord $record, PosterSearchResult $result): void
+    private function correctStaleTmdbId(PlexItemRecord $record, PosterQuery $query, PosterSearchResult $result): void
     {
         $corrected = $result->correctedTmdbId;
         if ($corrected === null || $record->tmdbId === null || $corrected === $record->tmdbId) {
+            return;
+        }
+
+        if ($query->year === null) {
+            $this->logger->info('declined a TMDB id correction from a search that could not disambiguate the title', [
+                'title' => $record->title,
+                'ratingKey' => $record->ratingKey,
+                'kept' => $record->tmdbId,
+                'notWritten' => $corrected,
+            ]);
+
             return;
         }
 
