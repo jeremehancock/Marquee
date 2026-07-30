@@ -92,8 +92,7 @@ user's existing poster SHALL be left unchanged.
 
 #### Scenario: Title did not match anything
 - **WHEN** the poster source reports that no work matched the search
-- **THEN** the system tells the user the title was not found and indicates that
-  it may be recorded differently in Plex
+- **THEN** the system tells the user there was no match for the title
 
 #### Scenario: Work found but has no artwork
 - **WHEN** the poster source matches the work but returns no candidates

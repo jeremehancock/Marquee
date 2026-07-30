@@ -170,7 +170,7 @@ final class ChangePosterController
         return match ($outcome) {
             PosterSearchOutcome::Ok => null,
             PosterSearchOutcome::Partial => 'Some poster sources did not respond, so these results may be incomplete.',
-            PosterSearchOutcome::NoMatch => 'No match for this title. It may be recorded differently in Plex than the poster sources spell it.',
+            PosterSearchOutcome::NoMatch => 'No match for this title.',
             PosterSearchOutcome::NoArtwork => 'This title was found, but no posters are available for it.',
             PosterSearchOutcome::RateLimited => 'Too many searches just now. Wait a minute and try again.',
             PosterSearchOutcome::Unavailable => 'Poster search is temporarily unavailable. Trying again shortly may work.',
