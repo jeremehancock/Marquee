@@ -242,6 +242,34 @@ are never treated as orphans.
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.
 
+**"Find Posters" isn't returning many results for my library**
+Find Posters is most accurate when Plex has matched an item to a known title,
+because that lets Marquee ask for that exact movie or show. Without a match it
+searches by name instead, which is less precise — similarly named titles can
+crowd out the one you wanted.
+
+For some things that's simply how it works, and there's nothing to fix:
+collections, personal media libraries such as home videos, and anything Plex
+hasn't matched yet. If it's one stubborn item, correcting that item's match in
+Plex is usually enough.
+
+If results are poor across a whole library, the likely cause is the metadata
+agent that library uses. Libraries created on older versions of Plex keep the
+agent they were built with — upgrading Plex doesn't change it — and the older
+agents don't give Marquee the information it needs to identify a title.
+Switching that library to one of Plex's current agents fixes it from then on.
+
+Do that deliberately, though. Plex re-scans the library afterwards, and that
+re-scan can change artwork. Posters you've applied through Marquee are locked in
+Plex and stay as they are — but a poster Marquee only imported was never locked,
+so Plex can replace it, along with matches you'd corrected by hand. Marquee
+still has its copy: use **Send to Plex** to put a poster back, and do that
+before your next import, because importing pulls whatever artwork Plex has at
+that moment into Marquee.
+
+If Find Posters is already working well for you, there's nothing here you need
+to do.
+
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
 front and center: secondary navigation lives behind a menu, and tapping a poster
