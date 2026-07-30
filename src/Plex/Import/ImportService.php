@@ -131,6 +131,8 @@ final class ImportService
                 sectionKey: $item->sectionKey,
                 thumb: $thumb,
                 addedAt: $item->addedAt ?? 0,
+                year: $item->year,
+                seasonNumber: $item->seasonNumber,
             ));
 
             $result->recordImported($category);

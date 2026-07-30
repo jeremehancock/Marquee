@@ -28,9 +28,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -40,6 +40,8 @@ final class PlexItemRepository
                 filename = excluded.filename,
                 thumb = excluded.thumb,
                 added_at = excluded.added_at,
+                year = excluded.year,
+                season_number = excluded.season_number,
                 updated_at = excluded.updated_at'
         );
 
@@ -53,6 +55,8 @@ final class PlexItemRepository
             ':filename' => $record->filename,
             ':thumb' => $record->thumb,
             ':added_at' => $record->addedAt,
+            ':year' => $record->year,
+            ':season_number' => $record->seasonNumber,
             ':updated_at' => $record->updatedAt,
         ]);
     }

@@ -82,6 +82,12 @@ final class Database
         // Plex's "added at" timestamp lets the gallery order posters by when
         // their media was added to Plex. 0 means unknown (falls back to mtime).
         $this->ensureColumn($pdo, 'plex_items', 'added_at', 'INTEGER NOT NULL DEFAULT 0');
+        // Release year, sent to the poster search as a disambiguation hint.
+        // Nullable: Plex does not report a year for every item.
+        $this->ensureColumn($pdo, 'plex_items', 'year', 'INTEGER');
+        // Plex's season index. Nullable rather than defaulted, because 0 is a
+        // real season number (Specials) and so cannot double as "not a season".
+        $this->ensureColumn($pdo, 'plex_items', 'season_number', 'INTEGER');
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

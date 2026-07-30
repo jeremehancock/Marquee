@@ -110,14 +110,18 @@
             <div x-show="change.tab === 'find'">
                 <p class="stats" x-show="finder.loading">Finding posters…</p>
                 <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
+                <p class="alert" x-show="finder.notice && !finder.loading" x-text="finder.notice"></p>
                 <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
                     Tap a poster to preview it.
                 </p>
+                {# The grid loads each candidate's thumbnail where its source gave
+                   one (thumb falls back to url server-side); previewing and
+                   applying always use the full-resolution url. #}
                 <div class="find-grid">
-                    <template x-for="url in finder.results" :key="url">
+                    <template x-for="poster in finder.results" :key="poster.url">
                         <figure class="find-item">
-                            <img class="find-item__img" :src="url" alt="" loading="lazy"
-                                 @click="openFinderPreview(url)" data-tooltip="Click to preview">
+                            <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
+                                 @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
                         </figure>
                     </template>
                 </div>

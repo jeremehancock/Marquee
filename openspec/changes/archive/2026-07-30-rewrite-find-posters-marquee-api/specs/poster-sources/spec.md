@@ -1,16 +1,5 @@
-# Poster Sources Specification
+## MODIFIED Requirements
 
-## Purpose
-
-Finding a better poster than the one Plex has. Marquee queries the posteria.app
-API — a hosted service that aggregates candidates from TMDB, fanart.tv, and
-TheTVDB — for a specific media item, presents the candidates, and applies the one
-the user picks.
-
-The poster source is an external dependency, not part of this repository. It is
-best-effort: when it is unreachable or returns nothing, the user's poster is
-left exactly as it was.
-## Requirements
 ### Requirement: Find posters for a media item
 The system SHALL let a user search for candidate posters for a specific media
 item through the configured poster source, using facts recorded for that item at
@@ -84,27 +73,7 @@ it.
 - **THEN** the system fetches and stores the full-resolution image, not the
   preview
 
-### Requirement: The poster search service is named to users
-The product documentation SHALL identify posteria.app as the hosted poster
-search service that backs Find Posters, as a general statement only — it SHALL
-NOT document the service's endpoints, request or response formats, or internal
-behavior, and it SHALL NOT elaborate on running or self-hosting the service.
-
-#### Scenario: README names the service
-- **WHEN** a reader reviews the README's description of Find Posters
-- **THEN** posteria.app is named as the service the search runs against
-
-#### Scenario: No implementation detail is published
-- **WHEN** the documentation describes the poster search service
-- **THEN** it states only what the service provides, not how it is called or
-  how it produces its results
-
-#### Scenario: No self-hosting guidance
-- **WHEN** the documentation describes the poster search service
-- **THEN** it does not invite the reader to run their own instance or explain
-  how to point Marquee at one
-- **AND** `POSTER_SOURCE_URL` remains documented in the configuration table as
-  an ordinary setting, without such guidance attached
+## ADDED Requirements
 
 ### Requirement: Season searches return season artwork only
 A season poster search SHALL present only artwork the poster source identifies as
@@ -174,4 +143,3 @@ contribute SHALL NOT be named as a source.
 - **WHEN** a user changes a poster by pasting an image URL
 - **THEN** that path continues to accept image URLs from any host, independently
   of which services back Find Posters
-

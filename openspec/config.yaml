@@ -5,7 +5,7 @@ context: |
   Project: Marquee — a self-hosted web app for managing custom media posters
   for a Plex library (movies, TV shows, TV seasons, collections). It imports
   posters from Plex, lets users customize them (upload from disk/URL or fetch
-  from TMDB/TVDB/Fanart/Mediux), and syncs them back to Plex with poster
+  from TMDB/fanart.tv/TheTVDB), and syncs them back to Plex with poster
   locking. Ships as a single Docker image. This is a clean-room rewrite of an
   older monolithic PHP app ("Posteria"); there is no backward-compatibility
   requirement with the old on-disk layout.
@@ -32,9 +32,10 @@ context: |
     - PHPStan max level and PHPUnit must pass in CI on every push.
 
   External dependency (not built here):
-    - posteria.app API — a hosted service (owned by the maintainer) that fetches
-      poster candidates from TMDB / TVDB / Fanart / Mediux and provides a server
-      time-sync endpoint. Marquee calls it; it is not part of this repo.
+    - posteria.app Marquee API — a hosted service (owned by the maintainer) that
+      resolves a title to a single work and returns that work's poster
+      candidates from TMDB / fanart.tv / TheTVDB, ranked best-first. Marquee
+      calls it; it is not part of this repo.
 
   Capability map. Every capability has a spec in openspec/specs/; a change
   MUST target one of these rather than inventing a capability named after the
@@ -48,7 +49,7 @@ context: |
                            filenames, library tracking)
     - plex-export         (upload to Plex, poster locking, Kometa overlay label)
     - poster-editing      (change in place, re-send, fetch, download, copy)
-    - poster-sources      (Find Posters via posteria.app: TMDB/TVDB/Fanart/Mediux)
+    - poster-sources      (Find Posters via posteria.app: TMDB/fanart.tv/TheTVDB)
     - auto-import         (scheduled cron import, per-type toggles, exclusions)
     - orphan-detection    (detect + delete orphaned posters)
     - poster-wall         (full-screen rotating wall, random batches)

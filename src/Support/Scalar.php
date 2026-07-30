@@ -21,4 +21,14 @@ final class Scalar
     {
         return is_numeric($value) ? (int) $value : 0;
     }
+
+    /**
+     * Like int(), but preserves the difference between "absent" and a real zero.
+     * A season number of 0 means Specials, so a defaulted 0 cannot stand in for
+     * a missing value.
+     */
+    public static function intOrNull(mixed $value): ?int
+    {
+        return is_numeric($value) ? (int) $value : null;
+    }
 }
