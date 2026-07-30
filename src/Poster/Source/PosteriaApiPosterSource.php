@@ -196,10 +196,15 @@ final class PosteriaApiPosterSource implements PosterSource
             $params['q'] = $this->showFromTitle($title);
         }
 
-        // Sent even alongside an id, where the endpoint ignores it: suppressing
-        // it would be a branch with no observable effect, and one that would
-        // have to be undone the moment the id turns out to be unknown upstream
-        // and the title path takes over — which is exactly when year matters.
+        // Sent independently of the id, never instead of it. While a supplied
+        // id resolves, the year does nothing — but that is the only case in
+        // which it does nothing. When the id is not one TMDB knows, the
+        // endpoint falls back to resolving the title, and the year feeds that
+        // fallback: the provider search, the scoring, and the cache key. An
+        // exact title scores 60 and the year moves it +20 / +10 / -10, which is
+        // the whole difference between a remake and its original. Suppressing
+        // it when an id is present would degrade precisely the searches the
+        // fallback exists to rescue.
         if ($query->year !== null) {
             $params['year'] = $query->year;
         }
