@@ -193,6 +193,87 @@ final class ImportServiceTest extends TestCase
         self::assertSame(['10'], $plex2->downloads);
     }
 
+    /**
+     * An install upgrading into the TMDB id has mappings written without one.
+     * Its next import skips almost everything as unchanged, so the skip path
+     * has to record the id or those rows would never gain one.
+     */
+    public function testSkippedItemGainsAMissingTmdbIdWithoutRedownloading(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+
+        // Imported by a build that did not know about TMDB ids.
+        $before = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies');
+        $plexBefore = new FakePlexClient([$library], ['1' => [$before]]);
+        (new ImportService($plexBefore, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+        self::assertNull($items->findByRatingKey('10')?->tmdbId);
+
+        // Same artwork, but Plex now reports an id.
+        $after = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '1726');
+        $plexAfter = new FakePlexClient([$library], ['1' => [$after]]);
+        $result = (new ImportService($plexAfter, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        $backfilled = $items->findByRatingKey('10');
+        self::assertNotNull($backfilled);
+        self::assertSame('1726', $backfilled->tmdbId);
+        // Still a skip: the poster was not re-downloaded.
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexAfter->downloads);
+        // The mapping is otherwise untouched.
+        self::assertSame(1972, $backfilled->year);
+        self::assertSame('Solaris', $backfilled->title);
+    }
+
+    public function testSkippedItemWithNoTmdbIdAvailableStaysNull(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/library/metadata/10/thumb/1', 'Movies');
+        $plex = new FakePlexClient([$library], ['1' => [$movie]]);
+        $service = new ImportService($plex, $storage, $items, $libraryRepo);
+
+        $service->import(['1'], [PlexMediaType::Movie]);
+        $result = $service->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertNull($items->findByRatingKey('10')?->tmdbId);
+    }
+
+    /**
+     * Backfill is null → known only. A scheduled import over a library that is
+     * already fully populated must not rewrite every row.
+     */
+    public function testSkippedItemWithAnExistingTmdbIdIsNotRewritten(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $stored = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '1726');
+        $plexStored = new FakePlexClient([$library], ['1' => [$stored]]);
+        (new ImportService($plexStored, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        // Same artwork, but Plex now reports a different id. The skip path must
+        // leave the stored one alone — only a real re-import updates a mapping.
+        $changed = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '9999');
+        $plexChanged = new FakePlexClient([$library], ['1' => [$changed]]);
+        $result = (new ImportService($plexChanged, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertSame('1726', $items->findByRatingKey('10')?->tmdbId);
+    }
+
     public function testForceReimportsUnchangedPosters(): void
     {
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
@@ -232,6 +313,62 @@ final class ImportServiceTest extends TestCase
         self::assertSame(1, $result->imported());
         self::assertSame(0, $result->skipped());
         self::assertSame(1, $this->countFiles('movies'));
+    }
+
+    public function testImportPersistsTmdbIdForMoviesShowsAndSeasons(): void
+    {
+        $movieLibrary = new PlexLibrary('1', 'Movies', 'movie');
+        $showLibrary = new PlexLibrary('2', 'TV', 'show');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies', tmdbId: '1726');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV', tmdbId: '95396');
+        $season = new PlexItem(
+            '200',
+            PlexMediaType::Season,
+            'Season 1',
+            null,
+            '/t/200',
+            'TV',
+            'Severance',
+            seasonNumber: 1,
+            tmdbId: '95396',
+        );
+        $service = $this->service(new FakePlexClient(
+            [$movieLibrary, $showLibrary],
+            ['1' => [$movie], '2' => [$show]],
+            ['20' => [$season]],
+        ));
+
+        $service->import(['1', '2'], [PlexMediaType::Movie, PlexMediaType::Show, PlexMediaType::Season]);
+
+        self::assertSame('1726', $this->items->findByRatingKey('10')?->tmdbId);
+        self::assertSame('95396', $this->items->findByRatingKey('20')?->tmdbId);
+        // A season stores its show's id paired with its own season number.
+        $storedSeason = $this->items->findByRatingKey('200');
+        self::assertSame('95396', $storedSeason?->tmdbId);
+        self::assertSame(1, $storedSeason->seasonNumber);
+    }
+
+    /**
+     * A server that reports no ids at all — an old Plex, or a library on a
+     * legacy agent — imports exactly as before. Nothing fails.
+     */
+    public function testImportWithNoTmdbIdsReportsNoFailures(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
+        $collection = new PlexItem('30', PlexMediaType::Collection, 'Christmas Movies', null, '/t/30', 'Movies');
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['1' => [$movie]],
+            collectionsByKey: ['1' => [$collection]],
+        ));
+
+        $result = $service->import(['1'], [PlexMediaType::Movie, PlexMediaType::Collection]);
+
+        self::assertSame(2, $result->imported());
+        self::assertSame(0, $result->failed());
+        self::assertNull($this->items->findByRatingKey('10')?->tmdbId);
+        self::assertNull($this->items->findByRatingKey('30')?->tmdbId);
     }
 
     public function testOnlySelectedMediaTypesAreImported(): void

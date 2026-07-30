@@ -128,6 +128,136 @@ final class HttpPlexClientTest extends TestCase
         self::assertNull($seasons[0]->seasonNumber);
     }
 
+    public function testReadsTmdbIdFromGuidChildren(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video ratingKey="10" type="movie" title="Spider-Noir" year="2026" thumb="/t/10">'
+            . '<Guid id="imdb://tt5433138"/>'
+            . '<Guid id="tmdb://385128"/>'
+            . '<Guid id="tvdb://8856"/>'
+            . '</Video>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        // Only the TMDB id is kept; imdb and tvdb are ignored on purpose.
+        self::assertSame('385128', $items[0]->tmdbId);
+    }
+
+    public function testItemWithoutATmdbGuidHasNoTmdbId(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video ratingKey="10" type="movie" title="Home Video" thumb="/t/10">'
+            . '<Guid id="tvdb://8856"/>'
+            . '</Video>'
+            . '<Video ratingKey="11" type="movie" title="Unmatched" thumb="/t/11"/>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        self::assertNull($items[0]->tmdbId);
+        self::assertNull($items[1]->tmdbId);
+    }
+
+    /**
+     * Modern agents put an opaque `plex://` hash in the element's own `guid`
+     * attribute. It must never be mistaken for an external id, including when
+     * it is the only guid the item has.
+     */
+    public function testOpaquePlexGuidAttributeIsNotReadAsATmdbId(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video ratingKey="10" type="movie" title="Solaris" thumb="/t/10"'
+            . ' guid="plex://movie/5d7768264de0ee001fcc87e0"/>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        self::assertNull($items[0]->tmdbId);
+    }
+
+    /**
+     * A legacy-agent library puts the id back in the attribute. It is left
+     * unparsed by design — those items keep using title matching.
+     */
+    public function testLegacyAgentGuidAttributeIsNotParsed(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Video ratingKey="10" type="movie" title="Solaris" thumb="/t/10"'
+            . ' guid="com.plexapp.agents.themoviedb://1726?lang=en"/>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        self::assertNull($items[0]->tmdbId);
+    }
+
+    /**
+     * A season is addressed as a show plus a season number, so it carries the
+     * show's id rather than one of its own.
+     */
+    public function testSeasonsInheritTheShowsTmdbId(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20" index="1"/>'
+            . '<Directory ratingKey="19" type="season" title="Specials" thumb="/t/19" index="0"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Severance', null, '/t/2', 'TV', tmdbId: '95396');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertSame('95396', $seasons[0]->tmdbId);
+        self::assertSame('95396', $seasons[1]->tmdbId);
+        self::assertSame(0, $seasons[1]->seasonNumber);
+    }
+
+    public function testSeasonsOfAShowWithNoTmdbIdHaveNone(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="20" type="season" title="Season 1" thumb="/t/20" index="1"/>'
+            . '</MediaContainer>';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Home Movies', null, '/t/2', 'TV');
+        $seasons = $this->client([new Response(200, [], $xml)])->seasons($show);
+
+        self::assertNull($seasons[0]->tmdbId);
+    }
+
+    public function testItemListingRequestsGuids(): void
+    {
+        $mock = new MockHandler([new Response(200, [], '<MediaContainer/>')]);
+        $this->recordingClient($mock)->items(new PlexLibrary('1', 'Movies', 'movie'));
+
+        $request = $this->lastRequest($mock);
+        self::assertSame('/library/sections/1/all', $request->getUri()->getPath());
+        self::assertStringContainsString('includeGuids=1', $request->getUri()->getQuery());
+    }
+
+    public function testCollectionListingRequestsGuids(): void
+    {
+        $mock = new MockHandler([new Response(200, [], '<MediaContainer/>')]);
+        $this->recordingClient($mock)->collections(new PlexLibrary('1', 'Movies', 'movie'));
+
+        $request = $this->lastRequest($mock);
+        self::assertSame('/library/sections/1/collections', $request->getUri()->getPath());
+        self::assertStringContainsString('includeGuids=1', $request->getUri()->getQuery());
+    }
+
+    /**
+     * A Plex collection is a local grouping with no upstream record, so it has
+     * no id even though the listing is asked for guids.
+     */
+    public function testCollectionsHaveNoTmdbId(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory ratingKey="30" type="collection" title="Christmas Movies" thumb="/t/30"/>'
+            . '</MediaContainer>';
+
+        $items = $this->client([new Response(200, [], $xml)])->collections(new PlexLibrary('1', 'Movies', 'movie'));
+
+        self::assertNull($items[0]->tmdbId);
+    }
+
     public function testDownloadsPosterBytes(): void
     {
         $item = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');

@@ -48,7 +48,10 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
 
     public function items(PlexLibrary $library): array
     {
-        $xml = $this->get(sprintf('/library/sections/%s/all', rawurlencode($library->key)));
+        // `includeGuids=1` adds each item's external ids to the listing. Without
+        // it they are only available one metadata request per item, which would
+        // make an import's cost scale with library size.
+        $xml = $this->get(sprintf('/library/sections/%s/all?includeGuids=1', rawurlencode($library->key)));
 
         $items = [];
         if ($library->isMovie()) {
@@ -84,6 +87,10 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
                 sectionKey: $show->sectionKey,
                 addedAt: $this->intAttr($directory, 'addedAt'),
                 seasonNumber: $this->countAttr($directory, 'index'),
+                // A season carries its show's id, not one of its own: a season
+                // is addressed as a show plus a season number, and the number
+                // is already recorded separately above.
+                tmdbId: $show->tmdbId,
             );
         }
 
@@ -92,7 +99,7 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
 
     public function collections(PlexLibrary $library): array
     {
-        $xml = $this->get(sprintf('/library/sections/%s/collections', rawurlencode($library->key)));
+        $xml = $this->get(sprintf('/library/sections/%s/collections?includeGuids=1', rawurlencode($library->key)));
 
         $items = [];
         foreach ($xml->Directory as $directory) {
@@ -281,7 +288,35 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             libraryTitle: $library->title,
             sectionKey: $library->key,
             addedAt: $this->intAttr($element, 'addedAt'),
+            tmdbId: $this->tmdbId($element),
         );
+    }
+
+    /**
+     * The work's TMDB id, read from the item's `<Guid>` children.
+     *
+     * Modern Plex agents put an opaque `plex://movie/<hash>` in the element's
+     * own `guid` attribute and expose the external ids as children instead, so
+     * only the children are read. Legacy agents, which put the id back in the
+     * attribute as `com.plexapp.agents.themoviedb://1726`, are deliberately not
+     * parsed — one extraction rule, not two.
+     *
+     * Null is an ordinary result: collections have no upstream record at all,
+     * and neither does media Plex never matched.
+     */
+    private function tmdbId(SimpleXMLElement $element): ?string
+    {
+        foreach ($element->children() as $child) {
+            if ($child->getName() !== 'Guid') {
+                continue;
+            }
+            $id = $this->attr($child, 'id');
+            if ($id !== null && preg_match('#^tmdb://(\d+)#', $id, $matches) === 1) {
+                return $matches[1];
+            }
+        }
+
+        return null;
     }
 
     private function attr(SimpleXMLElement $element, string $name): ?string

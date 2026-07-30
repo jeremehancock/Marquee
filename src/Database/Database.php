@@ -88,6 +88,11 @@ final class Database
         // Plex's season index. Nullable rather than defaulted, because 0 is a
         // real season number (Specials) and so cannot double as "not a season".
         $this->ensureColumn($pdo, 'plex_items', 'season_number', 'INTEGER');
+        // The work's TMDB id, which identifies it exactly where a title cannot.
+        // TEXT because it is an opaque key, never an operand. Nullable, and null
+        // is a normal permanent state: a collection is a local Plex grouping
+        // with no upstream record, and an unmatched item has no id either.
+        $this->ensureColumn($pdo, 'plex_items', 'tmdb_id', 'TEXT');
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

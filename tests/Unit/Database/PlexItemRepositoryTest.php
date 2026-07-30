@@ -133,6 +133,59 @@ final class PlexItemRepositoryTest extends TestCase
         self::assertSame(1972, $repo->findByRatingKey('10')?->year);
     }
 
+    public function testRoundTripsTmdbId(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Spider-Noir B&W',
+            'spider-noir.jpg',
+            time(),
+            tmdbId: '385128',
+        ));
+
+        $found = $repo->findByRatingKey('10');
+
+        self::assertNotNull($found);
+        self::assertSame('385128', $found->tmdbId);
+    }
+
+    public function testAbsentTmdbIdStaysNull(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertNull($repo->findByRatingKey('10')?->tmdbId);
+    }
+
+    /**
+     * A row written before this column existed gains the id on the next import,
+     * so an install upgrading into this change needs no rebuild.
+     */
+    public function testReUpsertUpdatesTmdbIdOnAnExistingRow(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+        self::assertNull($repo->findByRatingKey('10')?->tmdbId);
+
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.jpg',
+            time(),
+            tmdbId: '1726',
+        ));
+
+        self::assertCount(1, $repo->all());
+        self::assertSame('1726', $repo->findByRatingKey('10')?->tmdbId);
+    }
+
     public function testLibrarySyncIsIdempotent(): void
     {
         $repo = new PlexLibraryRepository(new Database(':memory:'));

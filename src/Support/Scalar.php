@@ -31,4 +31,19 @@ final class Scalar
     {
         return is_numeric($value) ? (int) $value : null;
     }
+
+    /**
+     * Like string(), but preserves the difference between "absent" and a real
+     * empty string. A TMDB id is either known or not known, and a defaulted ''
+     * would read as a known-but-blank id.
+     */
+    public static function stringOrNull(mixed $value): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+        $string = (string) $value;
+
+        return $string !== '' ? $string : null;
+    }
 }
