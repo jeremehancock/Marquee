@@ -98,7 +98,60 @@ final class PosteriaApiPosterSource implements PosterSource
             ]);
         }
 
-        return PosterSearchResult::found($candidates, $partial);
+        return PosterSearchResult::found($candidates, $partial, $this->correctedTmdbId($data));
+    }
+
+    /**
+     * The id the endpoint actually matched, when it is not the one we sent.
+     *
+     * A difference means one thing: the id we sent is not one TMDB knows, so
+     * the endpoint fell back to resolving the title and served that work
+     * instead. The stored id is stale and this is what it should have been.
+     *
+     * Both halves of the comparison are read from the response rather than from
+     * the query, so this is true whenever an id was *sent* — not whenever one
+     * was recorded. Those differ: a collection's recorded id is deliberately
+     * never sent, and "matched something other than what we didn't send" is not
+     * a correction.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private function correctedTmdbId(array $data): ?string
+    {
+        $query = $data['query'] ?? null;
+        $match = $data['match'] ?? null;
+        if (!is_array($query) || !is_array($match)) {
+            return null;
+        }
+
+        $sent = $this->tmdbId($query['tmdb_id'] ?? null);
+        $matched = $this->tmdbId($match['tmdb_id'] ?? null);
+        if ($sent === null || $matched === null || $sent === $matched) {
+            return null;
+        }
+
+        $this->log('poster search matched a different work than the id sent for it', [
+            'sent' => $sent,
+            'matched' => $matched,
+        ]);
+
+        return $matched;
+    }
+
+    /**
+     * A TMDB id from the response, normalised to the string form it is stored
+     * in. Only a positive whole number is an id; anything else is treated as
+     * absent, because a bad value here would be written to the item's mapping.
+     */
+    private function tmdbId(mixed $value): ?string
+    {
+        if (!is_int($value) && !(is_string($value) && ctype_digit($value))) {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id >= 1 ? (string) $id : null;
     }
 
     /**
@@ -137,11 +190,46 @@ final class PosteriaApiPosterSource implements PosterSource
             $params['q'] = $this->showFromTitle($title);
         }
 
+        // Sent even alongside an id, where the endpoint ignores it: suppressing
+        // it would be a branch with no observable effect, and one that would
+        // have to be undone the moment the id turns out to be unknown upstream
+        // and the title path takes over — which is exactly when year matters.
         if ($query->year !== null) {
             $params['year'] = $query->year;
         }
 
+        $tmdbId = $this->sendableTmdbId($query);
+        if ($tmdbId !== null) {
+            $params['tmdb_id'] = $tmdbId;
+        }
+
         return $params;
+    }
+
+    /**
+     * The recorded TMDB id, if it is one the endpoint will accept: an integer
+     * of at least 1. Anything else — empty, non-numeric, zero — is treated as
+     * absent rather than sent and rejected with a 400 the user would read as
+     * "temporarily unavailable".
+     *
+     * Collections are excluded on their media type, not on the stored value
+     * being null. The specs say a Plex collection carries no id, but the import
+     * requests `includeGuids=1` and runs the same extraction it runs for
+     * movies, so a server that did report one would have stored it — and a
+     * collection id is not something `type=collection` accepts.
+     */
+    private function sendableTmdbId(PosterQuery $query): ?int
+    {
+        if ($query->mediaType === PlexMediaType::Collection) {
+            return null;
+        }
+
+        $id = $query->tmdbId;
+        if ($id === null || !ctype_digit($id)) {
+            return null;
+        }
+
+        return (int) $id >= 1 ? (int) $id : null;
     }
 
     /**

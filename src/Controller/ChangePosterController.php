@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Plex\Export\ExportException;
 use App\Plex\PlexException;
@@ -13,12 +14,14 @@ use App\Poster\PosterCategory;
 use App\Poster\Source\PosterCandidate;
 use App\Poster\Source\PosterQuery;
 use App\Poster\Source\PosterSearchOutcome;
+use App\Poster\Source\PosterSearchResult;
 use App\Poster\Source\PosterSource;
 use App\Poster\Upload\UploadException;
 use App\Support\Flash;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpNotFoundException;
 
 /**
@@ -32,6 +35,7 @@ final class ChangePosterController
         private readonly PlexItemRepository $items,
         private readonly PosterSource $source,
         private readonly Flash $flash,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -141,7 +145,10 @@ final class ChangePosterController
             mediaType: $type,
             seasonNumber: $record->seasonNumber,
             year: $record->year,
+            tmdbId: $record->tmdbId,
         ));
+
+        $this->correctStaleTmdbId($record, $result);
 
         $posters = array_map(
             static fn (PosterCandidate $c): array => [
@@ -156,6 +163,51 @@ final class ChangePosterController
             'posters' => $posters,
             'error' => $this->messageFor($result->outcome),
             'partial' => $result->outcome === PosterSearchOutcome::Partial,
+        ]);
+    }
+
+    /**
+     * Replace a stale TMDB id with the one the source actually matched.
+     *
+     * Only a *wrong* id is replaced, never a missing one. An item with no id is
+     * searched by its title every time, and that re-resolves on each search;
+     * recording one title-derived guess would pin the item to it permanently,
+     * with no later mismatch left to reveal the error. A known-bad id cannot
+     * get worse, which is what makes replacing it safe.
+     *
+     * This is a repair of a Plex-derived cache, not an override of Plex: a full
+     * re-import writes the id from Plex again. If Plex is still wrong the next
+     * search detects it and repairs it again, which costs one request and no
+     * schema change.
+     */
+    private function correctStaleTmdbId(PlexItemRecord $record, PosterSearchResult $result): void
+    {
+        $corrected = $result->correctedTmdbId;
+        if ($corrected === null || $record->tmdbId === null || $corrected === $record->tmdbId) {
+            return;
+        }
+
+        $this->items->upsert(new PlexItemRecord(
+            ratingKey: $record->ratingKey,
+            mediaType: $record->mediaType,
+            category: $record->category,
+            libraryTitle: $record->libraryTitle,
+            title: $record->title,
+            filename: $record->filename,
+            updatedAt: time(),
+            sectionKey: $record->sectionKey,
+            thumb: $record->thumb,
+            addedAt: $record->addedAt,
+            year: $record->year,
+            seasonNumber: $record->seasonNumber,
+            tmdbId: $corrected,
+        ));
+
+        $this->logger->info('corrected a stale TMDB id from a poster search', [
+            'title' => $record->title,
+            'ratingKey' => $record->ratingKey,
+            'was' => $record->tmdbId,
+            'now' => $corrected,
         ]);
     }
 

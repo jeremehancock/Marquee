@@ -142,6 +142,134 @@ final class ChangePosterTest extends AppTestCase
         self::assertNull($source->asked->seasonNumber);
     }
 
+    private function repository(): PlexItemRepository
+    {
+        return new PlexItemRepository(new Database($this->dataDir . '/marquee.sqlite'));
+    }
+
+    /**
+     * Re-record the Solaris mapping with a given TMDB id and a fixed, old
+     * `updatedAt`, so a later write to the row is visible as a change to it.
+     */
+    private function storeTmdbId(?string $tmdbId): void
+    {
+        $this->repository()->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.jpg',
+            1000,
+            '1',
+            year: 1972,
+            tmdbId: $tmdbId,
+        ));
+    }
+
+    private function storedRecord(): PlexItemRecord
+    {
+        $record = $this->repository()->findByFilename('movies', 'Solaris.jpg');
+        self::assertInstanceOf(PlexItemRecord::class, $record);
+
+        return $record;
+    }
+
+    public function testFindPostersSendsTheRecordedTmdbId(): void
+    {
+        $this->storeTmdbId('603');
+        $source = $this->fakeSource(PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]));
+        $this->findPosters($source);
+
+        self::assertInstanceOf(PosterQuery::class, $source->asked);
+        self::assertSame('603', $source->asked->tmdbId);
+    }
+
+    public function testFindPostersSendsNoIdWhenNoneIsRecorded(): void
+    {
+        $source = $this->fakeSource(PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]));
+        $this->findPosters($source);
+
+        self::assertInstanceOf(PosterQuery::class, $source->asked);
+        self::assertNull($source->asked->tmdbId);
+    }
+
+    public function testStaleTmdbIdIsReplacedByTheMatchedOne(): void
+    {
+        $this->storeTmdbId('111');
+        $source = $this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        ));
+
+        $this->findPosters($source);
+
+        $record = $this->storedRecord();
+        self::assertSame('603', $record->tmdbId);
+        self::assertGreaterThan(1000, $record->updatedAt);
+        self::assertSame('Solaris', $record->title, 'only the id changes');
+        self::assertSame(1972, $record->year);
+    }
+
+    public function testCorrectedItemSendsTheCorrectedIdOnTheNextSearch(): void
+    {
+        $this->storeTmdbId('111');
+        $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        )));
+
+        $next = $this->fakeSource(PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]));
+        $this->findPosters($next);
+
+        self::assertInstanceOf(PosterQuery::class, $next->asked);
+        self::assertSame('603', $next->asked->tmdbId);
+    }
+
+    public function testNoCorrectionLeavesTheRecordUntouched(): void
+    {
+        $this->storeTmdbId('603');
+        $this->findPosters($this->fakeSource(
+            PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]),
+        ));
+
+        $record = $this->storedRecord();
+        self::assertSame('603', $record->tmdbId);
+        self::assertSame(1000, $record->updatedAt, 'the row was not written to');
+    }
+
+    public function testAMissingIdIsNeverFilledInFromASearch(): void
+    {
+        $this->storeTmdbId(null);
+        $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg')],
+            correctedTmdbId: '603',
+        )));
+
+        $record = $this->storedRecord();
+        self::assertNull(
+            $record->tmdbId,
+            'an item with no id keeps searching by title, which re-resolves every time',
+        );
+        self::assertSame(1000, $record->updatedAt);
+    }
+
+    public function testCorrectionDoesNotChangeWhatTheUserSees(): void
+    {
+        $this->storeTmdbId('111');
+        $corrected = $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg', source: 'tmdb')],
+            correctedTmdbId: '603',
+        )));
+
+        $this->storeTmdbId('603');
+        $plain = $this->findPosters($this->fakeSource(PosterSearchResult::found(
+            [new PosterCandidate('https://img/a.jpg', source: 'tmdb')],
+        )));
+
+        self::assertSame($plain, $corrected, 'a correction is silent; it is a repair, not a message');
+    }
+
     /**
      * Each outcome has to say something different: the old contract collapsed
      * every one of these into "No posters found for this title."

@@ -14,6 +14,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Psr\Log\NullLogger;
@@ -226,6 +227,232 @@ final class PosteriaApiPosterSourceTest extends TestCase
 
         self::assertSame(PosterSearchOutcome::NoMatch, $result->outcome);
         self::assertCount(0, $this->sent);
+    }
+
+    // ---- TMDB id on the request ----
+
+    public function testSendsTheRecordedTmdbIdForAMovie(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '603'));
+
+        self::assertSame('603', $this->sentQuery()['tmdb_id']);
+    }
+
+    public function testSendsTheRecordedTmdbIdForAShow(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('Breaking Bad', PlexMediaType::Show, tmdbId: '1396'));
+
+        self::assertSame('1396', $this->sentQuery()['tmdb_id']);
+    }
+
+    public function testTitleIsStillSentAlongsideAnId(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('Spider-Noir B&W', PlexMediaType::Movie, year: 2026, tmdbId: '603'));
+
+        self::assertSame(
+            ['q' => 'Spider-Noir B&W', 'type' => 'movie', 'year' => '2026', 'tmdb_id' => '603'],
+            $this->sentQuery(),
+            'q stays required and year stays unconditional; the endpoint ignores year when an id is sent',
+        );
+    }
+
+    public function testOmitsTheIdWhenNoneIsRecorded(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
+
+        self::assertArrayNotHasKey('tmdb_id', $this->sentQuery());
+    }
+
+    public function testNeverSendsAnIdForACollectionEvenWhenOneIsRecorded(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('Star Wars', PlexMediaType::Collection, tmdbId: '10'));
+
+        self::assertArrayNotHasKey(
+            'tmdb_id',
+            $this->sentQuery(),
+            'a Plex collection is a local grouping; type=collection takes no id',
+        );
+        self::assertSame('Star Wars', $this->sentQuery()['q']);
+    }
+
+    /**
+     * A value the endpoint would reject with a 400 — which the user would read
+     * as "temporarily unavailable" — is treated as no id at all.
+     */
+    #[DataProvider('unusableIds')]
+    public function testOmitsAnIdThatIsNotAPositiveWholeNumber(string $id): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
+        $source->find(new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: $id));
+
+        self::assertArrayNotHasKey('tmdb_id', $this->sentQuery());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function unusableIds(): array
+    {
+        return [
+            'empty' => [''],
+            'blank' => ['   '],
+            'zero' => ['0'],
+            'negative' => ['-5'],
+            'decimal' => ['12.5'],
+            'non-numeric' => ['tt0133093'],
+            'prefixed' => ['tmdb://603'],
+        ];
+    }
+
+    public function testSeasonSendsTheShowsIdWithTheSeasonNumber(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/s2.jpg']])]);
+        $source->find(new PosterQuery('Breaking Bad - Season 2', PlexMediaType::Season, seasonNumber: 2, tmdbId: '1396'));
+
+        self::assertSame(
+            ['q' => 'Breaking Bad', 'type' => 'season', 'season' => '2', 'tmdb_id' => '1396'],
+            $this->sentQuery(),
+            'a season is addressed as its show plus a season number; there is no season-level id',
+        );
+    }
+
+    public function testSpecialsSendsTheShowsIdWithSeasonZero(): void
+    {
+        $source = $this->source([$this->ok([['url' => 'https://img/sp.jpg']])]);
+        $source->find(new PosterQuery('Breaking Bad - Specials', PlexMediaType::Season, seasonNumber: 0, tmdbId: '1396'));
+
+        $query = $this->sentQuery();
+        self::assertSame('0', $query['season']);
+        self::assertSame('1396', $query['tmdb_id']);
+    }
+
+    // ---- Correcting a stale TMDB id ----
+
+    public function testReportsTheMatchedIdWhenItDiffersFromTheOneSent(): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => 111], 'match' => ['tmdb_id' => 222]],
+        );
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
+        );
+
+        self::assertSame('222', $result->correctedTmdbId, 'the id we sent was unknown upstream; this is the real one');
+        self::assertCount(1, $this->sent, 'a correction is read from the response, not fetched');
+    }
+
+    public function testReportsNoCorrectionWhenTheMatchedIdAgrees(): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => 603], 'match' => ['tmdb_id' => 603]],
+        );
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '603'),
+        );
+
+        self::assertNull($result->correctedTmdbId);
+    }
+
+    public function testReportsNoCorrectionWhenNoIdWasSent(): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => null], 'match' => ['tmdb_id' => 603]],
+        );
+
+        $result = $this->source([$response])->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
+
+        self::assertNull(
+            $result->correctedTmdbId,
+            'a title-resolved id for an item that has none is a guess, not a correction',
+        );
+    }
+
+    public function testReportsNoCorrectionForACollectionWhoseRecordedIdWasNotSent(): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => null], 'match' => ['tmdb_id' => 999]],
+        );
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('Star Wars', PlexMediaType::Collection, tmdbId: '10'),
+        );
+
+        self::assertNull($result->correctedTmdbId);
+    }
+
+    #[DataProvider('unusableMatchedIds')]
+    public function testIgnoresAMatchedIdThatIsNotUsable(mixed $matched): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => 111], 'match' => ['tmdb_id' => $matched]],
+        );
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
+        );
+
+        self::assertNull($result->correctedTmdbId, 'a bad value here would be written to the item mapping');
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function unusableMatchedIds(): array
+    {
+        return [
+            'null' => [null],
+            'zero' => [0],
+            'negative' => [-1],
+            'non-numeric string' => ['abc'],
+            'float' => [12.5],
+            'array' => [[603]],
+        ];
+    }
+
+    public function testMissingQueryOrMatchObjectIsNotACorrection(): void
+    {
+        $result = $this->source([$this->ok([['url' => 'https://img/a.jpg']])])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
+        );
+
+        self::assertNull(
+            $result->correctedTmdbId,
+            'a service that has not deployed the parameter yet echoes neither object',
+        );
+    }
+
+    public function testAnIdentifiedWorkWithNoArtworkIsNoArtworkAndIsNotRetried(): void
+    {
+        $response = $this->ok([], ['query' => ['tmdb_id' => 603], 'match' => ['tmdb_id' => 603]]);
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '603'),
+        );
+
+        self::assertSame(PosterSearchOutcome::NoArtwork, $result->outcome);
+        self::assertCount(1, $this->sent, 'the id was valid; retrying by title would defeat it');
+    }
+
+    public function testAFailedSearchCarriesNoCorrection(): void
+    {
+        $result = $this->source([$this->error(404, 'no_match')])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
+        );
+
+        self::assertSame(PosterSearchOutcome::NoMatch, $result->outcome);
+        self::assertNull($result->correctedTmdbId);
     }
 
     // ---- Outcome mapping ----
