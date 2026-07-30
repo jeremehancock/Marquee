@@ -333,29 +333,38 @@ final class PosteriaApiPosterSourceTest extends TestCase
 
     // ---- Correcting a stale TMDB id ----
 
-    public function testReportsTheMatchedIdWhenItDiffersFromTheOneSent(): void
+    /**
+     * Shaped like the live endpoint, which is the point of these fixtures: it
+     * reports the id it *resolved* in `query.tmdb_id`, not the one it was sent,
+     * so both ids in the response always agree. Detection cannot come from
+     * comparing them — a search that sends no id at all still gets one back
+     * there. See design Decision 1 of `fix-stale-tmdb-id-detection`.
+     *
+     * @param list<array<string, mixed>> $posters
+     */
+    private function resolved(int $tmdbId, array $posters = [['url' => 'https://img/a.jpg']]): Response
     {
-        $response = $this->ok(
-            [['url' => 'https://img/a.jpg']],
-            ['query' => ['tmdb_id' => 111], 'match' => ['tmdb_id' => 222]],
-        );
+        return $this->ok($posters, [
+            'query' => ['tmdb_id' => $tmdbId],
+            'match' => ['tmdb_id' => $tmdbId],
+        ]);
+    }
 
-        $result = $this->source([$response])->find(
+    public function testDetectsAStaleIdEvenThoughTheResponseAgreesWithItself(): void
+    {
+        // The case that failed in the field: 111 is unknown upstream, so the
+        // endpoint resolved the title to 603 and reported 603 in *both* places.
+        $result = $this->source([$this->resolved(603)])->find(
             new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
         );
 
-        self::assertSame('222', $result->correctedTmdbId, 'the id we sent was unknown upstream; this is the real one');
+        self::assertSame('603', $result->correctedTmdbId, 'the id we sent was unknown upstream; this is the real one');
         self::assertCount(1, $this->sent, 'a correction is read from the response, not fetched');
     }
 
     public function testReportsNoCorrectionWhenTheMatchedIdAgrees(): void
     {
-        $response = $this->ok(
-            [['url' => 'https://img/a.jpg']],
-            ['query' => ['tmdb_id' => 603], 'match' => ['tmdb_id' => 603]],
-        );
-
-        $result = $this->source([$response])->find(
+        $result = $this->source([$this->resolved(603)])->find(
             new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '603'),
         );
 
@@ -364,12 +373,9 @@ final class PosteriaApiPosterSourceTest extends TestCase
 
     public function testReportsNoCorrectionWhenNoIdWasSent(): void
     {
-        $response = $this->ok(
-            [['url' => 'https://img/a.jpg']],
-            ['query' => ['tmdb_id' => null], 'match' => ['tmdb_id' => 603]],
+        $result = $this->source([$this->resolved(603)])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie),
         );
-
-        $result = $this->source([$response])->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
 
         self::assertNull(
             $result->correctedTmdbId,
@@ -377,18 +383,34 @@ final class PosteriaApiPosterSourceTest extends TestCase
         );
     }
 
-    public function testReportsNoCorrectionForACollectionWhoseRecordedIdWasNotSent(): void
+    public function testReportsNoCorrectionForACollectionWhoseRecordedIdWasWithheld(): void
     {
-        $response = $this->ok(
-            [['url' => 'https://img/a.jpg']],
-            ['query' => ['tmdb_id' => null], 'match' => ['tmdb_id' => 999]],
+        $result = $this->source([$this->resolved(10)])->find(
+            new PosterQuery('Star Wars', PlexMediaType::Collection, tmdbId: '999'),
         );
 
-        $result = $this->source([$response])->find(
-            new PosterQuery('Star Wars', PlexMediaType::Collection, tmdbId: '10'),
+        self::assertNull(
+            $result->correctedTmdbId,
+            'nothing was sent, so there is nothing for the response to disagree with',
+        );
+    }
+
+    public function testReportsNoCorrectionWhenTheRecordedIdWasUnusableAndSoWithheld(): void
+    {
+        $result = $this->source([$this->resolved(603)])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: 'tt0133093'),
         );
 
         self::assertNull($result->correctedTmdbId);
+    }
+
+    public function testASeasonCorrectionUsesTheShowId(): void
+    {
+        $result = $this->source([$this->resolved(1396)])->find(
+            new PosterQuery('Breaking Bad - Season 2', PlexMediaType::Season, seasonNumber: 2, tmdbId: '999'),
+        );
+
+        self::assertSame('1396', $result->correctedTmdbId, 'match.tmdb_id on a season search is the show’s id');
     }
 
     #[DataProvider('unusableMatchedIds')]
@@ -396,7 +418,7 @@ final class PosteriaApiPosterSourceTest extends TestCase
     {
         $response = $this->ok(
             [['url' => 'https://img/a.jpg']],
-            ['query' => ['tmdb_id' => 111], 'match' => ['tmdb_id' => $matched]],
+            ['query' => ['tmdb_id' => $matched], 'match' => ['tmdb_id' => $matched]],
         );
 
         $result = $this->source([$response])->find(
@@ -404,6 +426,22 @@ final class PosteriaApiPosterSourceTest extends TestCase
         );
 
         self::assertNull($result->correctedTmdbId, 'a bad value here would be written to the item mapping');
+    }
+
+    public function testDoesNotReadTheEchoedQueryIdAtAll(): void
+    {
+        // A response that still echoes what was sent — the shape the contract
+        // described and the endpoint does not emit. The answer must not change.
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg']],
+            ['query' => ['tmdb_id' => 111], 'match' => ['tmdb_id' => 603]],
+        );
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
+        );
+
+        self::assertSame('603', $result->correctedTmdbId, 'detection holds whichever id the response echoes');
     }
 
     /**
@@ -421,7 +459,7 @@ final class PosteriaApiPosterSourceTest extends TestCase
         ];
     }
 
-    public function testMissingQueryOrMatchObjectIsNotACorrection(): void
+    public function testMissingMatchObjectIsNotACorrection(): void
     {
         $result = $this->source([$this->ok([['url' => 'https://img/a.jpg']])])->find(
             new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '111'),
@@ -429,13 +467,13 @@ final class PosteriaApiPosterSourceTest extends TestCase
 
         self::assertNull(
             $result->correctedTmdbId,
-            'a service that has not deployed the parameter yet echoes neither object',
+            'a service that has not deployed the parameter yet reports no match object',
         );
     }
 
     public function testAnIdentifiedWorkWithNoArtworkIsNoArtworkAndIsNotRetried(): void
     {
-        $response = $this->ok([], ['query' => ['tmdb_id' => 603], 'match' => ['tmdb_id' => 603]]);
+        $response = $this->resolved(603, []);
 
         $result = $this->source([$response])->find(
             new PosterQuery('The Matrix', PlexMediaType::Movie, tmdbId: '603'),
