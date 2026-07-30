@@ -99,6 +99,7 @@ final class ImportService
                 && $existing->thumb === $thumb
                 && $this->storage->exists($category, $existing->filename)
             ) {
+                $this->backfillTmdbId($existing, $item);
                 $result->recordSkipped();
 
                 return;
@@ -140,6 +141,37 @@ final class ImportService
         } catch (Throwable) {
             $result->recordFailed();
         }
+    }
+
+    /**
+     * Record a TMDB id on a mapping that predates it, without downloading the
+     * poster the skip check just decided was unchanged.
+     *
+     * Only null → known writes. A blanket refresh here would rewrite every row
+     * on every scheduled import, where the skip path's whole purpose is to cost
+     * almost nothing; this fires once per item and then never again.
+     */
+    private function backfillTmdbId(PlexItemRecord $existing, PlexItem $item): void
+    {
+        if ($existing->tmdbId !== null || $item->tmdbId === null) {
+            return;
+        }
+
+        $this->items->upsert(new PlexItemRecord(
+            ratingKey: $existing->ratingKey,
+            mediaType: $existing->mediaType,
+            category: $existing->category,
+            libraryTitle: $existing->libraryTitle,
+            title: $existing->title,
+            filename: $existing->filename,
+            updatedAt: time(),
+            sectionKey: $existing->sectionKey,
+            thumb: $existing->thumb,
+            addedAt: $existing->addedAt,
+            year: $existing->year,
+            seasonNumber: $existing->seasonNumber,
+            tmdbId: $item->tmdbId,
+        ));
     }
 
     private function deriveFilename(PlexItem $item, string $bytes): string

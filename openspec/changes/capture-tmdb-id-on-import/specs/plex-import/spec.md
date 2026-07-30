@@ -70,6 +70,12 @@ unknown and SHALL NOT be treated as an error.
 - **THEN** every item is imported with its identifier left unknown, and no item
   is reported as failed
 
+#### Scenario: A skipped item still gains a missing TMDB identifier
+- **WHEN** an import skips an item because its poster is unchanged, and the
+  stored mapping has no TMDB identifier while Plex now reports one
+- **THEN** the system records the identifier without downloading the poster, and
+  still counts the item as skipped
+
 #### Scenario: Missing year or season number does not fail import
 - **WHEN** an item does not report a release year, or is not a season and so has
   no season number

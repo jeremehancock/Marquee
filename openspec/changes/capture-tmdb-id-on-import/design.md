@@ -193,6 +193,30 @@ This mirrors how `year` and `addedAt` are already handled, and it is asserted
 directly in the spec (*"A server that reports no identifiers does not fail the
 import"*) so a future refactor cannot quietly turn it into a hard failure.
 
+### 10. The skip path backfills a missing identifier
+
+Import skips an item whose Plex artwork is unchanged and whose local file still
+exists, returning before the mapping is written. Left alone that would defeat
+Decision 7: an existing install's next import skips nearly everything, so almost
+no rows would gain an identifier until their artwork happened to change. The
+front-loading this change exists for would not actually happen.
+
+So the skip path writes the mapping when — and only when — the stored identifier
+is null and Plex now reports one. The poster is still not downloaded, which is
+what the skip is for; the item is still counted as skipped, because from the
+user's point of view nothing about it was re-imported.
+
+The condition is deliberately narrow rather than "always refresh on skip". A
+blanket refresh would rewrite every row on every scheduled import — write
+amplification proportional to library size, on a table that is otherwise only
+touched when something really changed. Null-to-known fires once per item, ever.
+
+Alternatives considered: telling users to tick **re-download** instead, which
+forces a full re-download of every poster to collect a text field, and is a
+manual step most users would never know to take; and backfilling from a separate
+pass over the library, which is a second traversal for something the skip path
+already has in hand.
+
 ## Risks / Trade-offs
 
 **[`includeGuids=1` is unsupported or silently ignored on some servers]** → Every

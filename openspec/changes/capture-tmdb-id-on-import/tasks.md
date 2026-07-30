@@ -69,3 +69,22 @@
 - [x] 5.2 Run `composer test`, `composer stan` and `composer cs` — all three must
   pass before commit
 - [x] 5.3 Run `openspec validate capture-tmdb-id-on-import --strict`
+
+## 6. Backfill on skip
+
+Added after `:dev` validation showed ~99.8% coverage on a fresh import, which
+made it clear the skip path would strand existing installs at nearly 0% until
+their artwork changed (design Decision 10).
+
+- [x] 6.1 In `ImportService::importItem()`, before the skip branch records the
+  skip, write the mapping when the stored identifier is null and the Plex item
+  now reports one — no poster download, and the item is still counted as skipped
+- [x] 6.2 Keep the condition narrow (null → known only), so a scheduled import
+  over an unchanged library still writes nothing
+- [x] 6.3 `ImportServiceTest`: a skipped item whose stored mapping has no
+  identifier gains one, is still counted as skipped, and does not re-download
+  the poster (assert via `FakePlexClient::$downloads`)
+- [x] 6.4 `ImportServiceTest`: a skipped item that already has an identifier is
+  not rewritten, and a skipped item for which Plex reports none stays null
+- [x] 6.5 Re-run `composer test`, `composer stan`, `composer cs` and
+  `openspec validate --strict`
