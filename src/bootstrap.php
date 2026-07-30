@@ -8,6 +8,7 @@ use App\Auth\AuthMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
+use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
@@ -66,6 +67,7 @@ function buildContainer(array $overrides = []): Container
         PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
         PlexConfig::class => static fn (): PlexConfig => PlexConfig::fromEnv(),
         AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
+        LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
@@ -78,8 +80,11 @@ function buildContainer(array $overrides = []): Container
                 $logger,
             ),
         Database::class => static fn (AppConfig $app): Database => new Database($app->dataDir . '/marquee.sqlite'),
-        HttpPlexClient::class => static fn (ClientInterface $http, PlexConfig $plex): HttpPlexClient
-            => new HttpPlexClient($http, $plex),
+        HttpPlexClient::class => static fn (
+            ClientInterface $http,
+            PlexConfig $plex,
+            LibraryExclusions $exclusions,
+        ): HttpPlexClient => new HttpPlexClient($http, $plex, $exclusions),
         PlexClient::class => \DI\get(HttpPlexClient::class),
         PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
         // The wall's now-playing poster tokens are signed with the Plex token:

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Plex;
 
+use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexException;
@@ -24,15 +25,16 @@ final class HttpPlexClientTest extends TestCase
 {
     /**
      * @param list<Response|ConnectException> $responses
+     * @param list<string>                    $excluded
      */
-    private function client(array $responses, bool $configured = true): HttpPlexClient
+    private function client(array $responses, bool $configured = true, array $excluded = []): HttpPlexClient
     {
         $guzzle = new Client(['handler' => HandlerStack::create(new MockHandler($responses))]);
         $config = $configured
             ? new PlexConfig('http://plex:32400', 'token', 10, 60)
             : new PlexConfig('', '', 10, 60);
 
-        return new HttpPlexClient($guzzle, $config);
+        return new HttpPlexClient($guzzle, $config, new LibraryExclusions($excluded));
     }
 
     public function testListsMovieAndShowLibrariesOnly(): void
@@ -49,6 +51,31 @@ final class HttpPlexClientTest extends TestCase
         self::assertSame('Movies', $libraries[0]->title);
         self::assertTrue($libraries[0]->isMovie());
         self::assertTrue($libraries[1]->isShow());
+    }
+
+    public function testExcludedLibrariesAreNeverReported(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory key="1" type="movie" title="Movies"/>'
+            . '<Directory key="2" type="movie" title="Kids Movies"/>'
+            . '<Directory key="3" type="show" title="TV"/>'
+            . '</MediaContainer>';
+
+        $libraries = $this->client([new Response(200, [], $xml)], excluded: ['kids movies'])->libraries();
+
+        self::assertSame(['Movies', 'TV'], array_map(static fn ($l) => $l->title, $libraries));
+    }
+
+    public function testEveryLibraryCanBeExcluded(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory key="1" type="movie" title="Movies"/>'
+            . '<Directory key="2" type="show" title="TV"/>'
+            . '</MediaContainer>';
+
+        $libraries = $this->client([new Response(200, [], $xml)], excluded: ['Movies', 'TV'])->libraries();
+
+        self::assertSame([], $libraries);
     }
 
     public function testParsesMovieItems(): void
@@ -481,7 +508,7 @@ final class HttpPlexClientTest extends TestCase
     {
         $guzzle = new Client(['handler' => HandlerStack::create($mock)]);
 
-        return new HttpPlexClient($guzzle, new PlexConfig('http://plex:32400', 'token', 10, 60));
+        return new HttpPlexClient($guzzle, new PlexConfig('http://plex:32400', 'token', 10, 60), new LibraryExclusions([]));
     }
 
     public function testUploadPosterPostsImageBytes(): void

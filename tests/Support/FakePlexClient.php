@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Support;
 
+use App\Config\LibraryExclusions;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
 use App\Plex\PlexItem;
@@ -26,6 +27,7 @@ final class FakePlexClient implements PlexClient
      * @param list<string>                     $failingKeys      rating keys that fail download
      * @param list<PlexSession>                $sessions         active playback sessions
      * @param list<string>                     $failingThumbs    thumb paths whose poster fetch fails
+     * @param list<string>                     $excluded         library names the real client would hide
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -36,6 +38,7 @@ final class FakePlexClient implements PlexClient
         private readonly bool $configured = true,
         private readonly array $sessions = [],
         private readonly array $failingThumbs = [],
+        private readonly array $excluded = [],
     ) {
     }
 
@@ -44,9 +47,18 @@ final class FakePlexClient implements PlexClient
         return $this->configured;
     }
 
+    /**
+     * Honors the PlexClient contract that excluded libraries are never
+     * reported, so callers under test see exactly what production would.
+     */
     public function libraries(): array
     {
-        return $this->libraries;
+        $exclusions = new LibraryExclusions($this->excluded);
+
+        return array_values(array_filter(
+            $this->libraries,
+            static fn (PlexLibrary $library): bool => !$exclusions->isExcluded($library->title),
+        ));
     }
 
     public function items(PlexLibrary $library): array

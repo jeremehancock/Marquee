@@ -70,6 +70,34 @@ final class OrphanServiceTest extends TestCase
         self::assertSame('Gone.jpg', $orphans[0]->filename);
     }
 
+    /**
+     * Excluding a library after importing from it is how the user tells Marquee
+     * that library is gone: its posters have no live counterpart any more, so
+     * they surface as orphans for the user to clear.
+     */
+    public function testPosterFromASinceExcludedLibraryIsAnOrphan(): void
+    {
+        $this->seed('Cars.jpg', '30');
+
+        $kids = new PlexLibrary('3', 'Kids', 'movie');
+        $cars = new PlexItem('30', PlexMediaType::Movie, 'Cars', 2006, '/t/30', 'Kids');
+        $plex = new FakePlexClient([$kids], ['3' => [$cars]], excluded: ['Kids']);
+        $service = new OrphanService($plex, $this->items, $this->storage);
+
+        $orphans = $service->findOrphans();
+
+        self::assertCount(1, $orphans);
+        self::assertSame('Cars.jpg', $orphans[0]->filename);
+        // Listed, not removed: the poster and its mapping survive detection.
+        self::assertFileExists($this->dir . '/movies/Cars.jpg');
+        self::assertNotNull($this->items->findByRatingKey('30'));
+
+        // It goes only when the user deletes it.
+        self::assertTrue($service->delete(PosterCategory::Movies, 'Cars.jpg'));
+        self::assertFileDoesNotExist($this->dir . '/movies/Cars.jpg');
+        self::assertNull($this->items->findByRatingKey('30'));
+    }
+
     public function testManualUploadIsNotAnOrphan(): void
     {
         // A file with no mapping in the database.

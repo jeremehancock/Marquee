@@ -59,12 +59,9 @@ final class AutoImportServiceTest extends TestCase
         return count(array_filter(scandir($dir) ?: [], static fn (string $f): bool => is_file($dir . '/' . $f)));
     }
 
-    /**
-     * @param list<string> $excluded
-     */
-    private function config(bool $enabled, bool $movies, bool $shows, bool $seasons, array $excluded = []): AutoImportConfig
+    private function config(bool $enabled, bool $movies, bool $shows, bool $seasons): AutoImportConfig
     {
-        return new AutoImportConfig($enabled, $movies, $shows, $seasons, false, $excluded);
+        return new AutoImportConfig($enabled, $movies, $shows, $seasons, false);
     }
 
     public function testImportsOnlyEnabledMediaTypes(): void
@@ -99,13 +96,26 @@ final class AutoImportServiceTest extends TestCase
                 '1' => [new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies')],
                 '3' => [new PlexItem('30', PlexMediaType::Movie, 'Cars', 2006, '/t/30', 'Kids')],
             ],
+            excluded: ['Kids'],
         );
 
-        $result = $this->service($plex, $this->config(true, true, false, false, ['Kids']))->run();
+        $result = $this->service($plex, $this->config(true, true, false, false))->run();
 
         self::assertNotNull($result);
         self::assertSame(1, $result->imported());
         self::assertSame(1, $this->countFiles('movies'));
+    }
+
+    public function testDoesNothingWhenEveryLibraryIsExcluded(): void
+    {
+        $plex = new FakePlexClient(
+            [new PlexLibrary('1', 'Movies', 'movie')],
+            ['1' => [new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies')]],
+            excluded: ['Movies'],
+        );
+
+        self::assertNull($this->service($plex, $this->config(true, true, false, false))->run());
+        self::assertSame(0, $this->countFiles('movies'));
     }
 
     public function testDisabledDoesNothing(): void

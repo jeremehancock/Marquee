@@ -18,7 +18,14 @@
     {% elseif error %}
         <p class="alert" role="alert">{{ error }}</p>
     {% elseif libraries is empty %}
-        <div class="panel"><p>No movie or TV libraries were found on your Plex server.</p></div>
+        <div class="panel">
+            {% if has_exclusions %}
+                <p>No libraries are available to import. Libraries listed in
+                   <code>EXCLUDED_LIBRARIES</code> are hidden from Marquee.</p>
+            {% else %}
+                <p>No movie or TV libraries were found on your Plex server.</p>
+            {% endif %}
+        </div>
     {% else %}
         {% set movie_count = libraries|filter(l => l.isMovie)|length %}
         {% set tv_count = libraries|filter(l => not l.isMovie)|length %}

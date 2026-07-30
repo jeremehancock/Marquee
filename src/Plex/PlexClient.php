@@ -13,6 +13,10 @@ interface PlexClient
     public function isConfigured(): bool;
 
     /**
+     * Libraries excluded by configuration are never returned, so callers need
+     * no exclusion check of their own: an excluded library does not exist as
+     * far as the rest of the application is concerned.
+     *
      * @return list<PlexLibrary>
      */
     public function libraries(): array;

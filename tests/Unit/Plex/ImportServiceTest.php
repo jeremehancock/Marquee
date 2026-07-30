@@ -65,6 +65,39 @@ final class ImportServiceTest extends TestCase
         self::assertNotNull($this->items->findByRatingKey('10'));
     }
 
+    public function testExcludedLibraryImportsNothingEvenWhenItsSectionKeyIsSubmitted(): void
+    {
+        $kids = new PlexLibrary('3', 'Kids', 'movie');
+        $cars = new PlexItem('30', PlexMediaType::Movie, 'Cars', 2006, '/t/30', 'Kids');
+        $service = $this->service(new FakePlexClient([$kids], ['3' => [$cars]], excluded: ['Kids']));
+
+        $result = $service->import(['3'], [PlexMediaType::Movie]);
+
+        self::assertSame(0, $result->imported());
+        self::assertSame(0, $this->countFiles('movies'));
+        self::assertNull($this->items->findByRatingKey('30'));
+    }
+
+    public function testMixedSelectionImportsOnlyTheNonExcludedLibrary(): void
+    {
+        $movies = new PlexLibrary('1', 'Movies', 'movie');
+        $kids = new PlexLibrary('3', 'Kids', 'movie');
+        $service = $this->service(new FakePlexClient(
+            [$movies, $kids],
+            [
+                '1' => [new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies')],
+                '3' => [new PlexItem('30', PlexMediaType::Movie, 'Cars', 2006, '/t/30', 'Kids')],
+            ],
+            excluded: ['Kids'],
+        ));
+
+        $result = $service->import(['1', '3'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->imported());
+        self::assertNotNull($this->items->findByRatingKey('10'));
+        self::assertNull($this->items->findByRatingKey('30'));
+    }
+
     public function testImportPersistsPlexAddedAt(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
