@@ -5,6 +5,7 @@
   <rect x="35" y="16" width="17" height="32" rx="3" fill="#b9800c" transform="rotate(10 43.5 32)"/>
   <!-- front poster -->
   <rect x="21" y="15" width="22" height="34" rx="3" fill="#e5a00d"/>
-  <!-- play triangle, knocked out of the front poster -->
-  <path d="M27.8 25.2 L27.8 38.8 L39 32 Z" fill="#1c1e24" stroke-linejoin="round"/>
+  <!-- play triangle, knocked out of the front poster; corners softened with a
+       quadratic fillet (r=1.0) so the tip isn't a needle point -->
+  <path d="M27.80 26.98 L27.80 37.02 Q27.80 38.80 29.32 37.88 L37.59 32.85 Q39.00 32.00 37.59 31.15 L29.32 26.12 Q27.80 25.20 27.80 26.98 Z" fill="#1c1e24"/>
 </svg>

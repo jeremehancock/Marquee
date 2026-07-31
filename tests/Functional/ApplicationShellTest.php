@@ -73,4 +73,72 @@ final class ApplicationShellTest extends AppTestCase
             self::assertStringContainsString('rel="noopener"', $attributes);
         }
     }
+
+    public function testHeaderBrandMarkDrawsTheSameShapesAsTheLogoAsset(): void
+    {
+        // The header repeats logo.svg inline so it can be styled and animated,
+        // which means the two can silently drift: edit the asset, forget the
+        // template, and the tab icon stops matching the header. Compare the
+        // shape geometry of both so that drift fails here instead of shipping.
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        preg_match('#<svg class="brand__logo".*?</svg>#s', $body, $m);
+        $inline = $m[0] ?? '';
+        self::assertNotSame('', $inline, 'The header must carry an inline brand mark.');
+
+        $asset = (string) file_get_contents(\dirname(__DIR__, 2) . '/public/assets/logo.svg');
+
+        self::assertSame(
+            self::shapeGeometry($asset),
+            self::shapeGeometry($inline),
+            'The header brand mark and public/assets/logo.svg must draw the same '
+            . 'shapes. Update both, or the header and the favicon will disagree.',
+        );
+    }
+
+    /**
+     * Every shape-defining attribute of an SVG's <rect>/<path> elements, in
+     * document order. Ignores the wrapper element, so the asset's <svg> root and
+     * the template's class-carrying copy compare equal.
+     *
+     * @return list<string>
+     */
+    private static function shapeGeometry(string $svg): array
+    {
+        preg_match_all('#<(rect|path)\b([^>]*)>#s', $svg, $elements, PREG_SET_ORDER);
+
+        $shapes = [];
+
+        foreach ($elements as $element) {
+            preg_match_all(
+                '#\b(d|x|y|width|height|rx|ry|fill|transform)="([^"]*)"#s',
+                $element[2],
+                $attributes,
+                PREG_SET_ORDER,
+            );
+
+            $shape = [];
+
+            foreach ($attributes as $attribute) {
+                // Collapse whitespace so indentation or a wrapped attribute in
+                // the template is not mistaken for a geometry change.
+                $shape[$attribute[1]] = (string) preg_replace('/\s+/', ' ', trim($attribute[2]));
+            }
+
+            ksort($shape);
+
+            $parts = [];
+
+            foreach ($shape as $name => $value) {
+                $parts[] = $name . '=' . $value;
+            }
+
+            $shapes[] = $element[1] . '[' . implode(',', $parts) . ']';
+        }
+
+        return $shapes;
+    }
 }
