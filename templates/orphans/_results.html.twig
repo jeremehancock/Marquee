@@ -32,7 +32,9 @@
                         </div>
                     </div>
                 </div>
-                <figcaption class="card__caption" data-tooltip="{{ orphan.title }}">{{ orphan.title }}</figcaption>
+                {# data-tooltip-truncated: the tooltip only restates this caption,
+                   so it is shown only while the title is too long to fit. #}
+                <figcaption class="card__caption" data-tooltip="{{ orphan.title }}" data-tooltip-truncated>{{ orphan.title }}</figcaption>
             </figure>
         {% endfor %}
     </div>

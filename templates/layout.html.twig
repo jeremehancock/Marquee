@@ -5,6 +5,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1c1e24">
+    {# Both names: iOS reads only the apple- one for a standalone home-screen
+       install, and Chrome logs a deprecation warning for it unless the standard
+       name is present too. #}
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
     <title>{% block title %}{{ site_title }}{% endblock %}</title>

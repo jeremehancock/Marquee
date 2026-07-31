@@ -61,6 +61,24 @@
         return pointerDevice.matches;
     }
 
+    // A host whose tooltip only restates text it has visually truncated (a poster
+    // caption) opts in with [data-tooltip-truncated], and shows nothing while its
+    // text fits — a bubble repeating what is already on screen is noise. Hosts
+    // carrying a real hint (pagination steps, Sort) don't opt in and always show.
+    function conditional(target) {
+        return target.hasAttribute('data-tooltip-truncated');
+    }
+
+    // Measured at trigger time rather than tracked with an observer: a caption's
+    // width moves with the viewport, the breakpoint and late-loading fonts, and
+    // the gallery replaces its markup on every search, sort and page change. A
+    // cached answer would go stale on all of those paths; a fresh one cannot.
+    // Exact for a single-line, nowrap, ellipsised element, which is what these
+    // hosts are.
+    function truncated(target) {
+        return target.scrollWidth > target.clientWidth;
+    }
+
     function ensure() {
         if (!bubble) {
             bubble = document.createElement('div');
@@ -93,6 +111,7 @@
 
     function show(target) {
         if (!allowed()) { return; }
+        if (conditional(target) && !truncated(target)) { return; }
         var text = target.getAttribute('data-tooltip');
         if (!text) { return; }
         current = target;
@@ -119,7 +138,13 @@
     document.addEventListener('pointerover', function (e) {
         if (e.pointerType === 'touch') { return; } // touch would leave it stuck
         var target = closest(e.target);
-        if (target && target !== current) { show(target); }
+        if (!target) { return; }
+        // The help cursor promises a tooltip, so it is driven by the same
+        // measurement that decides whether one appears — the two can't disagree.
+        if (conditional(target)) {
+            target.classList.toggle('is-truncated', truncated(target));
+        }
+        if (target !== current) { show(target); }
     });
     document.addEventListener('pointerout', function (e) {
         if (current && closest(e.target) === current && !current.contains(e.relatedTarget)) {

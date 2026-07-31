@@ -149,6 +149,20 @@ final class OrphanTest extends AppTestCase
         );
     }
 
+    /**
+     * The orphan caption is the same component as the gallery's, so it carries the
+     * same conditional tooltip: no bubble for a title that already fits.
+     */
+    public function testOrphanCaptionTooltipIsConditionalOnTruncation(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans/list')->getBody();
+
+        self::assertMatchesRegularExpression(
+            '/<figcaption class="card__caption" data-tooltip="[^"]*" data-tooltip-truncated>/',
+            $body,
+        );
+    }
+
     public function testDeleteAllRemovesOrphanFiles(): void
     {
         $response = $this->postForm($this->app(), '/orphans/delete-all', []);
