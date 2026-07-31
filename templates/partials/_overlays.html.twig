@@ -7,14 +7,23 @@
 <div class="modal" x-show="confirm.open" x-cloak @keydown.escape.window="confirm.open = false" style="display:none">
     <div class="modal__backdrop" @click="confirm.open = false"></div>
     <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm">
+        {# Grab handle: hidden on desktop, the drag-to-dismiss target on a phone.
+           It must be a real element, not a pseudo-element, because touch can only
+           target elements — and it must be a *different* element from the panel's
+           scrolling body, so `touch-action: none` can claim a downward drag
+           without also disabling the scroll. That separation is the whole reason
+           the trays dismiss cleanly; see initSheetGestures in gallery.js. #}
+        <div class="sheet__grip"><span class="sheet__handle"></span></div>
         <div class="modal__head">
             <h2 x-text="confirm.title"></h2>
             <button type="button" class="modal__close" @click="confirm.open = false" aria-label="Close">&times;</button>
         </div>
-        <p class="stats" x-text="confirm.message"></p>
-        <div class="modal__actions">
-            <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
-            <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
+        <div class="modal__body">
+            <p class="stats" x-text="confirm.message"></p>
+            <div class="modal__actions">
+                <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
+                <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
+            </div>
         </div>
     </div>
 </div>

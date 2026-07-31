@@ -80,50 +80,56 @@
         <div class="modal__backdrop" @click="change.open = false"></div>
         <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
              role="dialog" aria-modal="true" aria-label="Change poster">
+            {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
+               phone. A real element rather than a pseudo-element so touch can
+               actually target it — see _overlays.html.twig. #}
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="modal__head">
                 <h2>Change poster</h2>
                 <button type="button" class="modal__close" @click="change.open = false" aria-label="Close">&times;</button>
             </div>
-            <p class="stats" x-text="change.title"></p>
-            <div class="modal__tabs">
-                <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
-                <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
-                <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
-                        @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
-            </div>
+            <div class="modal__body">
+                <p class="stats" x-text="change.title"></p>
+                <div class="modal__tabs">
+                    <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
+                    <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
+                    <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
+                            @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
+                </div>
 
-            <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
-                  enctype="multipart/form-data" x-show="change.tab === 'upload'">
-                <input type="hidden" name="filename" :value="change.filename">
-                <label for="change-file">Image file (JPG, PNG, or WebP)</label>
-                <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
-                <button type="submit" class="btn btn--accent">Update poster</button>
-            </form>
+                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
+                      enctype="multipart/form-data" x-show="change.tab === 'upload'">
+                    <input type="hidden" name="filename" :value="change.filename">
+                    <label for="change-file">Image file (JPG, PNG, or WebP)</label>
+                    <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                    <button type="submit" class="btn btn--accent">Update poster</button>
+                </form>
 
-            <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'" x-show="change.tab === 'url'">
-                <input type="hidden" name="filename" :value="change.filename">
-                <label for="change-url">Image URL (also supports Mediux URLs)</label>
-                <input id="change-url" type="url" name="url" placeholder="https://…" required>
-                <button type="submit" class="btn btn--accent">Update poster</button>
-            </form>
+                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'" x-show="change.tab === 'url'">
+                    <input type="hidden" name="filename" :value="change.filename">
+                    <label for="change-url">Image URL (also supports Mediux URLs)</label>
+                    <input id="change-url" type="url" name="url" placeholder="https://…" required>
+                    <button type="submit" class="btn btn--accent">Update poster</button>
+                </form>
 
-            <div x-show="change.tab === 'find'">
-                <p class="stats" x-show="finder.loading">Finding posters…</p>
-                <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
-                <p class="alert" x-show="finder.notice && !finder.loading" x-text="finder.notice"></p>
-                <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
-                    Tap a poster to preview it.
-                </p>
-                {# The grid loads each candidate's thumbnail where its source gave
-                   one (thumb falls back to url server-side); previewing and
-                   applying always use the full-resolution url. #}
-                <div class="find-grid">
-                    <template x-for="poster in finder.results" :key="poster.url">
-                        <figure class="find-item">
-                            <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
-                                 @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
-                        </figure>
-                    </template>
+                <div x-show="change.tab === 'find'">
+                    <p class="stats" x-show="finder.loading">Finding posters…</p>
+                    <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
+                    <p class="alert" x-show="finder.notice && !finder.loading" x-text="finder.notice"></p>
+                    <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
+                        Tap a poster to preview it.
+                    </p>
+                    {# The grid loads each candidate's thumbnail where its source gave
+                       one (thumb falls back to url server-side); previewing and
+                       applying always use the full-resolution url. #}
+                    <div class="find-grid">
+                        <template x-for="poster in finder.results" :key="poster.url">
+                            <figure class="find-item">
+                                <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
+                                     @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
+                            </figure>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
