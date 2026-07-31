@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Database\Database;
+use App\Database\PlexItemRecord;
+use App\Database\PlexItemRepository;
 use App\Tests\AppTestCase;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -209,6 +212,117 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('target="_blank"', $body);
         // The mobile action sheet is wired up.
         self::assertStringContainsString('x-html="sheet.actions"', $body);
+    }
+
+    /**
+     * A poster whose filename already carries its year (what import writes for a
+     * movie) shows it once, in parentheses, with the library token gone.
+     */
+    public function testCaptionMovesAYearAlreadyInTheFilenameIntoParentheses(): void
+    {
+        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Movies', 2003);
+
+        self::assertStringContainsString('>Louis and the Nazis (2003)</figcaption>', $body);
+        self::assertStringNotContainsString('Louis and the Nazis 2003 2003', $body);
+        self::assertStringNotContainsString('(Movies)', $body);
+    }
+
+    /**
+     * Import records a year for shows and seasons but never writes one into their
+     * filename, so the caption adds it.
+     */
+    public function testCaptionAddsAKnownYearMissingFromTheFilename(): void
+    {
+        $body = $this->renderMapped('Solaris_Movies.png', 'Movies', 1972);
+
+        self::assertStringContainsString('>Solaris (1972)</figcaption>', $body);
+    }
+
+    public function testCaptionShowsNoYearWhenNoneIsStored(): void
+    {
+        $body = $this->renderMapped('Ace_Ventura_Movies.png', 'Movies', null);
+
+        self::assertStringContainsString('>Ace Ventura</figcaption>', $body);
+        self::assertStringNotContainsString('Ace Ventura (', $body);
+    }
+
+    /**
+     * The tray heading and the change-poster dialog take the caption's own text,
+     * so the per-card sheet-title attribute is gone rather than merely unused.
+     */
+    public function testCaptionTitleAlsoFeedsTheTrayAndChangeDialog(): void
+    {
+        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Movies', 2003);
+
+        self::assertStringContainsString('data-title="Louis and the Nazis (2003)"', $body);
+        self::assertStringContainsString('data-tooltip="Louis and the Nazis (2003)"', $body);
+        self::assertStringNotContainsString('data-sheet-title', $body);
+    }
+
+    /**
+     * The year is a rendering concern only. Showing one the filename does not have
+     * must not tempt anything into "fixing" the file or the row.
+     */
+    public function testRenderingCaptionsWritesNothing(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris_Movies.png');
+        $this->mapPoster($dataDir, 'Solaris_Movies.png', 'Movies', 1972);
+
+        $dbBefore = (string) file_get_contents($dataDir . '/marquee.sqlite');
+        $postersBefore = scandir($this->postersDir . '/movies');
+
+        $body = (string) $this->get($this->appWithData($dataDir), '/library/movies')->getBody();
+        self::assertStringContainsString('>Solaris (1972)</figcaption>', $body);
+
+        self::assertSame($postersBefore, scandir($this->postersDir . '/movies'), 'a render renamed a poster');
+        self::assertSame($dbBefore, (string) file_get_contents($dataDir . '/marquee.sqlite'), 'a render wrote to the database');
+
+        $this->removeDir($dataDir);
+    }
+
+    /**
+     * Write a poster, map it to a Plex item carrying $year, and render the movies
+     * view. Uses its own data dir so no other test's mappings can leak in.
+     */
+    private function renderMapped(string $filename, string $library, ?int $year): string
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster($filename);
+        $this->mapPoster($dataDir, $filename, $library, $year);
+
+        $body = (string) $this->get($this->appWithData($dataDir), '/library/movies')->getBody();
+
+        $this->removeDir($dataDir);
+
+        return $body;
+    }
+
+    private function mapPoster(string $dataDir, string $filename, string $library, ?int $year): void
+    {
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            $library,
+            $filename,
+            $filename,
+            time(),
+            year: $year,
+        ));
+    }
+
+    /**
+     * @return App<\Psr\Container\ContainerInterface|null>
+     */
+    private function appWithData(string $dataDir): App
+    {
+        return $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+            'AUTH_BYPASS' => 'true',
+        ]);
     }
 
     public function testLogoutHiddenWhenAuthBypassed(): void

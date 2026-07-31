@@ -29,36 +29,43 @@ final class Poster
     }
 
     /**
-     * Title for the gallery caption. Plex import appends the library name to the
-     * filename to keep names unique across libraries, so it surfaces as a
-     * trailing token in title() (e.g. "…2003 Movies"). Given that library name
-     * this drops the token, because the type is already conveyed by the All-view
-     * badge and the active tab. Non-Plex posters (or an unrecognised token) pass
-     * null and keep their full title. title() itself is untouched, so sorting is
-     * unaffected.
+     * The one title every surface shows for this poster: the gallery caption and
+     * its tooltip, the mobile action sheet heading, and the change-poster dialog
+     * heading. They deliberately share it, so a poster reads the same wherever it
+     * is named.
+     *
+     * Two tokens are handled, both by comparing against a known value rather than
+     * by pattern-matching the text, so a title that merely looks like it carries
+     * one is left alone:
+     *
+     * - The library. Plex import appends it to the filename to keep names unique
+     *   across libraries, so it surfaces as a trailing token in title() (e.g.
+     *   "…2003 Movies"). It is dropped, because the type is already conveyed by
+     *   the All-view badge and the active tab.
+     * - The year. It is stripped from the end of the title if present and then
+     *   re-appended in parentheses. Import writes a year into the filename only
+     *   for movies, so this moves a movie's year and adds a show's or season's —
+     *   one rule, no media-type branching. A title ending in digits that are not
+     *   the known year (the series "1883") keeps them: "1883 (2021)".
+     *
+     * Non-Plex posters pass null for both and keep their full title. title()
+     * itself is untouched, so sorting is unaffected, and nothing here writes to
+     * the filename or the database.
      */
-    public function captionTitle(?string $libraryTitle = null): string
+    public function captionTitle(?string $libraryTitle = null, ?int $year = null): string
     {
         $title = $this->title();
-        $token = $this->trailingLibraryToken($title, $libraryTitle);
 
-        return $token === null ? $title : rtrim(mb_substr($title, 0, -mb_strlen($token)));
-    }
-
-    /**
-     * Title for the mobile action sheet: like {@see captionTitle()} but the
-     * library is kept and shown in parentheses (e.g. "…2003 (Movies)") rather
-     * than dropped, so a tapped poster names both its title and its library.
-     */
-    public function sheetTitle(?string $libraryTitle = null): string
-    {
-        $title = $this->title();
         $token = $this->trailingLibraryToken($title, $libraryTitle);
-        if ($token === null) {
+        if ($token !== null) {
+            $title = rtrim(mb_substr($title, 0, -mb_strlen($token)));
+        }
+
+        if ($year === null) {
             return $title;
         }
 
-        return rtrim(mb_substr($title, 0, -mb_strlen($token))) . ' (' . $token . ')';
+        return $this->withoutTrailingYear($title, $year) . ' (' . $year . ')';
     }
 
     /**
@@ -80,6 +87,20 @@ final class Poster
         }
 
         return str_ends_with($title, ' ' . $normalized) ? $normalized : null;
+    }
+
+    /**
+     * $title with a trailing occurrence of $year removed, or unchanged if it does
+     * not end in one. The leading space is part of the match, so a title that is
+     * nothing but its own year survives rather than being stripped to nothing.
+     */
+    private function withoutTrailingYear(string $title, int $year): string
+    {
+        $suffix = ' ' . $year;
+
+        return str_ends_with($title, $suffix)
+            ? rtrim(mb_substr($title, 0, -mb_strlen($suffix)))
+            : $title;
     }
 
     public function extension(): string

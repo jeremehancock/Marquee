@@ -121,7 +121,7 @@ final class PlexItemRepository
     /**
      * The Plex library name for each mapped poster in a category, keyed by
      * filename. Import bakes the library into the filename, so the gallery uses
-     * this to drop it from captions and parenthesise it in the mobile sheet.
+     * this to drop it from the title it shows.
      *
      * @return array<string, string>
      */
@@ -136,6 +136,32 @@ final class PlexItemRepository
         foreach ($stmt->fetchAll() as $row) {
             if (is_array($row) && isset($row['filename'], $row['library_title'])) {
                 $map[Scalar::string($row['filename'])] = Scalar::string($row['library_title']);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The release year for each mapped poster in a category, keyed by filename.
+     * The gallery shows it in parentheses. Import writes a year into the filename
+     * only for movies but records one for shows and seasons too, so this column —
+     * not the filename — is the reliable source. Rows with no year are omitted,
+     * and the caller shows those posters' titles unchanged.
+     *
+     * @return array<string, int>
+     */
+    public function yearsForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, year FROM plex_items WHERE category = :category AND year IS NOT NULL'
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['year'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::int($row['year']);
             }
         }
 

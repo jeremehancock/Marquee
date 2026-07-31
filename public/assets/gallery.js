@@ -92,17 +92,14 @@
     }
 
     // The tray shows a tapped card's own actions at full size, titled by its
-    // caption. The caption drops the library, so prefer data-sheet-title, which
-    // keeps it in parentheses; fall back to the visible caption text.
+    // caption. The tray heading and the caption are the same string — no library
+    // appended — so the visible caption text is the whole source.
     function sheetDetailFor(frame) {
         var actions = frame.querySelector('.card__actions');
         var card = frame.closest('.card');
         var caption = card ? card.querySelector('.card__caption') : null;
-        var sheetTitle = caption
-            ? (caption.getAttribute('data-sheet-title') || caption.textContent.trim())
-            : '';
         return {
-            title: sheetTitle,
+            title: caption ? caption.textContent.trim() : '',
             actions: actions ? actions.outerHTML : '',
         };
     }

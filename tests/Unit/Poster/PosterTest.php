@@ -83,17 +83,78 @@ final class PosterTest extends TestCase
         self::assertSame('The Movies Are Great', $poster->captionTitle('Movies'));
     }
 
-    public function testSheetTitleParenthesisesTheLibrary(): void
+    public function testAYearAlreadyInTheTitleMovesIntoParentheses(): void
     {
+        // Import writes "(2003)" into a movie's filename and sanitising flattens
+        // it to a bare token. It is stripped and re-added, so the year appears
+        // once rather than twice.
         $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
 
-        self::assertSame('Louis and the Nazis 2003 (Movies)', $poster->sheetTitle('Movies'));
+        self::assertSame('Louis and the Nazis (2003)', $poster->captionTitle('Movies', 2003));
     }
 
-    public function testSheetTitleKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    public function testAKnownYearAbsentFromTheTitleIsAdded(): void
+    {
+        // Import records a year for shows but never writes one into their
+        // filename, so there is nothing to strip and the year is simply appended.
+        $poster = new Poster(PosterCategory::TvShows, 'Breaking_Bad_TV_Shows.png', 1024, 42);
+
+        self::assertSame('Breaking Bad (2008)', $poster->captionTitle('TV Shows', 2008));
+    }
+
+    public function testASeasonGetsItsShowsYear(): void
+    {
+        $poster = new Poster(PosterCategory::TvSeasons, 'Breaking_Bad_-_Season_1_TV_Shows.png', 1024, 42);
+
+        self::assertSame('Breaking Bad - Season 1 (2008)', $poster->captionTitle('TV Shows', 2008));
+    }
+
+    public function testDigitsThatAreNotTheKnownYearAreKept(): void
+    {
+        // A pattern match on trailing digits would eat the title itself here.
+        $poster = new Poster(PosterCategory::TvShows, '1883_TV_Shows.png', 1024, 42);
+
+        self::assertSame('1883 (2021)', $poster->captionTitle('TV Shows', 2021));
+    }
+
+    public function testDigitsInTheTitleSurviveAlongsideTheYear(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Blade_Runner_2049_2017_Movies.png', 1024, 42);
+
+        self::assertSame('Blade Runner 2049 (2017)', $poster->captionTitle('Movies', 2017));
+    }
+
+    public function testATitleThatIsOnlyItsOwnYearIsNotStrippedToNothing(): void
+    {
+        // The leading space is part of the match, so the single token is a title,
+        // not a year to move.
+        $poster = new Poster(PosterCategory::Movies, '2003_Movies.png', 1024, 42);
+
+        self::assertSame('2003 (2003)', $poster->captionTitle('Movies', 2003));
+    }
+
+    public function testNoKnownYearLeavesTheTitleAlone(): void
+    {
+        // Collections carry no year.
+        $poster = new Poster(PosterCategory::Collections, 'Ace_Ventura_Movies.png', 1024, 42);
+
+        self::assertSame('Ace Ventura', $poster->captionTitle('Movies'));
+    }
+
+    public function testAYearIsShownEvenWithoutAKnownLibrary(): void
     {
         $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
 
-        self::assertSame('Solaris', $poster->sheetTitle());
+        self::assertSame('Solaris (1972)', $poster->captionTitle(null, 1972));
+    }
+
+    public function testAStaleFilenameYearIsNotMistakenForTheStoredOne(): void
+    {
+        // Plex corrected the year after import; the filename still says 2002. The
+        // stored year is authoritative, and the disagreement stays visible rather
+        // than being silently papered over.
+        $poster = new Poster(PosterCategory::Movies, 'Some_Film_2002_Movies.png', 1024, 42);
+
+        self::assertSame('Some Film 2002 (2003)', $poster->captionTitle('Movies', 2003));
     }
 }
