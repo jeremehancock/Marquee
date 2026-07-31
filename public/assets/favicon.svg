@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Marquee">
   <rect width="64" height="64" rx="12" fill="#1c1e24"/>
   <rect x="18" y="14" width="28" height="36" rx="4" fill="#e5a00d"/>
-  <path d="M25 24 L25 40 L41 32 Z" fill="#1c1e24" stroke-linejoin="round"/>
+  <!-- corners softened with a quadratic fillet (r=1.2, scaled to match logo.svg) -->
+  <path d="M25.00 25.94 L25.00 38.06 Q25.00 40.00 26.74 39.13 L38.85 33.07 Q41.00 32.00 38.85 30.93 L26.74 24.87 Q25.00 24.00 25.00 25.94 Z" fill="#1c1e24"/>
 </svg>
