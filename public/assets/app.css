@@ -34,21 +34,20 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
-/* Desktop boxes the topbar into the same 960px column as `.container` and
-   `.footer`, so the brand and nav line up with the content instead of floating
-   at the viewport edges. Deliberately a `min-width` query — the complement of
-   the `@media (max-width: 640px)` block at the END of this file — rather than
-   the file's usual base-rule-plus-mobile-override shape: the phone topbar must
-   stay exactly as it is, and leaving the base rule untouched guarantees that
-   instead of relying on four properties being reverted correctly below. The
-   960px/24px pair matches `.container` (`box-sizing: border-box` is global), so
-   the inner edges land in the same place. */
+/* Desktop follows the project's landing page (getmarquee.now): the bar spans
+   the viewport, but its contents line up with the 960px content column, and it
+   is tinted like the page with a single hairline under it rather than raised as
+   a panel. The gutter is padding rather than a max-width wrapper so the markup
+   stays as it is: the `max()` collapses to a plain 24px once the viewport is
+   narrower than the column, which is what `.container` does there too.
+   Deliberately a `min-width` query — the complement of the
+   `@media (max-width: 640px)` block at the END of this file — rather than the
+   file's usual base-rule-plus-mobile-override shape: the phone topbar must stay
+   exactly as it is, and leaving the base rule untouched guarantees that. */
 @media (min-width: 641px) {
     .topbar {
-        max-width: 960px;
-        margin: 24px auto 0;
-        border: 1px solid var(--border);
-        border-radius: 12px;
+        padding-inline: max(24px, calc((100% - 960px) / 2 + 24px));
+        background: var(--bg);
     }
 }
 

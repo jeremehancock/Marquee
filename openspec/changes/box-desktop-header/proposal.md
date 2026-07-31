@@ -8,11 +8,13 @@ a full-bleed bar floating above a narrow page.
 
 ## What Changes
 
-- On pointer/desktop-width screens the top bar becomes a centred box no wider
-  than the page content column, with its brand and navigation aligned to the
-  same left and right edges as the content below it.
-- The boxed header reads as a self-contained surface — bordered on all sides and
-  rounded — rather than a bar whose background bleeds to the viewport edges.
+- On pointer/desktop-width screens the top bar's brand and navigation are
+  aligned to the same left and right edges as the page content below them,
+  instead of sitting out at the viewport edges.
+- The header adopts the presentation used by the project's own landing page at
+  `getmarquee.now`: the bar still spans the viewport, but it is tinted like the
+  page and separated by a single hairline beneath it rather than reading as a
+  raised panel.
 - Narrow screens are explicitly unchanged: the top bar stays a full-bleed bar
   pinned to the top edge, with its bottom border and no rounding, exactly as it
   renders today.
@@ -26,8 +28,9 @@ None.
 ### Modified Capabilities
 
 - `application-shell`: the shared layout gains a requirement that the page
-  header is constrained to the content column on desktop widths and remains
-  full-bleed on narrow screens.
+  header's contents are constrained to the content column on desktop widths,
+  and that the header is presented as page-coloured chrome there, while narrow
+  screens keep their existing bar.
 
 ## Impact
 
