@@ -134,6 +134,52 @@ body {
     border-radius: 2px;
 }
 
+/* Poster provider credit, rendered in both footers from one partial. */
+.attribution__label {
+    margin: 0 0 10px;
+}
+
+.attribution__logos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 14px;
+}
+
+.attribution__logos a {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+}
+
+.attribution__logos a:hover {
+    opacity: 1;
+    text-decoration: none;
+}
+
+/* The three marks have very different aspect ratios (TMDB is a wide wordmark,
+   TheTVDB is nearly square, fanart.tv sits between), so each gets the height
+   that makes them read as one row. Width follows from the intrinsic ratio. */
+.attribution__logo {
+    display: block;
+    width: auto;
+}
+
+.attribution__logo--tmdb {
+    height: 15px;
+}
+
+.attribution__logo--tvdb {
+    height: 32px;
+}
+
+.attribution__logo--fanart {
+    height: 28px;
+}
+
 .panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1336,9 +1382,31 @@ h1 {
         padding-bottom: calc(76px + env(safe-area-inset-bottom));
     }
 
-    /* The version footer moves into the menu tray on a phone. */
+    /* The version footer — and with it the provider credit — moves into the menu
+       tray on a phone. No rule is needed to hide the credit itself: it lives
+       inside this footer, and the tray's copy is only ever seen at this width. */
     .footer {
         display: none;
+    }
+
+    /* The tray is narrower than the page, so the row is tightened enough to stay
+       on one line down to a 320px phone — the three logos plus their gaps come to
+       ~278px against the ~288px the tray leaves inside its padding. Sizing up
+       from here wraps fanart.tv onto a second line. */
+    .attribution__logos {
+        gap: 14px;
+    }
+
+    .attribution__logo--tmdb {
+        height: 12px;
+    }
+
+    .attribution__logo--tvdb {
+        height: 26px;
+    }
+
+    .attribution__logo--fanart {
+        height: 22px;
     }
 
     /* Tabs become a native-style bottom tab bar: pinned to the bottom, always

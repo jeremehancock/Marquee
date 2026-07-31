@@ -55,7 +55,10 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
-    <footer class="footer"><a href="https://getmarquee.now" target="_blank"
-            rel="noopener">{{ app_name }}</a> &middot; v{{ app_version }}<span class="js-update-note"></span></footer>
+    <footer class="footer">
+        {% include 'partials/_attribution.html.twig' %}
+        <div><a href="https://getmarquee.now" target="_blank"
+                rel="noopener">{{ app_name }}</a> &middot; v{{ app_version }}<span class="js-update-note"></span></div>
+    </footer>
 </body>
 </html>
