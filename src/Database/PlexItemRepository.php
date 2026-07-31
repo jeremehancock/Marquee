@@ -119,23 +119,52 @@ final class PlexItemRepository
     }
 
     /**
-     * The Plex library name for each mapped poster in a category, keyed by
-     * filename. Import bakes the library into the filename, so the gallery uses
-     * this to drop it from captions and parenthesise it in the mobile sheet.
+     * The title Plex reported for each mapped poster in a category, keyed by
+     * filename. This is what the gallery shows. It is preferred over the
+     * filename-derived title because the filename is a sanitised copy of it —
+     * punctuation flattened, library appended — and that loss cannot be undone by
+     * inspecting the filename. Rows with an empty title are omitted so the caller
+     * falls back rather than rendering a blank caption.
      *
      * @return array<string, string>
      */
-    public function librariesForCategory(string $category): array
+    public function titlesForCategory(string $category): array
     {
         $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, library_title FROM plex_items WHERE category = :category AND library_title <> \'\''
+            'SELECT filename, title FROM plex_items WHERE category = :category AND title <> \'\''
         );
         $stmt->execute([':category' => $category]);
 
         $map = [];
         foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['library_title'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::string($row['library_title']);
+            if (is_array($row) && isset($row['filename'], $row['title'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::string($row['title']);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The release year for each mapped poster in a category, keyed by filename.
+     * The gallery shows it in parentheses. Import writes a year into the filename
+     * only for movies but records one for shows and seasons too, so this column —
+     * not the filename — is the reliable source. Rows with no year are omitted,
+     * and the caller shows those posters' titles unchanged.
+     *
+     * @return array<string, int>
+     */
+    public function yearsForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, year FROM plex_items WHERE category = :category AND year IS NOT NULL'
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['year'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::int($row['year']);
             }
         }
 

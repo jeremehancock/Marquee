@@ -51,49 +51,115 @@ final class PosterTest extends TestCase
         self::assertSame('/posters/tv-shows/The%20Wire.png?v=42', $poster->url());
     }
 
-    public function testCaptionDropsTheTrailingLibraryToken(): void
+    public function testCaptionPrefersTheRecordedTitleOverTheFilename(): void
     {
-        // Import bakes the library into the filename ("…2003 Movies"); given the
-        // library name, the caption drops it.
+        // The filename carries the library and a flattened year; the recorded
+        // title carries neither, so none of that has to be undone.
         $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
 
-        self::assertSame('Louis and the Nazis 2003', $poster->captionTitle('Movies'));
+        self::assertSame('Louis and the Nazis (2003)', $poster->captionTitle('Louis and the Nazis', 2003));
     }
 
-    public function testCaptionDropsAMultiWordLibraryToken(): void
+    public function testCaptionRestoresPunctuationTheFilenameLost(): void
+    {
+        // Sanitising replaces every run of non-alphanumerics with "_", so the
+        // filename-derived title reads "Marvel s Agents of S H I E L D".
+        $poster = new Poster(PosterCategory::TvShows, 'Marvel_s_Agents_of_S.H.I.E.L.D._TV_Shows.png', 1024, 42);
+
+        self::assertSame(
+            "Marvel's Agents of S.H.I.E.L.D. (2013)",
+            $poster->captionTitle("Marvel's Agents of S.H.I.E.L.D.", 2013),
+        );
+    }
+
+    public function testAKnownYearIsAppended(): void
     {
         $poster = new Poster(PosterCategory::TvShows, 'Breaking_Bad_TV_Shows.png', 1024, 42);
 
-        self::assertSame('Breaking Bad', $poster->captionTitle('TV Shows'));
+        self::assertSame('Breaking Bad (2008)', $poster->captionTitle('Breaking Bad', 2008));
     }
 
-    public function testCaptionKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    /**
+     * A season row carries its show's year, so appending it would date every
+     * season to the year the show began — "Season 5 (2008)" for a 2012 season.
+     */
+    public function testASeasonGetsNoYear(): void
     {
-        // Non-Plex posters (uploaded/URL) have no library to strip.
+        $poster = new Poster(PosterCategory::TvSeasons, 'Breaking_Bad_-_Season_5_TV_Shows.png', 1024, 42);
+
+        self::assertSame(
+            'Breaking Bad - Season 5',
+            $poster->captionTitle('Breaking Bad - Season 5', 2008),
+        );
+    }
+
+    /**
+     * The exception proves the rule: a year inside a season's title came from the
+     * show's own name in Plex, so it is left alone rather than hunted down.
+     */
+    public function testASeasonKeepsAYearThatIsPartOfItsShowsName(): void
+    {
+        $poster = new Poster(PosterCategory::TvSeasons, 'Lucky_2026_-_Season_1_TV_Shows.png', 1024, 42);
+
+        self::assertSame(
+            'Lucky (2026) - Season 1',
+            $poster->captionTitle('Lucky (2026) - Season 1', 2026),
+        );
+    }
+
+    public function testAYearAlreadyInTheTitleIsNotRepeated(): void
+    {
+        // Plex names the show "Lucky (2026)". Appending the year again would read
+        // "Lucky (2026) (2026)".
+        $poster = new Poster(PosterCategory::TvShows, 'Lucky_2026_TV_Shows.png', 1024, 42);
+
+        self::assertSame('Lucky (2026)', $poster->captionTitle('Lucky (2026)', 2026));
+    }
+
+    public function testBareDigitsAreNotReadAsAYearAlreadyPresent(): void
+    {
+        // "Class of 2026" airing in 2026: the digits are part of the name, so the
+        // release year is still appended. Matching bare digits would drop it.
+        $poster = new Poster(PosterCategory::Movies, 'Class_of_2026_Movies.png', 1024, 42);
+
+        self::assertSame('Class of 2026 (2026)', $poster->captionTitle('Class of 2026', 2026));
+    }
+
+    public function testDigitsInTheTitleSurviveAlongsideTheYear(): void
+    {
+        $poster = new Poster(PosterCategory::Movies, 'Blade_Runner_2049_2017_Movies.png', 1024, 42);
+
+        self::assertSame('Blade Runner 2049 (2017)', $poster->captionTitle('Blade Runner 2049', 2017));
+    }
+
+    public function testAShortNumericTitleKeepsItsDigitsAndGainsItsYear(): void
+    {
+        $poster = new Poster(PosterCategory::TvShows, '1883_TV_Shows.png', 1024, 42);
+
+        self::assertSame('1883 (2021)', $poster->captionTitle('1883', 2021));
+    }
+
+    public function testNoKnownYearLeavesTheTitleAlone(): void
+    {
+        // Collections carry no year.
+        $poster = new Poster(PosterCategory::Collections, 'Ace_Ventura_Movies.png', 1024, 42);
+
+        self::assertSame('Ace Ventura', $poster->captionTitle('Ace Ventura'));
+    }
+
+    public function testNoRecordedTitleFallsBackToTheFilename(): void
+    {
+        // A poster with no Plex mapping — uploaded, or placed by hand. It renders
+        // exactly as it did before the caption started reading from the database.
         $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
 
         self::assertSame('Solaris', $poster->captionTitle());
     }
 
-    public function testCaptionKeepsTheTitleWhenTheLibraryIsNotTheTrailingToken(): void
-    {
-        // "Movies" appears in the title but not at the end, so nothing is trimmed.
-        $poster = new Poster(PosterCategory::Movies, 'The_Movies_Are_Great.png', 1024, 42);
-
-        self::assertSame('The Movies Are Great', $poster->captionTitle('Movies'));
-    }
-
-    public function testSheetTitleParenthesisesTheLibrary(): void
-    {
-        $poster = new Poster(PosterCategory::Movies, 'Louis_and_the_Nazis_2003_Movies.png', 1024, 42);
-
-        self::assertSame('Louis and the Nazis 2003 (Movies)', $poster->sheetTitle('Movies'));
-    }
-
-    public function testSheetTitleKeepsTheFullTitleWhenNoLibraryIsGiven(): void
+    public function testAnEmptyRecordedTitleFallsBackRatherThanBlanking(): void
     {
         $poster = new Poster(PosterCategory::Movies, 'Solaris.png', 1024, 42);
 
-        self::assertSame('Solaris', $poster->sheetTitle());
+        self::assertSame('Solaris (1972)', $poster->captionTitle('', 1972));
     }
 }

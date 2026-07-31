@@ -29,57 +29,49 @@ final class Poster
     }
 
     /**
-     * Title for the gallery caption. Plex import appends the library name to the
-     * filename to keep names unique across libraries, so it surfaces as a
-     * trailing token in title() (e.g. "…2003 Movies"). Given that library name
-     * this drops the token, because the type is already conveyed by the All-view
-     * badge and the active tab. Non-Plex posters (or an unrecognised token) pass
-     * null and keep their full title. title() itself is untouched, so sorting is
-     * unaffected.
+     * The one title every surface shows for this poster: the caption and its
+     * tooltip, the image's alt text, the mobile action sheet heading, the
+     * change-poster dialog heading, and the delete confirmation. They
+     * deliberately share it, so a poster reads the same wherever it is named.
+     *
+     * $plexTitle is the title import recorded for the item, and it is preferred
+     * over title() because the filename is a lossy copy of it: sanitising
+     * flattens every run of non-alphanumerics ("Marvel's Agents of S.H.I.E.L.D."
+     * lands as "Marvel_s_Agents_of_S.H.I.E.L.D.") and import appends the source
+     * library. Reconstructing from that cannot be made correct — a show Plex
+     * names "Lucky (2026)" reaches disk as "Lucky_2026", which is
+     * indistinguishable from a show genuinely called "Class of 2026". The
+     * recorded title has the parentheses, so nothing has to be guessed.
+     *
+     * The year is appended in parentheses when known, unless the title already
+     * contains it that way. The check looks for the parenthesised form
+     * specifically, so bare digits in a title are never read as a year already
+     * being present: "Class of 2026" still becomes "Class of 2026 (2026)".
+     *
+     * Seasons are the exception and get no year at all. A season row stores its
+     * *show's* year — Plex reports none on a season node — so "Breaking Bad -
+     * Season 5 (2008)" would date a 2012 season to the year the show began.
+     * A year that is part of the show's own name ("Lucky (2026) - Season 1")
+     * still shows, because that is the title Plex gave the show, not one Marquee
+     * added.
+     *
+     * A poster with no Plex record (or an empty recorded title) falls back to
+     * title(). title() itself is untouched, so sorting and search are unaffected,
+     * and nothing here writes to the filename or the database.
      */
-    public function captionTitle(?string $libraryTitle = null): string
+    public function captionTitle(?string $plexTitle = null, ?int $year = null): string
     {
-        $title = $this->title();
-        $token = $this->trailingLibraryToken($title, $libraryTitle);
+        $title = $plexTitle === null || $plexTitle === '' ? $this->title() : $plexTitle;
 
-        return $token === null ? $title : rtrim(mb_substr($title, 0, -mb_strlen($token)));
-    }
-
-    /**
-     * Title for the mobile action sheet: like {@see captionTitle()} but the
-     * library is kept and shown in parentheses (e.g. "…2003 (Movies)") rather
-     * than dropped, so a tapped poster names both its title and its library.
-     */
-    public function sheetTitle(?string $libraryTitle = null): string
-    {
-        $title = $this->title();
-        $token = $this->trailingLibraryToken($title, $libraryTitle);
-        if ($token === null) {
+        if ($this->category === PosterCategory::TvSeasons) {
             return $title;
         }
 
-        return rtrim(mb_substr($title, 0, -mb_strlen($token))) . ' (' . $token . ')';
-    }
-
-    /**
-     * The library name as it appears at the end of $title, or null if $title
-     * does not end with it. The stored library name went through the same
-     * filename sanitising and title() rendering as the rest of the name, so it
-     * is normalised the same way before matching.
-     */
-    private function trailingLibraryToken(string $title, ?string $libraryTitle): ?string
-    {
-        if ($libraryTitle === null || $libraryTitle === '') {
-            return null;
+        if ($year === null || str_contains($title, '(' . $year . ')')) {
+            return $title;
         }
 
-        $normalized = preg_replace('/[^A-Za-z0-9._-]+/', '_', $libraryTitle) ?? $libraryTitle;
-        $normalized = trim(preg_replace('/[._]+/', ' ', $normalized) ?? $normalized);
-        if ($normalized === '') {
-            return null;
-        }
-
-        return str_ends_with($title, ' ' . $normalized) ? $normalized : null;
+        return $title . ' (' . $year . ')';
     }
 
     public function extension(): string

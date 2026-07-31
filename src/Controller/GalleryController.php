@@ -88,13 +88,16 @@ final class GalleryController
             }
         }
 
-        // Library name per poster, keyed by category then filename: import baked
-        // it into the filename, so the gallery uses it to drop the library from
-        // captions and parenthesise it in the mobile sheet. Kept even when Plex
-        // is not currently configured, since the filenames still carry it.
-        $plexLibraries = [];
+        // What each poster's title needs, keyed by category then filename: the
+        // title Plex reported (the filename is a lossy copy of it) and the release
+        // year (shown in parentheses). Both are kept even when Plex is not
+        // currently configured — the posters and their mappings outlive the
+        // connection. Reads only; rendering a title never writes.
+        $plexTitles = [];
+        $plexYears = [];
         foreach ($view->categories() as $cat) {
-            $plexLibraries[$cat->value] = $this->plexItems->librariesForCategory($cat->value);
+            $plexTitles[$cat->value] = $this->plexItems->titlesForCategory($cat->value);
+            $plexYears[$cat->value] = $this->plexItems->yearsForCategory($cat->value);
         }
 
         return $this->twig->render($response, 'gallery.html.twig', [
@@ -106,7 +109,8 @@ final class GalleryController
             'flash' => $this->flash->pull(),
             'plex_configured' => $plexConfigured,
             'linked' => $linked,
-            'plex_libraries' => $plexLibraries,
+            'plex_titles' => $plexTitles,
+            'plex_years' => $plexYears,
             'sort' => $sort->value,
         ]);
     }

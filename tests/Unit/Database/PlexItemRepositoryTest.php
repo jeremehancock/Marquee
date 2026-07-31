@@ -186,6 +186,96 @@ final class PlexItemRepositoryTest extends TestCase
         self::assertSame('1726', $repo->findByRatingKey('10')?->tmdbId);
     }
 
+    public function testTitlesForCategoryMapsFilenamesToRecordedTitles(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '20',
+            'season',
+            'tv-seasons',
+            'TV',
+            'Lucky (2026) - Season 1',
+            'Lucky_2026_-_Season_1_TV.jpg',
+            time(),
+        ));
+
+        // The parentheses the filename lost are intact in the record — the whole
+        // reason the caption reads from here.
+        self::assertSame(
+            ['Lucky_2026_-_Season_1_TV.jpg' => 'Lucky (2026) - Season 1'],
+            $repo->titlesForCategory('tv-seasons'),
+        );
+    }
+
+    /**
+     * An empty title must be absent rather than mapped to "", so the caller falls
+     * back to the filename instead of rendering a blank caption.
+     */
+    public function testTitlesForCategoryOmitsEmptyTitles(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord('10', 'movie', 'movies', 'Movies', '', 'Solaris.jpg', time()));
+
+        self::assertSame([], $repo->titlesForCategory('movies'));
+    }
+
+    public function testTitlesForCategoryIgnoresOtherCategories(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertSame(['Solaris.jpg' => 'Solaris'], $repo->titlesForCategory('movies'));
+        self::assertSame([], $repo->titlesForCategory('tv-shows'));
+    }
+
+    public function testYearsForCategoryMapsFilenamesToYears(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.jpg',
+            time(),
+            year: 1972,
+        ));
+
+        self::assertSame(['Solaris.jpg' => 1972], $repo->yearsForCategory('movies'));
+    }
+
+    /**
+     * A poster with no year must be absent from the map rather than present with
+     * a zero: the gallery shows those titles unchanged, and "(0)" would be worse
+     * than no year at all.
+     */
+    public function testYearsForCategoryOmitsRowsWithNoYear(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertSame([], $repo->yearsForCategory('movies'));
+    }
+
+    public function testYearsForCategoryIgnoresOtherCategories(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '20',
+            'season',
+            'tv-seasons',
+            'TV',
+            'Breaking Bad - Season 2',
+            'bb-s2.jpg',
+            time(),
+            year: 2009,
+        ));
+
+        self::assertSame([], $repo->yearsForCategory('movies'));
+        self::assertSame(['bb-s2.jpg' => 2009], $repo->yearsForCategory('tv-seasons'));
+    }
+
     public function testLibrarySyncIsIdempotent(): void
     {
         $repo = new PlexLibraryRepository(new Database(':memory:'));
