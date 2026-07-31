@@ -50,13 +50,23 @@
     function overlayComponent() {
         return {
             viewer: null,
+            viewerLoaded: false,
             confirm: { open: false, title: '', message: '', label: 'Confirm' },
             sheet: { open: false, title: '', actions: '' },
             toast: { show: false, text: '' },
             _toastTimer: null,
 
+            // One <img> serves every poster ever opened full screen, so its
+            // resolved state has to be cleared here rather than tracked on the
+            // element: markLoaded's `is-loaded` would stay on from the previous
+            // poster and reveal the new one before it had loaded. Clearing on
+            // open (not on close) also absorbs the stray `error` that closing
+            // fires when `viewer` goes null and leaves src="".
             view: function (url) {
-                if (url) { this.viewer = url; }
+                if (url) {
+                    this.viewerLoaded = false;
+                    this.viewer = url;
+                }
             },
             openSheet: function (detail) {
                 this.sheet = { open: true, title: detail.title || '', actions: detail.actions || '' };
@@ -432,7 +442,7 @@
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
-                finder: { loading: false, error: '', notice: '', results: [], preview: null, confirming: false },
+                finder: { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -604,11 +614,11 @@
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
-                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, confirming: false };
+                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false };
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, confirming: false };
+                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
@@ -625,16 +635,23 @@
                                 notice: d.partial ? message : '',
                                 results: Array.isArray(d.posters) ? d.posters : [],
                                 preview: null,
+                                previewLoaded: false,
                                 confirming: false,
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, confirming: false }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, previewLoaded: false, confirming: false }; });
                 },
 
                 // Find Posters preview: tap a candidate to see it full screen, then
                 // choose to use it (with a confirm step) or close. Replaces the old
                 // inline Select/View buttons; works on desktop and touch alike.
+                // Clearing previewLoaded before the new url is what keeps the
+                // preview from flashing the previous candidate: one <img> serves
+                // every candidate, so a resolved flag left over from the last
+                // one would reveal this one before it had loaded. Same reasoning
+                // as view() in overlayComponent.
                 openFinderPreview: function (url) {
+                    this.finder.previewLoaded = false;
                     this.finder.preview = url;
                     this.finder.confirming = false;
                 },

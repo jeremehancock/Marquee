@@ -215,6 +215,38 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * Every poster the user waits for is held by a placeholder until it resolves:
+     * the candidate cell by a frame it fills, the two full-screen views by a
+     * standalone element, since a full-screen image is sized by its own
+     * dimensions and has no frame to fill. The stylesheet draws all of that, but
+     * only for markup that is actually there — and both viewers' images are
+     * revealed by Alpine state rather than by the DOM scan that reveals cards, so
+     * the bindings are load-bearing too.
+     */
+    public function testWaitingPostersRenderTheirPlaceholderAndFadeBindings(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // Find Posters candidate cells: a frame that reserves the cell, an image
+        // deferred until it is near the visible results, and per-cell state so
+        // each shimmer stops as its own thumbnail arrives.
+        self::assertStringContainsString('class="find-item__frame"', $body);
+        self::assertStringContainsString('loading="lazy"', $body);
+        self::assertStringContainsString('@load="loaded = true" @error="loaded = true"', $body);
+
+        // Both full-screen views: the shared viewer and the Find Posters preview.
+        self::assertSame(2, substr_count($body, 'class="viewer__stage"'), 'Both full-screen views need a stage.');
+        self::assertSame(2, substr_count($body, 'class="viewer__placeholder"'), 'Both full-screen views need a placeholder.');
+        self::assertStringContainsString('x-show="!viewerLoaded"', $body);
+        self::assertStringContainsString('x-show="!finder.previewLoaded"', $body);
+        // A failed image resolves the placeholder too, or it shimmers forever.
+        self::assertStringContainsString('@error="viewerLoaded = true"', $body);
+        self::assertStringContainsString('@error="finder.previewLoaded = true"', $body);
+    }
+
+    /**
      * On a phone the Change Poster modal is presented as a tray, and a tray is
      * dismissed by dragging its grab handle or tapping its backdrop — there is no
      * close button at that size. That only works if the handle is a real element

@@ -431,21 +431,52 @@ h1 {
     overflow: hidden;
 }
 
-/* Subtle shimmer shown until the lazy-loaded image fades in. */
-.card__frame::before {
-    content: '';
-    position: absolute;
-    inset: 0;
+/* Subtle shimmer shown until a lazy-loaded image fades in. One treatment, three
+   callers: poster cards, Find Posters candidate cells, and the two full-screen
+   viewers. A card or a cell paints it on the frame that already reserves the
+   poster's space; a full-screen image has no such frame — its size is unknown
+   until it loads — so the viewers paint it on a standalone placeholder element
+   instead. See .viewer__placeholder. */
+.card__frame::before,
+.find-item__frame::before,
+.viewer__placeholder {
     background: linear-gradient(100deg, var(--surface) 30%, rgba(255, 255, 255, 0.06) 50%, var(--surface) 70%);
     background-size: 200% 100%;
     animation: shimmer 1.3s linear infinite;
 }
 
+.card__frame::before,
+.find-item__frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
 /* Once the image has resolved the shimmer is redundant, so stop animating it.
    Without :has() support it keeps running, hidden behind the opaque image —
-   the same as before this rule, so the degradation is invisible. */
-.card__frame:has(.card__image.is-loaded)::before {
+   the same as before this rule, so the degradation is invisible. The viewers
+   need no such rule: their placeholder is removed outright once the image
+   resolves, because Alpine owns it. */
+.card__frame:has(.card__image.is-loaded)::before,
+.find-item__frame:has(.find-item__img.is-loaded)::before {
     content: none;
+}
+
+/* Lazy-load fade-in. Every image that ships hidden and is revealed by
+   `is-loaded` once it resolves — set by gallery.js for cards, and by Alpine
+   state for the candidate cells and the viewers, whose images are created or
+   re-pointed after that scan has run. */
+.card__image,
+.find-item__img,
+.viewer img {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.card__image.is-loaded,
+.find-item__img.is-loaded,
+.viewer img.is-loaded {
+    opacity: 1;
 }
 
 .card__image {
@@ -455,12 +486,6 @@ h1 {
     object-fit: cover;
     display: block;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-}
-
-.card__image.is-loaded {
-    opacity: 1;
 }
 
 .card__caption {
@@ -667,13 +692,25 @@ h1 {
     gap: 6px;
 }
 
-.find-item__img {
-    display: block;
-    width: 100%;
+/* The candidate's frame, mirroring .card__frame: it reserves the cell at poster
+   proportions before the thumbnail arrives, which is both what the shimmer fills
+   and what lets native lazy loading defer an off-screen candidate — an image
+   with no reserved space would land on top of the fold and be fetched anyway. */
+.find-item__frame {
+    position: relative;
     aspect-ratio: 2 / 3;
-    object-fit: cover;
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
+    overflow: hidden;
+}
+
+.find-item__img {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     cursor: zoom-in;
 }
 
@@ -756,11 +793,15 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
     .spinner,
-    .card__frame::before {
+    .card__frame::before,
+    .find-item__frame::before,
+    .viewer__placeholder {
         animation: none;
     }
 
-    .card__image {
+    .card__image,
+    .find-item__img,
+    .viewer img {
         transition: none;
     }
 }
@@ -972,10 +1013,43 @@ h1 {
     padding: 24px;
 }
 
+/* The image's region. It claims all the height the viewer's other children do
+   not, so in the Find Posters preview the action bar's position is fixed by the
+   layout rather than by the image — the bar cannot move when the image lands,
+   nor when a candidate turns out not to be poster-shaped. `min-height: 0` keeps
+   a tall image from pushing the bar off the bottom instead of shrinking. */
+.viewer__stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* The viewer centres its children; the stage must instead fill the cross
+       axis, or its height stays content-sized and the image's `max-height: 100%`
+       has nothing definite to resolve against. Centring then happens inside the
+       stage, below. */
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .viewer img {
     max-width: 100%;
     max-height: 100%;
     border-radius: 6px;
+}
+
+/* Stands in for the image while it loads, at poster proportions — deliberately
+   not the image's own shape, which is unknown until it arrives. It is replaced
+   by the image rather than filled by it, so a wide candidate settles into its
+   real shape instead of being letterboxed into a 2:3 box forever. */
+.viewer__placeholder {
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 6px;
+    /* Decorative: a click on it is a click on the backdrop behind it, which is
+       what dismisses the viewer. Waiting for a poster must not be the one state
+       the viewer cannot be closed from. */
+    pointer-events: none;
 }
 
 /* Find Posters preview: the image plus a use/close (then confirm) action bar. */
@@ -983,12 +1057,6 @@ h1 {
     flex-direction: column;
     gap: 16px;
     cursor: default;
-}
-
-.viewer--finder img {
-    /* Reserve room for the tallest bar state (the confirm step) so switching
-       between "use/close" and the confirm does not move the image. */
-    max-height: calc(100% - 132px);
 }
 
 .viewer__bar {
