@@ -54,7 +54,7 @@
 - [x] 6.2 Confirm docs are current: README's configuration table is the only
       user-facing doc affected; note explicitly that `docs/` and `CLAUDE.md`
       need no edits.
-- [ ] 6.3 Manual check on the `:dev` image: hover a short poster title (no
+- [x] 6.3 Manual check on the `:dev` image: hover a short poster title (no
       tooltip, no `help` cursor) and a long one (tooltip with the full title,
       `help` cursor); narrow the window until a fitting title truncates and
       confirm the tooltip starts appearing; confirm the Chrome console shows no
