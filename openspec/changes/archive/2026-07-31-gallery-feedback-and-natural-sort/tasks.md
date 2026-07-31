@@ -39,7 +39,7 @@
 
 ## 7. Validation on the `:dev` image
 
-- [ ] 7.1 Verify by hand on desktop: apply a poster through Find Posters, confirm the overlay appears immediately, the confirm button is disabled, a second click does nothing, and the overlay clears on both success and failure.
-- [ ] 7.2 Verify the same on a phone, where the change-poster dialog is a sheet — confirm the overlay covers the full-screen preview rather than being confined to the panel.
-- [ ] 7.3 Verify A–Z ordering in the TV Seasons tab, in the All view, and in a search for a show with ten or more seasons.
-- [ ] 7.4 Do not archive until this validation has been done — archiving rewrites `openspec/specs/`, the source of truth.
+- [x] 7.1 Verify by hand on desktop: apply a poster through Find Posters, confirm the overlay appears immediately, the confirm button is disabled, a second click does nothing, and the overlay clears on both success and failure.
+- [x] 7.2 Verify the same on a phone, where the change-poster dialog is a sheet — confirm the overlay covers the full-screen preview rather than being confined to the panel.
+- [x] 7.3 Verify A–Z ordering in the TV Seasons tab, in the All view, and in a search for a show with ten or more seasons.
+- [x] 7.4 Do not archive until this validation has been done — archiving rewrites `openspec/specs/`, the source of truth.

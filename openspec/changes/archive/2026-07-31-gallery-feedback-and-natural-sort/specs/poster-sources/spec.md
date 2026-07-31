@@ -80,6 +80,11 @@ without the poster being altered.
 - **THEN** they can open a candidate full screen to inspect it, and apply it
   only from that full-screen preview
 
+#### Scenario: Found-poster action label
+- **WHEN** a user is previewing a candidate full screen
+- **THEN** the action that applies it is labelled "Use this poster", and the
+  confirmation it asks for is labelled "Change poster"
+
 #### Scenario: Applying requires a confirmation
 - **WHEN** a user chooses to use the candidate they are previewing
 - **THEN** the system asks for a final confirmation, and the poster is changed

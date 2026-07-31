@@ -129,6 +129,20 @@ have no fast path that a deferral would protect against flickering.
 - **THEN** the loading indication is deferred and held on exactly the same terms
   as a category tab switch
 
+#### Scenario: A superseded view change leaves nothing dimmed
+
+- **WHEN** a user starts one view change and then starts another before the
+  first has finished
+- **THEN** the pending indication for the abandoned view change does not dim the
+  gallery afterwards
+- **AND** the gallery ends in an undimmed state once the surviving view change
+  has settled
+
+#### Scenario: A failed view change clears the indication
+
+- **WHEN** a view change fails
+- **THEN** any loading indication it applied is cleared rather than left in place
+
 #### Scenario: A mutation is not deferred
 
 - **WHEN** a user starts an operation that changes stored data, such as applying
