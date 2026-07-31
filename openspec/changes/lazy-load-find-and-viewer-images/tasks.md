@@ -60,7 +60,7 @@
 - [x] 5.2 Check `README.md`, `docs/` and `CLAUDE.md` for staleness; this is
       presentation-only with no user-facing setting, so record explicitly that no
       docs change is needed if that is the finding.
-- [ ] 5.3 Validate by hand against the `:dev` image: candidate cells shimmer then
+- [x] 5.3 Validate by hand against the `:dev` image: candidate cells shimmer then
       fade; scrolling the results fetches images as they approach the visible area
       (network panel); both viewers show the placeholder then fade in; reopening on a
       second poster starts unresolved; the finder bar does not move between loading,
