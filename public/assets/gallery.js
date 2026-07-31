@@ -233,6 +233,23 @@
         schedule();
     }());
 
+    // ---- Return to the top on a page change ----
+    // Paging swaps the grid in place, so the browser never performs a navigation
+    // and never resets the scroll position. The pagination control sits below the
+    // grid, so the user is always at the bottom when they use it — and stays there
+    // while an entirely new page of posters renders above them.
+    //
+    // The animation is a per-call `behavior` rather than `scroll-behavior: smooth`
+    // on the document, which would animate EVERY programmatic scroll — including
+    // the scroll-lock restore above, showing the page slide back into place each
+    // time a tray is dismissed. Reduced motion is read per call, not cached, so
+    // changing the system setting mid-session takes effect without a reload; it
+    // drops the animation only, since arriving at the top is the point.
+    function scrollToTopOfGallery() {
+        var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    }
+
     // ---- Secondary destinations -> trays (phone) ----
     // On a touch device the "Import from Plex" and "Orphans" links open in a tray
     // over the gallery instead of navigating, but only on a page that actually has
@@ -1011,6 +1028,12 @@
             var pageLink = e.target.closest('.pagination a');
             if (pageLink && root.contains(pageLink)) {
                 e.preventDefault();
+                // Before the fetch, not after the swap: the scroll is immediate
+                // feedback that the click landed, and it runs alongside the load
+                // rather than after it, so the new grid is usually already in
+                // place by the time it settles. Offset 0 is always reachable, so
+                // a shorter destination page cannot strand the animation.
+                scrollToTopOfGallery();
                 load(pageLink.getAttribute('href'), true);
                 return;
             }
