@@ -8,6 +8,23 @@ use App\Tests\AppTestCase;
 
 final class ApplicationShellTest extends AppTestCase
 {
+    /**
+     * The opening tags of the two footers the shared layout renders: the page
+     * footer, and the navigation drawer's, which replaces it on a phone. Both
+     * carry the same chrome, so both are asserted against.
+     *
+     * @var list<string>
+     */
+    private const FOOTERS = ['<footer class="footer">', '<div class="menu__footer"'];
+
+    /** @var list<string> */
+    private const PROVIDERS = [
+        'https://www.themoviedb.org/',
+        'https://www.thetvdb.com/',
+        'https://fanart.tv/',
+    ];
+
+
     public function testHealthReturnsOkWithoutAuthentication(): void
     {
         $response = $this->get($this->makeApp(), '/health');
@@ -56,21 +73,79 @@ final class ApplicationShellTest extends AppTestCase
         // The page footer and the mobile tray's footer show the same credit
         // line, so both link the product name — and both open a new tab, which
         // requires rel="noopener".
-        foreach (['<footer class="footer">', '<div class="menu__footer">'] as $open) {
+        foreach (self::FOOTERS as $open) {
             self::assertMatchesRegularExpression(
-                '#' . preg_quote($open, '#') . '<a ([^>]*)>Marquee</a>#s',
+                '#' . preg_quote($open, '#') . '.*?<a ([^>]*)>Marquee</a>#s',
                 $body,
                 $open . ' must wrap the product name in a link.',
             );
 
             // Attributes may wrap across lines, but no single attribute does,
             // so the raw capture can be searched as-is.
-            preg_match('#' . preg_quote($open, '#') . '<a ([^>]*)>#s', $body, $m);
+            preg_match('#' . preg_quote($open, '#') . '.*?<a ([^>]*)>Marquee</a>#s', $body, $m);
             $attributes = $m[1] ?? '';
 
             self::assertStringContainsString('href="https://getmarquee.now"', $attributes);
             self::assertStringContainsString('target="_blank"', $attributes);
             self::assertStringContainsString('rel="noopener"', $attributes);
+        }
+    }
+
+    public function testBothFootersCreditThePosterProviders(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        foreach (self::FOOTERS as $open) {
+            // Capture what each footer renders *before* its product-name link:
+            // the credit belongs above that line, so matching this way asserts
+            // the order as a side effect of finding the block at all.
+            preg_match(
+                '#' . preg_quote($open, '#') . '(.*?)<a [^>]*>Marquee</a>#s',
+                $body,
+                $m,
+            );
+            $credit = $m[1] ?? '';
+
+            self::assertStringContainsString(
+                'Posters provided by:',
+                $credit,
+                $open . ' must credit the poster providers above the version line.',
+            );
+
+            foreach (self::PROVIDERS as $provider) {
+                self::assertStringContainsString('href="' . $provider . '"', $credit);
+            }
+
+            // The poster source returns no Mediux artwork, so crediting it would
+            // name a provider Marquee does not actually use.
+            self::assertStringNotContainsString('mediux', $credit);
+
+            // Every logo is served by Marquee itself, so rendering a footer never
+            // reaches a third-party host. asset() appends a ?v= cache-buster,
+            // hence the prefix check rather than an equality one.
+            preg_match_all('#<img[^>]*\bsrc="([^"]*)"#s', $credit, $logos);
+
+            self::assertCount(
+                \count(self::PROVIDERS),
+                $logos[1],
+                $open . ' must show one logo per credited provider.',
+            );
+
+            foreach ($logos[1] as $src) {
+                self::assertStringStartsWith('/assets/providers/', $src);
+            }
+        }
+    }
+
+    public function testProviderLogoAssetsExist(): void
+    {
+        // The templates reference these by path, so a missing file is a broken
+        // image in production but nothing a rendering assertion would catch.
+        foreach (['tmdb.svg', 'tvdb.png', 'fanart.png'] as $logo) {
+            self::assertFileExists(\dirname(__DIR__, 2) . '/public/assets/providers/' . $logo);
         }
     }
 

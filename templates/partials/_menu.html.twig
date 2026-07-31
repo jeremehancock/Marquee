@@ -22,8 +22,14 @@
             {% endif %}
         </div>
         {# Sits outside .sheet__body, so it closes the tray itself — matching how
-           every other new-tab destination in the tray behaves. #}
-        <div class="menu__footer"><a href="https://getmarquee.now" target="_blank"
-                rel="noopener" @click="menuOpen = false">{{ app_name }}</a> &middot; v{{ app_version }}<span class="js-update-note"></span></div>
+           every other new-tab destination in the tray behaves. The handler is on
+           the footer rather than each link so the provider logos, which come from
+           a partial shared with the page footer (where there is no `menuOpen`
+           scope), get the same dismissal by bubbling. #}
+        <div class="menu__footer" @click="menuOpen = false">
+            {% include 'partials/_attribution.html.twig' %}
+            <div><a href="https://getmarquee.now" target="_blank"
+                    rel="noopener">{{ app_name }}</a> &middot; v{{ app_version }}<span class="js-update-note"></span></div>
+        </div>
     </div>
 </div>

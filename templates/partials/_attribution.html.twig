@@ -1,0 +1,28 @@
+{# Credit for the providers whose artwork reaches the user through Find Posters.
+   Lives in a partial because it is rendered in both footers — the page footer on
+   desktop and the navigation drawer's footer on a phone, where the page footer is
+   hidden — and the two must never credit different sets of providers.
+
+   Mediux is deliberately absent: the poster source returns no artwork from it.
+
+   Each logo carries its intrinsic width/height so the footer reserves the row's
+   space before the images decode; the displayed size comes from the per-provider
+   classes in app.css, which normalise three very different aspect ratios into one
+   row. #}
+<div class="attribution">
+    <p class="attribution__label">Posters provided by:</p>
+    <div class="attribution__logos">
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener" title="TMDB">
+            <img class="attribution__logo attribution__logo--tmdb" src="{{ asset('/assets/providers/tmdb.svg') }}"
+                 alt="TMDB" width="273" height="36">
+        </a>
+        <a href="https://www.thetvdb.com/" target="_blank" rel="noopener" title="TheTVDB">
+            <img class="attribution__logo attribution__logo--tvdb" src="{{ asset('/assets/providers/tvdb.png') }}"
+                 alt="TheTVDB" width="400" height="216">
+        </a>
+        <a href="https://fanart.tv/" target="_blank" rel="noopener" title="fanart.tv">
+            <img class="attribution__logo attribution__logo--fanart" src="{{ asset('/assets/providers/fanart.png') }}"
+                 alt="fanart.tv" width="303" height="61">
+        </a>
+    </div>
+</div>
