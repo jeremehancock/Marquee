@@ -51,12 +51,12 @@
 ## 5. Device validation
 
 - [x] 5.1 Build the image and smoke-test `/health` per `docs/docker.md`.
-- [ ] 5.2 On a phone: open the orphans tray, close it by backdrop tap and by
+- [x] 5.2 On a phone: open the orphans tray, close it by backdrop tap and by
   drag-down, and confirm each reopen shows the loading state and then a fresh
   result.
-- [ ] 5.3 Confirm a poster whose media has been restored in Plex since the last
+- [x] 5.3 Confirm a poster whose media has been restored in Plex since the last
   scan is no longer listed after a reopen.
-- [ ] 5.4 Open and close the tray several times, then confirm a deletion, and
+- [x] 5.4 Open and close the tray several times, then confirm a deletion, and
   check exactly one orphan is deleted.
-- [ ] 5.5 Confirm the import tray still opens instantly on reopen and is
+- [x] 5.5 Confirm the import tray still opens instantly on reopen and is
   unaffected.
