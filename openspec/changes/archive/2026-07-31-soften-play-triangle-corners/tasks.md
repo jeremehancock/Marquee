@@ -64,11 +64,7 @@ layout rather than repeating it). All eight change in this one commit:
 - [x] 4.2 Check docs for staleness: `README.md`, `docs/`, and `CLAUDE.md`
       describe no logo geometry, so the expected outcome is "no edits needed" —
       confirm that explicitly rather than assuming it.
-- [ ] 4.3 Manually confirm in a browser: favicon in the tab, mark next to the
+- [x] 4.3 Manually confirm in a browser: favicon in the tab, mark next to the
       title in the header, and the PWA install tile all show the softened
-      triangle and agree with each other. (Not done here — needs a live browser
-      and an install target. Verified as far as it goes without one: a running
-      instance serves the softened path in the header markup, `/assets/favicon.svg`
-      and all five icons return 200 at the right dimensions, and the manifest
-      still splits `any` from `maskable`. The remaining gap is eyeballing a real
-      tab and a real home-screen tile — do this on the `:dev` image.)
+      triangle and agree with each other. (Validated by the maintainer against
+      the `:dev` image built from 61f4929 — `bozodev/marquee:sha-61f4929`.)
