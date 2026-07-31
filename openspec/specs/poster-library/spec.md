@@ -299,13 +299,11 @@ two competing parentheticals.
 - **THEN** a sheet opens listing that poster's actions (change, send/fetch to
   Plex when linked, download, copy URL, full screen, delete) with its title
 
-#### Scenario: Sheet heading shows the library in parentheses
+#### Scenario: Sheet heading matches the caption
 - **WHEN** the action sheet opens for a Plex-imported poster whose caption shows
   "Louis and the Nazis (2003)"
-- **THEN** its heading does **not** append the source library — it shows
-  "Louis and the Nazis (2003)", the same text as the caption. The parenthesised
-  library this scenario was originally named for has been withdrawn; the only
-  parenthetical is now the release year.
+- **THEN** its heading shows "Louis and the Nazis (2003)" — the same text, with no
+  library appended
 
 #### Scenario: No tap-through
 - **WHEN** a user taps a poster on a touch device
