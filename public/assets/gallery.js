@@ -459,7 +459,11 @@
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
-                finder: { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false },
+                // `applying` is the in-flight flag for the final "Change poster"
+                // confirm. It drives the progress overlay and the disabled
+                // button, and it is rebuilt with the rest of this object in
+                // several places — keep it in every literal, not just this one.
+                finder: { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -631,11 +635,11 @@
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
-                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false };
+                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false };
+                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
@@ -654,9 +658,10 @@
                                 preview: null,
                                 previewLoaded: false,
                                 confirming: false,
+                                applying: false,
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, previewLoaded: false, confirming: false }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false }; });
                 },
 
                 // Find Posters preview: tap a candidate to see it full screen, then
@@ -676,10 +681,27 @@
                     this.finder.preview = null;
                     this.finder.confirming = false;
                 },
+                // Applying is never quick: the server downloads the candidate at
+                // full resolution from its source, then uploads it to Plex and
+                // locks it. Two third-party round trips on a multi-megabyte
+                // image, so the wait is seconds and the user needs to see it.
+                //
+                // The overlay is raised immediately, with none of the grace
+                // period that defers the gallery's dim for view changes. That
+                // deferral exists so a tab switch which may resolve from cache
+                // does not flicker; this has no fast path to protect, so
+                // deferring would only prolong the silence being fixed here.
+                //
+                // The overlay also physically blocks a second tap, but only
+                // once it has painted — hence the guard below, which does not
+                // depend on paint timing. Both are kept: the disabled button
+                // and the overlay communicate, the guard enforces.
                 applyFinderSelection: function () {
                     var self = this;
                     var url = this.finder.preview;
                     if (!url) { return; }
+                    if (this.finder.applying) { return; }
+                    this.finder.applying = true;
                     var body = new FormData();
                     body.append('filename', this.change.filename);
                     body.append('url', url);
@@ -689,7 +711,13 @@
                         headers: { 'X-Requested-With': 'fetch' },
                         credentials: 'same-origin',
                     })
-                        .then(function (r) { return r.text(); })
+                        .then(function (r) {
+                            // Without this the error page is parsed as if it
+                            // were a success page and scraped for its alert, so
+                            // a change that failed reports as one that worked.
+                            if (!r.ok) { throw new Error('Change failed'); }
+                            return r.text();
+                        })
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var alert = doc.querySelector('.alert');
@@ -698,7 +726,11 @@
                             self.notify(alert ? alert.textContent.trim() : 'Poster updated');
                             dispatch('gallery:refresh', {});
                         })
-                        .catch(function () { self.notify('Could not update the poster.'); self.finder.confirming = false; });
+                        .catch(function () { self.notify('Could not update the poster.'); self.finder.confirming = false; })
+                        // Clears on success and failure alike; without it a
+                        // failed change would leave the preview stranded behind
+                        // an overlay that never lifts.
+                        .finally(function () { self.finder.applying = false; });
                 },
                 copyUrl: function (url) {
                     var self = this;
