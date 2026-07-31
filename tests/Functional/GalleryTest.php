@@ -333,6 +333,87 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * Send and Fetch are one-click overwrites sitting side by side, moving the
+     * same image in opposite directions — which is exactly what makes a mis-tap
+     * plausible and an unrecoverable loss when it lands. Each therefore declares
+     * its own confirmation naming the poster and which copy it overwrites; a
+     * shared "are you sure?" would not tell a user which button they hit.
+     *
+     * The script supplies Delete's wording as its fallback, so the Delete form
+     * deliberately carries no title of its own. Nothing fails if that drifts —
+     * the dialog would just start calling a send a delete — so it is pinned here.
+     */
+    public function testPlexActionsConfirmBeforeTheyOverwrite(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris.png');
+        $this->mapPoster($dataDir, 'Solaris.png', 'Solaris', 1972);
+
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+            'AUTH_BYPASS' => 'true',
+            'PLEX_SERVER_URL' => 'http://plex:32400',
+            'PLEX_TOKEN' => 'token',
+        ]);
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        // Send names the Plex item as what it overwrites, and confirms under its
+        // own label — never Delete's, and never Delete's red.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/send-to-plex"[^>]*'
+            . 'data-confirm="Replace the artwork on Plex for “Solaris \(1972\)”[^"]*"\s+'
+            . 'data-confirm-title="Send to Plex\?"\s+'
+            . 'data-confirm-label="Send to Plex"\s+'
+            . 'data-confirm-tone="accent"/',
+            $body,
+        );
+
+        // Fetch names the stored poster as what it overwrites — the opposite
+        // direction, stated in the message rather than left to be inferred.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/fetch-from-plex"[^>]*'
+            . 'data-confirm="Replace Marquee[^"]*poster for “Solaris \(1972\)”[^"]*"\s+'
+            . 'data-confirm-title="Fetch from Plex\?"\s+'
+            . 'data-confirm-label="Fetch from Plex"\s+'
+            . 'data-confirm-tone="accent"/',
+            $body,
+        );
+
+        // Three confirmed actions on the card, and no two of them worded alike:
+        // that is the whole point of confirming a pair of adjacent, opposite
+        // actions next to a destructive one.
+        $messages = $this->confirmMessages($body);
+        self::assertCount(3, $messages, 'send, fetch and delete each confirm');
+        self::assertSame($messages, array_values(array_unique($messages)));
+
+        // Delete keeps its message and keeps relying on the script's fallback
+        // wording, so it must not have acquired a title of its own.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/delete"[^>]*data-confirm="Permanently delete /',
+            $body,
+        );
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/delete"(?![^>]*data-confirm-title)/',
+            $body,
+        );
+
+        $this->removeDir($dataDir);
+    }
+
+    /**
+     * The confirmation message of every form that declares one, in render order.
+     *
+     * @return list<string>
+     */
+    private function confirmMessages(string $body): array
+    {
+        preg_match_all('/\sdata-confirm="([^"]*)"/', $body, $matches);
+
+        return $matches[1];
+    }
+
+    /**
      * Every poster the user waits for is held by a placeholder until it resolves:
      * the candidate cell by a frame it fills, the two full-screen views by a
      * standalone element, since a full-screen image is sized by its own
