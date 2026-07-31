@@ -36,7 +36,7 @@
 - [x] 3.2 Check `README.md`, `docs/`, and `CLAUDE.md` for staleness. This is an
       interaction detail with no user-facing documentation surface; if nothing
       needs editing, say so explicitly rather than inventing changes.
-- [ ] 3.3 Hand-verify on the `:dev` image at desktop width: page down a category
+- [x] 3.3 Hand-verify on the `:dev` image at desktop width: page down a category
       with several pages, confirm each page change glides back to the first
       poster; repeat with the OS reduced-motion setting on and confirm the jump
       is instant; open and dismiss a tray and confirm the restored scroll
