@@ -56,11 +56,11 @@
 - [x] 5.2 Implement the lock as `position: fixed` with the captured scroll offset,
   restoring the exact position on unlock — `overflow: hidden` and document-level
   `overscroll-behavior` are unreliable on iOS Safari.
-- [ ] 5.3 Verify the restore is exact by opening and closing a tray partway down a
+- [x] 5.3 Verify the restore is exact by opening and closing a tray partway down a
   long gallery and confirming the infinite-scroll sentinel did not append posters.
-- [ ] 5.4 Test the iOS on-screen keyboard case: focus the Change Poster URL field,
+- [x] 5.4 Test the iOS on-screen keyboard case: focus the Change Poster URL field,
   dismiss the keyboard, close the tray, and confirm the page is not left offset.
-- [ ] 5.5 If 5.4 cannot be made reliable, revert this task group and remove the
+- [x] 5.5 If 5.4 cannot be made reliable, revert this task group and remove the
   "The page behind an open overlay does not scroll" requirement from the delta
   spec, leaving groups 1–4 intact.
 
@@ -87,10 +87,10 @@
 ## 8. Device validation
 
 - [x] 8.1 Build the image and smoke-test `/health` per `docs/docker.md`.
-- [ ] 8.2 On a real iOS device: open Change Poster from the poster action tray and
+- [x] 8.2 On a real iOS device: open Change Poster from the poster action tray and
   confirm it closes both by dragging its handle and by tapping the backdrop, on
   all three tabs including Find Posters with results loaded.
-- [ ] 8.3 On a real Android device: confirm a downward drag on a tray handle never
+- [x] 8.3 On a real Android device: confirm a downward drag on a tray handle never
   triggers pull-to-refresh with the gallery scrolled to the top.
-- [ ] 8.4 Confirm scrolling the Find Posters grid to its end does not scroll the
+- [x] 8.4 Confirm scrolling the Find Posters grid to its end does not scroll the
   gallery behind it.
