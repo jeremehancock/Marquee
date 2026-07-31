@@ -60,4 +60,4 @@ dates a 2012 season to the year the show began.
 - [x] 7.2 Replace the season unit test asserting the show's year with one asserting no year, and add one showing that a year inside the show's own name ("Lucky (2026) - Season 1") is still kept.
 - [x] 7.3 Add a gallery feature test rendering `/library/tv-seasons` and asserting the caption carries no year.
 - [x] 7.4 Reconcile proposal, design, and the poster-library delta with the new rule; re-run `openspec validate --strict`.
-- [ ] 7.5 Re-validate on `:dev`: seasons carry no year; a season of a year-named show ("Lucky (2026) - Season 1") still reads correctly; movies and shows keep theirs; and a title with an apostrophe or ampersand, since punctuation now renders differently across the whole library.
+- [x] 7.5 Re-validate on `:dev`: seasons carry no year; a season of a year-named show ("Lucky (2026) - Season 1") still reads correctly; movies and shows keep theirs; and a title with an apostrophe or ampersand, since punctuation now renders differently across the whole library.
