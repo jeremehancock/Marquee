@@ -1058,6 +1058,14 @@ h1 {
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
+    /* Both insets are set but the height comes from the aspect ratio once
+       max-width clamps the box — which is over-constrained, and the browser
+       resolves that by honouring `top` and pinning the placeholder to the top of
+       the stage. On a narrow screen, where width is the limiting axis, that is
+       far above where the poster lands and reads as a drop when it arrives.
+       `auto` block margins centre it in the leftover space instead, which is
+       what the image itself does. */
+    margin-block: auto;
     max-width: 100%;
     aspect-ratio: 2 / 3;
     border-radius: 6px;

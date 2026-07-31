@@ -30,6 +30,12 @@ resolved once before.
 - **THEN** the placeholder animation is shown where the poster will appear,
   rather than an empty backdrop, and the poster fades in once it resolves
 
+#### Scenario: Placeholder position when width is the limiting dimension
+- **WHEN** a poster is opened full screen on a narrow screen, where the poster is
+  sized by the available width rather than the available height
+- **THEN** the placeholder occupies the position the poster itself will occupy,
+  rather than sitting above it and appearing to drop into place when it arrives
+
 #### Scenario: Placeholder stays put while the image downloads
 - **WHEN** a poster is opened full screen over a slow connection, so its image is
   being downloaded for an extended period

@@ -164,6 +164,22 @@ final class LazyImagePresentationTest extends TestCase
         );
     }
 
+    public function testFullScreenPlaceholderIsCentredRatherThanTopAnchored(): void
+    {
+        // The placeholder sets both block insets, but its height comes from the
+        // aspect ratio as soon as max-width clamps the box. That is
+        // over-constrained, and the browser honours `top` — pinning it to the top
+        // of the stage. Wherever width is the limiting axis, which is every phone,
+        // that is nowhere near where the poster lands: measured in Chromium at a
+        // 390x1400 viewport, the placeholder sat at top=24 against the image's
+        // top=318. Auto block margins centre it, matching the image to the pixel.
+        self::assertMatchesRegularExpression(
+            '/\.viewer__placeholder\s*\{[^{}]*margin-block: auto/',
+            $this->declarations(),
+            'The full-screen placeholder must centre itself, or it sits above where the poster lands.'
+        );
+    }
+
     public function testViewerResolvedStateIsClearedWhereverItsSourceIsSet(): void
     {
         $source = $this->gallerySource();

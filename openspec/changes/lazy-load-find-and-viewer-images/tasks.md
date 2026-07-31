@@ -70,3 +70,8 @@
       loading image, which claims its box as soon as its dimensions are known, well
       before it arrives. Take the placeholder out of flow, record the "nothing moves
       while waiting" requirement in both delta specs, and add a tripwire for it.
+- [x] 5.5 Also raised by validation: on a phone the placeholder sat above where the
+      poster landed. Both block insets are set, but the height resolves from the
+      aspect ratio once max-width clamps the box, and the over-constrained result
+      honours `top`. Centre it with auto block margins, verified against the real
+      stylesheet in headless Chromium across five viewports.
