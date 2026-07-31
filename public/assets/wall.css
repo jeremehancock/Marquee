@@ -45,8 +45,8 @@ body {
    The frame is also the containment context for the banners. Its width derives
    from the viewport's height (via the aspect ratio), so sizing banner text in
    viewport units would scale it against a different reference than the box it
-   sits in — the wider the display, the further the two drift apart. Everything
-   inside the banners is therefore expressed in cqw, a share of this frame. */
+   sits in — the wider the display, the further the two drift apart. Both arms
+   of --wall-type are a share of this frame, which is why container-type stays. */
 .wall__frame {
     position: relative;
     height: 92%;
@@ -66,7 +66,27 @@ body {
     object-fit: contain;
 }
 
+/* Every dimension in both banners derives from this one value, so the banners
+   scale as a unit and cannot drift out of proportion with themselves.
+
+   Sizing the type purely as a share of the frame assumes the viewer's distance
+   grows with the frame. That holds for a TV across a room, a desktop and a
+   phone in the hand; it fails for a wall embedded in a dashboard widget, where
+   the frame shrinks but the viewer does not move. So the type holds Posteria's
+   16px base across the frames where that size fits (410px to 667px wide),
+   scales down below them because it no longer fits, and resumes growing above
+   them so a display larger than 1080p keeps the weight it has at 1080p.
+
+   The lower arm is derived, not chosen: "Currently Streaming" must stay on one
+   line, and at 19.1em of the base (once trimmed below, 23.7em untrimmed) it is
+   what runs out of room first in a narrow frame — before the poster does.
+   3.9cqw leaves it 26% headroom at every size below the plateau, measured.
+
+   This has to be declared here rather than on .wall__frame: an element cannot
+   query the container it establishes, so cqw in the frame's own rule would
+   resolve against the next container out and be silently wrong. */
 .wall__banner {
+    --wall-type: max(min(16px, 3.9cqw), 2.4cqw);
     position: absolute;
     left: 0;
     right: 0;
@@ -84,22 +104,44 @@ body {
    bright or busy poster. */
 .wall__banner--top {
     top: 0;
-    padding: 2.1cqw 4.3cqw;
+    /* calc rather than a bare em: this element matches .wall__banner too, so an
+       em font-size would resolve against the parent instead of against
+       --wall-type on this same element, pinning the label to one size. The
+       padding below is em because that does resolve against its own size. */
+    font-size: calc(var(--wall-type) * 1.2083);
+    padding: 0.7241em 1.4828em;
     text-align: center;
     text-transform: uppercase;
     /* In em so the tracking follows the label's own size. */
     letter-spacing: 0.23em;
-    font-size: 2.9cqw;
     font-weight: 800;
     color: #1a1205;
     background: #e5a00d;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
+/* Below the plateau the label is what runs out of room first: at 25.2em of the
+   base it is wider than any line in the bottom banner, and it cannot wrap
+   without reading as broken. Its tracking and side padding are decoration, and
+   spending them here buys 20% more type than the frame would otherwise allow —
+   the difference between legible and merely larger in an embedded widget.
+
+   The threshold is 500px rather than the plateau's own 410px because the label
+   is fixed at 19.3px across the whole plateau while the frame keeps shrinking;
+   full decoration only has room to spare from 500px up. The gold bar and the
+   uppercase treatment — the parts that carry the look — are untouched. */
+@container (max-width: 500px) {
+    .wall__banner--top {
+        letter-spacing: 0.12em;
+        padding: 0.7241em 0.6em;
+    }
+}
+
 /* Bottom banner: left-aligned, laid out horizontally, over a dark fade. */
 .wall__banner--bottom {
     bottom: 0;
-    padding: 8.4cqw 3.5cqw 3cqw;
+    font-size: var(--wall-type);
+    padding: 3.5em 1.4583em 1.25em;
     text-align: left;
     color: #fff;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
@@ -108,7 +150,7 @@ body {
 
 .wall__banner--bottom .wall__title {
     display: block;
-    font-size: 3.6cqw;
+    font-size: 1.5em;
     font-weight: 700;
     line-height: 1.1;
 }
@@ -117,9 +159,9 @@ body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.7cqw 2.2cqw;
-    margin-top: 1.1cqw;
-    font-size: 2.4cqw;
+    gap: 0.2917em 0.9167em;
+    margin-top: 0.4583em;
+    font-size: 1em;
 }
 
 .wall__banner--bottom .wall__detail {
@@ -132,7 +174,7 @@ body {
 
 .wall__banner--bottom .wall__user {
     position: relative;
-    padding-left: 2.3cqw;
+    padding-left: 0.9583em;
     font-weight: 600;
     color: #fff;
 }
@@ -144,11 +186,11 @@ body {
     left: 0;
     top: 50%;
     transform: translateY(-50%);
-    width: 1cqw;
-    height: 1cqw;
+    width: 0.4167em;
+    height: 0.4167em;
     border-radius: 50%;
     background: #38d17a;
-    box-shadow: 0 0 1cqw rgba(56, 209, 122, 0.9);
+    box-shadow: 0 0 0.4167em rgba(56, 209, 122, 0.9);
 }
 
 .wall__banner--bottom .wall__user:empty {
