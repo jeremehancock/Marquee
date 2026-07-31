@@ -368,6 +368,19 @@ final class ChangePosterTest extends AppTestCase
         );
     }
 
+    /**
+     * A found-but-empty title reads as a complete sentence: the trailing "for it"
+     * dangled off a subject the reader has to reconstruct.
+     */
+    public function testNoArtworkMessageIsSelfContained(): void
+    {
+        $payload = $this->findPosters(
+            $this->fakeSource(PosterSearchResult::failed(PosterSearchOutcome::NoArtwork)),
+        );
+
+        self::assertSame('This title was found, but no posters are available.', $payload['error']);
+    }
+
     public function testPartialShowsCandidatesAlongsideItsWarning(): void
     {
         $result = new PosterSearchResult(

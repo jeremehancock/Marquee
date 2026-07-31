@@ -349,6 +349,30 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * The caption's tooltip only restates the caption, so it is marked conditional
+     * and appears only while the title is cut off. Tooltips that carry a genuine
+     * hint — the pagination steps — must not pick the marker up.
+     */
+    public function testOnlyTheCaptionTooltipIsConditionalOnTruncation(): void
+    {
+        // Two posters, one per page, so the pagination steps render alongside a
+        // caption and the two kinds of tooltip can be compared in one document.
+        $this->writePoster('Alpha.png');
+        $this->writePoster('Beta.png');
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'AUTH_BYPASS' => 'true',
+            'IMAGES_PER_PAGE' => '1',
+        ]);
+
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        self::assertStringContainsString('data-tooltip="Alpha" data-tooltip-truncated', $body);
+        self::assertStringContainsString('data-tooltip="Next page"', $body);
+        self::assertStringNotContainsString('data-tooltip="Next page" data-tooltip-truncated', $body);
+    }
+
+    /**
      * The title is a rendering concern only. Showing one the filename does not
      * match must not tempt anything into "fixing" the file or the row.
      */

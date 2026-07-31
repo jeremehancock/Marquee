@@ -150,6 +150,13 @@ search service that backs Find Posters, as a general statement only — it SHALL
 NOT document the service's endpoints, request or response formats, or internal
 behavior, and it SHALL NOT elaborate on running or self-hosting the service.
 
+The base URL of the poster search service SHALL remain configurable through the
+`POSTER_SOURCE_URL` environment variable, with the same default and behavior as
+before, but SHALL NOT be presented to users as a setting: it SHALL NOT appear in
+the documented configuration table or in any example deployment configuration.
+Find Posters is a hosted service users are not expected to repoint, so offering
+the variable as a knob invites configuration that is not supported.
+
 #### Scenario: README names the service
 - **WHEN** a reader reviews the README's description of Find Posters
 - **THEN** posteria.app is named as the service the search runs against
@@ -163,8 +170,16 @@ behavior, and it SHALL NOT elaborate on running or self-hosting the service.
 - **WHEN** the documentation describes the poster search service
 - **THEN** it does not invite the reader to run their own instance or explain
   how to point Marquee at one
-- **AND** `POSTER_SOURCE_URL` remains documented in the configuration table as
-  an ordinary setting, without such guidance attached
+
+#### Scenario: The service URL is not offered as a setting
+- **WHEN** a reader reviews the documented configuration table and the example
+  deployment configuration
+- **THEN** `POSTER_SOURCE_URL` is not listed among them
+
+#### Scenario: The service URL still works when set
+- **WHEN** `POSTER_SOURCE_URL` is set in the environment
+- **THEN** poster searches are directed at that base URL, exactly as before, and
+  when it is unset the default hosted service is used
 
 ### Requirement: Season searches return season artwork only
 A season poster search SHALL present only artwork the poster source identifies as
@@ -193,8 +208,8 @@ user's existing poster SHALL be left unchanged.
 
 #### Scenario: Work found but has no artwork
 - **WHEN** the poster source matches the work but returns no candidates
-- **THEN** the system tells the user that no posters are available for it, which
-  is reported differently from a title that did not match
+- **THEN** the system tells the user that the title was found but no posters are
+  available, which is reported differently from a title that did not match
 
 #### Scenario: Search is temporarily unavailable
 - **WHEN** the poster source cannot be reached, or reports that its upstream

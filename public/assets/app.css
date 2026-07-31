@@ -469,11 +469,6 @@ h1 {
     font-size: 0.84rem;
     line-height: 1.3;
     text-align: center;
-    /* Non-interactive tooltip host: signal that hovering reveals more (the full,
-       truncated title) with a help cursor rather than the text/I-beam cursor.
-       Interactive tooltip hosts (pagination steps, find-item preview) keep their
-       own pointer cursor. */
-    cursor: help;
     /* Keep the title to a single line no wider than the poster: it truncates
        with an ellipsis instead of wrapping, so a long title never adds a second
        line and pushes the following grid row down. The full title is available
@@ -482,6 +477,17 @@ h1 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Non-interactive tooltip host: signal that hovering reveals more (the full,
+   truncated title) with a help cursor rather than the text/I-beam cursor.
+   Only while the title is actually cut off — a caption that fits shows no
+   tooltip, so a help cursor there would promise information that never arrives.
+   app.js sets this class from the same measurement that gates the tooltip, on
+   hover, because CSS cannot detect truncation. Interactive tooltip hosts
+   (pagination steps, find-item preview) keep their own pointer cursor. */
+.card__caption.is-truncated {
+    cursor: help;
 }
 
 /* Shared custom tooltip — one floating element positioned by app.js, replacing

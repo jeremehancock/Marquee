@@ -92,4 +92,21 @@ final class PwaTest extends AppTestCase
             $body,
         );
     }
+
+    /**
+     * Both names, deliberately: iOS honours only the apple- one for a standalone
+     * home-screen install, and Chrome logs a deprecation warning for that tag
+     * unless the standard name is present alongside it. Dropping either one
+     * regresses a platform.
+     */
+    public function testWebAppCapabilityIsDeclaredUnderBothNames(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        self::assertStringContainsString('<meta name="mobile-web-app-capable" content="yes">', $body);
+        self::assertStringContainsString('<meta name="apple-mobile-web-app-capable" content="yes">', $body);
+    }
 }

@@ -151,7 +151,6 @@ server.
 | `MAX_FILE_SIZE` | Maximum upload size, in bytes | `5242880` |
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
 | `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` or `date_added` (by date added to Plex, newest first). Users can toggle it in the gallery. | `alphabetical` |
-| `POSTER_SOURCE_URL` | Base URL of the poster search service used by **Find Posters** | `https://posteria.app` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 
