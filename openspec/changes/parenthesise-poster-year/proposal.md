@@ -19,9 +19,12 @@ view they chose.
   filename. The filename is a sanitised copy — punctuation is flattened and the
   library name is appended — so rebuilding a title from it loses information the
   database already holds intact.
-- The caption shows a poster's known release year in parentheses — movies, TV
-  shows, and TV seasons alike — appending it only when the title does not already
-  carry it.
+- The caption shows a movie's or TV show's known release year in parentheses,
+  appending it only when the title does not already carry it.
+- **TV seasons show no year.** A season record holds its show's year, so
+  "Breaking Bad - Season 5 (2008)" would date a 2012 season to the year the show
+  began. A year that is part of the show's own name ("Lucky (2026) - Season 1")
+  still shows, because Plex reported it as the title.
 - The mobile action tray heading uses the same parenthesised-year title.
 - The change-poster modal/tray heading uses the same parenthesised-year title.
 - The action tray and change-poster modal headings **no longer append the source

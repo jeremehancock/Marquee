@@ -50,4 +50,14 @@ the fix is to stop reconstructing and start reading.
 - [x] 6.8 Add a `titlesForCategory()` repository test (maps filename→title, skips empty titles, ignores other categories) and drop the `librariesForCategory()` coverage.
 - [x] 6.9 Update the gallery feature tests: seed a record whose title carries its own year and assert the caption names it once; assert punctuation survives; assert the delete confirmation and `alt` use the caption title.
 - [x] 6.10 Re-run `composer test`, `composer stan`, `composer cs`; re-grep for `sheetTitle`, `data-sheet-title`, `librariesForCategory`, and `plex_libraries`; re-check docs.
-- [ ] 6.11 Re-validate on `:dev` — the season that prompted this, plus a title with an apostrophe or ampersand, since punctuation now renders differently across the whole library.
+
+## 7. Seasons show no year
+
+A season record carries its show's year, so "Breaking Bad - Season 5 (2008)"
+dates a 2012 season to the year the show began.
+
+- [x] 7.1 Return early from `captionTitle()` for `PosterCategory::TvSeasons`, before the year is appended, and document why on the method.
+- [x] 7.2 Replace the season unit test asserting the show's year with one asserting no year, and add one showing that a year inside the show's own name ("Lucky (2026) - Season 1") is still kept.
+- [x] 7.3 Add a gallery feature test rendering `/library/tv-seasons` and asserting the caption carries no year.
+- [x] 7.4 Reconcile proposal, design, and the poster-library delta with the new rule; re-run `openspec validate --strict`.
+- [ ] 7.5 Re-validate on `:dev`: seasons carry no year; a season of a year-named show ("Lucky (2026) - Season 1") still reads correctly; movies and shows keep theirs; and a title with an apostrophe or ampersand, since punctuation now renders differently across the whole library.

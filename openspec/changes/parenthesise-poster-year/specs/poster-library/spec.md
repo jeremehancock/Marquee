@@ -16,12 +16,17 @@ SHALL fall back to the filename-derived title.
 
 When the poster's media has a known release year, the caption and its tooltip
 SHALL append that year in parentheses (e.g. "Louis and the Nazis (2003)"), so the
-year reads as metadata rather than as part of the title. This SHALL apply to every
-poster with a known year — movies, TV shows, and TV seasons alike. The year SHALL
-NOT be appended when the title already contains it in parentheses, so a Plex title
-that names its own year (e.g. a show "Lucky (2026)", and the season titles built
-from it) shows that year once rather than twice. A poster with no known year SHALL
-be shown unchanged.
+year reads as metadata rather than as part of the title. The year SHALL NOT be
+appended when the title already contains it in parentheses, so a Plex title that
+names its own year (e.g. a show "Lucky (2026)") shows that year once rather than
+twice. A poster with no known year SHALL be shown unchanged.
+
+**TV season posters SHALL never be given a year.** A season record carries its
+*show's* release year, because Plex reports no year on a season node, so appending
+it would date every season of a long-running show to the year that show began.
+A year that is part of the show's own title (e.g. "Lucky (2026) - Season 1") SHALL
+still be shown, because it belongs to the title Plex reported rather than being
+added by the system.
 
 The check for an already-present year SHALL match the parenthesised form
 specifically, never bare digits, so a title whose own words include a number (e.g.
@@ -59,18 +64,29 @@ the following row of posters down.
   spaces of the filename ("Marvel s Agents of S H I E L D")
 
 #### Scenario: A known year is appended
-- **WHEN** the gallery renders a poster whose recorded title does not name its
-  year — e.g. a movie "Louis and the Nazis" (2003), a show "Breaking Bad" (2008),
-  or a season "Breaking Bad - Season 1" (2008)
+- **WHEN** the gallery renders a movie or TV show poster whose recorded title does
+  not name its year — e.g. a movie "Louis and the Nazis" (2003) or a show
+  "Breaking Bad" (2008)
 - **THEN** the caption appends it: "Louis and the Nazis (2003)", "Breaking Bad
-  (2008)", "Breaking Bad - Season 1 (2008)"
+  (2008)"
+
+#### Scenario: A season shows no year
+- **WHEN** the gallery renders a season poster — e.g. "Breaking Bad - Season 5",
+  whose record carries the show's year of 2008
+- **THEN** the caption shows "Breaking Bad - Season 5" with no year appended,
+  rather than dating a 2012 season to 2008
+
+#### Scenario: A season keeps a year belonging to its show's title
+- **WHEN** the gallery renders a season of a show Plex names "Lucky (2026)", whose
+  recorded title is "Lucky (2026) - Season 1"
+- **THEN** the caption shows "Lucky (2026) - Season 1" — the year is part of the
+  reported title, so it is neither removed nor duplicated
 
 #### Scenario: A year already in the title is not repeated
 - **WHEN** the gallery renders a poster whose recorded title already contains its
   year in parentheses — e.g. a show Plex names "Lucky (2026)" with a stored year
-  of 2026, or the season "Lucky (2026) - Season 1" built from it
-- **THEN** the caption shows "Lucky (2026)" and "Lucky (2026) - Season 1", each
-  naming the year once
+  of 2026
+- **THEN** the caption shows "Lucky (2026)", naming the year once
 
 #### Scenario: Numbers in the title are not mistaken for a present year
 - **WHEN** the gallery renders a poster whose recorded title contains bare digits

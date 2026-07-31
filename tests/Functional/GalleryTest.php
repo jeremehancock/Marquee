@@ -228,16 +228,45 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * The case that sent this change back from :dev: a show Plex names
-     * "Lucky (2026)" reaches disk as "Lucky_2026", and its season inherits the
-     * year mid-title. Reading the record keeps it to one mention.
+     * A title that names its own year — as Plex does for a show called
+     * "Lucky (2026)" — is shown as-is rather than gaining a second copy.
      */
     public function testCaptionDoesNotRepeatAYearTheRecordedTitleAlreadyNames(): void
     {
-        $body = $this->renderMapped('Lucky_2026_-_Season_1_TV_Shows.png', 'Lucky (2026) - Season 1', 2026);
+        $body = $this->renderMapped('Lucky_2026_Movies.png', 'Lucky (2026)', 2026);
 
-        self::assertStringContainsString('>Lucky (2026) - Season 1</figcaption>', $body);
-        self::assertStringNotContainsString('(2026) - Season 1 (2026)', $body);
+        self::assertStringContainsString('>Lucky (2026)</figcaption>', $body);
+        self::assertStringNotContainsString('(2026) (2026)', $body);
+    }
+
+    /**
+     * Seasons get no year: the stored value is the show's, so "Season 5 (2008)"
+     * would date a 2012 season to the year the show began.
+     */
+    public function testSeasonCaptionsShowNoYear(): void
+    {
+        $dataDir = $this->makeTempDir();
+        mkdir($this->postersDir . '/tv-seasons');
+        $this->writePng($this->postersDir . '/tv-seasons/Breaking_Bad_-_Season_5_TV_Shows.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            '20',
+            'season',
+            'tv-seasons',
+            'TV Shows',
+            'Breaking Bad - Season 5',
+            'Breaking_Bad_-_Season_5_TV_Shows.png',
+            time(),
+            year: 2008,
+        ));
+
+        $body = (string) $this->get($this->appWithData($dataDir), '/library/tv-seasons')->getBody();
+
+        self::assertStringContainsString('>Breaking Bad - Season 5</figcaption>', $body);
+        self::assertStringNotContainsString('(2008)', $body);
+
+        $this->removeDir($dataDir);
     }
 
     public function testCaptionRestoresPunctuationTheFilenameLost(): void

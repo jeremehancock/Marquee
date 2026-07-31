@@ -79,13 +79,31 @@ final class PosterTest extends TestCase
         self::assertSame('Breaking Bad (2008)', $poster->captionTitle('Breaking Bad', 2008));
     }
 
-    public function testASeasonGetsItsShowsYear(): void
+    /**
+     * A season row carries its show's year, so appending it would date every
+     * season to the year the show began — "Season 5 (2008)" for a 2012 season.
+     */
+    public function testASeasonGetsNoYear(): void
     {
-        $poster = new Poster(PosterCategory::TvSeasons, 'Breaking_Bad_-_Season_1_TV_Shows.png', 1024, 42);
+        $poster = new Poster(PosterCategory::TvSeasons, 'Breaking_Bad_-_Season_5_TV_Shows.png', 1024, 42);
 
         self::assertSame(
-            'Breaking Bad - Season 1 (2008)',
-            $poster->captionTitle('Breaking Bad - Season 1', 2008),
+            'Breaking Bad - Season 5',
+            $poster->captionTitle('Breaking Bad - Season 5', 2008),
+        );
+    }
+
+    /**
+     * The exception proves the rule: a year inside a season's title came from the
+     * show's own name in Plex, so it is left alone rather than hunted down.
+     */
+    public function testASeasonKeepsAYearThatIsPartOfItsShowsName(): void
+    {
+        $poster = new Poster(PosterCategory::TvSeasons, 'Lucky_2026_-_Season_1_TV_Shows.png', 1024, 42);
+
+        self::assertSame(
+            'Lucky (2026) - Season 1',
+            $poster->captionTitle('Lucky (2026) - Season 1', 2026),
         );
     }
 
@@ -96,21 +114,6 @@ final class PosterTest extends TestCase
         $poster = new Poster(PosterCategory::TvShows, 'Lucky_2026_TV_Shows.png', 1024, 42);
 
         self::assertSame('Lucky (2026)', $poster->captionTitle('Lucky (2026)', 2026));
-    }
-
-    /**
-     * The case that sent this back from :dev. A season's recorded title is built
-     * from its show's, so it inherits the parenthesised year mid-string — where a
-     * trailing-token rule could never see it.
-     */
-    public function testASeasonOfAYearNamedShowNamesTheYearOnce(): void
-    {
-        $poster = new Poster(PosterCategory::TvSeasons, 'Lucky_2026_-_Season_1_TV_Shows.png', 1024, 42);
-
-        self::assertSame(
-            'Lucky (2026) - Season 1',
-            $poster->captionTitle('Lucky (2026) - Season 1', 2026),
-        );
     }
 
     public function testBareDigitsAreNotReadAsAYearAlreadyPresent(): void

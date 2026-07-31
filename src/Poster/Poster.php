@@ -44,10 +44,16 @@ final class Poster
      * recorded title has the parentheses, so nothing has to be guessed.
      *
      * The year is appended in parentheses when known, unless the title already
-     * contains it that way — which is what keeps "Lucky (2026) - Season 1" from
-     * naming 2026 twice. The check looks for the parenthesised form specifically,
-     * so bare digits in a title are never read as a year already being present:
-     * "Class of 2026" still becomes "Class of 2026 (2026)".
+     * contains it that way. The check looks for the parenthesised form
+     * specifically, so bare digits in a title are never read as a year already
+     * being present: "Class of 2026" still becomes "Class of 2026 (2026)".
+     *
+     * Seasons are the exception and get no year at all. A season row stores its
+     * *show's* year — Plex reports none on a season node — so "Breaking Bad -
+     * Season 5 (2008)" would date a 2012 season to the year the show began.
+     * A year that is part of the show's own name ("Lucky (2026) - Season 1")
+     * still shows, because that is the title Plex gave the show, not one Marquee
+     * added.
      *
      * A poster with no Plex record (or an empty recorded title) falls back to
      * title(). title() itself is untouched, so sorting and search are unaffected,
@@ -56,6 +62,10 @@ final class Poster
     public function captionTitle(?string $plexTitle = null, ?int $year = null): string
     {
         $title = $plexTitle === null || $plexTitle === '' ? $this->title() : $plexTitle;
+
+        if ($this->category === PosterCategory::TvSeasons) {
+            return $title;
+        }
 
         if ($year === null || str_contains($title, '(' . $year . ')')) {
             return $title;

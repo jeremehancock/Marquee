@@ -35,8 +35,8 @@ from the row, and the filename is used only when there is no row.
 **Goals:**
 
 - Render a known release year as "(2003)" in the caption, its tooltip, the mobile
-  action tray heading, and the change-poster dialog heading — for every poster
-  that has a stored year, whether or not its filename carries one.
+  action tray heading, and the change-poster dialog heading — for movies and TV
+  shows, whether or not the filename carries one.
 - Drop the source library from the tray and dialog headings.
 - Keep `title()`, filenames, sort keys, and Find Posters lookups untouched.
 
@@ -49,8 +49,9 @@ from the row, and the filename is used only when there is no row.
   `(year)`; show and season filenames keep having none. The caption is allowed to
   show a year the filename does not, because the caption describes the *item*,
   not the file.
-- Showing a season's own air year. A season row stores its show's year by design;
-  the caption shows what is stored.
+- Showing a season's own air year, or any year on a season. See the decision
+  below — a season row stores its show's year by design, and there is no
+  season-level year to show instead.
 - Adding a year where none is known. Collections and non-Plex uploads are
   unchanged.
 
@@ -89,6 +90,26 @@ information needed to stop guessing is already in the database.
 **Alternative rejected — store a rendered display title alongside the file.** A
 new column and a backfill for something already on hand, and storage explicitly
 does not change here.
+
+### Seasons get no year, and the rule lives on the value object
+
+`captionTitle()` returns early for `PosterCategory::TvSeasons`. A season row's
+`year` is its *show's* — `HttpPlexClient::seasons()` copies it deliberately,
+because Plex reports no year on a season node and the poster-source lookup needs
+the year that identifies the work. That makes it the wrong number to print: every
+season of a long-running show would read "(2008)", dating Season 5 to the year
+Season 1 aired. There is no season-level year available to show instead, so the
+honest rendering is none.
+
+A year embedded in the show's own name — "Lucky (2026) - Season 1" — still shows.
+Removing it would mean deciding which parenthesised digits in a Plex-reported
+title are "really" a year, which is the guessing this design exists to avoid. It
+also is not misleading in the same way: it names the show, not the season.
+
+The check belongs on `Poster` rather than in `GalleryController` (as "skip the
+year query for seasons") so the rule sits beside the other title rules and is
+unit-testable without a database. The wasted lookup is one small indexed read per
+page.
 
 ### The filename stays the fallback, not the source
 
