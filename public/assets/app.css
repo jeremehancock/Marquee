@@ -34,6 +34,24 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+/* Desktop boxes the topbar into the same 960px column as `.container` and
+   `.footer`, so the brand and nav line up with the content instead of floating
+   at the viewport edges. Deliberately a `min-width` query — the complement of
+   the `@media (max-width: 640px)` block at the END of this file — rather than
+   the file's usual base-rule-plus-mobile-override shape: the phone topbar must
+   stay exactly as it is, and leaving the base rule untouched guarantees that
+   instead of relying on four properties being reverted correctly below. The
+   960px/24px pair matches `.container` (`box-sizing: border-box` is global), so
+   the inner edges land in the same place. */
+@media (min-width: 641px) {
+    .topbar {
+        max-width: 960px;
+        margin: 24px auto 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
+}
+
 .brand {
     display: inline-flex;
     align-items: center;
