@@ -51,24 +51,24 @@
 
 ## 3. Verify on the `:dev` image
 
-- [ ] 3.1 Build and run the `:dev` image with a live Plex server and a stream
+- [x] 3.1 Build and run the `:dev` image with a live Plex server and a stream
   active, so the banners actually render
-- [ ] 3.2 Embed `/wall` in a **350×350** iframe on the real dashboard and
+- [x] 3.2 Embed `/wall` in a **350×350** iframe on the real dashboard and
   confirm "CURRENTLY STREAMING" stays on **one line**. Measured at 26% headroom
   in 2b, so this is confirming the browser's font rather than the layout — the
   fonts that box could not measure (Roboto, Segoe UI, SF Pro) are the residual
   risk. If it wraps, reduce `3.9cqw` until it fits
-- [ ] 3.3 In the same 350×350 frame, confirm a long title is readable and that
+- [x] 3.3 In the same 350×350 frame, confirm a long title is readable and that
   the two banners still leave the poster the primary subject. Measured coverage
   is 34% with a two-line title, against 19% at 1080p — the judgement call is
   whether that reads as labelling or crowding
-- [ ] 3.4 Load `/wall` on a phone. The title goes 12.9px → 21.0px, the largest
+- [x] 3.4 Load `/wall` on a phone. The title goes 12.9px → 21.0px, the largest
   visible change here and the one place it may overshoot. If it reads heavy,
   lower the `16px` plateau ceiling — that single number pulls the phone and the
   widget down together
-- [ ] 3.5 Confirm 1080p looks unchanged from the current build. Measured as
+- [x] 3.5 Confirm 1080p looks unchanged from the current build. Measured as
   identical at 1440p and 4K and within 0.6% at 1080p, so this is a spot check
-- [ ] 3.6 Fold any number changed during 3.2-3.4 back into `design.md` so its
+- [x] 3.6 Fold any number changed during 3.2-3.4 back into `design.md` so its
   tables match what shipped
 
 ## 4. Documentation
@@ -82,7 +82,7 @@
 
 ## 5. Ship
 
-- [ ] 5.1 Run `/ship` — do not hand-roll the commit, VERSION bump, archive or
+- [x] 5.1 Run `/ship` — do not hand-roll the commit, VERSION bump, archive or
   PR
-- [ ] 5.2 Do not archive until the `:dev` validation in section 3 is done and
+- [x] 5.2 Do not archive until the `:dev` validation in section 3 is done and
   accepted

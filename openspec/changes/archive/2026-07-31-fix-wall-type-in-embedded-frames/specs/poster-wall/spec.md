@@ -42,16 +42,18 @@ poster SHALL remain the primary subject of the tile.
 - **WHEN** the now-playing item is a TV episode
 - **THEN** the details identify the show and the episode being watched
 
+#### Scenario: Overlays keep their proportions across display sizes
+- **WHEN** the wall is shown on displays large enough that the banners have
+  resumed growing, or in frames small enough that they have not yet reached
+  their fixed size
+- **THEN** the banner text occupies the same proportion of the poster on each,
+  rather than growing or shrinking relative to it
+
 #### Scenario: Overlays hold one size across ordinary displays
 - **WHEN** the wall is shown full-screen on displays ranging from a phone up to
   a 1080p monitor
 - **THEN** the banner text renders at the same size on each, rather than
   shrinking as the display gets smaller
-
-#### Scenario: Overlays grow on a large display
-- **WHEN** the wall is shown full-screen on a display larger than 1080p
-- **THEN** the banner text grows in proportion to the poster, so it keeps the
-  visual weight it has at 1080p
 
 #### Scenario: Overlays stay legible in a small embedded frame
 - **WHEN** the wall is embedded in a frame too small for the banners to hold
