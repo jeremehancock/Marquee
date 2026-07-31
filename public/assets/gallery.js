@@ -105,24 +105,23 @@
     }
 
     // ---- App-style sheet gestures ----
-    // Every tray uses the .sheet markup and closes when its .sheet__backdrop is
-    // clicked. A downward drag that starts on the grab handle or the head (not the
-    // scrollable body) dismisses the sheet by reusing that same backdrop close, so
-    // the gesture works for every tray — poster actions, menu, sort, import —
-    // without knowing which Alpine scope owns it.
-    // Applies to both trays (.sheet, dragged from the grab handle or head) and the
-    // app-style mobile modals (.modal, dragged from the head above its handle),
-    // each dismissed by clicking its own backdrop.
+    // Every tray closes when its backdrop is clicked. A downward drag that starts
+    // on the grab handle or the head (never on the scrollable body) dismisses the
+    // tray by reusing that same backdrop close, so the gesture works for every one
+    // of them — poster actions, menu, sort, import, orphans, change poster,
+    // confirmations — without knowing which Alpine scope owns it.
+    //
+    // This relies on the markup keeping the drag region and the scrolling region
+    // as separate elements: the grip and head carry `touch-action: none` so the
+    // browser cannot claim the gesture as a scroll, which it can only do if they
+    // are not themselves the scroller. Both tray presentations (.sheet, and .modal
+    // once the mobile block restyles it) provide that split, so neither needs a
+    // special case here.
     (function () {
         var drag = null;
         document.addEventListener('touchstart', function (e) {
             var grip = e.target.closest('.sheet__grip, .sheet__head, .modal__head');
             var panel = grip ? grip.closest('.sheet__panel, .modal__panel') : null;
-            // A modal draws its grab handle as a ::before on the panel, so also let
-            // a drag start on the panel's own top area (a direct touch on it).
-            if (!panel && e.target.classList && e.target.classList.contains('modal__panel')) {
-                panel = e.target;
-            }
             if (!panel) { return; }
             drag = { panel: panel, startY: e.touches[0].clientY, dy: 0, h: panel.offsetHeight };
             panel.style.transition = 'none';
@@ -150,6 +149,78 @@
         }
         document.addEventListener('touchend', endDrag);
         document.addEventListener('touchcancel', endDrag);
+    }());
+
+    // ---- Page scroll lock while an overlay is open ----
+    // Overlays are fixed layers over a document that is otherwise still live, so
+    // without this the page scrolls behind them: a drag on a backdrop has nothing
+    // of its own to scroll and chains straight to the document.
+    //
+    // There is no single "an overlay is open" flag to watch. Open state is spread
+    // across galleryUI (sheet, confirm, change, sort, import, orphans, viewer),
+    // orphansPage, and the standalone menuOpen scope on the topbar — and the
+    // orphans tray injects further overlays at runtime. So rather than wiring each
+    // one, watch the DOM for the inline `display` that x-show writes, the same way
+    // the drag gesture above stays agnostic of which scope owns a tray.
+    (function () {
+        var body = document.body;
+        var scrollY = 0;
+        var locked = false;
+        var queued = false;
+
+        function anyOverlayOpen() {
+            var overlays = document.querySelectorAll('.sheet, .modal, .viewer');
+            for (var i = 0; i < overlays.length; i++) {
+                if (overlays[i].style.display !== 'none') { return true; }
+            }
+            return false;
+        }
+
+        // Pinning the body is the only technique that holds on iOS Safari:
+        // `overflow: hidden` on the body is unreliable there, and
+        // `overscroll-behavior` is not honoured on the document at all.
+        function sync() {
+            queued = false;
+            var open = anyOverlayOpen();
+            if (open === locked) { return; }
+            if (open) {
+                scrollY = window.scrollY;
+                // Pinning the body collapses the document's scroll height, which
+                // takes a classic desktop scrollbar with it. Hold its width back
+                // as padding so the page underneath does not jump sideways the
+                // moment an overlay opens. Touch scrollbars overlay, so this is
+                // zero there — exactly where the pinning matters most.
+                var gutter = window.innerWidth - document.documentElement.clientWidth;
+                if (gutter > 0) { body.style.paddingRight = gutter + 'px'; }
+                body.style.top = '-' + scrollY + 'px';
+                document.documentElement.classList.add('is-overlay-open');
+                locked = true;
+                return;
+            }
+            document.documentElement.classList.remove('is-overlay-open');
+            body.style.paddingRight = '';
+            body.style.top = '';
+            // Restore the exact offset that was captured, not an approximation.
+            // The gallery appends the next page when the sentinel nears the
+            // viewport, so a restore that drifts would load posters the user never
+            // scrolled to.
+            window.scrollTo(0, scrollY);
+            locked = false;
+        }
+
+        function schedule() {
+            if (queued) { return; }
+            queued = true;
+            window.requestAnimationFrame(sync);
+        }
+
+        new MutationObserver(schedule).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style'],
+            childList: true,
+            subtree: true,
+        });
+        schedule();
     }());
 
     // ---- Secondary destinations -> trays (phone) ----

@@ -215,6 +215,36 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * On a phone the Change Poster modal is presented as a tray, and a tray is
+     * dismissed by dragging its grab handle or tapping its backdrop — there is no
+     * close button at that size. That only works if the handle is a real element
+     * touch can target, and if it is a *different* element from the one that
+     * scrolls, so the drag region can opt out of browser gestures without also
+     * disabling the scroll.
+     */
+    public function testChangePosterTrayHasAGrabbableHandleSeparateFromItsScroller(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('class="modal__body"', $body);
+        // Every tray panel on the page carries a grab handle: the menu, the
+        // poster action sheet, sort, import and orphans, plus the Change Poster
+        // and confirmation modals now presented as trays.
+        self::assertSame(
+            substr_count($body, 'class="modal__panel') + substr_count($body, 'class="sheet__panel'),
+            substr_count($body, 'class="sheet__grip"'),
+            'Every tray panel needs a grab handle; it is one of only two ways out.'
+        );
+        // The handle used to be drawn as a ::before on the panel, which no touch
+        // can ever land on. Nothing may go back to relying on that.
+        self::assertStringNotContainsString('modal__panel::before', $body);
+        // Backdrop dismissal is the other way out and must stay wired.
+        self::assertStringContainsString('class="modal__backdrop" @click="change.open = false"', $body);
+    }
+
+    /**
      * The caption comes from the record, so the library token the filename
      * carries never reaches the page at all.
      */

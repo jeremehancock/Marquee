@@ -88,6 +88,28 @@ final class OrphanTest extends AppTestCase
         self::assertStringContainsString('imported from Plex whose media no longer exists', $body);
     }
 
+    /**
+     * The orphans page is also served into a tray on a phone, where its own
+     * confirmation becomes a tray in turn. Both confirmations — this one and the
+     * shared one from _overlays — need the grab handle and separate scrolling
+     * body that make a tray dismissible without a close button.
+     */
+    public function testConfirmationsAreDismissibleAsTrays(): void
+    {
+        $body = (string) $this->get($this->app(), '/orphans')->getBody();
+
+        // The delete-all confirmation and the shared per-orphan confirmation.
+        self::assertSame(2, substr_count($body, 'class="modal__body"'));
+        // Every tray panel on the page carries a grab handle — the two
+        // confirmations above, plus the menu and the poster action sheet.
+        self::assertSame(
+            substr_count($body, 'class="modal__panel') + substr_count($body, 'class="sheet__panel'),
+            substr_count($body, 'class="sheet__grip"'),
+            'Every tray panel needs a grab handle; it is one of only two ways out.'
+        );
+        self::assertStringNotContainsString('modal__panel::before', $body);
+    }
+
     public function testOrphansPageClaimsNoExemption(): void
     {
         $body = (string) $this->get($this->app(), '/orphans')->getBody();

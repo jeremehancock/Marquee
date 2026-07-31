@@ -650,6 +650,7 @@ h1 {
     gap: 12px;
     max-height: 62vh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding-top: 4px;
 }
 
@@ -839,14 +840,32 @@ h1 {
     font-variant-numeric: tabular-nums;
 }
 
-/* Modal */
+/* While any overlay is open the page beneath it is pinned, so a drag on a
+   backdrop cannot scroll the gallery (or, at the top of the page, pull to
+   refresh) from under the overlay. Pinning with `position: fixed` rather than
+   `overflow: hidden` is what makes this hold on iOS Safari; the offset is
+   restored exactly on close — see the scroll lock in gallery.js. */
+.is-overlay-open body {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+}
+
+/* Modal.
+   Overlay layering is one ordered scale: the bottom tab bar (40) sits under the
+   trays (.sheet, 50), a dialog sits above whatever tray raised it (.modal, 55),
+   and the fullscreen viewer covers both (.viewer, 60). A dialog must outrank a
+   tray because a confirmation can be raised from inside one — deleting an orphan
+   from the orphans tray is the case — and a confirmation rendered behind the tray
+   that asked the question cannot be answered. */
 .modal {
     position: fixed;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 50;
+    z-index: 55;
 }
 
 .modal__backdrop {
@@ -863,6 +882,14 @@ h1 {
     border-radius: 12px;
     padding: 20px;
     transition: width 0.15s ease;
+}
+
+/* The grab handle is markup on every modal but is a phone affordance only: on a
+   pointer device the dialog is centred and closes with its own × button, so the
+   handle would promise a drag that leads nowhere. The mobile block turns it back
+   on. */
+.modal .sheet__grip {
+    display: none;
 }
 
 /* Give the found-poster gallery more room so thumbnails read cleanly. */
@@ -1006,11 +1033,12 @@ h1 {
     border-color: #4b515b;
 }
 
-/* Mobile action sheet: a poster's actions slide up from the bottom. */
+/* Mobile action sheet: a poster's actions slide up from the bottom.
+   Sits below .modal on the shared layering scale — see the Modal section. */
 .sheet {
     position: fixed;
     inset: 0;
-    z-index: 55;
+    z-index: 50;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -1051,6 +1079,11 @@ h1 {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    /* Stop at the end of the tray's own content. Without this, a flick that
+       reaches the end hands the rest of the gesture to the page behind the tray,
+       which then scrolls (or, at the top of the page, pulls to refresh) from
+       under an overlay the user thought had the screen. */
+    overscroll-behavior: contain;
     padding: 0 16px calc(20px + env(safe-area-inset-bottom));
 }
 
@@ -1278,8 +1311,14 @@ h1 {
         gap: 12px;
     }
 
+    /* The Change Poster tray body is already the scroller, so the results grid
+       does not need to be a second one nested inside it — two scrollers competing
+       for the same few vh is how a flick ends up moving the wrong thing. Let the
+       grid run at its natural height and scroll the tray instead. */
     .find-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        max-height: none;
+        overflow-y: visible;
     }
 
     /* Infinite scroll replaces pagination on a phone. */
@@ -1295,7 +1334,18 @@ h1 {
     /* Modals (delete confirmations, change poster) become app-style sheets: they
        dock to the bottom and slide up, show a grab handle instead of a close (×)
        button, can be swiped down to dismiss, and stack large full-width actions
-       with the primary/destructive one on top. */
+       with the primary/destructive one on top.
+
+       They take the *structure* of a tray here, not just its looks. Earlier this
+       block restyled the panel alone: the handle was a ::before, and the panel
+       both scrolled and was the drag target. Neither worked. A pseudo-element can
+       never be a touch target, so the handle could not be grabbed; and a single
+       element cannot both scroll and carry `touch-action: none`, so a downward
+       drag was claimed by the browser as a scroll, chained out to the document,
+       and became a page scroll or a pull-to-refresh — with the drag cancelled
+       partway. Splitting grip / head / body the way .sheet does is what makes the
+       gesture reliable, and it lets the existing handler in gallery.js drive
+       these overlays with no special cases. */
     .modal {
         align-items: flex-end;
     }
@@ -1303,24 +1353,23 @@ h1 {
     .modal__panel,
     .modal__panel--narrow,
     .modal__panel--wide {
+        display: flex;
+        flex-direction: column;
         width: 100%;
         max-width: none;
-        max-height: 90vh;
-        overflow-y: auto;
+        /* Matches .sheet__panel. The panel used to be taller than any tray, which
+           left too little backdrop above it to tap — and the backdrop is one of
+           only two ways out, since these carry no close button on a phone. */
+        max-height: 85vh;
+        overflow: hidden;
         border-radius: 16px 16px 0 0;
-        padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+        padding: 0;
         animation: sheet-up 0.2s ease;
         transition: transform 0.2s ease;
     }
 
-    .modal__panel::before {
-        content: "";
-        display: block;
-        width: 40px;
-        height: 5px;
-        margin: 12px auto 14px;
-        border-radius: 999px;
-        background: #4b4f57;
+    .modal .sheet__grip {
+        display: flex;
     }
 
     .modal__close {
@@ -1328,7 +1377,17 @@ h1 {
     }
 
     .modal__head {
+        flex: 0 0 auto;
+        padding: 2px 18px 12px;
         touch-action: none;
+    }
+
+    .modal__body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0 18px calc(20px + env(safe-area-inset-bottom));
     }
 
     .modal__actions {
