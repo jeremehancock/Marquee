@@ -50,7 +50,7 @@ the following row of posters down.
 - **THEN** its title appears in a caption below the image rather than inside the
   hover overlay
 
-#### Scenario: Caption never shows the source library
+#### Scenario: Caption omits the library token
 - **WHEN** the gallery renders a Plex-imported poster whose filename carries its
   library (e.g. `Louis_and_the_Nazis_2003_Movies.jpg` from the "Movies" library)
 - **THEN** the caption shows the recorded title, "Louis and the Nazis (2003)",
@@ -109,16 +109,17 @@ the following row of posters down.
 - **WHEN** the gallery renders any caption, including one whose year was appended
 - **THEN** the poster's filename on disk and its database row are unchanged
 
-#### Scenario: Tooltip matches the caption
+#### Scenario: Tooltip also omits the library token
 - **WHEN** a user hovers a poster
-- **THEN** the tooltip shows exactly the same title as the caption
+- **THEN** the tooltip shows exactly the same title as the caption, library token
+  included nowhere
 
 #### Scenario: The delete confirmation names the poster the same way
 - **WHEN** a user deletes a poster whose caption shows "Louis and the Nazis (2003)"
 - **THEN** the confirmation names that poster identically, rather than showing the
   raw filename-derived title with its library token
 
-#### Scenario: Poster with no Plex record falls back to its filename
+#### Scenario: Non-Plex poster keeps its full title
 - **WHEN** the gallery renders a poster with no `plex_items` record, or one whose
   recorded title is empty
 - **THEN** the caption shows the filename-derived title, unchanged from the
@@ -133,6 +134,17 @@ the following row of posters down.
 - **WHEN** a poster image has not yet loaded
 - **THEN** a subtle placeholder animation is shown and the image fades in once
   loaded
+
+#### Scenario: Poster cards outside the gallery
+- **WHEN** a page other than the gallery renders poster cards, such as the
+  orphans page
+- **THEN** each poster image fades in once loaded, rather than staying invisible
+  behind a placeholder that animates indefinitely
+
+#### Scenario: Image that fails to load
+- **WHEN** a poster image request fails
+- **THEN** the placeholder animation stops rather than continuing to suggest the
+  image is still loading
 
 ### Requirement: Poster actions on touch devices
 On touch devices the poster actions SHALL be presented in a bottom action sheet
@@ -149,11 +161,13 @@ two competing parentheticals.
 - **THEN** a sheet opens listing that poster's actions (change, send/fetch to
   Plex when linked, download, copy URL, full screen, delete) with its title
 
-#### Scenario: Sheet heading matches the caption
+#### Scenario: Sheet heading shows the library in parentheses
 - **WHEN** the action sheet opens for a Plex-imported poster whose caption shows
   "Louis and the Nazis (2003)"
-- **THEN** its heading shows "Louis and the Nazis (2003)" — the same text, with
-  no library appended
+- **THEN** its heading does **not** append the source library — it shows
+  "Louis and the Nazis (2003)", the same text as the caption. The parenthesised
+  library this scenario was originally named for has been withdrawn; the only
+  parenthetical is now the release year.
 
 #### Scenario: No tap-through
 - **WHEN** a user taps a poster on a touch device
