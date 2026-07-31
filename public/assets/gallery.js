@@ -336,7 +336,8 @@
 
                 // Delete one orphan. On success just drop its card and adjust the
                 // count — the others are unaffected, so re-scanning Plex would only
-                // stall the page for no gain; the next page open scans fresh.
+                // stall for no gain; the next open scans fresh, on the page and in
+                // the tray alike.
                 submitDelete: function (form) {
                     var self = this;
                     var field = function (name) {
@@ -444,6 +445,15 @@
                 // Alpine on the fragment so its own wiring (the import stepper, the
                 // orphans scan/delete component) works inside the tray. Progress
                 // overlays inside the fragment are contained to the tray by CSS.
+                //
+                // Whether a tray is worth loading more than once is the caller's
+                // business, not this helper's: the import tray holds a
+                // configuration form, whose correctness does not decay, so it is
+                // fetched once; the orphans tray holds the result of a scan, which
+                // does, so it re-scans on every open. Calling this again is also
+                // not free of consequence — it re-runs Alpine.initTree over the
+                // fragment, re-binding whatever the fragment's own component binds
+                // on init. See openOrphans.
                 _loadTray: function (url, ref) {
                     var self = this;
                     return fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
@@ -534,10 +544,25 @@
 
                 // Open the orphans tray. The whole orphans page (its scan/delete
                 // component and progress overlays) is reused inside the tray.
+                //
+                // Every open scans again. An orphan list is a statement about what
+                // Plex holds right now, so a reopened tray showing the previous
+                // scan reads as current while being stale — which invites deleting
+                // a poster that has since stopped being an orphan. Reopening is the
+                // refresh gesture; there is no separate refresh control.
                 openOrphans: function () {
                     var self = this;
                     this.orphansOpen = true;
-                    if (this.orphansLoaded || this.orphansLoading) { return; }
+                    if (this.orphansLoading) { return; }
+                    // Re-scan inside the loaded tray rather than loading it again.
+                    // Loading it again would re-run Alpine.initTree over the
+                    // fragment, and the orphans component binds a window listener
+                    // on init that nothing removes — every reopen would leave
+                    // another live listener holding a discarded component, and one
+                    // that still had a pending delete would fire it on a later,
+                    // unrelated confirmation. Re-running the scan touches only what
+                    // actually went stale.
+                    if (this.orphansLoaded && this._rescanOrphans()) { return; }
                     this.orphansLoading = true;
                     this._loadTray('/orphans', 'orphansBody')
                         .then(function () { self.orphansLoaded = true; })
@@ -547,6 +572,29 @@
                         })
                         .finally(function () { self.orphansLoading = false; });
                 },
+                // Re-run the scan in the already-loaded orphans tray, driving the
+                // component's own loading flag around the call exactly as its
+                // init() does so the tray shows its spinner. Returns false when the
+                // component cannot be reached — a failed first load leaves an error
+                // message where it would have been — so the caller falls back to a
+                // full load.
+                _rescanOrphans: function () {
+                    var root = this.$refs.orphansBody.querySelector('[x-data]');
+                    if (!root || !window.Alpine || !window.Alpine.$data) { return false; }
+                    var page = window.Alpine.$data(root);
+                    if (!page || typeof page.reload !== 'function') { return false; }
+                    // A scan already running is the state we want; leave it alone
+                    // rather than racing a second one onto the same results node.
+                    if (page.loading) { return true; }
+                    page.loading = true;
+                    page.reload()
+                        .catch(function () {
+                            page.$refs.results.innerHTML = '<p class="alert" role="alert">Could not check for orphans. Please reload the page.</p>';
+                        })
+                        .finally(function () { page.loading = false; });
+                    return true;
+                },
+
                 closeOrphans: function () {
                     this.orphansOpen = false;
                     // Deleting orphans removes posters that may be shown in the
