@@ -215,59 +215,89 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * A poster whose filename already carries its year (what import writes for a
-     * movie) shows it once, in parentheses, with the library token gone.
+     * The caption comes from the record, so the library token the filename
+     * carries never reaches the page at all.
      */
-    public function testCaptionMovesAYearAlreadyInTheFilenameIntoParentheses(): void
+    public function testCaptionUsesTheRecordedTitleAndAppendsTheYear(): void
     {
-        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Movies', 2003);
+        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Louis and the Nazis', 2003);
 
         self::assertStringContainsString('>Louis and the Nazis (2003)</figcaption>', $body);
-        self::assertStringNotContainsString('Louis and the Nazis 2003 2003', $body);
+        self::assertStringNotContainsString('Louis and the Nazis 2003', $body);
         self::assertStringNotContainsString('(Movies)', $body);
     }
 
     /**
-     * Import records a year for shows and seasons but never writes one into their
-     * filename, so the caption adds it.
+     * The case that sent this change back from :dev: a show Plex names
+     * "Lucky (2026)" reaches disk as "Lucky_2026", and its season inherits the
+     * year mid-title. Reading the record keeps it to one mention.
      */
-    public function testCaptionAddsAKnownYearMissingFromTheFilename(): void
+    public function testCaptionDoesNotRepeatAYearTheRecordedTitleAlreadyNames(): void
     {
-        $body = $this->renderMapped('Solaris_Movies.png', 'Movies', 1972);
+        $body = $this->renderMapped('Lucky_2026_-_Season_1_TV_Shows.png', 'Lucky (2026) - Season 1', 2026);
 
-        self::assertStringContainsString('>Solaris (1972)</figcaption>', $body);
+        self::assertStringContainsString('>Lucky (2026) - Season 1</figcaption>', $body);
+        self::assertStringNotContainsString('(2026) - Season 1 (2026)', $body);
+    }
+
+    public function testCaptionRestoresPunctuationTheFilenameLost(): void
+    {
+        $body = $this->renderMapped('Spider-Noir_B_W_Movies.png', 'Spider-Noir B&W', 2025);
+
+        // Twig escapes the ampersand; the point is that it survives at all — the
+        // filename-derived title reads "Spider-Noir B W".
+        self::assertStringContainsString('>Spider-Noir B&amp;W (2025)</figcaption>', $body);
     }
 
     public function testCaptionShowsNoYearWhenNoneIsStored(): void
     {
-        $body = $this->renderMapped('Ace_Ventura_Movies.png', 'Movies', null);
+        $body = $this->renderMapped('Ace_Ventura_Movies.png', 'Ace Ventura', null);
 
         self::assertStringContainsString('>Ace Ventura</figcaption>', $body);
         self::assertStringNotContainsString('Ace Ventura (', $body);
     }
 
     /**
-     * The tray heading and the change-poster dialog take the caption's own text,
-     * so the per-card sheet-title attribute is gone rather than merely unused.
+     * A poster with no mapping still renders: it falls back to the filename, i.e.
+     * to the behaviour that predates the caption reading from the database.
      */
-    public function testCaptionTitleAlsoFeedsTheTrayAndChangeDialog(): void
+    public function testUnmappedPosterFallsBackToItsFilename(): void
     {
-        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Movies', 2003);
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Hand_Placed.png');
+
+        $body = (string) $this->get($this->appWithData($dataDir), '/library/movies')->getBody();
+
+        self::assertStringContainsString('>Hand Placed</figcaption>', $body);
+
+        $this->removeDir($dataDir);
+    }
+
+    /**
+     * Every surface that names the poster takes the caption's text — including the
+     * alt attribute and the delete confirmation, which used to show the raw
+     * filename-derived title with its library token.
+     */
+    public function testOneTitleFeedsEveryPlaceThePosterIsNamed(): void
+    {
+        $body = $this->renderMapped('Louis_and_the_Nazis_2003_Movies.png', 'Louis and the Nazis', 2003);
 
         self::assertStringContainsString('data-title="Louis and the Nazis (2003)"', $body);
         self::assertStringContainsString('data-tooltip="Louis and the Nazis (2003)"', $body);
+        self::assertStringContainsString('alt="Louis and the Nazis (2003)"', $body);
+        self::assertStringContainsString('Permanently delete “Louis and the Nazis (2003)”', $body);
         self::assertStringNotContainsString('data-sheet-title', $body);
     }
 
     /**
-     * The year is a rendering concern only. Showing one the filename does not have
-     * must not tempt anything into "fixing" the file or the row.
+     * The title is a rendering concern only. Showing one the filename does not
+     * match must not tempt anything into "fixing" the file or the row.
      */
     public function testRenderingCaptionsWritesNothing(): void
     {
         $dataDir = $this->makeTempDir();
         $this->writePoster('Solaris_Movies.png');
-        $this->mapPoster($dataDir, 'Solaris_Movies.png', 'Movies', 1972);
+        $this->mapPoster($dataDir, 'Solaris_Movies.png', 'Solaris', 1972);
 
         $dbBefore = (string) file_get_contents($dataDir . '/marquee.sqlite');
         $postersBefore = scandir($this->postersDir . '/movies');
@@ -282,14 +312,15 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * Write a poster, map it to a Plex item carrying $year, and render the movies
-     * view. Uses its own data dir so no other test's mappings can leak in.
+     * Write a poster, map it to a Plex item recorded under $title and carrying
+     * $year, and render the movies view. Uses its own data dir so no other test's
+     * mappings can leak in.
      */
-    private function renderMapped(string $filename, string $library, ?int $year): string
+    private function renderMapped(string $filename, string $title, ?int $year): string
     {
         $dataDir = $this->makeTempDir();
         $this->writePoster($filename);
-        $this->mapPoster($dataDir, $filename, $library, $year);
+        $this->mapPoster($dataDir, $filename, $title, $year);
 
         $body = (string) $this->get($this->appWithData($dataDir), '/library/movies')->getBody();
 
@@ -298,15 +329,15 @@ final class GalleryTest extends AppTestCase
         return $body;
     }
 
-    private function mapPoster(string $dataDir, string $filename, string $library, ?int $year): void
+    private function mapPoster(string $dataDir, string $filename, string $title, ?int $year): void
     {
         $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
         $repo->upsert(new PlexItemRecord(
             '10',
             'movie',
             'movies',
-            $library,
-            $filename,
+            'Movies',
+            $title,
             $filename,
             time(),
             year: $year,

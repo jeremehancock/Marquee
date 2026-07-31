@@ -6,23 +6,32 @@ posters large enough for the overlay action stack to fit, and lazy-load images
 with a subtle placeholder animation that resolves when the image loads. The
 placeholder animation and fade-in SHALL apply on every page that renders poster
 cards, not only the gallery, and SHALL resolve whether the image loads or fails.
-Plex import bakes the source library name into the poster's filename, so it
-surfaces as a trailing token in the derived title (e.g. "… 2003 Movies"). The
-visible caption and its tooltip SHALL omit that library token, because the type is
-already conveyed by the badge and the active tab.
+For a poster mapped to a Plex item, the caption and its tooltip SHALL show the
+title recorded for that item at import, **not** a title reconstructed from the
+poster's filename. The filename is a sanitised, lossy copy: import flattens every
+run of non-alphanumeric characters and appends the source library, so a title
+rebuilt from it loses punctuation and gains a library token that the recorded
+title never had. A poster with no such record, or whose recorded title is empty,
+SHALL fall back to the filename-derived title.
 
 When the poster's media has a known release year, the caption and its tooltip
-SHALL show that year in parentheses at the end of the title (e.g. "Louis and the
-Nazis (2003)"), so the year reads as metadata rather than as part of the title.
-This SHALL apply to every poster with a known year — movies, TV shows, and TV
-seasons — whether or not the year already appears in the derived title: where it
-does, it SHALL be moved into parentheses rather than duplicated; where it does
-not, it SHALL be added. A poster with no known year SHALL be shown unchanged.
+SHALL append that year in parentheses (e.g. "Louis and the Nazis (2003)"), so the
+year reads as metadata rather than as part of the title. This SHALL apply to every
+poster with a known year — movies, TV shows, and TV seasons alike. The year SHALL
+NOT be appended when the title already contains it in parentheses, so a Plex title
+that names its own year (e.g. a show "Lucky (2026)", and the season titles built
+from it) shows that year once rather than twice. A poster with no known year SHALL
+be shown unchanged.
 
-Both the library token and the year SHALL be identified by comparing against the
-poster's known library name and known year, never by pattern-matching the text,
-so a title that merely ends in digits (e.g. the series "1883") is never mistaken
-for a year and never has those digits removed.
+The check for an already-present year SHALL match the parenthesised form
+specifically, never bare digits, so a title whose own words include a number (e.g.
+"Class of 2026", "Blade Runner 2049", the series "1883") keeps those digits and
+still receives its release year.
+
+Every place the gallery names a poster SHALL use this one title — the caption, its
+tooltip, the image's alternative text, the action sheet heading, the change-poster
+dialog heading, and the delete confirmation — so a poster reads identically
+wherever it appears.
 
 Rendering the caption SHALL NOT modify any stored state: no poster file is
 renamed and no database row is written.
@@ -36,33 +45,44 @@ the following row of posters down.
 - **THEN** its title appears in a caption below the image rather than inside the
   hover overlay
 
-#### Scenario: Caption omits the library token
-- **WHEN** the gallery renders a Plex-imported poster whose derived title ends in
-  its library name (e.g. "Louis and the Nazis 2003 Movies" from the "Movies"
-  library)
-- **THEN** the visible caption drops that trailing library token while the rest
-  of the title is unchanged
+#### Scenario: Caption never shows the source library
+- **WHEN** the gallery renders a Plex-imported poster whose filename carries its
+  library (e.g. `Louis_and_the_Nazis_2003_Movies.jpg` from the "Movies" library)
+- **THEN** the caption shows the recorded title, "Louis and the Nazis (2003)",
+  with no library token — the recorded title never held one
 
-#### Scenario: A year already in the title moves into parentheses
-- **WHEN** the gallery renders a poster whose derived title (after the library
-  token is dropped) ends in its known year — e.g. "Louis and the Nazis 2003" for
-  a poster whose stored year is 2003
-- **THEN** the caption shows "Louis and the Nazis (2003)", with the year appearing
-  once
+#### Scenario: Caption preserves punctuation the filename lost
+- **WHEN** the gallery renders a poster whose recorded title contains characters
+  the filename sanitiser replaces — e.g. "Marvel's Agents of S.H.I.E.L.D." or
+  "Spider-Noir B&W"
+- **THEN** the caption shows those characters, rather than the underscores-turned-
+  spaces of the filename ("Marvel s Agents of S H I E L D")
 
-#### Scenario: A known year absent from the title is added
-- **WHEN** the gallery renders a poster whose derived title does not contain its
-  known year — e.g. a TV show "Breaking Bad" or a season "Breaking Bad - Season 1"
-  with a stored year of 2008
-- **THEN** the caption shows "Breaking Bad (2008)" / "Breaking Bad - Season 1
-  (2008)"
+#### Scenario: A known year is appended
+- **WHEN** the gallery renders a poster whose recorded title does not name its
+  year — e.g. a movie "Louis and the Nazis" (2003), a show "Breaking Bad" (2008),
+  or a season "Breaking Bad - Season 1" (2008)
+- **THEN** the caption appends it: "Louis and the Nazis (2003)", "Breaking Bad
+  (2008)", "Breaking Bad - Season 1 (2008)"
 
-#### Scenario: A trailing number that is not the year is kept
-- **WHEN** the gallery renders a poster whose title ends in digits that are not
-  its known year — e.g. the series "1883" with a stored year of 2021, or the
-  movie "Blade Runner 2049" with a stored year of 2017
-- **THEN** those digits remain part of the title and only the known year is
-  parenthesised: "1883 (2021)" and "Blade Runner 2049 (2017)"
+#### Scenario: A year already in the title is not repeated
+- **WHEN** the gallery renders a poster whose recorded title already contains its
+  year in parentheses — e.g. a show Plex names "Lucky (2026)" with a stored year
+  of 2026, or the season "Lucky (2026) - Season 1" built from it
+- **THEN** the caption shows "Lucky (2026)" and "Lucky (2026) - Season 1", each
+  naming the year once
+
+#### Scenario: Numbers in the title are not mistaken for a present year
+- **WHEN** the gallery renders a poster whose recorded title contains bare digits
+  matching its year — e.g. a movie "Class of 2026" released in 2026
+- **THEN** the caption still appends the year, "Class of 2026 (2026)", because the
+  digits are not parenthesised
+
+#### Scenario: Numbers in the title survive
+- **WHEN** the gallery renders a poster whose title contains digits that are not
+  its year — e.g. the series "1883" (2021) or the movie "Blade Runner 2049" (2017)
+- **THEN** those digits remain and the release year is appended: "1883 (2021)",
+  "Blade Runner 2049 (2017)"
 
 #### Scenario: Poster with no known year
 - **WHEN** the gallery renders a poster that has no stored year (e.g. a
@@ -70,19 +90,23 @@ the following row of posters down.
 - **THEN** the caption shows its title with no parenthesised year added
 
 #### Scenario: Captions never rewrite stored state
-- **WHEN** the gallery renders any caption, including one whose year was added or
-  moved
+- **WHEN** the gallery renders any caption, including one whose year was appended
 - **THEN** the poster's filename on disk and its database row are unchanged
 
 #### Scenario: Tooltip matches the caption
-- **WHEN** a user hovers a poster whose caption dropped its library token or
-  parenthesised its year
+- **WHEN** a user hovers a poster
 - **THEN** the tooltip shows exactly the same title as the caption
 
-#### Scenario: Non-Plex poster keeps its full title
-- **WHEN** the gallery renders a poster with no known library (e.g. an uploaded
-  poster)
-- **THEN** the caption shows the full derived title unchanged
+#### Scenario: The delete confirmation names the poster the same way
+- **WHEN** a user deletes a poster whose caption shows "Louis and the Nazis (2003)"
+- **THEN** the confirmation names that poster identically, rather than showing the
+  raw filename-derived title with its library token
+
+#### Scenario: Poster with no Plex record falls back to its filename
+- **WHEN** the gallery renders a poster with no `plex_items` record, or one whose
+  recorded title is empty
+- **THEN** the caption shows the filename-derived title, unchanged from the
+  behaviour before this change
 
 #### Scenario: Long caption truncates instead of wrapping
 - **WHEN** a poster's caption is longer than the poster is wide
@@ -99,10 +123,10 @@ On touch devices the poster actions SHALL be presented in a bottom action sheet
 opened by tapping the poster, rather than overlaid on the poster itself, so every
 action is shown at full size and none can be triggered by accident. The sheet's
 heading SHALL name the poster using exactly the same title as its caption —
-library token dropped, release year in parentheses. The heading SHALL NOT append
-the source library, because the user reached the sheet by tapping that poster in
-a view they chose, and a parenthesised library beside a parenthesised year reads
-as two competing parentheticals.
+as recorded by Plex, release year in parentheses. The heading SHALL NOT append the
+source library, because the user reached the sheet by tapping that poster in a
+view they chose, and a parenthesised library beside a parenthesised year reads as
+two competing parentheticals.
 
 #### Scenario: Tapping a poster opens the action sheet
 - **WHEN** a user taps a poster on a touch device

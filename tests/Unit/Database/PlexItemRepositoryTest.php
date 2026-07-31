@@ -186,6 +186,48 @@ final class PlexItemRepositoryTest extends TestCase
         self::assertSame('1726', $repo->findByRatingKey('10')?->tmdbId);
     }
 
+    public function testTitlesForCategoryMapsFilenamesToRecordedTitles(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '20',
+            'season',
+            'tv-seasons',
+            'TV',
+            'Lucky (2026) - Season 1',
+            'Lucky_2026_-_Season_1_TV.jpg',
+            time(),
+        ));
+
+        // The parentheses the filename lost are intact in the record — the whole
+        // reason the caption reads from here.
+        self::assertSame(
+            ['Lucky_2026_-_Season_1_TV.jpg' => 'Lucky (2026) - Season 1'],
+            $repo->titlesForCategory('tv-seasons'),
+        );
+    }
+
+    /**
+     * An empty title must be absent rather than mapped to "", so the caller falls
+     * back to the filename instead of rendering a blank caption.
+     */
+    public function testTitlesForCategoryOmitsEmptyTitles(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord('10', 'movie', 'movies', 'Movies', '', 'Solaris.jpg', time()));
+
+        self::assertSame([], $repo->titlesForCategory('movies'));
+    }
+
+    public function testTitlesForCategoryIgnoresOtherCategories(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertSame(['Solaris.jpg' => 'Solaris'], $repo->titlesForCategory('movies'));
+        self::assertSame([], $repo->titlesForCategory('tv-shows'));
+    }
+
     public function testYearsForCategoryMapsFilenamesToYears(): void
     {
         $repo = $this->repository();

@@ -30,15 +30,17 @@
            within a category, so the page-level base is wrong in the All view. #}
         {% set poster_base = '/library/' ~ poster.category.value %}
         {% set is_linked = plex_configured and poster.filename in (linked[poster.category.value] ?? []) %}
-        {# One title serves the caption, its tooltip, the mobile sheet, and the
-           change-poster dialog: library token dropped, known year in parentheses.
-           Either may be null (a non-Plex poster, a collection with no year). #}
-        {% set poster_library = (plex_libraries[poster.category.value] ?? {})[poster.filename] ?? null %}
+        {# One title serves every place this poster is named: the caption, its
+           tooltip, the alt text, the mobile sheet, the change-poster dialog, and
+           the delete confirmation. It comes from Plex, with the known year in
+           parentheses. Either may be null (a poster with no Plex record, a
+           collection with no year), and captionTitle falls back accordingly. #}
+        {% set poster_title = (plex_titles[poster.category.value] ?? {})[poster.filename] ?? null %}
         {% set poster_year = (plex_years[poster.category.value] ?? {})[poster.filename] ?? null %}
-        {% set caption_title = poster.captionTitle(poster_library, poster_year) %}
+        {% set caption_title = poster.captionTitle(poster_title, poster_year) %}
         <figure class="card">
             <div class="card__frame">
-                <img class="card__image" src="{{ poster.url }}" alt="{{ poster.title }}" loading="lazy">
+                <img class="card__image" src="{{ poster.url }}" alt="{{ caption_title }}" loading="lazy">
                 {% if is_all_view %}
                     <span class="card__badge card__badge--{{ poster.category.value }}">{{ poster.category.badgeLabel }}</span>
                 {% endif %}
@@ -63,7 +65,7 @@
                         <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">Copy URL</button>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">Full screen</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
-                              data-confirm="Permanently delete “{{ poster.title }}”? This cannot be undone.">
+                              data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
                             <button type="submit" class="btn btn--small btn--danger">Delete</button>
                         </form>

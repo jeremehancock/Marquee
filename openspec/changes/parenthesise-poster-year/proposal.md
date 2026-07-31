@@ -14,26 +14,40 @@ view they chose.
 
 ## What Changes
 
-- The gallery caption (and its hover tooltip) shows a poster's known release year
-  in parentheses — movies, TV shows, and TV seasons alike — instead of as a
-  trailing bare number or not at all.
+- The gallery caption (and its hover tooltip) shows the title **Plex reports for
+  the item**, recorded at import, rather than one reconstructed from the poster's
+  filename. The filename is a sanitised copy — punctuation is flattened and the
+  library name is appended — so rebuilding a title from it loses information the
+  database already holds intact.
+- The caption shows a poster's known release year in parentheses — movies, TV
+  shows, and TV seasons alike — appending it only when the title does not already
+  carry it.
 - The mobile action tray heading uses the same parenthesised-year title.
 - The change-poster modal/tray heading uses the same parenthesised-year title.
 - The action tray and change-poster modal headings **no longer append the source
   library** in parentheses. Caption, tray, and modal now all show one identical
   title.
 - Posters with no known year (collections, non-Plex uploads) are unchanged.
+- A poster with no Plex mapping keeps today's filename-derived title, so an
+  unlinked or hand-placed file still shows something.
 
 Not changing, and deliberately so: **nothing about how posters are stored**. No
 filename is renamed, no database column is added, no row is written, no
-migration runs. The year comes from the `year` column `plex_items` already
-carries, read at render time. Sort order, Find Posters lookups, and the derived
-`title()` those depend on are all untouched. This is presentation only.
+migration runs. Both the title and the year come from columns `plex_items`
+already carries, read at render time. Sort order, search, Find Posters lookups,
+and the derived `title()` those depend on are all untouched. This is
+presentation only.
 
-Accepted tradeoff: in the All view two same-titled posters from different
-libraries no longer differ in the tray heading. The badge and the actions
-themselves still target the right poster, and the library was noise for every
-other poster, so the trade favours the common case.
+Two consequences worth naming:
+
+- **Punctuation comes back.** The filename sanitiser replaces every run of
+  non-alphanumerics with `_`, so today's captions read "Marvel s Agents of S H I
+  E L D" and "Spider-Noir B W". Reading the stored title restores them. This
+  touches more captions than the year does.
+- In the All view two same-titled posters from different libraries no longer
+  differ in the tray heading. The badge and the actions themselves still target
+  the right poster, and the library was noise for every other poster, so the
+  trade favours the common case.
 
 ## Capabilities
 
@@ -43,7 +57,8 @@ None.
 
 ### Modified Capabilities
 
-- `poster-library`: the caption/tooltip requirement gains parenthesised-year
+- `poster-library`: the caption/tooltip requirement changes source — the title
+  comes from Plex rather than from the filename — and gains parenthesised-year
   rendering; the action-sheet requirement drops the parenthesised library and
   adopts the same title as the caption.
 - `poster-editing`: gains a requirement that the change-poster dialog names the
@@ -54,13 +69,17 @@ None.
 Read-only with respect to stored data — no schema change, no migration, no
 backfill, no rename.
 
-- `src/Poster/Poster.php` — title rendering for caption and sheet.
-- `src/Controller/GalleryController.php` and `src/Database/PlexItemRepository.php`
-  — the per-poster year must reach the template the way the library name already
-  does.
+- `src/Poster/Poster.php` — title rendering. The library-token and year-token
+  stripping helpers are deleted rather than extended: with the stored title there
+  is no appended library to remove and no flattened year to move.
+- `src/Database/PlexItemRepository.php` — gains `titlesForCategory()` and
+  `yearsForCategory()`; `librariesForCategory()` is deleted as its only caller
+  goes away.
+- `src/Controller/GalleryController.php` — passes those two maps to the template.
 - `templates/partials/gallery_results.html.twig` — caption, tooltip, sheet title,
-  and the change-poster `data-title`.
+  the change-poster `data-title`, and the delete-confirm and `alt` text, which
+  still name the raw filename-derived title.
 - `public/assets/gallery.js` — the tray's `data-sheet-title` fallback, if caption
   and sheet titles become identical.
 - `tests/Unit/Poster/PosterTest.php` — existing caption/sheet expectations.
-- No database migration: the year is already stored on `plex_items`.
+- No database migration: both columns already exist and are already populated.
