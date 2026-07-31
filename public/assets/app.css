@@ -1029,6 +1029,8 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Positioning context for the placeholder, which is taken out of flow. */
+    position: relative;
 }
 
 .viewer img {
@@ -1040,9 +1042,22 @@ h1 {
 /* Stands in for the image while it loads, at poster proportions — deliberately
    not the image's own shape, which is unknown until it arrives. It is replaced
    by the image rather than filled by it, so a wide candidate settles into its
-   real shape instead of being letterboxed into a 2:3 box forever. */
+   real shape instead of being letterboxed into a 2:3 box forever.
+
+   Out of flow, and that is load-bearing rather than tidiness. A browser gives
+   the <img> its intrinsic box as soon as it has parsed the image's dimensions,
+   which is long before the image has arrived and even longer before it fades in.
+   As a sibling in this centred row, that still-transparent box would sit beside
+   the placeholder and shove it left — for a second on a fast connection, and for
+   as long as the download takes on a slow one. Absolute positioning leaves the
+   stage's flow to the image alone, so the placeholder holds still and is simply
+   replaced. */
 .viewer__placeholder {
-    height: 100%;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
     max-width: 100%;
     aspect-ratio: 2 / 3;
     border-radius: 6px;

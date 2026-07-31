@@ -144,6 +144,26 @@ final class LazyImagePresentationTest extends TestCase
         );
     }
 
+    public function testFullScreenPlaceholderIsOutOfFlow(): void
+    {
+        $css = $this->declarations();
+
+        // A browser sizes the <img> box from the image's dimensions long before
+        // the image arrives. Left in flow, that transparent box sits beside the
+        // placeholder in a centred row and shoves it sideways for the whole of a
+        // slow download — which is the jarring shift this rule exists to prevent.
+        self::assertMatchesRegularExpression(
+            '/\.viewer__placeholder\s*\{[^{}]*position: absolute/',
+            $css,
+            'The full-screen placeholder must stay out of flow, or the loading image displaces it.'
+        );
+        self::assertMatchesRegularExpression(
+            '/\.viewer__stage\s*\{[^{}]*position: relative/',
+            $css,
+            'The stage must remain the placeholder\'s positioning context.'
+        );
+    }
+
     public function testViewerResolvedStateIsClearedWhereverItsSourceIsSet(): void
     {
         $source = $this->gallerySource();

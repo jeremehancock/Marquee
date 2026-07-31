@@ -64,4 +64,9 @@
       fade; scrolling the results fetches images as they approach the visible area
       (network panel); both viewers show the placeholder then fade in; reopening on a
       second poster starts unresolved; the finder bar does not move between loading,
-      loaded, and the confirm step.
+      loaded, and the confirm step. Throttle the connection — the states that only
+      exist mid-download are the ones worth looking at.
+- [x] 5.4 Raised by that validation: the placeholder was shoved sideways by the
+      loading image, which claims its box as soon as its dimensions are known, well
+      before it arrives. Take the placeholder out of flow, record the "nothing moves
+      while waiting" requirement in both delta specs, and add a tripwire for it.

@@ -9,6 +9,12 @@ poster will appear, and SHALL fade the poster in once it resolves. The placehold
 SHALL stop whether the image loads or fails, so a poster that cannot be fetched
 never leaves an animation running indefinitely.
 
+The placeholder SHALL hold one position for as long as it is shown. A browser
+gives an image its box as soon as it knows the image's dimensions — well before
+the image has arrived — so a placeholder that shares layout with the loading image
+is displaced by it, briefly on a fast connection and for the whole download on a
+slow one. Waiting is precisely when the view must be still.
+
 Because one full-screen view is reused for every poster rather than being created
 per poster, opening a different poster SHALL return the view to its unresolved
 state — placeholder showing, poster hidden — rather than displaying the previous
@@ -23,6 +29,12 @@ resolved once before.
 - **WHEN** a poster is opened full screen and its image has not yet resolved
 - **THEN** the placeholder animation is shown where the poster will appear,
   rather than an empty backdrop, and the poster fades in once it resolves
+
+#### Scenario: Placeholder stays put while the image downloads
+- **WHEN** a poster is opened full screen over a slow connection, so its image is
+  being downloaded for an extended period
+- **THEN** the placeholder stays where it was first drawn for the whole wait,
+  rather than shifting as the image being loaded takes up room
 
 #### Scenario: Full-screen image fails to load
 - **WHEN** a poster opened full screen fails to load

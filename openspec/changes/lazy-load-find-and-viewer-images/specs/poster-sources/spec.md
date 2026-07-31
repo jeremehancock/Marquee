@@ -14,9 +14,11 @@ not only the page as a whole, because the results scroll within their own
 container.
 
 The full-screen candidate preview SHALL show the placeholder while the
-full-resolution image loads and fade the image in once it resolves, and its
-action bar SHALL keep its position while the image is loading, so the controls do
-not move when the poster appears. As with the library's full-screen view, one
+full-resolution image loads and fade the image in once it resolves. Nothing in the
+preview SHALL move while the image is loading: neither the action bar, so the
+controls do not shift when the poster appears, nor the placeholder itself, which
+SHALL hold its position for the whole wait rather than being displaced by the
+image loading beside it. As with the library's full-screen view, one
 preview is reused for every candidate, so previewing a different candidate SHALL
 return the preview to its unresolved state rather than showing the previously
 previewed candidate.
@@ -41,9 +43,9 @@ previewed candidate.
 #### Scenario: Preview before the full-resolution image arrives
 - **WHEN** a user opens a candidate full screen and its full-resolution image has
   not yet resolved
-- **THEN** the placeholder animation is shown where the poster will appear, the
-  action bar stays in the position it will hold once the poster is shown, and the
-  poster fades in once it resolves
+- **THEN** the placeholder animation is shown where the poster will appear and
+  stays there for the whole wait, the action bar stays in the position it will
+  hold once the poster is shown, and the poster fades in once it resolves
 
 #### Scenario: Previewing a second candidate
 - **WHEN** a user previews one candidate, closes the preview, and previews a
