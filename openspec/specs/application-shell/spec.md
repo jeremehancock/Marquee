@@ -128,6 +128,16 @@ at page load, so a device whose input situation changes (a touchscreen laptop, o
 a tablet that gains or loses a mouse) is judged by its current capability; a
 tooltip already on screen SHALL be dismissed if the device stops qualifying.
 
+A tooltip whose only purpose is to reveal text the host element has visually
+truncated SHALL be shown only while that host is actually truncated. Such a host
+SHALL declare that its tooltip is conditional, and the system SHALL determine
+truncation from the element's rendered size at the moment a tooltip would be
+shown — not once at page load — so a host that changes width (a window resize, a
+different breakpoint, a late-loading font) is judged by its current state. A host
+whose text fits SHALL show no tooltip. Hosts that carry a genuine hint rather
+than a repetition of their own visible text SHALL be unaffected and SHALL always
+show their tooltip.
+
 Suppressing tooltips SHALL NOT remove any information a touch user needs: every
 tooltip host SHALL remain usable and SHALL retain its accessible name, which
 assistive technology exposes on every device regardless of tooltip suppression.
@@ -135,8 +145,11 @@ assistive technology exposes on every device regardless of tooltip suppression.
 A non-interactive element that carries a tooltip (such as a poster caption) SHALL
 present a cursor that signals a tooltip — a `help` cursor — rather than the
 text/I-beam cursor used for editable text, so hovering it reads as "more
-information is available" rather than "edit this." Interactive tooltip hosts
-(links and buttons) SHALL keep their normal pointer affordance.
+information is available" rather than "edit this." That cursor SHALL follow the
+same condition as the tooltip itself: a host whose tooltip is suppressed because
+its text is not truncated SHALL NOT present the `help` cursor, so the cursor
+never promises a tooltip that will not appear. Interactive tooltip hosts (links
+and buttons) SHALL keep their normal pointer affordance.
 
 Tooltip text SHALL be phrased for the pointer users who are the only audience
 that can see it, and SHALL NOT instruct the reader to tap.
@@ -163,11 +176,40 @@ that can see it, and SHALL NOT instruct the reader to tap.
   converted to the custom tooltip
 - **THEN** the control still exposes an accessible name to assistive technology
 
+#### Scenario: Truncated text shows its tooltip
+- **WHEN** a user on a hover-capable pointer device hovers a host whose tooltip
+  is conditional on truncation and whose text is too long to fit, so it is shown
+  with an ellipsis
+- **THEN** the custom tooltip is shown with the full text
+
+#### Scenario: Text that fits shows no tooltip
+- **WHEN** a user on a hover-capable pointer device hovers a host whose tooltip
+  is conditional on truncation and whose text fits entirely within it
+- **THEN** no tooltip is shown, because the tooltip would only repeat text that
+  is already fully visible
+
+#### Scenario: Truncation is re-evaluated, not cached
+- **WHEN** a host that fits at one window size is narrowed until its text
+  truncates (or a truncated host is widened until its text fits)
+- **THEN** the next hover is judged by the host's current rendered size, showing
+  the tooltip only if the text is truncated at that moment
+
+#### Scenario: Hint tooltips are not conditional
+- **WHEN** a user hovers a tooltip host whose text is a hint rather than a
+  repetition of the host's own visible text (such as a pagination step or the
+  Sort trigger)
+- **THEN** the tooltip is shown regardless of any truncation
+
 #### Scenario: Non-interactive tooltip host signals a tooltip
 - **WHEN** a user hovers a non-interactive element that carries a tooltip (such
   as a truncated poster caption)
 - **THEN** the cursor indicates a tooltip (a `help` cursor) rather than the
   text/I-beam cursor
+
+#### Scenario: Host with no tooltip to show signals nothing
+- **WHEN** a user hovers a non-interactive host whose conditional tooltip is
+  suppressed because its text is not truncated
+- **THEN** the cursor does not indicate a tooltip
 
 #### Scenario: Touch device never shows a tooltip
 - **WHEN** a user on a touch-only device touches, long-presses, or scrolls over
