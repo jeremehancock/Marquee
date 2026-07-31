@@ -97,15 +97,20 @@
                             @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
 
+                {# data-refresh="card": both tabs replace one poster's image and nothing
+                   else, so the grid is left standing and only that card is rebuilt. See
+                   the note in partials/gallery_results.html.twig. #}
                 <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
-                      enctype="multipart/form-data" x-show="change.tab === 'upload'">
+                      enctype="multipart/form-data" x-show="change.tab === 'upload'"
+                      data-refresh="card" :data-category="change.category">
                     <input type="hidden" name="filename" :value="change.filename">
                     <label for="change-file">Image file (JPG, PNG, or WebP)</label>
                     <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
                     <button type="submit" class="btn btn--accent">Update poster</button>
                 </form>
 
-                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'" x-show="change.tab === 'url'">
+                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'"
+                      x-show="change.tab === 'url'" data-refresh="card" :data-category="change.category">
                     <input type="hidden" name="filename" :value="change.filename">
                     <label for="change-url">Image URL (also supports Mediux URLs)</label>
                     <input id="change-url" type="url" name="url" placeholder="https://…" required>

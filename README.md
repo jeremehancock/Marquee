@@ -378,8 +378,7 @@ openspec archive <change>     # fold an implemented change into the specs
 
 ## Acknowledgements
 
-Marquee is a rewrite of [Posteria](https://github.com/jeremehancock/Posteria) by
-Jereme Hancock.
+Marquee is a rewrite of [Posteria](https://github.com/jeremehancock/Posteria).
 
 **Find Posters** is served by [posteria.app](https://posteria.app), an online
 poster search service.

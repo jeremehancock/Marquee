@@ -239,6 +239,100 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * A poster change updates its own card in place rather than re-rendering the
+     * grid, which is what lets the gallery hold the user's position. The script
+     * does that entirely from the rendered markup: it finds the card by the
+     * data-category/data-filename pair on its change button (a filename is unique
+     * only within a category), and rewrites every place the poster's URL is
+     * carried. Nothing fails loudly if one of those disappears — the card would
+     * just quietly stop updating — so the contract is pinned here.
+     */
+    public function testCardCarriesWhatAnInPlaceUpdateNeeds(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // The card's identity, on the button the lookup scans for.
+        self::assertMatchesRegularExpression(
+            '/data-action="change"[^>]*data-filename="Solaris\.png"/',
+            $body,
+        );
+        self::assertStringContainsString('data-category="movies"', $body);
+
+        // Every carrier of the poster URL that the update has to rewrite.
+        self::assertStringContainsString('class="card__image" src="/posters/movies/Solaris.png?v=', $body);
+        self::assertMatchesRegularExpression('/href="\/posters\/movies\/Solaris\.png\?v=\d+" download/', $body);
+        self::assertMatchesRegularExpression(
+            '/data-action="copy" data-url="\/posters\/movies\/Solaris\.png\?v=\d+"/',
+            $body,
+        );
+        self::assertMatchesRegularExpression(
+            '/data-action="view" data-url="\/posters\/movies\/Solaris\.png\?v=\d+"/',
+            $body,
+        );
+    }
+
+    /**
+     * How much of the grid a mutation invalidates is declared by the form, not
+     * inferred from its action. Replacing one poster's image touches one card;
+     * re-sending stores nothing and touches nothing; deleting changes which
+     * posters exist, so it takes the full re-render that the absence of a marker
+     * selects. Getting these wrong is invisible until someone loses their scroll
+     * position, so each is asserted.
+     */
+    public function testPosterFormsDeclareHowMuchOfTheGridTheyInvalidate(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            '1',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.png',
+            time(),
+        ));
+
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+            'AUTH_BYPASS' => 'true',
+            'PLEX_SERVER_URL' => 'http://plex:32400',
+            'PLEX_TOKEN' => 'token',
+        ]);
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        // Fetch replaces the local file: one card, and the category that finds it.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/fetch-from-plex"\s+data-refresh="card" data-category="movies"/',
+            $body,
+        );
+        // Send writes only to Plex, so there is nothing on screen to re-render.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/send-to-plex"\s+data-refresh="none"/',
+            $body,
+        );
+        // Delete declares nothing and so keeps the full-grid refresh.
+        self::assertMatchesRegularExpression(
+            '/action="\/library\/movies\/delete"(?![^>]*data-refresh)/',
+            $body,
+        );
+
+        // The change tray's two tabs replace the image of the poster it was
+        // opened for, so they are card-local too.
+        self::assertSame(
+            2,
+            preg_match_all('/data-refresh="card" :data-category="change\.category"/', $body),
+        );
+
+        $this->removeDir($dataDir);
+    }
+
+    /**
      * Every poster the user waits for is held by a placeholder until it resolves:
      * the candidate cell by a frame it fills, the two full-screen views by a
      * standalone element, since a full-screen image is sized by its own

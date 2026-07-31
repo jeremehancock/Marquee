@@ -42,6 +42,81 @@
         (scope || document).querySelectorAll('.card__image').forEach(markLoaded);
     }
 
+    // ---- Card-local refresh after a poster change ----
+    // Replacing a poster changes exactly one thing on screen: that card's image.
+    // It cannot reorder the grid (both sort orders read the title or the Plex
+    // added-at date, never the file's mtime) and it cannot change which posters
+    // exist (posters arrive only through import), so the counts, the pagination
+    // and every other card are still correct afterwards.
+    //
+    // Re-rendering the whole grid to show it is what threw the user's place
+    // away. On a phone the grid grows by infinite scroll without touching the
+    // URL, so re-fetching the current URL replaces an N-page grid with a
+    // one-page one: the document collapses, the browser clamps the scroll
+    // offset to the shorter page, and the sentinel starts appending pages all
+    // over again. Rewriting the one card moves nothing.
+    //
+    // Scoped to #results and matched on the card's own change button, whose
+    // data-category/data-filename pair is the only identity a card has (a
+    // filename is unique within a category, not across them). Compared by
+    // attribute rather than by selector because a filename is arbitrary text
+    // and would need escaping to be safe in one.
+    function cardFor(category, filename) {
+        var scope = document.querySelector('#results');
+        if (!scope || !category || !filename) { return null; }
+        var cards = scope.querySelectorAll('.card');
+        for (var i = 0; i < cards.length; i++) {
+            var button = cards[i].querySelector('[data-action="change"]');
+            if (button
+                && button.getAttribute('data-category') === category
+                && button.getAttribute('data-filename') === filename) {
+                return cards[i];
+            }
+        }
+        return null;
+    }
+
+    // Rewrite everything on the card that carries the poster's URL, and report
+    // whether the card was there to rewrite — a caller that gets false has to
+    // fall back to re-rendering the grid rather than leave a stale image up.
+    //
+    // The cache-buster is the client's own, not the server's `?v=<mtime>`: the
+    // new mtime is only knowable by asking for the grid, which is the request
+    // being avoided. The poster route ignores unknown query parameters (copyUrl
+    // already relies on that), and the next full render restores the canonical
+    // URL, so the two only ever disagree about the spelling.
+    function refreshCard(category, filename) {
+        var card = cardFor(category, filename);
+        var image = card ? card.querySelector('.card__image') : null;
+        if (!image) { return false; }
+
+        var url = String(image.getAttribute('src')).split('?')[0] + '?v=' + Date.now();
+        // Cleared before the src so the replacement fades in on decode the way a
+        // freshly rendered card does, instead of showing through at whatever
+        // opacity the outgoing image had reached.
+        image.classList.remove('is-loaded');
+        image.setAttribute('src', url);
+        markLoaded(image);
+
+        var download = card.querySelector('a[download]');
+        if (download) { download.setAttribute('href', url); }
+        card.querySelectorAll('[data-action="copy"], [data-action="view"]').forEach(function (el) {
+            el.setAttribute('data-url', url);
+        });
+        return true;
+    }
+
+    // Every mutation endpoint answers 302 -> the gallery page whether it worked
+    // or not, so the HTTP status says nothing about whether the poster actually
+    // changed; the flash's level is the only signal. Only a success may touch a
+    // card — and a failure stored nothing, so it has nothing to re-render
+    // either. Reads the same `.alert` extractFlash does, so the two cannot
+    // disagree about which element is the flash.
+    function changeSucceeded(doc) {
+        var el = doc.querySelector('.alert');
+        return !!el && el.classList.contains('alert--success');
+    }
+
     // ---- Shared overlay behavior ----
     // The fullscreen viewer, confirm dialog, mobile action tray, and toast are
     // identical on every page that shows poster cards. This factory is spread
@@ -702,10 +777,14 @@
                     if (!url) { return; }
                     if (this.finder.applying) { return; }
                     this.finder.applying = true;
+                    // Captured before the tray is closed below, so the card
+                    // update still knows which poster this applied to.
+                    var category = this.change.category;
+                    var filename = this.change.filename;
                     var body = new FormData();
-                    body.append('filename', this.change.filename);
+                    body.append('filename', filename);
                     body.append('url', url);
-                    fetch('/library/' + this.change.category + '/change/url', {
+                    fetch('/library/' + category + '/change/url', {
                         method: 'POST',
                         body: body,
                         headers: { 'X-Requested-With': 'fetch' },
@@ -724,7 +803,14 @@
                             self.closeFinderPreview();
                             self.change.open = false;
                             self.notify(alert ? alert.textContent.trim() : 'Poster updated');
-                            dispatch('gallery:refresh', {});
+                            // Only a poster that really was replaced needs
+                            // showing, and only its own card shows it. The grid
+                            // is re-rendered solely when that card is not on
+                            // screen to update — a change made from a card the
+                            // user can see never disturbs the view.
+                            if (changeSucceeded(doc) && !refreshCard(category, filename)) {
+                                dispatch('gallery:refresh', {});
+                            }
                         })
                         .catch(function () { self.notify('Could not update the poster.'); self.finder.confirming = false; })
                         // Clears on success and failure alike; without it a
@@ -943,6 +1029,13 @@
         function submitForm(form) {
             var action = form.getAttribute('action');
             var data = new FormData(form);
+            // How much of the grid this mutation invalidates, declared by the
+            // form itself. The filename comes from what is actually being
+            // posted rather than a second copy in an attribute, so the card
+            // that gets updated is by definition the poster that was acted on.
+            var refresh = form.getAttribute('data-refresh');
+            var category = form.getAttribute('data-category');
+            var filename = data.get('filename');
             // Nests with the load() below: the counter keeps the indication up
             // until both have settled.
             beginBusy();
@@ -956,6 +1049,20 @@
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
                     var flash = extractFlash(doc);
+                    // `none` stored nothing, and a `card` mutation that failed
+                    // stored nothing either: neither has anything to re-render.
+                    // A successful `card` mutation rewrites just that card, and
+                    // falls through to the grid only when the card is not on
+                    // screen to rewrite. Everything else — Delete, and any form
+                    // that declares nothing — changes which posters exist, so
+                    // the counts and pagination need the full re-render.
+                    var handled = refresh === 'none'
+                        || (refresh === 'card'
+                            && (!changeSucceeded(doc) || refreshCard(category, filename)));
+                    if (handled) {
+                        if (flash) { dispatch('gallery:toast', { text: flash }); }
+                        return null;
+                    }
                     // Refresh the grid for the current search/page, then report.
                     return load(currentUrl(), false).then(function () {
                         if (flash) { dispatch('gallery:toast', { text: flash }); }
