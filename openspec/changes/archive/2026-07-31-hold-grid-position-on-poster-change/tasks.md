@@ -66,11 +66,11 @@
 
 ## 5. Validation
 
-- [ ] 5.1 Build and run the `:dev` image and, at phone width, scroll several
+- [x] 5.1 Build and run the `:dev` image and, at phone width, scroll several
   pages into the grid, change a poster, and confirm the view does not move, no
   other card re-renders, and the changed card shows the new image.
-- [ ] 5.2 At desktop width, repeat on a page other than the first and confirm the
+- [x] 5.2 At desktop width, repeat on a page other than the first and confirm the
   page, scroll offset, and pagination are unchanged.
-- [ ] 5.3 Confirm Send to Plex reports its result without touching the grid, that
+- [x] 5.3 Confirm Send to Plex reports its result without touching the grid, that
   a failed change leaves the old image in place, and that delete and import still
   refresh the grid as before.
