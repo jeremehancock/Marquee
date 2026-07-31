@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Poster\Search;
 
+use App\Poster\NaturalOrder;
 use App\Poster\Poster;
 use Normalizer;
 
@@ -25,19 +26,30 @@ final class PosterSearch
             return $posters;
         }
 
-        /** @var list<array{score: int, title: string, poster: Poster}> $scored */
+        /** @var list<array{score: int, order: string, poster: Poster}> $scored */
         $scored = [];
         foreach ($posters as $poster) {
             $title = $this->normalize($poster->title());
             $score = $this->score($title, $terms);
             if ($score !== null) {
-                $scored[] = ['score' => $score, 'title' => $title, 'poster' => $poster];
+                // Scoring reads the normalized title as-is, because a match
+                // position only means anything against the real string. Only
+                // the tie-break key is padded.
+                $scored[] = [
+                    'score' => $score,
+                    'order' => NaturalOrder::key($title),
+                    'poster' => $poster,
+                ];
             }
         }
 
+        // The score leads, so relevance still decides the ranking and the
+        // digit-aware key only separates results that match equally early.
+        // Without it a search for a show would list its seasons 1, 10, 11, 2 —
+        // the same defect the gallery's own ordering has already lost.
         usort(
             $scored,
-            static fn (array $a, array $b): int => [$a['score'], $a['title']] <=> [$b['score'], $b['title']],
+            static fn (array $a, array $b): int => [$a['score'], $a['order']] <=> [$b['score'], $b['order']],
         );
 
         return array_map(static fn (array $row): Poster => $row['poster'], $scored);

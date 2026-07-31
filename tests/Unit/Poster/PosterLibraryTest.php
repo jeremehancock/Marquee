@@ -62,6 +62,56 @@ final class PosterLibraryTest extends TestCase
         self::assertSame(['Alien', 'The Matrix', 'Zodiac'], $titles);
     }
 
+    /**
+     * The reported defect, end to end through the library rather than on the
+     * sort key alone: A-Z must list a show's seasons 1, 2, 3 ... 10, 11.
+     */
+    public function testAlphabeticalSortOrdersSeasonsByNumber(): void
+    {
+        $library = $this->library([
+            'Breaking Bad - Season 11.png',
+            'Breaking Bad - Season 2.png',
+            'Breaking Bad - Season 10.png',
+            'Breaking Bad - Season 1.png',
+            'Breaking Bad - Season 9.png',
+        ]);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1)->items,
+        );
+
+        self::assertSame([
+            'Breaking Bad - Season 1',
+            'Breaking Bad - Season 2',
+            'Breaking Bad - Season 9',
+            'Breaking Bad - Season 10',
+            'Breaking Bad - Season 11',
+        ], $titles);
+    }
+
+    /**
+     * Digit-aware keys make these two genuinely equal — both pad to the same
+     * number — so without a further tiebreak usort is free to return them in
+     * either order. Sorting the same posters twice must not disagree.
+     */
+    public function testALeadingZeroTieIsDeterministic(): void
+    {
+        $library = $this->library(['Season 01.png', 'Season 1.png']);
+
+        $first = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1)->items,
+        );
+        $second = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1)->items,
+        );
+
+        self::assertSame($first, $second);
+        self::assertCount(2, $first);
+    }
+
     public function testDateAddedSortOrdersNewestFirst(): void
     {
         $library = $this->library(['Alien.png', 'Matrix.png', 'Zodiac.png']);
@@ -251,6 +301,21 @@ final class PosterLibraryTest extends TestCase
 
         // Equal titles ordered Movies -> TV Seasons -> Collections.
         self::assertSame(['movies', 'tv-seasons', 'collections'], $categories);
+    }
+
+    public function testBrowseAllOrdersNumbersByValueAcrossCategories(): void
+    {
+        $library = $this->libraryAcross([
+            'tv-seasons' => ['Show - Season 10.png', 'Show - Season 2.png'],
+            'movies' => ['Show - Season 1.png'],
+        ]);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browseAll(null, 1)->items,
+        );
+
+        self::assertSame(['Show - Season 1', 'Show - Season 2', 'Show - Season 10'], $titles);
     }
 
     public function testBrowseAllPaginatesCombinedTotal(): void

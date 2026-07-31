@@ -166,8 +166,24 @@
             </div>
             <div class="viewer__actions" x-show="finder.confirming" x-cloak>
                 <span class="viewer__ask">Change the poster to this one?</span>
-                <button type="button" class="btn btn--accent" @click="applyFinderSelection()">Change poster</button>
-                <button type="button" class="btn" @click="finder.confirming = false">Cancel</button>
+                <button type="button" class="btn btn--accent" @click="applyFinderSelection()"
+                        :disabled="finder.applying">Change poster</button>
+                <button type="button" class="btn" @click="finder.confirming = false"
+                        :disabled="finder.applying">Cancel</button>
+            </div>
+        </div>
+        {# Progress while the change runs. Shown immediately rather than after a
+           grace period — the server has to fetch the full-resolution image and
+           push it to Plex, so this is never fast (see applyFinderSelection).
+           Full screen, not scoped to the change-poster panel: the preview above
+           covers that panel, so an overlay confined to it would sit underneath
+           the thing the user is looking at. `.overlay` is z-index 100 against
+           the viewer's 60, so it lands on top with no new CSS. #}
+        <div class="overlay" x-show="finder.applying" x-cloak style="display:none">
+            <div class="overlay__box">
+                <div class="spinner"></div>
+                <p><strong>Changing poster&hellip;</strong></p>
+                <p class="stats">Fetching the poster and sending it to Plex. Please keep this page open.</p>
             </div>
         </div>
     </div>

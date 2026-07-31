@@ -82,16 +82,24 @@ final class PosterLibrary
             );
         } else {
             // Sort by title, breaking ties by category order so a mixed listing
-            // is deterministic. Within a single category the tiebreak never
-            // fires, so per-category ordering is unchanged.
+            // is deterministic. Within a single category the category tiebreak
+            // never fires, so per-category ordering is unchanged.
+            //
+            // The raw title breaks what the category cannot. Digit-aware sort
+            // keys make "Season 01" and "Season 1" genuinely equal — both pad
+            // to the same number — and two such posters in one category would
+            // otherwise be left in whatever order usort happened to produce.
+            // It sits last so the category rule above it still decides first.
             usort(
                 $posters,
                 fn (Poster $a, Poster $b): int => [
                     $a->sortKey($this->config->ignoreArticlesInSort),
                     $a->category->sortOrder(),
+                    $a->title(),
                 ] <=> [
                     $b->sortKey($this->config->ignoreArticlesInSort),
                     $b->category->sortOrder(),
+                    $b->title(),
                 ],
             );
         }

@@ -162,4 +162,100 @@ final class PosterTest extends TestCase
 
         self::assertSame('Solaris (1972)', $poster->captionTitle('', 1972));
     }
+
+    /**
+     * @param list<string> $filenames
+     *
+     * @return list<string>
+     */
+    private function sortedTitles(array $filenames, bool $ignoreArticles = true): array
+    {
+        $posters = array_map(
+            static fn (string $name): Poster => new Poster(PosterCategory::TvSeasons, $name, 100, 0),
+            $filenames,
+        );
+
+        usort(
+            $posters,
+            static fn (Poster $a, Poster $b): int => $a->sortKey($ignoreArticles) <=> $b->sortKey($ignoreArticles),
+        );
+
+        return array_map(static fn (Poster $p): string => $p->title(), $posters);
+    }
+
+    /**
+     * The defect this ordering exists to fix: compared character by character,
+     * "10" beats "2" on its first digit and a show's seasons list 1, 10, 11, 2.
+     */
+    public function testSeasonsOrderByNumberNotByDigit(): void
+    {
+        $titles = $this->sortedTitles([
+            'Breaking_Bad_-_Season_2_TV_Shows.png',
+            'Breaking_Bad_-_Season_10_TV_Shows.png',
+            'Breaking_Bad_-_Season_1_TV_Shows.png',
+            'Breaking_Bad_-_Season_11_TV_Shows.png',
+        ]);
+
+        self::assertSame([
+            'Breaking Bad - Season 1 TV Shows',
+            'Breaking Bad - Season 2 TV Shows',
+            'Breaking Bad - Season 10 TV Shows',
+            'Breaking Bad - Season 11 TV Shows',
+        ], $titles);
+    }
+
+    public function testNumbersInsideATitleOrderByValue(): void
+    {
+        $titles = $this->sortedTitles(['Ocean_s_11_Movies.png', 'Ocean_s_8_Movies.png']);
+
+        self::assertSame(['Ocean s 8 Movies', 'Ocean s 11 Movies'], $titles);
+    }
+
+    /**
+     * A digit run longer than the pad is left alone and compares character by
+     * character, exactly as every title did before. That is the pre-existing
+     * behaviour rather than a new failure mode — padding a run to a width
+     * shorter than itself is what would order it incorrectly.
+     */
+    public function testAnOverlongDigitRunFallsBackToCharacterOrder(): void
+    {
+        $titles = $this->sortedTitles(['Epic_20000000000000_Movies.png', 'Epic_9999999999999_Movies.png']);
+
+        self::assertSame(['Epic 20000000000000 Movies', 'Epic 9999999999999 Movies'], $titles);
+    }
+
+    public function testDigitAwarenessComposesWithArticleStripping(): void
+    {
+        // "The Thing 2" must land next to "A Thing 10" under the same "thing"
+        // prefix once articles are dropped, and still order 2 before 10.
+        $titles = $this->sortedTitles([
+            'The_Thing_10_Movies.png',
+            'A_Thing_2_Movies.png',
+        ], true);
+
+        self::assertSame(['A Thing 2 Movies', 'The Thing 10 Movies'], $titles);
+    }
+
+    public function testDigitAwarenessAppliesWhenArticlesAreNotIgnored(): void
+    {
+        $titles = $this->sortedTitles([
+            'The_Thing_10_Movies.png',
+            'The_Thing_2_Movies.png',
+        ], false);
+
+        self::assertSame(['The Thing 2 Movies', 'The Thing 10 Movies'], $titles);
+    }
+
+    /**
+     * The padding is a sort key and nothing else — it would be plainly visible
+     * if it ever reached a caption.
+     */
+    public function testTheSortKeyNeverLeaksIntoADisplayedTitle(): void
+    {
+        $poster = new Poster(PosterCategory::TvSeasons, 'Breaking_Bad_-_Season_5_TV_Shows.png', 1024, 42);
+
+        self::assertStringNotContainsString('000', $poster->title());
+        self::assertStringNotContainsString('000', $poster->captionTitle('Breaking Bad - Season 5'));
+        self::assertStringContainsString('000', $poster->sortKey(true));
+    }
 }

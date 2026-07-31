@@ -98,7 +98,16 @@ final class Poster
     }
 
     /**
-     * Sort key with a leading article removed for article-aware ordering.
+     * Sort key with a leading article removed for article-aware ordering, and
+     * numbers ordered by value rather than by digit — so a show's seasons list
+     * 1, 2, 3 … 10 rather than 1, 10, 11 … 2. See NaturalOrder for why.
+     *
+     * The two steps compose in either order: stripping an article works on the
+     * front of the string and padding works on digit runs, so neither can move
+     * what the other looks at. Padding goes last only because it reads better.
+     *
+     * This key is never shown to anyone. title() is what the gallery displays
+     * and it is untouched here.
      */
     public function sortKey(bool $ignoreArticles): string
     {
@@ -107,6 +116,6 @@ final class Poster
             $title = preg_replace('/^(a|an|the)\s+/', '', $title) ?? $title;
         }
 
-        return $title;
+        return NaturalOrder::key($title);
     }
 }

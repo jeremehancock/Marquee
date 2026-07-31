@@ -76,6 +76,30 @@ final class GalleryTest extends AppTestCase
         self::assertSame(404, $this->get($this->app(), '/library/books')->getStatusCode());
     }
 
+    /**
+     * A-Z as the user actually sees it: the seasons must appear in the rendered
+     * page in numeric order, not 1, 10, 11, 2.
+     */
+    public function testAlphabeticalGalleryRendersSeasonsInNumericOrder(): void
+    {
+        foreach (['11', '2', '10', '1'] as $season) {
+            $this->writePosterIn('tv-seasons', 'Breaking Bad - Season ' . $season . '.png');
+        }
+
+        $body = (string) $this->get($this->app(), '/library/tv-seasons?sort=alphabetical')->getBody();
+
+        $positions = [];
+        foreach (['1', '2', '10', '11'] as $season) {
+            $position = strpos($body, 'Breaking Bad - Season ' . $season . '.png');
+            self::assertIsInt($position, 'Season ' . $season . ' must be rendered');
+            $positions[] = $position;
+        }
+
+        $sorted = $positions;
+        sort($sorted);
+        self::assertSame($sorted, $positions, 'Seasons must render in numeric order');
+    }
+
     public function testSearchFiltersAViewAndSummarisesTheQuery(): void
     {
         $this->writePoster('Solaris.png');

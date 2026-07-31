@@ -74,4 +74,43 @@ final class PosterSearchTest extends TestCase
 
         self::assertSame(['Knight Rider', 'The Dark Knight'], $result);
     }
+
+    /**
+     * Every season matches at the same position, so the tiebreak decides the
+     * whole order. Without a digit-aware key this lists 1, 10, 11, 2 — the
+     * defect the gallery's own ordering no longer has.
+     */
+    public function testEquallyRelevantResultsOrderNumbersByValue(): void
+    {
+        $posters = $this->posters([
+            'Breaking Bad - Season 11.jpg',
+            'Breaking Bad - Season 2.jpg',
+            'Breaking Bad - Season 10.jpg',
+            'Breaking Bad - Season 1.jpg',
+        ]);
+
+        $result = $this->titles($this->search->filter($posters, 'breaking bad'));
+
+        self::assertSame([
+            'Breaking Bad - Season 1',
+            'Breaking Bad - Season 2',
+            'Breaking Bad - Season 10',
+            'Breaking Bad - Season 11',
+        ], $result);
+    }
+
+    /**
+     * Relevance still leads: the digit-aware key only separates results that
+     * match equally early, it never overrides where the query matched.
+     */
+    public function testMatchPositionStillOutranksTheNumber(): void
+    {
+        // "Episode 2" matches "episode" at position 0; "Season 1 Episode 9"
+        // matches it late. The later match sorts last despite the lower number.
+        $posters = $this->posters(['Season 1 Episode 9.jpg', 'Episode 2.jpg']);
+
+        $result = $this->titles($this->search->filter($posters, 'episode'));
+
+        self::assertSame(['Episode 2', 'Season 1 Episode 9'], $result);
+    }
 }
