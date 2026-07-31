@@ -124,9 +124,20 @@
                        applying always use the full-resolution url. #}
                     <div class="find-grid">
                         <template x-for="poster in finder.results" :key="poster.url">
-                            <figure class="find-item">
-                                <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
-                                     @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
+                            {# Each cell tracks its own image, so the shimmer stops per
+                               candidate as each thumbnail arrives. The DOM scan that
+                               does this for poster cards (initImages in gallery.js)
+                               cannot: Alpine creates and destroys these images on every
+                               search, long after that scan has run. `@error` resolves
+                               the cell too — a candidate whose image 404s must stop
+                               shimmering rather than promise one that is never coming. #}
+                            <figure class="find-item" x-data="{ loaded: false }">
+                                <div class="find-item__frame">
+                                    <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
+                                         :class="loaded ? 'is-loaded' : ''"
+                                         @load="loaded = true" @error="loaded = true"
+                                         @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
+                                </div>
                             </figure>
                         </template>
                     </div>
@@ -140,7 +151,14 @@
     <div class="viewer viewer--finder" x-show="finder.preview" x-cloak
          @click.self="closeFinderPreview()"
          @keydown.escape.window="closeFinderPreview()" style="display:none">
-        <img :src="finder.preview" alt="">
+        {# The stage now covers the space beside the image, so it has to close the
+           preview on its own account: without this, the only backdrop left that
+           reaches the viewer's own handler is the strip around the action bar. #}
+        <div class="viewer__stage" @click.self="closeFinderPreview()">
+            <div class="viewer__placeholder" x-show="!finder.previewLoaded"></div>
+            <img :src="finder.preview" alt="" :class="finder.previewLoaded ? 'is-loaded' : ''"
+                 @load="finder.previewLoaded = true" @error="finder.previewLoaded = true">
+        </div>
         <div class="viewer__bar">
             <div class="viewer__actions" x-show="!finder.confirming">
                 <button type="button" class="btn btn--accent" @click="finder.confirming = true">Use this poster</button>

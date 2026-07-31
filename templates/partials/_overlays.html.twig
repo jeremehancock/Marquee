@@ -41,10 +41,18 @@
     </div>
 </div>
 
-{# Fullscreen viewer #}
+{# Fullscreen viewer. The placeholder holds the poster's place while the image
+   loads — it is a real element, not the ::before the cards use, because a
+   full-screen image is sized by its own dimensions and has no frame to fill.
+   Both it and the fade are driven by viewerLoaded, which view() clears on every
+   open; see overlayComponent in gallery.js. #}
 <div class="viewer" x-show="viewer" x-cloak @click="viewer = null"
      @keydown.escape.window="viewer = null" style="display:none">
-    <img :src="viewer" alt="">
+    <div class="viewer__stage">
+        <div class="viewer__placeholder" x-show="!viewerLoaded"></div>
+        <img :src="viewer" alt="" :class="viewerLoaded ? 'is-loaded' : ''"
+             @load="viewerLoaded = true" @error="viewerLoaded = true">
+    </div>
 </div>
 
 {# Toast #}

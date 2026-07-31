@@ -1,0 +1,54 @@
+## MODIFIED Requirements
+
+### Requirement: Fullscreen poster view
+The system SHALL let a user view any gallery poster full screen.
+
+While the full-screen image has not yet resolved, the system SHALL show the same
+subtle placeholder animation used by poster cards, sized and positioned where the
+poster will appear, and SHALL fade the poster in once it resolves. The placeholder
+SHALL stop whether the image loads or fails, so a poster that cannot be fetched
+never leaves an animation running indefinitely.
+
+The placeholder SHALL hold one position for as long as it is shown. A browser
+gives an image its box as soon as it knows the image's dimensions — well before
+the image has arrived — so a placeholder that shares layout with the loading image
+is displaced by it, briefly on a fast connection and for the whole download on a
+slow one. Waiting is precisely when the view must be still.
+
+Because one full-screen view is reused for every poster rather than being created
+per poster, opening a different poster SHALL return the view to its unresolved
+state — placeholder showing, poster hidden — rather than displaying the previous
+poster, or treating the new poster as already loaded because the view had
+resolved once before.
+
+#### Scenario: Open a poster full screen
+- **WHEN** a user activates a poster in the gallery
+- **THEN** the system displays that poster in a full-screen view
+
+#### Scenario: Full-screen image has not loaded yet
+- **WHEN** a poster is opened full screen and its image has not yet resolved
+- **THEN** the placeholder animation is shown where the poster will appear,
+  rather than an empty backdrop, and the poster fades in once it resolves
+
+#### Scenario: Placeholder position when width is the limiting dimension
+- **WHEN** a poster is opened full screen on a narrow screen, where the poster is
+  sized by the available width rather than the available height
+- **THEN** the placeholder occupies the position the poster itself will occupy,
+  rather than sitting above it and appearing to drop into place when it arrives
+
+#### Scenario: Placeholder stays put while the image downloads
+- **WHEN** a poster is opened full screen over a slow connection, so its image is
+  being downloaded for an extended period
+- **THEN** the placeholder stays where it was first drawn for the whole wait,
+  rather than shifting as the image being loaded takes up room
+
+#### Scenario: Full-screen image fails to load
+- **WHEN** a poster opened full screen fails to load
+- **THEN** the placeholder animation stops rather than continuing to suggest the
+  image is still loading
+
+#### Scenario: Reopening the view on a different poster
+- **WHEN** a user opens one poster full screen, closes it, and opens a different
+  poster
+- **THEN** the view starts unresolved again — showing the placeholder until the
+  newly opened poster resolves — and never shows the previously viewed poster
