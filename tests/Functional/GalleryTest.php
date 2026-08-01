@@ -402,7 +402,83 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * The confirmation message of every form that declares one, in render order.
+     * Changing a poster from a file or from a URL overwrites the stored image and,
+     * for a linked poster, uploads it to Plex locked — the same unrecoverable move
+     * Send, Fetch and Delete each stop to confirm. These two tabs were the last
+     * one-click way to do it, so they confirm through the same shared dialog: a
+     * modal on a pointer device, a tray on a phone.
+     *
+     * Their message is *bound* rather than written into the markup, because this
+     * dialog is one instance reused for whichever poster was tapped — only Alpine
+     * knows the title at submit time. That is also why the count in
+     * testPlexActionsConfirmBeforeTheyOverwrite still reads three: a bound
+     * attribute is not a rendered one.
+     */
+    public function testChangePosterTabsConfirmBeforeTheyReplace(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris.png');
+
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+            'AUTH_BYPASS' => 'true',
+        ]);
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        // Upload names the selected image as what replaces the poster, and says
+        // that a linked poster is pushed to Plex — the part that cannot be undone
+        // by simply changing it back.
+        self::assertMatchesRegularExpression(
+            '/:action="[^"]*\/change\/upload[^"]*"[^>]*'
+            . ':data-confirm="[^"]*with the selected image\? If it is linked to Plex[^"]*"[^>]*'
+            . 'data-confirm-title="Change poster\?"[^>]*'
+            . 'data-confirm-label="Change poster"[^>]*'
+            . 'data-confirm-tone="accent"/',
+            $body,
+        );
+
+        // From URL differs only in the source phrase, which is what tells a user
+        // which of the two tabs they submitted from.
+        self::assertMatchesRegularExpression(
+            '/:action="[^"]*\/change\/url[^"]*"[^>]*'
+            . ':data-confirm="[^"]*with the image at that URL\? If it is linked to Plex[^"]*"[^>]*'
+            . 'data-confirm-title="Change poster\?"[^>]*'
+            . 'data-confirm-label="Change poster"[^>]*'
+            . 'data-confirm-tone="accent"/',
+            $body,
+        );
+
+        // Overwriting is not deleting: the app reserves red for removing a poster,
+        // and the Find Posters step confirms this same operation in accent.
+        self::assertStringNotContainsString('data-confirm-tone="danger"', $body);
+
+        // One action, one name: the two tab submits plus the Find Posters confirm,
+        // all reading "Change poster" under a dialog headed the same. The tabs
+        // said "Update poster", which named nothing else in the app.
+        self::assertSame(3, preg_match_all('/>Change poster<\/button>/', $body));
+        self::assertStringNotContainsString('Update poster', $body);
+
+        // Mediux URLs still work; the label just stops saying so, since the field
+        // takes an image URL and nothing about that is Mediux-specific.
+        self::assertStringContainsString('<label for="change-url">Image URL</label>', $body);
+        self::assertStringNotContainsString('Mediux', $body);
+
+        // Escape has to unwind one layer at a time: this dialog and the confirm
+        // dialog stacked over it both listen on the window, so without the guard
+        // declining a confirmation would also discard the file just picked.
+        self::assertStringContainsString(
+            '@keydown.escape.window="if (!confirm.open) change.open = false"',
+            $body,
+        );
+
+        $this->removeDir($dataDir);
+    }
+
+    /**
+     * The confirmation message of every form that renders one literally, in render
+     * order. The change dialog's two tabs bind theirs from Alpine state instead,
+     * so this sees the card's actions and not them.
      *
      * @return list<string>
      */
