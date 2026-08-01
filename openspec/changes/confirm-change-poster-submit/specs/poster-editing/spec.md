@@ -72,6 +72,31 @@ than closing both.
 - **THEN** the confirmation closes, the change dialog stays open, and no change
   is performed
 
+### Requirement: The change dialog opens with empty inputs
+The change-poster dialog SHALL present an empty file field and an empty URL field
+every time it is opened, and SHALL open on the Upload tab. Input left behind by a
+previous opening SHALL NOT carry over, whichever way that opening ended —
+confirmed, cancelled, dismissed, or failed — and regardless of whether the dialog
+is reopened for the same poster or a different one.
+
+Clearing the inputs SHALL NOT disturb the poster the dialog is bound to: the
+filename and category it will submit are set from the poster that was opened.
+
+#### Scenario: A dismissed selection does not come back
+- **WHEN** a user picks a file or types a URL, dismisses the dialog without
+  changing the poster, and opens it again
+- **THEN** both fields are empty and the dialog is on the Upload tab
+
+#### Scenario: Input does not follow the dialog to another poster
+- **WHEN** a user enters a URL for one poster, dismisses the dialog, and opens it
+  for a different poster
+- **THEN** the URL field is empty and the dialog names the newly opened poster
+
+#### Scenario: Reopening the same poster still clears
+- **WHEN** a user dismisses the dialog and reopens it for the same poster
+- **THEN** both fields are empty and the form still submits that poster's
+  filename and category
+
 ### Requirement: The change dialog names its own action
 The change-poster dialog's Upload and From URL submit controls SHALL be labelled
 "Change poster", matching the dialog's heading and the label the Find Posters

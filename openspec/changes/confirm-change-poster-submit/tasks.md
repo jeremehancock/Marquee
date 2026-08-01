@@ -20,29 +20,43 @@
       so dismissing the confirmation unwinds one layer and keeps the user's
       input.
 
-## 3. Manual verification
+## 3. Reopening the dialog
 
-- [ ] 3.1 Desktop: on each tab, submit and confirm — the poster changes, the
+- [x] 3.1 Give the file and URL inputs `x-ref="changeFile"` / `x-ref="changeUrl"`
+      in `templates/gallery.html.twig`.
+- [x] 3.2 In `openChange()`, clear both refs' values after rebuilding `change`
+      and `finder`, so every dismissal path opens clean. Do not use
+      `form.reset()` — it would blank the hidden filename.
+- [x] 3.3 Assert in `tests/Functional/GalleryTest.php` that both inputs carry
+      their refs, so the reset cannot silently stop finding them.
+
+## 4. Manual verification
+
+- [ ] 4.1 Desktop: on each tab, submit and confirm — the poster changes, the
       card updates in place, the dialog closes, and the toast reports the result.
-- [ ] 3.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
+- [ ] 4.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
       close control) — nothing is requested, the change dialog is still open on
       the same tab, and the chosen file / typed URL is still there.
-- [ ] 3.3 Phone width: confirm that the confirmation is presented as a tray over
+- [ ] 4.3 Phone width: confirm that the confirmation is presented as a tray over
       the change tray, matching Send to Plex, and that both dismiss cleanly with
       no stuck scroll lock.
-- [ ] 3.4 Confirm Find Posters still applies through its own inline confirm step,
+- [ ] 4.4 Confirm Find Posters still applies through its own inline confirm step,
       and Send/Fetch/Delete confirmations are unchanged.
+- [ ] 4.5 Pick a file and type a URL, dismiss the dialog without changing the
+      poster, then reopen it — for the same poster and for a different one. Both
+      fields are empty, the Upload tab is active, and the change still applies to
+      the poster that was opened.
 
-## 4. Tests, gates, docs
+## 5. Tests, gates, docs
 
-- [x] 4.1 In `tests/Functional/GalleryTest.php`, assert the rendered gallery
+- [x] 5.1 In `tests/Functional/GalleryTest.php`, assert the rendered gallery
       contains "Change poster" as both submit labels, the plain "Image URL"
       label, and no "Mediux" text.
-- [x] 4.2 In the same test file, assert both change forms carry
+- [x] 5.2 In the same test file, assert both change forms carry
       `data-confirm-title`, `data-confirm-label`, and `data-confirm-tone`, and
       that the URL form carries the bound `:data-confirm` attribute.
-- [x] 4.3 Run `composer test`, `composer stan`, and `composer cs`; fix anything
+- [x] 5.3 Run `composer test`, `composer stan`, and `composer cs`; fix anything
       they report.
-- [x] 4.4 Confirm `README.md`, `docs/`, and `CLAUDE.md` describe none of these
+- [x] 5.4 Confirm `README.md`, `docs/`, and `CLAUDE.md` describe none of these
       labels and need no edit; state that explicitly in the commit rather than
       inventing doc changes.

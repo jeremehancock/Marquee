@@ -716,6 +716,20 @@
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
                     this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
+                    // The file and URL inputs are DOM state that no Alpine
+                    // binding owns, so dismissing the dialog leaves whatever was
+                    // picked or typed sitting in them — and this dialog is one
+                    // instance reused for every poster, so the next one opens
+                    // holding the last one's input. Clearing on open covers
+                    // every way it can be dismissed (backdrop, close, Escape,
+                    // drag, a change that failed) with one call.
+                    //
+                    // The two inputs are cleared by hand rather than by
+                    // form.reset(): reset() restores the *default* value of every
+                    // field, which would blank the hidden filename that Alpine
+                    // binds as a property with no attribute behind it.
+                    if (this.$refs.changeFile) { this.$refs.changeFile.value = ''; }
+                    if (this.$refs.changeUrl) { this.$refs.changeUrl.value = ''; }
                 },
                 findPosters: function () {
                     var self = this;

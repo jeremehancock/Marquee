@@ -470,6 +470,13 @@ final class GalleryTest extends AppTestCase
             $body,
         );
 
+        // openChange() empties both fields by ref, because the dialog is one
+        // instance reused for every poster and nothing else owns their state.
+        // Renaming a ref here would stop the reset finding its input, silently:
+        // the dialog would simply start reopening with the last poster's input.
+        self::assertMatchesRegularExpression('/id="change-file" x-ref="changeFile"/', $body);
+        self::assertMatchesRegularExpression('/id="change-url" x-ref="changeUrl"/', $body);
+
         $this->removeDir($dataDir);
     }
 

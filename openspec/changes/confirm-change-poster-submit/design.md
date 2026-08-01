@@ -119,6 +119,23 @@ Alternative considered: `@keydown.escape.window.stop` on the confirm dialog.
 Rejected — `window`-scoped listeners fire on the same event target, so ordering,
 not propagation, decides the outcome; an explicit guard is what actually holds.
 
+### Clear the inputs on open, not on close, and clear them by hand
+
+`openChange()` rebuilds `change` and `finder` but the file and URL fields are DOM
+state no binding owns, so they survive every dismissal — and since the dialog is
+one reused instance, the next poster opens holding the last one's input. Clearing
+in `openChange()` covers every exit path (backdrop, close button, Escape, tray
+drag, a change that errored) with one call, where clearing on close would need
+each of them wired separately and would still miss any new one added later.
+
+The two inputs are cleared individually via `x-ref` rather than with
+`form.reset()`. `reset()` restores each field's *default* value, and the hidden
+`filename` field has no `value` attribute — Alpine sets it as a property — so
+resetting the form would blank the very thing that identifies which poster is
+being replaced. Alpine would only rewrite it if `change.filename` actually
+changed, which it does not when the same poster is reopened. Clearing the two
+fields by name touches nothing else.
+
 ### Cancelling must not leave the form disabled or the dialog closed
 
 Nothing needs doing here, and that is the point worth recording: the parked-form

@@ -120,7 +120,7 @@
                       data-confirm-tone="accent">
                     <input type="hidden" name="filename" :value="change.filename">
                     <label for="change-file">Image file (JPG, PNG, or WebP)</label>
-                    <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                    <input id="change-file" x-ref="changeFile" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
                     <button type="submit" class="btn btn--accent">Change poster</button>
                 </form>
 
@@ -132,7 +132,7 @@
                       data-confirm-tone="accent">
                     <input type="hidden" name="filename" :value="change.filename">
                     <label for="change-url">Image URL</label>
-                    <input id="change-url" type="url" name="url" placeholder="https://…" required>
+                    <input id="change-url" x-ref="changeUrl" type="url" name="url" placeholder="https://…" required>
                     <button type="submit" class="btn btn--accent">Change poster</button>
                 </form>
 
