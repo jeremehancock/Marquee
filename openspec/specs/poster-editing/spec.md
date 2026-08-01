@@ -24,8 +24,8 @@ it.
 
 A change submitted from a local file or a URL SHALL require an explicit
 confirmation before it is performed. Until that confirmation is given the system
-SHALL NOT read the file, fetch the URL, overwrite the stored poster, or contact
-Plex.
+SHALL NOT transmit the file, fetch the URL, overwrite the stored poster, or
+contact Plex — including while the replacement is being previewed.
 
 #### Scenario: Change from a file replaces and pushes to Plex
 - **WHEN** a user changes a Plex-linked poster by uploading a file and confirms
@@ -43,11 +43,17 @@ Plex.
 - **THEN** the system overwrites the file and does not attempt to push to Plex
 
 #### Scenario: Declining the confirmation changes nothing
-- **WHEN** a user submits the Upload or the From URL form and then declines the
-  confirmation
+- **WHEN** a user submits the Upload or the From URL form and then abandons the
+  preview it opens, at either of its two steps
 - **THEN** the system makes no request, leaves the stored poster and Plex
   untouched, reports nothing, and leaves the change dialog open on the tab and
   input the user was on
+
+#### Scenario: Previewing a replacement sends nothing
+- **WHEN** a user picks a file or enters a URL and reaches the full-screen
+  preview without confirming
+- **THEN** the system has not received the file, has not fetched the URL, and
+  has not written or uploaded anything
 
 ### Requirement: Replacement images are validated
 The system SHALL accept a replacement image only when it is a JPEG, PNG, or WebP
@@ -302,43 +308,6 @@ left alone — without requiring the user to reload the page.
 - **THEN** it is reported as a failure and the poster's card keeps its previous
   image
 
-### Requirement: Changing a poster is confirmed before it runs
-The change-poster dialog SHALL confirm an Upload or a From URL submission through
-the same confirmation used by the gallery's other overwriting actions — a
-full-screen modal on pointer devices and a tray on touch — presented over the
-change dialog, which SHALL remain open behind it.
-
-The confirmation SHALL name the poster being replaced using the same title the
-dialog heading shows, SHALL state which of the two sources the replacement comes
-from, and SHALL offer its action under the non-destructive emphasis reserved for
-overwrites rather than the destructive one reserved for deletion. It SHALL NOT
-restate what happens to a Plex-linked poster afterwards.
-
-Dismissing the confirmation SHALL return the user to the change dialog rather
-than closing both.
-
-#### Scenario: Upload asks before it replaces
-- **WHEN** a user picks an image file in the change dialog and submits
-- **THEN** a confirmation naming that poster is shown, and nothing is uploaded
-  until the user confirms
-
-#### Scenario: From URL asks before it fetches
-- **WHEN** a user enters an image URL in the change dialog and submits
-- **THEN** a confirmation naming that poster is shown, and the URL is not fetched
-  until the user confirms
-
-#### Scenario: Confirmation is a tray on touch
-- **WHEN** the confirmation is shown on a touch device, where the change dialog
-  is itself presented as a tray
-- **THEN** it is presented as a tray in the same style as the Send to Plex
-  confirmation, above the change dialog
-
-#### Scenario: Dismissing returns to the change dialog
-- **WHEN** a user dismisses the confirmation with Escape, the close control, or
-  the backdrop
-- **THEN** the confirmation closes, the change dialog stays open, and no change
-  is performed
-
 ### Requirement: The change dialog opens with empty inputs
 The change-poster dialog SHALL present an empty file field and an empty URL field
 every time it is opened, and SHALL open on the Upload tab. Input left behind by a
@@ -364,17 +333,105 @@ filename and category it will submit are set from the poster that was opened.
 - **THEN** both fields are empty and the form still submits that poster's
   filename and category
 
-### Requirement: The change dialog names its own action
-The change-poster dialog's Upload and From URL submit controls SHALL be labelled
-"Change poster", matching the dialog's heading and the label the Find Posters
-confirmation already uses, so one action has one name throughout the dialog. The
-URL field SHALL be labelled "Image URL" with no parenthetical about accepted
-sources.
+### Requirement: Changing a poster is previewed and confirmed
+An Upload or a From URL submission SHALL NOT change anything by itself. It SHALL
+open the chosen replacement full screen in the same preview the found-poster
+candidates are inspected in, and the change SHALL be taken only from that
+preview, through the same two-step commitment: an action offering to use the
+previewed image, then a final confirmation. This SHALL be the presentation on
+touch and pointer devices alike.
 
-#### Scenario: Both submit controls read "Change poster"
+A picked file SHALL be rendered from the user's own device. A pasted URL SHALL be
+loaded from the source the user named. A replacement the browser cannot display
+SHALL NOT prevent the user from confirming it, because the system — not the
+browser — determines whether a replacement is usable and already reports a
+rejection.
+
+The final confirmation SHALL offer its action under the non-destructive emphasis
+reserved for overwrites rather than the destructive one reserved for deletion. It
+SHALL NOT restate what happens to a Plex-linked poster afterwards, and SHALL NOT
+grow with the length of the poster's title — the image being inspected SHALL NOT
+move when the confirmation is asked.
+
+While the change runs the preview SHALL indicate progress without delay, and the
+change SHALL NOT be startable a second time while it is in flight.
+
+Dismissing the preview — with Escape, the close action, or the backdrop — SHALL
+return the user to the change dialog, which SHALL remain open with the file or
+URL the user provided still in place, and SHALL change nothing.
+
+#### Scenario: Upload previews before it replaces
+- **WHEN** a user picks an image file in the change dialog and submits
+- **THEN** that image is shown full screen and nothing is transmitted until the
+  user confirms from the preview
+
+#### Scenario: From URL previews before it fetches
+- **WHEN** a user enters an image URL in the change dialog and submits
+- **THEN** the image at that URL is shown full screen and the system does not
+  fetch or store it until the user confirms from the preview
+
+#### Scenario: The preview asks before it changes
+- **WHEN** a user chooses to use the image they are previewing
+- **THEN** a final confirmation is asked, and the poster is changed only once
+  that confirmation is given
+
+#### Scenario: Asking does not move the image
+- **WHEN** the final confirmation is shown for a poster with a long title
+- **THEN** the question is the same length it is for any other poster, and the
+  image above it stays exactly where it was
+
+#### Scenario: The preview is full screen on touch
+- **WHEN** a user submits either tab on a touch device, where the change dialog
+  is itself presented as a tray
+- **THEN** the replacement is previewed full screen over that tray, the same way
+  a found-poster candidate is
+
+#### Scenario: Dismissing the preview keeps the input
+- **WHEN** a user dismisses the preview with Escape, the close control, or the
+  backdrop
+- **THEN** the preview closes, the change dialog is still open, the file or URL
+  the user provided is still there, and no change is performed
+
+#### Scenario: An undisplayable image can still be confirmed
+- **WHEN** the browser cannot load the image at a URL the user entered
+- **THEN** the preview resolves rather than waiting, and the user may still
+  confirm the change, which the system accepts or rejects on its own terms
+
+#### Scenario: Progress is shown while the change runs
+- **WHEN** a user confirms a change from the preview
+- **THEN** progress is indicated immediately and stays until the change succeeds
+  or fails
+
+#### Scenario: The change cannot be started twice
+- **WHEN** a user confirms and then activates the confirmation again before it
+  has finished
+- **THEN** only one change is performed
+
+#### Scenario: No separate text confirmation is raised
+- **WHEN** a user submits the Upload or the From URL form
+- **THEN** the text-only confirmation dialog used by Send to Plex, Fetch from
+  Plex and Delete is not raised for that submission
+
+### Requirement: The change dialog names each control for what it does
+The change-poster dialog's Upload and From URL submit controls SHALL name how
+that tab supplies its image rather than claim to change the poster: "Upload
+poster" on the Upload tab, which sends a file from the user's device, and "Fetch
+poster" on the From URL tab, which has the system retrieve one. The action that
+does change the poster SHALL be labelled "Change poster" wherever it appears —
+the preview's final confirmation, for all three sources — matching the dialog's
+heading, so one action has one name throughout. The URL field SHALL be labelled
+"Image URL" with no parenthetical about accepted sources.
+
+#### Scenario: Each submit control names how its image arrives
 - **WHEN** a user opens the change-poster dialog on the Upload tab or the From
   URL tab
-- **THEN** that tab's submit control reads "Change poster"
+- **THEN** the Upload tab's submit control reads "Upload poster" and the From URL
+  tab's reads "Fetch poster"
+
+#### Scenario: The change itself is still named "Change poster"
+- **WHEN** a user reaches the final confirmation in the preview, from any of the
+  three tabs
+- **THEN** the control that performs the change reads "Change poster"
 
 #### Scenario: URL field label carries no source parenthetical
 - **WHEN** a user opens the From URL tab

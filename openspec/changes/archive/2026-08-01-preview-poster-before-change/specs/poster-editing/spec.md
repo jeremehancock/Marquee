@@ -39,7 +39,9 @@ contact Plex — including while the replacement is being previewed.
 - **THEN** the system has not received the file, has not fetched the URL, and
   has not written or uploaded anything
 
-### Requirement: Changing a poster is confirmed before it runs
+## ADDED Requirements
+
+### Requirement: Changing a poster is previewed and confirmed
 An Upload or a From URL submission SHALL NOT change anything by itself. It SHALL
 open the chosen replacement full screen in the same preview the found-poster
 candidates are inspected in, and the change SHALL be taken only from that
@@ -118,7 +120,7 @@ URL the user provided still in place, and SHALL change nothing.
 - **THEN** the text-only confirmation dialog used by Send to Plex, Fetch from
   Plex and Delete is not raised for that submission
 
-### Requirement: The change dialog names its own action
+### Requirement: The change dialog names each control for what it does
 The change-poster dialog's Upload and From URL submit controls SHALL name how
 that tab supplies its image rather than claim to change the poster: "Upload
 poster" on the Upload tab, which sends a file from the user's device, and "Fetch
@@ -149,3 +151,28 @@ heading, so one action has one name throughout. The URL field SHALL be labelled
   change
 - **THEN** it is accepted exactly as before; the label change is presentational
   only
+
+## REMOVED Requirements
+
+### Requirement: Changing a poster is confirmed before it runs
+**Reason**: Replaced by "Changing a poster is previewed and confirmed". The
+requirement it states — that Upload and From URL confirm through the gallery's
+shared text confirmation, presented as a modal on pointer devices and a tray on
+touch — is exactly what this change removes. Those two tabs now commit through
+the full-screen preview instead, so the user sees the image before deciding
+rather than reading a description of it.
+
+**Migration**: None for users; the operation, its endpoints, and its validation
+are unchanged. The confirmation is now taken from the preview, and the text
+dialog this requirement described remains in place for Send to Plex, Fetch from
+Plex, and Delete, which still own it.
+
+### Requirement: The change dialog names its own action
+**Reason**: Replaced by "The change dialog names each control for what it does".
+That requirement fixed both tab submits at "Change poster" on the reasoning that
+one action should have one name. The tabs no longer perform that action — they
+supply an image to be previewed — so the shared label named something they do
+not do.
+
+**Migration**: None. "Change poster" still names the act of changing the poster,
+now on the preview's confirmation, and remains the dialog's heading.
