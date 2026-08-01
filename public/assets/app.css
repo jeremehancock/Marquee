@@ -1148,8 +1148,9 @@ h1 {
     pointer-events: none;
 }
 
-/* Find Posters preview: the image plus a use/close (then confirm) action bar. */
-.viewer--finder {
+/* The change-poster preview — a found candidate, a pasted URL, or a picked file:
+   the image plus a use/close (then confirm) action bar. */
+.viewer--preview {
     flex-direction: column;
     gap: 16px;
     cursor: default;

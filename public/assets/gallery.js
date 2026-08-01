@@ -567,11 +567,20 @@
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
+                // The Find Posters search only. The full-screen step it used to
+                // own now lives in `preview` below, shared with the other two
+                // tabs — a search that is `applying` made no sense on a dialog
+                // the user never opened Find Posters on.
+                finder: { loading: false, error: '', notice: '', results: [] },
+                // The full-screen step every tab commits through: inspect the
+                // image, offer to use it, then confirm. `source` says where the
+                // image came from and so which request applying it makes;
+                // `file` is the picked File for an upload, held here because the
+                // blob URL in `src` is for display only and the input it came
+                // from may have been cleared by the time it is posted.
                 // `applying` is the in-flight flag for the final "Change poster"
-                // confirm. It drives the progress overlay and the disabled
-                // button, and it is rebuilt with the rest of this object in
-                // several places — keep it in every literal, not just this one.
-                finder: { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false },
+                // confirm, driving the progress overlay and the disabled button.
+                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -743,7 +752,8 @@
 
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
-                    this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
+                    this.finder = { loading: false, error: '', notice: '', results: [] };
+                    this.closePreview();
                     // The file and URL inputs are DOM state that no Alpine
                     // binding owns, so dismissing the dialog leaves whatever was
                     // picked or typed sitting in them — and this dialog is one
@@ -761,7 +771,7 @@
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
+                    this.finder = { loading: true, error: '', notice: '', results: [] };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                         .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
@@ -777,36 +787,79 @@
                                 error: d.partial ? '' : message,
                                 notice: d.partial ? message : '',
                                 results: Array.isArray(d.posters) ? d.posters : [],
-                                preview: null,
-                                previewLoaded: false,
-                                confirming: false,
-                                applying: false,
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [] }; });
                 },
 
-                // Find Posters preview: tap a candidate to see it full screen, then
-                // choose to use it (with a confirm step) or close. Replaces the old
-                // inline Select/View buttons; works on desktop and touch alike.
-                // Clearing previewLoaded before the new url is what keeps the
-                // preview from flashing the previous candidate: one <img> serves
-                // every candidate, so a resolved flag left over from the last
-                // one would reveal this one before it had loaded. Same reasoning
-                // as view() in overlayComponent.
-                openFinderPreview: function (url) {
-                    this.finder.previewLoaded = false;
-                    this.finder.preview = url;
-                    this.finder.confirming = false;
+                // The full-screen step, shared by all three tabs: see the image
+                // full size, then choose to use it (with a confirm step) or
+                // close. Works on desktop and touch alike.
+                //
+                // Clearing `loaded` before the new src is what keeps the preview
+                // from flashing the previous image: one <img> serves every one of
+                // them, so a resolved flag left over from the last would reveal
+                // this one before it had loaded. Same reasoning as view() in
+                // overlayComponent.
+                //
+                // `file` is kept for an upload because the blob URL is a handle
+                // for display, not something that can be posted; the bytes have
+                // to travel as the File itself.
+                openPreview: function (src, source, file) {
+                    this._revokePreviewSrc();
+                    this.preview = {
+                        open: true,
+                        src: src,
+                        loaded: false,
+                        confirming: false,
+                        applying: false,
+                        source: source,
+                        file: file || null,
+                    };
                 },
-                closeFinderPreview: function () {
-                    this.finder.preview = null;
-                    this.finder.confirming = false;
+                closePreview: function () {
+                    this._revokePreviewSrc();
+                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null };
                 },
-                // Applying is never quick: the server downloads the candidate at
-                // full resolution from its source, then uploads it to Plex and
-                // locks it. Two third-party round trips on a multi-megabyte
-                // image, so the wait is seconds and the user needs to see it.
+                // A blob URL holds its Blob alive until it is revoked, so an
+                // upload preview that is merely replaced or closed would leak the
+                // whole image. Only the two lifecycle points revoke — never the
+                // `finally` of applyPreview, which runs while a failed change is
+                // still on screen and would blank the image the user is looking
+                // at. Guarded on the source: the other two tabs preview a real
+                // URL, and revoking one of those does nothing but would be a lie
+                // about what this holds.
+                _revokePreviewSrc: function () {
+                    if (this.preview && this.preview.source === 'upload' && this.preview.src) {
+                        URL.revokeObjectURL(this.preview.src);
+                    }
+                },
+                // Upload tab: preview the picked file from the user's own device.
+                // Nothing is sent anywhere until the change is confirmed. Reached
+                // only through the form's submit, so `required` has already
+                // rejected an empty picker — the guard is for the case where the
+                // ref is missing entirely.
+                openUploadPreview: function () {
+                    var input = this.$refs.changeFile;
+                    var file = input && input.files ? input.files[0] : null;
+                    if (!file) { return; }
+                    this.openPreview(URL.createObjectURL(file), 'upload', file);
+                },
+                // From URL tab: preview the image at the address the user gave,
+                // loaded from its own source. Whether the browser can display it
+                // says nothing about whether the server can fetch it, so a
+                // failure here does not stand in the way of confirming.
+                openUrlPreview: function () {
+                    var input = this.$refs.changeUrl;
+                    var url = input ? input.value.trim() : '';
+                    if (!url) { return; }
+                    this.openPreview(url, 'url', null);
+                },
+                // Applying is never quick, whichever tab it came from: the server
+                // either downloads the image at full resolution from its source or
+                // takes it up from the browser, and then uploads it to Plex and
+                // locks it. Round trips on a multi-megabyte image either way, so
+                // the wait is seconds and the user needs to see it.
                 //
                 // The overlay is raised immediately, with none of the grace
                 // period that defers the gallery's dim for view changes. That
@@ -818,20 +871,24 @@
                 // once it has painted — hence the guard below, which does not
                 // depend on paint timing. Both are kept: the disabled button
                 // and the overlay communicate, the guard enforces.
-                applyFinderSelection: function () {
+                applyPreview: function () {
                     var self = this;
-                    var url = this.finder.preview;
-                    if (!url) { return; }
-                    if (this.finder.applying) { return; }
-                    this.finder.applying = true;
+                    var upload = this.preview.source === 'upload';
+                    var payload = upload ? this.preview.file : this.preview.src;
+                    if (!payload) { return; }
+                    if (this.preview.applying) { return; }
+                    this.preview.applying = true;
                     // Captured before the tray is closed below, so the card
                     // update still knows which poster this applied to.
                     var category = this.change.category;
                     var filename = this.change.filename;
+                    // The only thing the source changes is what is posted where.
+                    // A found candidate and a pasted address are both a URL for
+                    // the server to fetch; a picked file travels as the file.
                     var body = new FormData();
                     body.append('filename', filename);
-                    body.append('url', url);
-                    fetch('/library/' + category + '/change/url', {
+                    body.append(upload ? 'poster' : 'url', payload);
+                    fetch('/library/' + category + '/change/' + (upload ? 'upload' : 'url'), {
                         method: 'POST',
                         body: body,
                         headers: { 'X-Requested-With': 'fetch' },
@@ -847,7 +904,7 @@
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var alert = doc.querySelector('.alert');
-                            self.closeFinderPreview();
+                            self.closePreview();
                             self.change.open = false;
                             self.notify(alert ? alert.textContent.trim() : 'Poster updated');
                             // Only a poster that really was replaced needs
@@ -859,11 +916,11 @@
                                 dispatch('gallery:refresh', {});
                             }
                         })
-                        .catch(function () { self.notify('Could not update the poster.'); self.finder.confirming = false; })
+                        .catch(function () { self.notify('Could not update the poster.'); self.preview.confirming = false; })
                         // Clears on success and failure alike; without it a
                         // failed change would leave the preview stranded behind
                         // an overlay that never lifts.
-                        .finally(function () { self.finder.applying = false; });
+                        .finally(function () { self.preview.applying = false; });
                 },
                 copyUrl: function (url) {
                     var self = this;

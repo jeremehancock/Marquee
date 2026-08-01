@@ -76,12 +76,13 @@
     </div>
 
     {# Change poster modal #}
-    {# Escape unwinds one layer at a time. Both this dialog and the confirm dialog
-       stacked over it listen on the window, so an unguarded handler would close
-       both — declining a confirmation would also discard the file the user had
-       just picked. Ordering cannot fix that; only the guard can. #}
+    {# Escape unwinds one layer at a time. This dialog, the confirm dialog and the
+       full-screen preview all listen on the window, so an unguarded handler would
+       close this one underneath whichever is stacked over it — discarding the file
+       or URL the user had just picked along with it. Ordering cannot fix that;
+       only the guard can. #}
     <div class="modal" x-show="change.open" x-cloak
-         @keydown.escape.window="if (!confirm.open) change.open = false" style="display:none">
+         @keydown.escape.window="if (!confirm.open && !preview.open) change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
         <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
              role="dialog" aria-modal="true" aria-label="Change poster">
@@ -102,38 +103,22 @@
                             @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
 
-                {# data-refresh="card": both tabs replace one poster's image and nothing
-                   else, so the grid is left standing and only that card is rebuilt. See
-                   the note in partials/gallery_results.html.twig. #}
-                {# Both tabs confirm before they post, the same way the card's Send,
-                   Fetch and Delete forms do — the delegated submit handler parks the
-                   form and opens the shared dialog, so the file or URL is still there
-                   if the answer is no. The message is bound rather than written into
-                   the markup because this dialog is one instance reused for whichever
-                   poster was tapped; only Alpine knows which that is. #}
-                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
-                      enctype="multipart/form-data" x-show="change.tab === 'upload'"
-                      data-refresh="card" :data-category="change.category"
-                      :data-confirm="'Replace the poster for “' + change.title + '” with the selected image?'"
-                      data-confirm-title="Change poster?"
-                      data-confirm-label="Change poster"
-                      data-confirm-tone="accent">
-                    <input type="hidden" name="filename" :value="change.filename">
+                {# Neither tab changes anything on its own: it hands the image to the
+                   full-screen preview below, which is where the commitment is made —
+                   the same two steps a found candidate goes through. So these are not
+                   js-mutate forms and raise no confirm dialog; applyPreview() posts
+                   them. They stay <form>s so `required` and type="url" still gate the
+                   action and Enter still submits the URL field. #}
+                <form class="form" x-show="change.tab === 'upload'" @submit.prevent="openUploadPreview()">
                     <label for="change-file">Image file (JPG, PNG, or WebP)</label>
                     <input id="change-file" x-ref="changeFile" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
-                    <button type="submit" class="btn btn--accent">Change poster</button>
+                    <button type="submit" class="btn btn--accent">Upload poster</button>
                 </form>
 
-                <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'"
-                      x-show="change.tab === 'url'" data-refresh="card" :data-category="change.category"
-                      :data-confirm="'Replace the poster for “' + change.title + '” with the image at that URL?'"
-                      data-confirm-title="Change poster?"
-                      data-confirm-label="Change poster"
-                      data-confirm-tone="accent">
-                    <input type="hidden" name="filename" :value="change.filename">
+                <form class="form" x-show="change.tab === 'url'" @submit.prevent="openUrlPreview()">
                     <label for="change-url">Image URL</label>
                     <input id="change-url" x-ref="changeUrl" type="url" name="url" placeholder="https://…" required>
-                    <button type="submit" class="btn btn--accent">Change poster</button>
+                    <button type="submit" class="btn btn--accent">Fetch poster</button>
                 </form>
 
                 <div x-show="change.tab === 'find'">
@@ -160,7 +145,7 @@
                                     <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
                                          :class="loaded ? 'is-loaded' : ''"
                                          @load="loaded = true" @error="loaded = true"
-                                         @click="openFinderPreview(poster.url)" data-tooltip="Click to preview">
+                                         @click="openPreview(poster.url, 'find')" data-tooltip="Click to preview">
                                 </div>
                             </figure>
                         </template>
@@ -170,40 +155,50 @@
         </div>
     </div>
 
-    {# Find Posters preview: a candidate shown full screen with a use/close choice
-       and an inline confirm step, on both desktop and touch. #}
-    <div class="viewer viewer--finder" x-show="finder.preview" x-cloak
-         @click.self="closeFinderPreview()"
-         @keydown.escape.window="closeFinderPreview()" style="display:none">
+    {# The replacement shown full screen with a use/close choice and an inline
+       confirm step, on both desktop and touch. Shared by all three tabs: a found
+       candidate, a pasted URL, or the picked file rendered from the user's own
+       device. Nothing here has posted anything yet — applyPreview() is the first
+       and only request. #}
+    <div class="viewer viewer--preview" x-show="preview.open" x-cloak
+         @click.self="closePreview()"
+         @keydown.escape.window="closePreview()" style="display:none">
         {# The stage now covers the space beside the image, so it has to close the
            preview on its own account: without this, the only backdrop left that
            reaches the viewer's own handler is the strip around the action bar. #}
-        <div class="viewer__stage" @click.self="closeFinderPreview()">
-            <div class="viewer__placeholder" x-show="!finder.previewLoaded"></div>
-            <img :src="finder.preview" alt="" :class="finder.previewLoaded ? 'is-loaded' : ''"
-                 @load="finder.previewLoaded = true" @error="finder.previewLoaded = true">
+        <div class="viewer__stage" @click.self="closePreview()">
+            <div class="viewer__placeholder" x-show="!preview.loaded"></div>
+            {# `@error` resolves the preview rather than blocking it: a URL the
+               browser cannot load may still be one the server can fetch, and the
+               server is what decides. #}
+            <img :src="preview.src" alt="" :class="preview.loaded ? 'is-loaded' : ''"
+                 @load="preview.loaded = true" @error="preview.loaded = true">
         </div>
         <div class="viewer__bar">
-            <div class="viewer__actions" x-show="!finder.confirming">
-                <button type="button" class="btn btn--accent" @click="finder.confirming = true">Use this poster</button>
-                <button type="button" class="btn" @click="closeFinderPreview()">Close</button>
+            <div class="viewer__actions" x-show="!preview.confirming">
+                <button type="button" class="btn btn--accent" @click="preview.confirming = true">Use this poster</button>
+                <button type="button" class="btn" @click="closePreview()">Close</button>
             </div>
-            <div class="viewer__actions" x-show="finder.confirming" x-cloak>
-                <span class="viewer__ask">Change the poster to this one?</span>
-                <button type="button" class="btn btn--accent" @click="applyFinderSelection()"
-                        :disabled="finder.applying">Change poster</button>
-                <button type="button" class="btn" @click="finder.confirming = false"
-                        :disabled="finder.applying">Cancel</button>
+            {# The question names the poster because the preview covers the dialog
+               heading that otherwise carries it — and this dialog is one instance
+               reused for whichever poster was tapped, so only Alpine knows the
+               title. #}
+            <div class="viewer__actions" x-show="preview.confirming" x-cloak>
+                <span class="viewer__ask" x-text="'Change the poster for “' + change.title + '” to this one?'"></span>
+                <button type="button" class="btn btn--accent" @click="applyPreview()"
+                        :disabled="preview.applying">Change poster</button>
+                <button type="button" class="btn" @click="preview.confirming = false"
+                        :disabled="preview.applying">Cancel</button>
             </div>
         </div>
         {# Progress while the change runs. Shown immediately rather than after a
-           grace period — the server has to fetch the full-resolution image and
-           push it to Plex, so this is never fast (see applyFinderSelection).
+           grace period — the server has to take up or fetch the full-resolution
+           image and push it to Plex, so this is never fast (see applyPreview).
            Full screen, not scoped to the change-poster panel: the preview above
            covers that panel, so an overlay confined to it would sit underneath
            the thing the user is looking at. `.overlay` is z-index 100 against
            the viewer's 60, so it lands on top with no new CSS. #}
-        <div class="overlay" x-show="finder.applying" x-cloak style="display:none">
+        <div class="overlay" x-show="preview.applying" x-cloak style="display:none">
             <div class="overlay__box">
                 <div class="spinner"></div>
                 <p><strong>Changing poster&hellip;</strong></p>

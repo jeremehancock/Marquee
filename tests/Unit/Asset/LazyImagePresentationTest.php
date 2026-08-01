@@ -199,15 +199,19 @@ final class LazyImagePresentationTest extends TestCase
             'Opening the viewer must clear its resolved state before setting the source.'
         );
 
+        // The change-poster preview sets its source and its resolved state in one
+        // literal, so the two cannot come apart — but only while there is exactly
+        // one such literal. A second place assigning `src` on its own would be the
+        // stale-poster flash again, in the overlay all three tabs now share.
         self::assertSame(
             1,
-            preg_match_all('/this\.finder\.preview = url/', $source),
-            'The Find Posters preview must have exactly one place that sets its source.'
+            preg_match_all('/src: src,/', $source),
+            'The change-poster preview must have exactly one place that sets its source.'
         );
         self::assertMatchesRegularExpression(
-            '/this\.finder\.previewLoaded = false;\s*this\.finder\.preview = url/',
+            '/src: src,\s*loaded: false,/',
             $source,
-            'Opening the preview must clear its resolved state before setting the source.'
+            'Opening the preview must clear its resolved state alongside the source.'
         );
     }
 }
