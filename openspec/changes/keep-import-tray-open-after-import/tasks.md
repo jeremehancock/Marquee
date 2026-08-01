@@ -67,13 +67,13 @@
 
 ## 6. Hand verification on the `:dev` image
 
-- [ ] 6.1 On a phone (or a touch-emulating viewport ≤640px): open the import
+- [x] 6.1 On a phone (or a touch-emulating viewport ≤640px): open the import
       tray, run an import, and confirm the tray stays open, the progress overlay
       lifts, the result toast is readable above the tray, and the form shows only
       step 1 with nothing selected.
-- [ ] 6.2 Run a second import of a different content type from the same open
+- [x] 6.2 Run a second import of a different content type from the same open
       tray without reopening it, and confirm it reports its own result.
-- [ ] 6.3 Confirm the tray still dismisses by drag-down, backdrop tap, and
+- [x] 6.3 Confirm the tray still dismisses by drag-down, backdrop tap, and
       Escape, and that reopening it lands on a fresh step-1 form.
-- [ ] 6.4 Spot-check the orphans tray, a poster's action tray, and a
+- [x] 6.4 Spot-check the orphans tray, a poster's action tray, and a
       confirmation raised from it, to confirm they are unchanged.
