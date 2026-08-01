@@ -87,21 +87,24 @@ reserved for Delete, and the Find Posters confirm button for this exact operatio
 is already `btn--accent` — a red button here would make the same action look
 different depending on which tab reached it.
 
-### Wording states the overwrite and the Plex consequence
+### Wording names the poster and the source, and stops there
 
 Both messages name the poster with `change.title` (the caption title: title with
-year, no library) and state that Plex is written to when the poster is linked,
-because that is the part a user cannot undo:
+year, no library) and say where the replacement comes from:
 
 - Heading: "Change poster?"
-- Upload: `Replace the poster for “<title>” with the selected image? If it is
-  linked to Plex, the new image is uploaded and locked.`
-- From URL: `Replace the poster for “<title>” with the image at that URL? If it
-  is linked to Plex, the new image is uploaded and locked.`
+- Upload: `Replace the poster for “<title>” with the selected image?`
+- From URL: `Replace the poster for “<title>” with the image at that URL?`
 - Confirm label: "Change poster".
 
 The two differ only in the source phrase, which is what distinguishes them if a
 user reaches the dialog from the wrong tab.
+
+An earlier draft appended "If it is linked to Plex, the new image is uploaded and
+locked." That is dropped: uploading to Plex and locking is what changing a poster
+*is* in this app — the README leads with it and every other path does it silently
+— so restating it in a one-line confirmation buries the question being asked
+under a conditional the user did not need to resolve to answer it.
 
 ### The change dialog stops swallowing Escape
 

@@ -114,7 +114,7 @@
                 <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
                       enctype="multipart/form-data" x-show="change.tab === 'upload'"
                       data-refresh="card" :data-category="change.category"
-                      :data-confirm="'Replace the poster for “' + change.title + '” with the selected image? If it is linked to Plex, the new image is uploaded and locked.'"
+                      :data-confirm="'Replace the poster for “' + change.title + '” with the selected image?'"
                       data-confirm-title="Change poster?"
                       data-confirm-label="Change poster"
                       data-confirm-tone="accent">
@@ -126,7 +126,7 @@
 
                 <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'"
                       x-show="change.tab === 'url'" data-refresh="card" :data-category="change.category"
-                      :data-confirm="'Replace the poster for “' + change.title + '” with the image at that URL? If it is linked to Plex, the new image is uploaded and locked.'"
+                      :data-confirm="'Replace the poster for “' + change.title + '” with the image at that URL?'"
                       data-confirm-title="Change poster?"
                       data-confirm-label="Change poster"
                       data-confirm-tone="accent">

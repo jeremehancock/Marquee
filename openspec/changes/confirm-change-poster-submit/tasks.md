@@ -10,7 +10,7 @@
 ## 2. Confirmation
 
 - [x] 2.1 On the Upload form, add `:data-confirm` bound to
-      `'Replace the poster for “' + change.title + '” with the selected image? If it is linked to Plex, the new image is uploaded and locked.'`,
+      `'Replace the poster for “' + change.title + '” with the selected image?'`,
       plus `data-confirm-title="Change poster?"`,
       `data-confirm-label="Change poster"`, and `data-confirm-tone="accent"`.
 - [x] 2.2 On the From URL form, add the same three static attributes and a

@@ -426,12 +426,10 @@ final class GalleryTest extends AppTestCase
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
-        // Upload names the selected image as what replaces the poster, and says
-        // that a linked poster is pushed to Plex — the part that cannot be undone
-        // by simply changing it back.
+        // Upload names the selected image as what replaces the poster.
         self::assertMatchesRegularExpression(
             '/:action="[^"]*\/change\/upload[^"]*"[^>]*'
-            . ':data-confirm="[^"]*with the selected image\? If it is linked to Plex[^"]*"[^>]*'
+            . ':data-confirm="[^"]*with the selected image\?\'"[^>]*'
             . 'data-confirm-title="Change poster\?"[^>]*'
             . 'data-confirm-label="Change poster"[^>]*'
             . 'data-confirm-tone="accent"/',
@@ -442,7 +440,7 @@ final class GalleryTest extends AppTestCase
         // which of the two tabs they submitted from.
         self::assertMatchesRegularExpression(
             '/:action="[^"]*\/change\/url[^"]*"[^>]*'
-            . ':data-confirm="[^"]*with the image at that URL\? If it is linked to Plex[^"]*"[^>]*'
+            . ':data-confirm="[^"]*with the image at that URL\?\'"[^>]*'
             . 'data-confirm-title="Change poster\?"[^>]*'
             . 'data-confirm-label="Change poster"[^>]*'
             . 'data-confirm-tone="accent"/',

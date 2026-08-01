@@ -42,10 +42,10 @@ full-screen modal on pointer devices and a tray on touch — presented over the
 change dialog, which SHALL remain open behind it.
 
 The confirmation SHALL name the poster being replaced using the same title the
-dialog heading shows, SHALL say that the poster will be replaced and that a
-Plex-linked poster is also uploaded and locked, and SHALL offer its action under
-the non-destructive emphasis reserved for overwrites rather than the destructive
-one reserved for deletion.
+dialog heading shows, SHALL state which of the two sources the replacement comes
+from, and SHALL offer its action under the non-destructive emphasis reserved for
+overwrites rather than the destructive one reserved for deletion. It SHALL NOT
+restate what happens to a Plex-linked poster afterwards.
 
 Dismissing the confirmation SHALL return the user to the change dialog rather
 than closing both.
