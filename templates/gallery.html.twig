@@ -179,12 +179,13 @@
                 <button type="button" class="btn btn--accent" @click="preview.confirming = true">Use this poster</button>
                 <button type="button" class="btn" @click="closePreview()">Close</button>
             </div>
-            {# The question names the poster because the preview covers the dialog
-               heading that otherwise carries it — and this dialog is one instance
-               reused for whichever poster was tapped, so only Alpine knows the
-               title. #}
+            {# The question stays short deliberately. Naming the poster here pushed
+               it onto a second line, and the bar is bottom-anchored — so the stage
+               above it shrank and the image the user is inspecting jumped at the
+               moment they were deciding about it. The title is one Escape away in
+               the dialog heading; a still image is worth more here. #}
             <div class="viewer__actions" x-show="preview.confirming" x-cloak>
-                <span class="viewer__ask" x-text="'Change the poster for “' + change.title + '” to this one?'"></span>
+                <span class="viewer__ask">Change the poster to this one?</span>
                 <button type="button" class="btn btn--accent" @click="applyPreview()"
                         :disabled="preview.applying">Change poster</button>
                 <button type="button" class="btn" @click="preview.confirming = false"

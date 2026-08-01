@@ -34,9 +34,9 @@
       path.
 - [x] 2.3 Point the preview overlay at the shared state (`preview.open`,
       `preview.src`, `preview.loaded`, `preview.confirming`, `preview.applying`)
-      and `closePreview()` / `applyPreview()`, and make the ask line name the
-      poster: "Change the poster for “<title>” to this one?" bound from
-      `change.title`.
+      and `closePreview()` / `applyPreview()`, keeping the ask line short and
+      static ("Change the poster to this one?") so a long title cannot wrap it
+      and shift the image above.
 - [x] 2.4 Extend the change dialog's Escape guard to
       `if (!confirm.open && !preview.open) change.open = false`, and update the
       comment above it to say what the guard now protects.

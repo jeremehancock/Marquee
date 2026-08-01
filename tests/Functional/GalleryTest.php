@@ -462,12 +462,15 @@ final class GalleryTest extends AppTestCase
         self::assertSame(1, preg_match_all('/>Change poster<\/button>/', $body));
         self::assertStringNotContainsString('Update poster', $body);
 
-        // The preview's question names the poster, because the preview covers the
-        // dialog heading that otherwise carries the title.
+        // The preview's question is deliberately short and static. Binding the
+        // poster's title into it wrapped the line on a phone, which grew the
+        // bottom-anchored bar and shifted the image being inspected — so the ask
+        // is one line for every poster, however long its name.
         self::assertStringContainsString(
-            'x-text="\'Change the poster for “\' + change.title + \'” to this one?\'"',
+            '<span class="viewer__ask">Change the poster to this one?</span>',
             $body,
         );
+        self::assertStringNotContainsString('Change the poster for', $body);
 
         // Mediux URLs still work; the label just stops saying so, since the field
         // takes an image URL and nothing about that is Mediux-specific.

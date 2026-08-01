@@ -92,15 +92,23 @@ failure. The server is the only authority on whether the URL is fetchable, and
 it already reports the rejection as a flash. Blocking the confirmation on an
 `error` event would refuse changes that work.
 
-### The confirmation question names the poster; the buttons do not change
+### The confirmation question stays short; the buttons do not change
 
-The text confirmation being removed named the poster it was replacing, and that
-requirement is worth keeping — the preview covers the dialog heading that would
-otherwise carry the title. So the ask line becomes *Change the poster for
-“<title>” to this one?* for all three sources rather than only for the two new
-ones; a uniform preview that asks two different questions would defeat the
-point. The buttons keep their existing labels (*Use this poster*, *Change
-poster*, *Cancel*, *Close*), which the poster-sources spec already fixes.
+The text confirmation being removed named the poster it was replacing, so the
+first cut carried that into the ask line — *Change the poster for “<title>” to
+this one?*, for all three sources, since a uniform preview asking two different
+questions defeats the point.
+
+Tried on the `:dev` image, it was wrong. A title long enough to wrap put the ask
+on two lines, and because the action bar is bottom-anchored the stage above it
+shrank: the poster the user was in the middle of judging jumped, at the exact
+moment they were deciding about it. Naming the target is worth something; a
+still image is worth more, and the title is one Escape away in the dialog
+heading behind. So the line is static — *Change the poster to this one?* — and
+identical for every poster and every source.
+
+The buttons keep their existing labels (*Use this poster*, *Change poster*,
+*Cancel*, *Close*), which the poster-sources spec already fixes.
 
 ### One apply path
 

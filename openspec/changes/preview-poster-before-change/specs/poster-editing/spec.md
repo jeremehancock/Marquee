@@ -53,11 +53,11 @@ SHALL NOT prevent the user from confirming it, because the system — not the
 browser — determines whether a replacement is usable and already reports a
 rejection.
 
-The final confirmation SHALL name the poster being replaced using the same title
-the change dialog heading shows, and SHALL offer its action under the
-non-destructive emphasis reserved for overwrites rather than the destructive one
-reserved for deletion. It SHALL NOT restate what happens to a Plex-linked poster
-afterwards.
+The final confirmation SHALL offer its action under the non-destructive emphasis
+reserved for overwrites rather than the destructive one reserved for deletion. It
+SHALL NOT restate what happens to a Plex-linked poster afterwards, and SHALL NOT
+grow with the length of the poster's title — the image being inspected SHALL NOT
+move when the confirmation is asked.
 
 While the change runs the preview SHALL indicate progress without delay, and the
 change SHALL NOT be startable a second time while it is in flight.
@@ -81,10 +81,10 @@ URL the user provided still in place, and SHALL change nothing.
 - **THEN** a final confirmation is asked, and the poster is changed only once
   that confirmation is given
 
-#### Scenario: The confirmation names the poster
-- **WHEN** the final confirmation is shown for an uploaded file or a pasted URL
-- **THEN** it names the poster being replaced with the same title the change
-  dialog heading shows
+#### Scenario: Asking does not move the image
+- **WHEN** the final confirmation is shown for a poster with a long title
+- **THEN** the question is the same length it is for any other poster, and the
+  image above it stays exactly where it was
 
 #### Scenario: The preview is full screen on touch
 - **WHEN** a user submits either tab on a touch device, where the change dialog
