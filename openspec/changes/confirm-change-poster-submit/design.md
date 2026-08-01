@@ -136,6 +136,27 @@ being replaced. Alpine would only rewrite it if `change.filename` actually
 changed, which it does not when the same poster is reopened. Clearing the two
 fields by name touches nothing else.
 
+### Close the raising tray on confirm, not on submit
+
+Both submit handlers — the gallery's delegated one and `orphansPage`'s own copy —
+closed the action tray unconditionally before deciding whether a confirmation was
+needed. So declining took the tray with it, and a user who answered "no" was
+returned to the grid having to reopen the poster to do anything else. The
+stylesheet already ranks `.modal` (55) above `.sheet` (50) *specifically* so a
+confirmation raised from a tray can be answered over it; closing the tray at
+submit time defeated that ranking.
+
+The dispatch moves past the `data-confirm` branch and is repeated in the
+`gallery:confirmed` handler. An unconfirmed submit closes the tray exactly as
+before; a confirmed one closes it when the action actually runs. The tray's
+Escape handler gets the same `!confirm.open` guard as the change dialog, for the
+same reason.
+
+This is a pre-existing defect — it has been there since Delete first confirmed
+from the tray — but it lives in the machinery this change is already extending,
+and shipping the fix separately would leave one PR queued behind another for a
+two-line move.
+
 ### Cancelling must not leave the form disabled or the dialog closed
 
 Nothing needs doing here, and that is the point worth recording: the parked-form

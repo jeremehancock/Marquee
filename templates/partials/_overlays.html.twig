@@ -33,9 +33,13 @@
     </div>
 </div>
 
-{# Mobile action sheet: holds a tapped poster's actions at full size #}
+{# Mobile action sheet: holds a tapped poster's actions at full size.
+   Escape unwinds one layer at a time. A confirmation raised from this tray is
+   rendered above it and leaves it standing, so an unguarded handler here would
+   close the tray out from under a confirmation the user is still answering —
+   the same guard the change dialog carries. #}
 <div class="sheet" x-show="sheet.open" x-cloak
-     @keydown.escape.window="closeSheet()" style="display:none">
+     @keydown.escape.window="if (!confirm.open) closeSheet()" style="display:none">
     <div class="sheet__backdrop" @click="closeSheet()"></div>
     <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Poster actions">
         <div class="sheet__grip"><span class="sheet__handle"></span></div>

@@ -418,8 +418,9 @@
                         var form = e.target;
                         if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-mutate')) { return; }
                         e.preventDefault();
-                        // The form may live in the tray; close it either way.
-                        self.closeSheet();
+                        // Declining leaves the tray standing, as on the gallery:
+                        // the confirmation is raised above it and answering "no"
+                        // should return the user to the actions, not close them.
                         if (form.hasAttribute('data-confirm')) {
                             self._pendingForm = form;
                             self.askConfirm({
@@ -429,6 +430,8 @@
                             });
                             return;
                         }
+                        // The form may live in the tray; close it either way.
+                        self.closeSheet();
                         self.submitDelete(form);
                     });
 
@@ -436,6 +439,7 @@
                         if (self._pendingForm) {
                             var form = self._pendingForm;
                             self._pendingForm = null;
+                            self.closeSheet();
                             self.submitDelete(form);
                         }
                     });
@@ -1218,13 +1222,17 @@
             // that component; skip them here.
             if (form.closest('[data-nested-scope]')) { return; }
             e.preventDefault();
-            // A form may live in the mobile sheet; close it either way.
-            dispatch('gallery:sheet-close', {});
             // The form owns its own wording. Every confirmed action states what
             // it is about to do — the two Plex actions move the same image in
             // opposite directions, so a shared "Are you sure?" would not tell a
             // user which button they hit. The fallbacks are Delete's, which is
             // why the Delete form needs no attributes beyond data-confirm.
+            //
+            // A confirmed action leaves the tray it was raised from standing.
+            // The stylesheet already ranks a dialog above a tray for exactly
+            // this reason; closing the tray here anyway meant declining a
+            // confirmation dismissed the actions behind it too, so a user who
+            // answered "no" had to reopen the poster to do anything else.
             if (form.hasAttribute('data-confirm')) {
                 pendingForm = form;
                 dispatch('gallery:confirm', {
@@ -1235,6 +1243,8 @@
                 });
                 return;
             }
+            // A form may live in the mobile sheet; close it either way.
+            dispatch('gallery:sheet-close', {});
             submitForm(form);
         });
 
@@ -1242,6 +1252,9 @@
             if (pendingForm) {
                 var form = pendingForm;
                 pendingForm = null;
+                // Now the action is really happening, so the tray that offered
+                // it goes — same as an unconfirmed submit.
+                dispatch('gallery:sheet-close', {});
                 submitForm(form);
             }
         });

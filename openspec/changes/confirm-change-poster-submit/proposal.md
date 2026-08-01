@@ -36,8 +36,12 @@ _None._
 
 - `poster-editing`: Changing a poster from a local file or a URL gains a required
   confirmation step before the replacement is performed; declining leaves the
-  stored poster and Plex untouched. The change dialog's submit action is named
-  "Change poster" and its URL field is labelled "Image URL".
+  stored poster and Plex untouched. The change dialog opens with empty inputs
+  every time, its submit action is named "Change poster", and its URL field is
+  labelled "Image URL".
+- `poster-library`: Declining a confirmation unwinds exactly one layer — a
+  confirmation raised from a tray leaves that tray open, and the tray closes only
+  when the action is actually taken.
 
 ## Impact
 

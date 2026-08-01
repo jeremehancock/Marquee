@@ -387,6 +387,15 @@ final class GalleryTest extends AppTestCase
         self::assertCount(3, $messages, 'send, fetch and delete each confirm');
         self::assertSame($messages, array_values(array_unique($messages)));
 
+        // Escape unwinds one layer. The action tray and the confirmation raised
+        // above it both listen on the window, so without the guard declining a
+        // confirmation would take the tray with it and leave the user back at
+        // the grid, having to reopen the poster to do anything else.
+        self::assertStringContainsString(
+            '@keydown.escape.window="if (!confirm.open) closeSheet()"',
+            $body,
+        );
+
         // Delete keeps its message and keeps relying on the script's fallback
         // wording, so it must not have acquired a title of its own.
         self::assertMatchesRegularExpression(
