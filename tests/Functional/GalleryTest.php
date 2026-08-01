@@ -322,12 +322,10 @@ final class GalleryTest extends AppTestCase
             $body,
         );
 
-        // The change tray's two tabs replace the image of the poster it was
-        // opened for, so they are card-local too.
-        self::assertSame(
-            2,
-            preg_match_all('/data-refresh="card" :data-category="change\.category"/', $body),
-        );
+        // The change tray's two tabs declare nothing, because they post nothing:
+        // they hand their image to the preview, and applyPreview() re-renders the
+        // one card itself rather than through this delegation.
+        self::assertStringNotContainsString(':data-category="change.category"', $body);
 
         $this->removeDir($dataDir);
     }
@@ -413,17 +411,16 @@ final class GalleryTest extends AppTestCase
     /**
      * Changing a poster from a file or from a URL overwrites the stored image and,
      * for a linked poster, uploads it to Plex locked — the same unrecoverable move
-     * Send, Fetch and Delete each stop to confirm. These two tabs were the last
-     * one-click way to do it, so they confirm through the same shared dialog: a
-     * modal on a pointer device, a tray on a phone.
+     * Send, Fetch and Delete each stop to confirm. These two tabs commit through
+     * the full-screen preview instead of a text dialog: the user sees the image
+     * before it goes anywhere, exactly as a found candidate is seen, so all three
+     * ways into the one operation feel like the one operation.
      *
-     * Their message is *bound* rather than written into the markup, because this
-     * dialog is one instance reused for whichever poster was tapped — only Alpine
-     * knows the title at submit time. That is also why the count in
-     * testPlexActionsConfirmBeforeTheyOverwrite still reads three: a bound
-     * attribute is not a rendered one.
+     * What that costs is the shared confirm dialog for these two forms, and this
+     * test is mostly about that removal being complete — a form left carrying
+     * `js-mutate` would post on submit and never reach the preview at all.
      */
-    public function testChangePosterTabsConfirmBeforeTheyReplace(): void
+    public function testChangePosterTabsPreviewBeforeTheyReplace(): void
     {
         $dataDir = $this->makeTempDir();
         $this->writePoster('Solaris.png');
@@ -435,58 +432,99 @@ final class GalleryTest extends AppTestCase
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
-        // Upload names the selected image as what replaces the poster.
+        // Each tab hands its image to the preview rather than posting it. No
+        // action, no js-mutate, no confirm attributes: the delegated submit
+        // handler must not recognise these forms at all.
         self::assertMatchesRegularExpression(
-            '/:action="[^"]*\/change\/upload[^"]*"[^>]*'
-            . ':data-confirm="[^"]*with the selected image\?\'"[^>]*'
-            . 'data-confirm-title="Change poster\?"[^>]*'
-            . 'data-confirm-label="Change poster"[^>]*'
-            . 'data-confirm-tone="accent"/',
+            '/<form class="form" x-show="change\.tab === \'upload\'" @submit\.prevent="openUploadPreview\(\)">/',
             $body,
         );
-
-        // From URL differs only in the source phrase, which is what tells a user
-        // which of the two tabs they submitted from.
         self::assertMatchesRegularExpression(
-            '/:action="[^"]*\/change\/url[^"]*"[^>]*'
-            . ':data-confirm="[^"]*with the image at that URL\?\'"[^>]*'
-            . 'data-confirm-title="Change poster\?"[^>]*'
-            . 'data-confirm-label="Change poster"[^>]*'
-            . 'data-confirm-tone="accent"/',
+            '/<form class="form" x-show="change\.tab === \'url\'" @submit\.prevent="openUrlPreview\(\)">/',
             $body,
         );
+        self::assertStringNotContainsString('/change/upload', $body);
+        self::assertStringNotContainsString('/change/url', $body);
+        self::assertStringNotContainsString('data-confirm-title="Change poster?"', $body);
+        self::assertStringNotContainsString('with the selected image?', $body);
+        self::assertStringNotContainsString('with the image at that URL?', $body);
 
         // Overwriting is not deleting: the app reserves red for removing a poster,
-        // and the Find Posters step confirms this same operation in accent.
+        // and this operation confirms in accent wherever it is confirmed.
         self::assertStringNotContainsString('data-confirm-tone="danger"', $body);
 
-        // One action, one name: the two tab submits plus the Find Posters confirm,
-        // all reading "Change poster" under a dialog headed the same. The tabs
-        // said "Update poster", which named nothing else in the app.
-        self::assertSame(3, preg_match_all('/>Change poster<\/button>/', $body));
+        // The tabs supply an image; the preview changes the poster. Each tab names
+        // how its image gets here — one sends a file up, the other has the server
+        // go and get one — and neither claims to change anything. The act that
+        // does is still called what the dialog is headed, from all three tabs.
+        self::assertSame(1, preg_match_all('/>Upload poster<\/button>/', $body));
+        self::assertSame(1, preg_match_all('/>Fetch poster<\/button>/', $body));
+        self::assertSame(1, preg_match_all('/>Change poster<\/button>/', $body));
         self::assertStringNotContainsString('Update poster', $body);
+
+        // The preview's question is deliberately short and static. Binding the
+        // poster's title into it wrapped the line on a phone, which grew the
+        // bottom-anchored bar and shifted the image being inspected — so the ask
+        // is one line for every poster, however long its name.
+        self::assertStringContainsString(
+            '<span class="viewer__ask">Change the poster to this one?</span>',
+            $body,
+        );
+        self::assertStringNotContainsString('Change the poster for', $body);
 
         // Mediux URLs still work; the label just stops saying so, since the field
         // takes an image URL and nothing about that is Mediux-specific.
         self::assertStringContainsString('<label for="change-url">Image URL</label>', $body);
         self::assertStringNotContainsString('Mediux', $body);
 
-        // Escape has to unwind one layer at a time: this dialog and the confirm
-        // dialog stacked over it both listen on the window, so without the guard
-        // declining a confirmation would also discard the file just picked.
+        // Escape has to unwind one layer at a time: this dialog, the confirm
+        // dialog and the preview all listen on the window, so without the guard an
+        // Escape meant for the preview would close the dialog underneath it and
+        // discard the file just picked.
         self::assertStringContainsString(
-            '@keydown.escape.window="if (!confirm.open) change.open = false"',
+            '@keydown.escape.window="if (!confirm.open && !preview.open) change.open = false"',
             $body,
         );
 
         // openChange() empties both fields by ref, because the dialog is one
-        // instance reused for every poster and nothing else owns their state.
-        // Renaming a ref here would stop the reset finding its input, silently:
-        // the dialog would simply start reopening with the last poster's input.
+        // instance reused for every poster and nothing else owns their state —
+        // and the two open handlers read the image back out through the same refs.
+        // Renaming a ref here would break both, silently.
         self::assertMatchesRegularExpression('/id="change-file" x-ref="changeFile"/', $body);
         self::assertMatchesRegularExpression('/id="change-url" x-ref="changeUrl"/', $body);
 
         $this->removeDir($dataDir);
+    }
+
+    /**
+     * The preview is not Find Posters' property any more. Its markup must sit
+     * outside the modal panel (it has to cover it) and be bound to state no tab
+     * owns, or the two new callers get an overlay that only the finder can drive.
+     */
+    public function testThePreviewIsSharedByEveryChangePosterTab(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('class="viewer viewer--preview" x-show="preview.open"', $body);
+        self::assertStringNotContainsString('viewer--finder', $body);
+
+        // Every control in the preview drives the shared state, and the candidate
+        // grid is one of three callers that opens it rather than the only one.
+        self::assertStringContainsString('@click="openPreview(poster.url, \'find\')"', $body);
+        self::assertStringContainsString('@click="applyPreview()"', $body);
+        // Backdrop, stage, Escape and Close: every way out closes only the
+        // preview, leaving the dialog that opened it standing.
+        self::assertSame(4, preg_match_all('/closePreview\(\)/', $body));
+
+        // The preview must not be nested in the modal panel it covers, or it
+        // would be clipped by the panel and sit under the progress overlay.
+        $modal = strpos($body, 'class="modal" x-show="change.open"');
+        $preview = strpos($body, 'class="viewer viewer--preview"');
+        self::assertIsInt($modal);
+        self::assertIsInt($preview);
+        self::assertGreaterThan($modal, $preview);
     }
 
     /**
@@ -525,14 +563,15 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('loading="lazy"', $body);
         self::assertStringContainsString('@load="loaded = true" @error="loaded = true"', $body);
 
-        // Both full-screen views: the shared viewer and the Find Posters preview.
+        // Both full-screen views: the shared viewer and the change-poster preview.
         self::assertSame(2, substr_count($body, 'class="viewer__stage"'), 'Both full-screen views need a stage.');
         self::assertSame(2, substr_count($body, 'class="viewer__placeholder"'), 'Both full-screen views need a placeholder.');
         self::assertStringContainsString('x-show="!viewerLoaded"', $body);
-        self::assertStringContainsString('x-show="!finder.previewLoaded"', $body);
-        // A failed image resolves the placeholder too, or it shimmers forever.
+        self::assertStringContainsString('x-show="!preview.loaded"', $body);
+        // A failed image resolves the placeholder too, or it shimmers forever —
+        // and for a pasted URL it is also what lets the user confirm anyway.
         self::assertStringContainsString('@error="viewerLoaded = true"', $body);
-        self::assertStringContainsString('@error="finder.previewLoaded = true"', $body);
+        self::assertStringContainsString('@error="preview.loaded = true"', $body);
     }
 
     /**

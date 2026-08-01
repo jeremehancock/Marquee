@@ -171,8 +171,9 @@ server.
    it belongs to.
 2. **Refine a poster.** Hover a poster (or tap it on mobile) to open its actions.
    Use **Change poster** to upload a file, paste a URL, or search **Find
-   Posters**. Applying a new poster updates it locally, uploads it to Plex, and
-   locks it.
+   Posters**. Whichever you pick, you see it full screen and confirm before
+   anything changes; applying it updates the poster locally, uploads it to Plex,
+   and locks it.
 3. **Keep Plex and Marquee in sync.** Use **Send to Plex** to re-apply Marquee's
    stored poster (for example after a Plex agent refresh), or **Fetch from Plex**
    to pull the item's current Plex art back into Marquee.
