@@ -63,25 +63,25 @@
 
 ## 6. Manual verification
 
-- [ ] 6.1 Desktop: on each tab, submit and confirm — the poster changes, the
+- [x] 6.1 Desktop: on each tab, submit and confirm — the poster changes, the
       card updates in place, the dialog closes, and the toast reports the result.
-- [ ] 6.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
+- [x] 6.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
       close control) — nothing is requested, the change dialog is still open on
       the same tab, and the chosen file / typed URL is still there.
-- [ ] 6.3 Phone width: confirm that the confirmation is presented as a tray over
+- [x] 6.3 Phone width: confirm that the confirmation is presented as a tray over
       the change tray, matching Send to Plex, and that both dismiss cleanly with
       no stuck scroll lock.
-- [ ] 6.4 Confirm Find Posters still applies through its own inline confirm step,
+- [x] 6.4 Confirm Find Posters still applies through its own inline confirm step,
       and Send/Fetch/Delete confirmations are unchanged.
-- [ ] 6.5 Pick a file and type a URL, dismiss the dialog without changing the
+- [x] 6.5 Pick a file and type a URL, dismiss the dialog without changing the
       poster, then reopen it — for the same poster and for a different one. Both
       fields are empty, the Upload tab is active, and the change still applies to
       the poster that was opened.
-- [ ] 6.6 Change the poster of a known orphan: the new poster appears on its card
+- [x] 6.6 Change the poster of a known orphan: the new poster appears on its card
       straight away with no page reload, and the message explaining that it could
       not be sent to Plex stays up long enough to read to the end. Check a plain
       "Poster updated." still goes as quickly as it used to.
-- [ ] 6.7 Phone width: from a poster's action tray choose Delete, then Send to
+- [x] 6.7 Phone width: from a poster's action tray choose Delete, then Send to
       Plex, then Fetch from Plex, cancelling each — the action tray is still open
       every time. Confirm one and check the tray closes. Repeat for Delete inside
       the orphans tray.
