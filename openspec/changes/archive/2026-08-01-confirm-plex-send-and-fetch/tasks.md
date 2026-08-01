@@ -40,11 +40,11 @@
 
 - [x] 4.1 Run `composer test`, `composer stan`, and `composer cs`; all three must
       pass.
-- [ ] 4.2 Manually check on a pointer device: Send and Fetch each open the
+- [x] 4.2 Manually check on a pointer device: Send and Fetch each open the
       dialog with their own heading and a non-red confirm button; Cancel,
       backdrop click, and Escape each leave the poster and Plex untouched; only
       confirming runs the operation and reports it.
-- [ ] 4.3 Manually check on a small screen: the same two actions taken from the
+- [x] 4.3 Manually check on a small screen: the same two actions taken from the
       poster action tray raise the confirmation above the tray, drag-to-dismiss
       declines it, and confirming runs the operation.
 - [x] 4.4 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the Send or
