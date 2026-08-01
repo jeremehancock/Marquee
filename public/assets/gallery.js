@@ -126,7 +126,11 @@
         return {
             viewer: null,
             viewerLoaded: false,
-            confirm: { open: false, title: '', message: '', label: 'Confirm' },
+            // `tone` styles the confirming button. It defaults to `danger`
+            // here and in askConfirm below, so a caller that says nothing —
+            // orphansPage, which confirms only deletions — keeps the red
+            // button it has always had without being touched.
+            confirm: { open: false, title: '', message: '', label: 'Confirm', tone: 'danger' },
             sheet: { open: false, title: '', actions: '' },
             toast: { show: false, text: '' },
             _toastTimer: null,
@@ -155,6 +159,7 @@
                     title: detail.title || 'Are you sure?',
                     message: detail.message || '',
                     label: detail.label || 'Confirm',
+                    tone: detail.tone || 'danger',
                 };
             },
             doConfirm: function () {
@@ -1201,12 +1206,18 @@
             e.preventDefault();
             // A form may live in the mobile sheet; close it either way.
             dispatch('gallery:sheet-close', {});
+            // The form owns its own wording. Every confirmed action states what
+            // it is about to do — the two Plex actions move the same image in
+            // opposite directions, so a shared "Are you sure?" would not tell a
+            // user which button they hit. The fallbacks are Delete's, which is
+            // why the Delete form needs no attributes beyond data-confirm.
             if (form.hasAttribute('data-confirm')) {
                 pendingForm = form;
                 dispatch('gallery:confirm', {
-                    title: 'Delete poster?',
+                    title: form.getAttribute('data-confirm-title') || 'Delete poster?',
                     message: form.getAttribute('data-confirm'),
-                    label: 'Delete',
+                    label: form.getAttribute('data-confirm-label') || 'Delete',
+                    tone: form.getAttribute('data-confirm-tone') || 'danger',
                 });
                 return;
             }

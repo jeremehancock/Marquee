@@ -22,7 +22,12 @@
             <p class="stats" x-text="confirm.message"></p>
             <div class="modal__actions">
                 <button type="button" class="btn" @click="confirm.open = false">Cancel</button>
-                <button type="button" class="btn btn--danger" @click="doConfirm()" x-text="confirm.label"></button>
+                {# The confirming button's emphasis comes from the action being
+                   confirmed, not from the dialog: red is reserved for removing a
+                   poster, so an overwrite (Send to Plex, Fetch from Plex) is not
+                   offered under a button that reads as Delete. #}
+                <button type="button" class="btn" :class="confirm.tone === 'danger' ? 'btn--danger' : 'btn--accent'"
+                        @click="doConfirm()" x-text="confirm.label"></button>
             </div>
         </div>
     </div>

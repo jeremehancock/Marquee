@@ -59,14 +59,30 @@
                            posted filename to find it. Saying nothing (Delete) means the
                            whole grid, which is the safe default for anything that changes
                            WHICH posters exist and therefore the counts and pagination. #}
+                        {# Both Plex actions overwrite something that cannot be
+                           recovered — Send replaces the artwork on the Plex item,
+                           Fetch discards the poster stored here — so each states
+                           in its own words which copy it is about to overwrite.
+                           They sit side by side and move the same image in
+                           opposite directions, which is exactly what makes a
+                           mis-tap plausible and a shared wording useless. The
+                           tone keeps red for Delete alone. #}
                         {% if is_linked %}
                             <form class="js-mutate" method="post" action="{{ poster_base }}/send-to-plex"
-                                  data-refresh="none">
+                                  data-refresh="none"
+                                  data-confirm="Replace the artwork on Plex for “{{ caption_title }}” with Marquee's copy, and lock it?"
+                                  data-confirm-title="Send to Plex?"
+                                  data-confirm-label="Send to Plex"
+                                  data-confirm-tone="accent">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">Send to Plex</button>
                             </form>
                             <form class="js-mutate" method="post" action="{{ poster_base }}/fetch-from-plex"
-                                  data-refresh="card" data-category="{{ poster.category.value }}">
+                                  data-refresh="card" data-category="{{ poster.category.value }}"
+                                  data-confirm="Replace Marquee's poster for “{{ caption_title }}” with the artwork currently in Plex? This overwrites the stored poster."
+                                  data-confirm-title="Fetch from Plex?"
+                                  data-confirm-label="Fetch from Plex"
+                                  data-confirm-tone="accent">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">Fetch from Plex</button>
                             </form>
