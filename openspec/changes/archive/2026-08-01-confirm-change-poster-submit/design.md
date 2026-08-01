@@ -1,0 +1,258 @@
+## Context
+
+Everything this change needs already exists; it was generalised from Delete by
+`confirm-plex-send-and-fetch` (archived 2026-08-01) and is now the gallery's
+standard path for any overwriting action:
+
+- A `js-mutate` form declares its confirmation with `data-confirm` (the message)
+  plus `data-confirm-title`, `data-confirm-label`, and `data-confirm-tone`.
+- The delegated `submit` handler in [gallery.js:1201](public/assets/gallery.js#L1201)
+  sees `data-confirm`, parks the form in `pendingForm`, and dispatches
+  `gallery:confirm` instead of posting.
+- `askConfirm()` opens the shared dialog in
+  [_overlays.html.twig](templates/partials/_overlays.html.twig); `doConfirm()`
+  dispatches `gallery:confirmed`, and the handler then posts the parked form.
+- That dialog is a modal at desktop widths and restyles itself as a tray on a
+  phone — it is literally the Send to Plex confirmation.
+
+The two forms in question, [gallery.html.twig:104-119](templates/gallery.html.twig#L104-L119),
+are already `js-mutate` with `data-refresh="card"`, so they run through that same
+handler today and simply do not declare a confirmation.
+
+Two things are genuinely new here, and neither exists for Send/Fetch:
+
+1. **The message is not known at render time.** Send and Fetch are rendered per
+   card, so Twig can interpolate `caption_title` into a static attribute. The
+   change dialog is a single instance reused for whichever poster was tapped; its
+   title lives in Alpine state (`change.title`, set by `openChange()`).
+2. **The confirmation stacks on an already-open overlay.** Send and Fetch confirm
+   over the grid or over the action tray (which the submit handler closes first).
+   Here the change dialog must stay open behind the confirmation, because
+   declining has to leave the user's file selection and URL intact.
+
+Both `.modal` elements sit at `z-index: 55`; the confirm dialog is included after
+the change dialog in the document, so it paints above it with no CSS change. The
+scroll lock is computed from "is any overlay open"
+([gallery.js:260](public/assets/gallery.js#L260)), so nesting two is already
+handled.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Upload and From URL each require a deliberate confirmation before any request
+  is made.
+- Declining is total and lossless: no request, no toast, and the change dialog is
+  still open on the same tab with the same file/URL still entered.
+- One confirmation path serves pointer and touch, reusing the existing dialog
+  rather than adding a second one.
+- The dialog's action has one name — "Change poster" — on every control that
+  performs it.
+
+**Non-Goals:**
+
+- No change to `/library/{category}/change/upload` or `/change/url`, their
+  services, or their validation. Confirmation is a client concern.
+- No confirmation for Find Posters — it already has its own inline confirm step
+  in the preview viewer, and routing it through the shared dialog would put a
+  modal over a full-screen viewer for no gain.
+- No "don't ask me again" preference.
+- No change to what a URL may point at. Mediux URLs keep working; only the label
+  loses the parenthetical.
+
+## Decisions
+
+### Bind the confirmation attributes with Alpine, not Twig
+
+The forms get `:data-confirm` (an Alpine binding) built from `change.title`,
+alongside static `data-confirm-title="Change poster?"`,
+`data-confirm-label="Change poster"`, and `data-confirm-tone="accent"`. The
+delegated handler reads the attributes with `getAttribute` at submit time, by
+which point Alpine has written the current title into the DOM, so no script
+change is needed to carry a dynamic message.
+
+Alternatives considered:
+
+- *Push the message through the `gallery:confirm` detail from a custom
+  `@submit`.* Rejected — it bypasses the parked-form mechanism and would need a
+  second, parallel path to actually post the form after confirming.
+- *Teach `gallery.js` to special-case the change forms and compose the wording.*
+  Rejected for the same reason it was rejected last time: user-facing copy
+  belongs in the template, not the script.
+
+### Tone is `accent`, not `danger`
+
+Changing a poster overwrites an image the same way Send and Fetch do. Red stays
+reserved for Delete, and the Find Posters confirm button for this exact operation
+is already `btn--accent` — a red button here would make the same action look
+different depending on which tab reached it.
+
+### Wording names the poster and the source, and stops there
+
+Both messages name the poster with `change.title` (the caption title: title with
+year, no library) and say where the replacement comes from:
+
+- Heading: "Change poster?"
+- Upload: `Replace the poster for “<title>” with the selected image?`
+- From URL: `Replace the poster for “<title>” with the image at that URL?`
+- Confirm label: "Change poster".
+
+The two differ only in the source phrase, which is what distinguishes them if a
+user reaches the dialog from the wrong tab.
+
+An earlier draft appended "If it is linked to Plex, the new image is uploaded and
+locked." That is dropped: uploading to Plex and locking is what changing a poster
+*is* in this app — the README leads with it and every other path does it silently
+— so restating it in a one-line confirmation buries the question being asked
+under a conditional the user did not need to resolve to answer it.
+
+### The change dialog stops swallowing Escape
+
+The change dialog binds `@keydown.escape.window="change.open = false"` and the
+confirm dialog binds its own — one Escape currently closes both, which for a
+stacked confirmation means declining also discards the user's input. Guard the
+change dialog's binding on `!confirm.open` so Escape unwinds one layer at a time.
+The Find Posters viewer is unaffected: it is not open while these forms are
+submittable.
+
+Alternative considered: `@keydown.escape.window.stop` on the confirm dialog.
+Rejected — `window`-scoped listeners fire on the same event target, so ordering,
+not propagation, decides the outcome; an explicit guard is what actually holds.
+
+### Clear the inputs on open, not on close, and clear them by hand
+
+`openChange()` rebuilds `change` and `finder` but the file and URL fields are DOM
+state no binding owns, so they survive every dismissal — and since the dialog is
+one reused instance, the next poster opens holding the last one's input. Clearing
+in `openChange()` covers every exit path (backdrop, close button, Escape, tray
+drag, a change that errored) with one call, where clearing on close would need
+each of them wired separately and would still miss any new one added later.
+
+The two inputs are cleared individually via `x-ref` rather than with
+`form.reset()`. `reset()` restores each field's *default* value, and the hidden
+`filename` field has no `value` attribute — Alpine sets it as a property — so
+resetting the form would blank the very thing that identifies which poster is
+being replaced. Alpine would only rewrite it if `change.filename` actually
+changed, which it does not when the same poster is reopened. Clearing the two
+fields by name touches nothing else.
+
+### Close the raising tray on confirm, not on submit
+
+Both submit handlers — the gallery's delegated one and `orphansPage`'s own copy —
+closed the action tray unconditionally before deciding whether a confirmation was
+needed. So declining took the tray with it, and a user who answered "no" was
+returned to the grid having to reopen the poster to do anything else. The
+stylesheet already ranks `.modal` (55) above `.sheet` (50) *specifically* so a
+confirmation raised from a tray can be answered over it; closing the tray at
+submit time defeated that ranking.
+
+The dispatch moves past the `data-confirm` branch and is repeated in the
+`gallery:confirmed` handler. An unconfirmed submit closes the tray exactly as
+before; a confirmed one closes it when the action actually runs. The tray's
+Escape handler gets the same `!confirm.open` guard as the change dialog, for the
+same reason.
+
+This is a pre-existing defect — it has been there since Delete first confirmed
+from the tray — but it lives in the machinery this change is already extending,
+and shipping the fix separately would leave one PR queued behind another for a
+two-line move.
+
+### A push failure is not a change failure
+
+`replaceAndPush()` writes the file and *then* uploads to Plex, so the two can
+disagree: an orphan's poster is stored locally and rejected remotely. Both
+controller actions caught `UploadException | ExportException | PlexException`
+together and flashed `error`, and `changeSucceeded()` in `gallery.js` read
+"success" as the only level that means a card can be re-rendered. The result was
+a gallery showing the old poster under a message about the new one, correcting
+itself only on a manual reload.
+
+The fix splits the outcome three ways rather than two, along the line the code
+already draws:
+
+| Outcome | Level | Client |
+| --- | --- | --- |
+| Stored and pushed (or unlinked) | `success` | re-render the card |
+| Stored, push failed | `warning` | re-render the card |
+| Nothing stored (bad image, bad URL) | `error` | leave the card alone |
+
+The catch clauses map onto this exactly: `UploadException` is only ever raised
+before `storage->replace()`, and `ExportException`/`PlexException` only ever
+after it. So the split needs no new flag threaded out of the service.
+
+`changeSucceeded()` is renamed `posterStored()`, because the name was the bug:
+the client does not need to know whether everything went well, only whether there
+is a new image on disk to show. Find Posters gets the fix for free — it posts to
+the same `/change/url` endpoint.
+
+Alternatives considered:
+
+- *Flash `success` with the caveat appended.* Rejected — a green "Poster updated"
+  for something that did not reach Plex hides the half the user has to act on.
+- *Return a machine-readable marker (header, meta tag) instead of a new level.*
+  Rejected — the client already reads the flash, and the level genuinely differs
+  here; inventing a parallel channel would leave two sources of truth about one
+  outcome.
+
+Note this deliberately does **not** change Send to Plex or Fetch from Plex. Those
+store nothing when they fail, so `error` remains correct for them.
+
+One consequence: the toast is in practice the *only* place this message is seen.
+The amber `.alert--warning` renders on a full page load, which the AJAX path
+avoids — it parses the flash out and shows its text in the toast. The styling
+still earns its place (it is what `posterStored()` reads, and it is what a
+no-JavaScript user sees), but the toast is what has to carry the explanation.
+
+### Toast dwell time scales with the message
+
+A fixed dwell has to be set for the shortest message it will ever carry. 2400 ms
+suits "Poster updated."; the orphan explanation is 140 characters and had the
+same 2400 ms, so the one message actually worth reading was the one that could
+not be read.
+
+`toastMs()` is `1800 + 40 × length`, clamped to [2400, 9000] — a floor equal to
+the old fixed dwell, and reading time at roughly 25 characters a second. The two
+expressions meet exactly at the length of "Poster updated.", so every short
+message keeps the timing it has today and only longer ones gain.
+
+Alternatives considered:
+
+- *Raise the fixed dwell to fit the longest message.* Rejected — it would leave
+  "Poster deleted." parked over the grid for seven seconds after an action the
+  user already watched happen.
+- *Make the toast dismissible and leave it up until dismissed.* Rejected for this
+  change: it turns an ambient notice into something demanding an interaction, on
+  every routine action. Worth revisiting if more long messages appear.
+
+### Cancelling must not leave the form disabled or the dialog closed
+
+Nothing needs doing here, and that is the point worth recording: the parked-form
+pattern never touches the form until `gallery:confirmed`, `beginBusy()` runs
+inside `submitForm`, and `gallery:done` (which sets `change.open = false`) is
+dispatched only from `submitForm`'s completion. So a declined confirmation
+provably leaves the dialog open, the inputs populated, and no busy state
+stranded.
+
+## Risks / Trade-offs
+
+- **An extra click on every poster change, including the routine ones.** →
+  Accepted: the operation is unrecoverable (the previous poster file is gone) and
+  it is the only replacement path that was still one click; Find Posters, the
+  most-used path, has confirmed since it shipped.
+- **A single `pendingForm` slot shared with the card actions.** → Already true;
+  the confirm dialog is exclusive and blocks the page behind a backdrop, so a
+  second form cannot be submitted while one waits. The change dialog's two forms
+  are mutually exclusive tabs.
+- **`change.title` is user-supplied text interpolated into an attribute.** →
+  It is written by Alpine as a DOM property value, not parsed as HTML, and the
+  same value already renders through `x-text` in the dialog heading.
+- **Two stacked overlays on a phone, both draggable trays.** → The confirm tray
+  is the topmost element and owns the touch target; the change tray's grip is
+  behind its backdrop, and the same stacking already occurs when Send to Plex is
+  confirmed from the action tray.
+- **The orphans page shares `overlayComponent`.** → Untouched: it renders no
+  change dialog and this change adds no fields to the shared confirm state.
+
+## Open Questions
+
+None.

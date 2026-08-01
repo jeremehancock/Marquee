@@ -108,13 +108,37 @@
 
     // Every mutation endpoint answers 302 -> the gallery page whether it worked
     // or not, so the HTTP status says nothing about whether the poster actually
-    // changed; the flash's level is the only signal. Only a success may touch a
-    // card — and a failure stored nothing, so it has nothing to re-render
-    // either. Reads the same `.alert` extractFlash does, so the two cannot
-    // disagree about which element is the flash.
-    function changeSucceeded(doc) {
+    // changed; the flash's level is the only signal. Reads the same `.alert`
+    // extractFlash does, so the two cannot disagree about which element is the
+    // flash.
+    //
+    // The question is "is there a new image on disk?", not "did everything go
+    // well?" — those come apart for an orphan. A change writes the file first
+    // and pushes to Plex second, so a poster whose Plex item is gone ends up
+    // stored locally and rejected remotely. That is the warning level, and it
+    // must re-render the card: treating it as a failure left the gallery
+    // showing the old image under a message about the new one, until the user
+    // reloaded the page by hand.
+    function posterStored(doc) {
         var el = doc.querySelector('.alert');
-        return !!el && el.classList.contains('alert--success');
+        if (!el) { return false; }
+
+        return el.classList.contains('alert--success') || el.classList.contains('alert--warning');
+    }
+
+    // How long a toast stays up. A fixed dwell has to be set for the shortest
+    // message it will ever carry, which leaves the longest ones unreadable — and
+    // the longest are the ones that matter most, since a bare "Poster updated."
+    // needs no reading at all while "…could not be sent to Plex. This item no
+    // longer exists…" is the whole reason the toast was worth showing.
+    //
+    // The floor is the dwell every toast used to get, and the slope adds reading
+    // time at roughly 25 characters a second. The two meet exactly at the length
+    // of "Poster updated.", so short messages behave as they always have and only
+    // longer ones gain time. The ceiling stops an unexpectedly long message from
+    // parking itself over the grid.
+    function toastMs(text) {
+        return Math.max(2400, Math.min(9000, 1800 + String(text).length * 40));
     }
 
     // ---- Shared overlay behavior ----
@@ -170,7 +194,7 @@
                 var self = this;
                 this.toast = { show: true, text: text };
                 clearTimeout(this._toastTimer);
-                this._toastTimer = setTimeout(function () { self.toast.show = false; }, 2400);
+                this._toastTimer = setTimeout(function () { self.toast.show = false; }, toastMs(text));
             },
         };
     }
@@ -418,8 +442,9 @@
                         var form = e.target;
                         if (!(form instanceof HTMLFormElement) || !form.classList.contains('js-mutate')) { return; }
                         e.preventDefault();
-                        // The form may live in the tray; close it either way.
-                        self.closeSheet();
+                        // Declining leaves the tray standing, as on the gallery:
+                        // the confirmation is raised above it and answering "no"
+                        // should return the user to the actions, not close them.
                         if (form.hasAttribute('data-confirm')) {
                             self._pendingForm = form;
                             self.askConfirm({
@@ -429,6 +454,8 @@
                             });
                             return;
                         }
+                        // The form may live in the tray; close it either way.
+                        self.closeSheet();
                         self.submitDelete(form);
                     });
 
@@ -436,6 +463,7 @@
                         if (self._pendingForm) {
                             var form = self._pendingForm;
                             self._pendingForm = null;
+                            self.closeSheet();
                             self.submitDelete(form);
                         }
                     });
@@ -716,6 +744,20 @@
                 openChange: function (filename, title, category) {
                     this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
                     this.finder = { loading: false, error: '', notice: '', results: [], preview: null, previewLoaded: false, confirming: false, applying: false };
+                    // The file and URL inputs are DOM state that no Alpine
+                    // binding owns, so dismissing the dialog leaves whatever was
+                    // picked or typed sitting in them — and this dialog is one
+                    // instance reused for every poster, so the next one opens
+                    // holding the last one's input. Clearing on open covers
+                    // every way it can be dismissed (backdrop, close, Escape,
+                    // drag, a change that failed) with one call.
+                    //
+                    // The two inputs are cleared by hand rather than by
+                    // form.reset(): reset() restores the *default* value of every
+                    // field, which would blank the hidden filename that Alpine
+                    // binds as a property with no attribute behind it.
+                    if (this.$refs.changeFile) { this.$refs.changeFile.value = ''; }
+                    if (this.$refs.changeUrl) { this.$refs.changeUrl.value = ''; }
                 },
                 findPosters: function () {
                     var self = this;
@@ -813,7 +855,7 @@
                             // is re-rendered solely when that card is not on
                             // screen to update — a change made from a card the
                             // user can see never disturbs the view.
-                            if (changeSucceeded(doc) && !refreshCard(category, filename)) {
+                            if (posterStored(doc) && !refreshCard(category, filename)) {
                                 dispatch('gallery:refresh', {});
                             }
                         })
@@ -1054,16 +1096,16 @@
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
                     var flash = extractFlash(doc);
-                    // `none` stored nothing, and a `card` mutation that failed
-                    // stored nothing either: neither has anything to re-render.
-                    // A successful `card` mutation rewrites just that card, and
-                    // falls through to the grid only when the card is not on
-                    // screen to rewrite. Everything else — Delete, and any form
-                    // that declares nothing — changes which posters exist, so
-                    // the counts and pagination need the full re-render.
+                    // `none` stored nothing, and a `card` mutation that stored
+                    // nothing has nothing to re-render either. A `card` mutation
+                    // that did store an image rewrites just that card, and falls
+                    // through to the grid only when the card is not on screen to
+                    // rewrite. Everything else — Delete, and any form that
+                    // declares nothing — changes which posters exist, so the
+                    // counts and pagination need the full re-render.
                     var handled = refresh === 'none'
                         || (refresh === 'card'
-                            && (!changeSucceeded(doc) || refreshCard(category, filename)));
+                            && (!posterStored(doc) || refreshCard(category, filename)));
                     if (handled) {
                         if (flash) { dispatch('gallery:toast', { text: flash }); }
                         return null;
@@ -1204,13 +1246,17 @@
             // that component; skip them here.
             if (form.closest('[data-nested-scope]')) { return; }
             e.preventDefault();
-            // A form may live in the mobile sheet; close it either way.
-            dispatch('gallery:sheet-close', {});
             // The form owns its own wording. Every confirmed action states what
             // it is about to do — the two Plex actions move the same image in
             // opposite directions, so a shared "Are you sure?" would not tell a
             // user which button they hit. The fallbacks are Delete's, which is
             // why the Delete form needs no attributes beyond data-confirm.
+            //
+            // A confirmed action leaves the tray it was raised from standing.
+            // The stylesheet already ranks a dialog above a tray for exactly
+            // this reason; closing the tray here anyway meant declining a
+            // confirmation dismissed the actions behind it too, so a user who
+            // answered "no" had to reopen the poster to do anything else.
             if (form.hasAttribute('data-confirm')) {
                 pendingForm = form;
                 dispatch('gallery:confirm', {
@@ -1221,6 +1267,8 @@
                 });
                 return;
             }
+            // A form may live in the mobile sheet; close it either way.
+            dispatch('gallery:sheet-close', {});
             submitForm(form);
         });
 
@@ -1228,6 +1276,9 @@
             if (pendingForm) {
                 var form = pendingForm;
                 pendingForm = null;
+                // Now the action is really happening, so the tray that offered
+                // it goes — same as an unconfirmed submit.
+                dispatch('gallery:sheet-close', {});
                 submitForm(form);
             }
         });

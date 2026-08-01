@@ -76,7 +76,12 @@
     </div>
 
     {# Change poster modal #}
-    <div class="modal" x-show="change.open" x-cloak @keydown.escape.window="change.open = false" style="display:none">
+    {# Escape unwinds one layer at a time. Both this dialog and the confirm dialog
+       stacked over it listen on the window, so an unguarded handler would close
+       both — declining a confirmation would also discard the file the user had
+       just picked. Ordering cannot fix that; only the guard can. #}
+    <div class="modal" x-show="change.open" x-cloak
+         @keydown.escape.window="if (!confirm.open) change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
         <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
              role="dialog" aria-modal="true" aria-label="Change poster">
@@ -100,21 +105,35 @@
                 {# data-refresh="card": both tabs replace one poster's image and nothing
                    else, so the grid is left standing and only that card is rebuilt. See
                    the note in partials/gallery_results.html.twig. #}
+                {# Both tabs confirm before they post, the same way the card's Send,
+                   Fetch and Delete forms do — the delegated submit handler parks the
+                   form and opens the shared dialog, so the file or URL is still there
+                   if the answer is no. The message is bound rather than written into
+                   the markup because this dialog is one instance reused for whichever
+                   poster was tapped; only Alpine knows which that is. #}
                 <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/upload'"
                       enctype="multipart/form-data" x-show="change.tab === 'upload'"
-                      data-refresh="card" :data-category="change.category">
+                      data-refresh="card" :data-category="change.category"
+                      :data-confirm="'Replace the poster for “' + change.title + '” with the selected image?'"
+                      data-confirm-title="Change poster?"
+                      data-confirm-label="Change poster"
+                      data-confirm-tone="accent">
                     <input type="hidden" name="filename" :value="change.filename">
                     <label for="change-file">Image file (JPG, PNG, or WebP)</label>
-                    <input id="change-file" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
-                    <button type="submit" class="btn btn--accent">Update poster</button>
+                    <input id="change-file" x-ref="changeFile" type="file" name="poster" accept="image/jpeg,image/png,image/webp" required>
+                    <button type="submit" class="btn btn--accent">Change poster</button>
                 </form>
 
                 <form class="form js-mutate" method="post" :action="'/library/' + change.category + '/change/url'"
-                      x-show="change.tab === 'url'" data-refresh="card" :data-category="change.category">
+                      x-show="change.tab === 'url'" data-refresh="card" :data-category="change.category"
+                      :data-confirm="'Replace the poster for “' + change.title + '” with the image at that URL?'"
+                      data-confirm-title="Change poster?"
+                      data-confirm-label="Change poster"
+                      data-confirm-tone="accent">
                     <input type="hidden" name="filename" :value="change.filename">
-                    <label for="change-url">Image URL (also supports Mediux URLs)</label>
-                    <input id="change-url" type="url" name="url" placeholder="https://…" required>
-                    <button type="submit" class="btn btn--accent">Update poster</button>
+                    <label for="change-url">Image URL</label>
+                    <input id="change-url" x-ref="changeUrl" type="url" name="url" placeholder="https://…" required>
+                    <button type="submit" class="btn btn--accent">Change poster</button>
                 </form>
 
                 <div x-show="change.tab === 'find'">

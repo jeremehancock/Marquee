@@ -241,6 +241,16 @@ h1 {
     color: #74c084;
 }
 
+/* Amber: the operation did what it was asked locally but could not finish —
+   a poster replaced on disk that Plex would not take. Neither green nor red is
+   true of that, and the difference matters: the new poster is stored and on
+   screen, so the message is about Plex, not about the change. */
+.alert--warning {
+    background: rgba(228, 181, 95, 0.15);
+    border-color: rgba(228, 181, 95, 0.4);
+    color: #e4b55f;
+}
+
 [x-cloak] {
     display: none !important;
 }

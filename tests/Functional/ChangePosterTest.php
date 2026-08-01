@@ -8,6 +8,7 @@ use App\Database\Database;
 use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Plex\PlexClient;
+use App\Plex\PlexException;
 use App\Plex\PlexMediaType;
 use App\Plex\PlexPosterWriter;
 use App\Poster\Source\PosterCandidate;
@@ -85,6 +86,68 @@ final class ChangePosterTest extends AppTestCase
         self::assertSame(302, $response->getStatusCode());
         self::assertSame($this->pngBytes(2, 3), file_get_contents($this->postersDir . '/movies/Solaris.jpg'));
         self::assertSame(['10'], $writer->uploaded);
+    }
+
+    /**
+     * A change writes the file first and pushes to Plex second, so a poster
+     * whose Plex item is gone is stored locally and then rejected remotely. That
+     * is not a failed change — the new image is on disk — and reporting it as one
+     * left the gallery showing the old poster under a message about the new one
+     * until the user reloaded by hand.
+     *
+     * The level is what the client reads to decide whether it has a card to
+     * re-render, so the distinction is load-bearing, not cosmetic.
+     */
+    public function testChangeThatCannotReachPlexStillStoresThePoster(): void
+    {
+        $writer = new class () implements PlexPosterWriter {
+            public function uploadPoster(string $ratingKey, string $imageBytes): void
+            {
+                throw PlexException::itemNotFound();
+            }
+
+            public function lockPoster(string $ratingKey): void
+            {
+            }
+
+            public function removeOverlayLabel(string $sectionKey, int $plexType, string $ratingKey): void
+            {
+            }
+        };
+        $http = $this->createMock(ClientInterface::class);
+        $http->method('request')->willReturn(new Response(200, [], $this->pngBytes(2, 3)));
+
+        $app = $this->makeApp(
+            [
+                'AUTH_BYPASS' => 'true',
+                'POSTERS_DIR' => $this->postersDir,
+                'DATA_DIR' => $this->dataDir,
+                'PLEX_SERVER_URL' => 'http://plex:32400',
+                'PLEX_TOKEN' => 'token',
+            ],
+            [
+                ClientInterface::class => static fn (): ClientInterface => $http,
+                PlexPosterWriter::class => static fn (): PlexPosterWriter => $writer,
+            ],
+        );
+
+        $response = $this->postForm($app, '/library/movies/change/url', [
+            'filename' => 'Solaris.jpg',
+            'url' => 'https://example.com/p.png',
+        ]);
+
+        self::assertSame(302, $response->getStatusCode());
+        // The whole point: the new image really is stored.
+        self::assertSame($this->pngBytes(2, 3), file_get_contents($this->postersDir . '/movies/Solaris.jpg'));
+
+        // Reported as a warning, not an error — and the Plex reason survives,
+        // because that is what tells the user this is an orphan rather than a
+        // server they should go and fix.
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+        self::assertStringContainsString('alert--warning', $body);
+        self::assertStringContainsString('Poster updated, but it could not be sent to Plex.', $body);
+        self::assertStringContainsString('the poster may be orphaned', $body);
+        self::assertStringNotContainsString('alert--error', $body);
     }
 
     private function fakeSource(PosterSearchResult $result): FakePosterSource

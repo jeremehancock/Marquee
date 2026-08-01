@@ -473,10 +473,21 @@ The gallery SHALL apply poster actions — change, send to Plex, fetch from Plex
 and delete — without reloading the whole page, refreshing only the grid and
 reporting the outcome.
 
+A reported outcome SHALL stay on screen long enough to be read, in proportion to
+how much it says. A one-line acknowledgement and an explanation of why an
+operation could not finish SHALL NOT be given the same dwell time, since the
+messages worth reading are the long ones.
+
 #### Scenario: Updating a poster refreshes only the grid
 - **WHEN** a user changes, sends, fetches, or deletes a poster
 - **THEN** the grid reflects the result and a short confirmation is shown, and
   the surrounding page is not reloaded
+
+#### Scenario: A long outcome message is readable
+- **WHEN** an operation reports something the user has to act on, such as a
+  change that could not be sent to Plex because the item may be orphaned
+- **THEN** the message stays on screen materially longer than a bare
+  acknowledgement like "Poster updated."
 
 #### Scenario: Works without JavaScript
 - **WHEN** a user performs a poster action with JavaScript disabled
@@ -501,6 +512,12 @@ drag region is a real element distinct from any scrolling content, and a
 tappable backdrop. Its own Cancel action SHALL remain, but SHALL NOT be the only
 way to decline. Dismissing a confirmation by any route without choosing its
 confirming action SHALL leave the destructive action untaken.
+
+Declining SHALL unwind exactly one layer. A confirmation raised from inside a
+tray SHALL leave that tray open and unchanged when it is declined by any route —
+Cancel, backdrop, close control, Escape, or drag — returning the user to the
+actions they were choosing from. The raising tray SHALL be closed only when the
+confirming action is actually taken.
 
 A card action that requires confirmation SHALL do so identically whether it was
 started from the card's hover overlay or from the mobile action tray.
@@ -530,6 +547,20 @@ started from the card's hover overlay or from the mobile action tray.
   from the action tray
 - **THEN** the same confirmation is shown, and the action runs only if the user
   confirms
+
+#### Scenario: Declining returns the user to the action tray
+- **WHEN** a user chooses a confirmed action from a poster's action tray on a
+  small screen and then cancels the confirmation
+- **THEN** the confirmation closes, the action tray is still open showing that
+  poster's actions, and nothing has been deleted, overwritten, or sent
+
+#### Scenario: Escape closes the confirmation before the tray
+- **WHEN** a user presses Escape while a confirmation raised from a tray is open
+- **THEN** only the confirmation closes; a second Escape closes the tray
+
+#### Scenario: Confirming closes the tray that offered the action
+- **WHEN** a user chooses a confirmed action from the action tray and confirms it
+- **THEN** the tray closes and the action runs
 
 #### Scenario: Dismissing a confirmation tray by dragging it down
 - **WHEN** a user drags a confirmation tray downward by its handle on a small

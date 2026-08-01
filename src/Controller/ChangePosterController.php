@@ -23,6 +23,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Log\LoggerInterface;
 use Slim\Exception\HttpNotFoundException;
+use Throwable;
 
 /**
  * Per-poster editing: change from a file, a URL, a Plex re-pull, or a found
@@ -54,8 +55,10 @@ final class ChangePosterController
             }
             $pushed = $this->change->changeFromUploadedFile($category, $filename, $file);
             $this->flashChanged($pushed);
-        } catch (UploadException | ExportException | PlexException $e) {
+        } catch (UploadException $e) {
             $this->flash->add('error', $e->getMessage());
+        } catch (ExportException | PlexException $e) {
+            $this->flashChangedButNotPushed($e);
         }
 
         return $this->back($response, $category);
@@ -74,8 +77,10 @@ final class ChangePosterController
         try {
             $pushed = $this->change->changeFromUrl($category, $filename, $url);
             $this->flashChanged($pushed);
-        } catch (UploadException | ExportException | PlexException $e) {
+        } catch (UploadException $e) {
             $this->flash->add('error', $e->getMessage());
+        } catch (ExportException | PlexException $e) {
+            $this->flashChangedButNotPushed($e);
         }
 
         return $this->back($response, $category);
@@ -274,6 +279,23 @@ final class ChangePosterController
     private function flashChanged(bool $pushed): void
     {
         $this->flash->add('success', $pushed ? 'Poster updated and sent to Plex.' : 'Poster updated.');
+    }
+
+    /**
+     * The poster was replaced on disk and then could not be pushed to Plex —
+     * the item is gone (an orphan), or Plex is unreachable or rejecting the
+     * token. Reporting that as a plain error would be false twice over: it says
+     * nothing changed when the new poster is already stored, and it leaves the
+     * gallery showing the old image, because the client only re-renders a card
+     * for an operation that stored something.
+     *
+     * So it is its own level. The message leads with what happened locally and
+     * carries the underlying reason, which is the part that tells the user
+     * whether to fix Plex or delete an orphan.
+     */
+    private function flashChangedButNotPushed(Throwable $e): void
+    {
+        $this->flash->add('warning', 'Poster updated, but it could not be sent to Plex. ' . $e->getMessage());
     }
 
     /**
