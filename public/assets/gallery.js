@@ -660,10 +660,60 @@
                     this.importOpen = false;
                     this._resetImport();
                 },
+                // The loaded form's own Alpine component, or null when it cannot
+                // be reached — a failed load leaves an error message where the
+                // form would have been. Guarded like _rescanOrphans, so a tray
+                // that never loaded degrades to doing nothing rather than
+                // throwing inside a completed import.
+                _importData: function () {
+                    if (!this._importForm || !window.Alpine || !window.Alpine.$data) { return null; }
+                    try { return window.Alpine.$data(this._importForm); } catch (e) { return null; }
+                },
+                // Put the loaded form back to step one, in place.
+                //
+                // Rewound rather than reloaded: the import tray is fetch-once
+                // because a configuration form does not decay (see openImport), so
+                // refetching would blank the tray to a spinner and back for content
+                // that did not change — and re-running Alpine.initTree over a fresh
+                // fragment re-binds whatever that fragment binds on init, which is
+                // the hazard openOrphans goes out of its way to avoid.
+                //
+                // `force` is cleared by hand because it is the one control the
+                // form's component does not own — no x-model reaches it. For the
+                // same reason form.reset() is not an option here: it would clear
+                // the DOM, and x-model would write the stale type and sections
+                // straight back over it.
+                _rewindImportForm: function () {
+                    var data = this._importData();
+                    if (data) {
+                        data.type = '';
+                        // Clearing the type alone is not enough: the radios clear
+                        // `sections` on change, so a stale library selection would
+                        // reappear the moment the same type was picked again.
+                        data.sections = [];
+                        // Lifts the tray-contained progress overlay and re-enables
+                        // the submit button.
+                        data.importing = false;
+                    }
+                    if (this._importForm) {
+                        var force = this._importForm.querySelector('input[name="force"]');
+                        if (force) { force.checked = false; }
+                    }
+                    // Rewinding collapses steps two and three, so a tray still
+                    // scrolled down to the Import button would land on whitespace.
+                    // The scroller is .sheet__body, not the ref inside it — the
+                    // ref is a plain div and setting scrollTop on it does nothing.
+                    var body = this.$refs.importBody && this.$refs.importBody.closest('.sheet__body');
+                    if (body) { body.scrollTop = 0; }
+                },
 
                 // Run the import in place: the form's @submit already shows its
-                // spinner (contained to the tray); on completion close the tray,
-                // report the summary, and refresh the gallery grid behind it.
+                // spinner (contained to the tray). On completion the tray stays
+                // open with the form rewound to step one, because importing is
+                // repetitive — the form takes one content type per run, so
+                // populating a library means running it once per type, and closing
+                // the tray would charge a reopen for every repeat. Then report the
+                // summary and refresh the gallery grid behind it.
                 runImport: function (form) {
                     var self = this;
                     fetch('/plex/import', {
@@ -676,17 +726,23 @@
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var alert = doc.querySelector('.alert');
-                            self.importOpen = false;
-                            // Discard the cached form so reopening starts fresh.
-                            self._resetImport();
+                            // The tray stays open; the form goes back to step one
+                            // so the next import starts from a clean choice.
+                            self._rewindImportForm();
                             self.notify(alert ? alert.textContent.trim() : 'Import complete.');
                             dispatch('gallery:refresh', {});
                         })
-                        .catch(function () { self.notify('Import failed. Please try again.'); })
-                        .finally(function () {
-                            if (window.Alpine && self._importForm) {
-                                try { window.Alpine.$data(self._importForm).importing = false; } catch (e) { /* form gone */ }
-                            }
+                        // A failure leaves the tray standing *and* leaves the
+                        // selections alone — they are exactly what a retry would
+                        // otherwise have to re-enter — so only the progress overlay
+                        // is lifted. Each outcome clears `importing` itself rather
+                        // than sharing a `finally`, which is what let the flag go
+                        // uncleared on success back when this path discarded the
+                        // form the `finally` was reaching for.
+                        .catch(function () {
+                            var data = self._importData();
+                            if (data) { data.importing = false; }
+                            self.notify('Import failed. Please try again.');
                         });
                 },
 
