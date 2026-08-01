@@ -39,6 +39,9 @@ _None._
   stored poster and Plex untouched. The change dialog opens with empty inputs
   every time, its submit action is named "Change poster", and its URL field is
   labelled "Image URL".
+- `poster-editing`: A change that stores the new poster and then cannot push it
+  to Plex is reported as its own outcome rather than as a failure, and its new
+  poster is shown immediately like any other change.
 - `poster-library`: Declining a confirmation unwinds exactly one layer — a
   confirmation raised from a tray leaves that tray open, and the tray closes only
   when the action is actually taken.

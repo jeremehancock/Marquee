@@ -108,13 +108,22 @@
 
     // Every mutation endpoint answers 302 -> the gallery page whether it worked
     // or not, so the HTTP status says nothing about whether the poster actually
-    // changed; the flash's level is the only signal. Only a success may touch a
-    // card — and a failure stored nothing, so it has nothing to re-render
-    // either. Reads the same `.alert` extractFlash does, so the two cannot
-    // disagree about which element is the flash.
-    function changeSucceeded(doc) {
+    // changed; the flash's level is the only signal. Reads the same `.alert`
+    // extractFlash does, so the two cannot disagree about which element is the
+    // flash.
+    //
+    // The question is "is there a new image on disk?", not "did everything go
+    // well?" — those come apart for an orphan. A change writes the file first
+    // and pushes to Plex second, so a poster whose Plex item is gone ends up
+    // stored locally and rejected remotely. That is the warning level, and it
+    // must re-render the card: treating it as a failure left the gallery
+    // showing the old image under a message about the new one, until the user
+    // reloaded the page by hand.
+    function posterStored(doc) {
         var el = doc.querySelector('.alert');
-        return !!el && el.classList.contains('alert--success');
+        if (!el) { return false; }
+
+        return el.classList.contains('alert--success') || el.classList.contains('alert--warning');
     }
 
     // ---- Shared overlay behavior ----
@@ -831,7 +840,7 @@
                             // is re-rendered solely when that card is not on
                             // screen to update — a change made from a card the
                             // user can see never disturbs the view.
-                            if (changeSucceeded(doc) && !refreshCard(category, filename)) {
+                            if (posterStored(doc) && !refreshCard(category, filename)) {
                                 dispatch('gallery:refresh', {});
                             }
                         })
@@ -1072,16 +1081,16 @@
                 .then(function (html) {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
                     var flash = extractFlash(doc);
-                    // `none` stored nothing, and a `card` mutation that failed
-                    // stored nothing either: neither has anything to re-render.
-                    // A successful `card` mutation rewrites just that card, and
-                    // falls through to the grid only when the card is not on
-                    // screen to rewrite. Everything else — Delete, and any form
-                    // that declares nothing — changes which posters exist, so
-                    // the counts and pagination need the full re-render.
+                    // `none` stored nothing, and a `card` mutation that stored
+                    // nothing has nothing to re-render either. A `card` mutation
+                    // that did store an image rewrites just that card, and falls
+                    // through to the grid only when the card is not on screen to
+                    // rewrite. Everything else — Delete, and any form that
+                    // declares nothing — changes which posters exist, so the
+                    // counts and pagination need the full re-render.
                     var handled = refresh === 'none'
                         || (refresh === 'card'
-                            && (!changeSucceeded(doc) || refreshCard(category, filename)));
+                            && (!posterStored(doc) || refreshCard(category, filename)));
                     if (handled) {
                         if (flash) { dispatch('gallery:toast', { text: flash }); }
                         return null;

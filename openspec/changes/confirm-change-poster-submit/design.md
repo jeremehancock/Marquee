@@ -157,6 +157,46 @@ from the tray — but it lives in the machinery this change is already extending
 and shipping the fix separately would leave one PR queued behind another for a
 two-line move.
 
+### A push failure is not a change failure
+
+`replaceAndPush()` writes the file and *then* uploads to Plex, so the two can
+disagree: an orphan's poster is stored locally and rejected remotely. Both
+controller actions caught `UploadException | ExportException | PlexException`
+together and flashed `error`, and `changeSucceeded()` in `gallery.js` read
+"success" as the only level that means a card can be re-rendered. The result was
+a gallery showing the old poster under a message about the new one, correcting
+itself only on a manual reload.
+
+The fix splits the outcome three ways rather than two, along the line the code
+already draws:
+
+| Outcome | Level | Client |
+| --- | --- | --- |
+| Stored and pushed (or unlinked) | `success` | re-render the card |
+| Stored, push failed | `warning` | re-render the card |
+| Nothing stored (bad image, bad URL) | `error` | leave the card alone |
+
+The catch clauses map onto this exactly: `UploadException` is only ever raised
+before `storage->replace()`, and `ExportException`/`PlexException` only ever
+after it. So the split needs no new flag threaded out of the service.
+
+`changeSucceeded()` is renamed `posterStored()`, because the name was the bug:
+the client does not need to know whether everything went well, only whether there
+is a new image on disk to show. Find Posters gets the fix for free — it posts to
+the same `/change/url` endpoint.
+
+Alternatives considered:
+
+- *Flash `success` with the caveat appended.* Rejected — a green "Poster updated"
+  for something that did not reach Plex hides the half the user has to act on.
+- *Return a machine-readable marker (header, meta tag) instead of a new level.*
+  Rejected — the client already reads the flash, and the level genuinely differs
+  here; inventing a parallel channel would leave two sources of truth about one
+  outcome.
+
+Note this deliberately does **not** change Send to Plex or Fetch from Plex. Those
+store nothing when they fail, so `error` remains correct for them.
+
 ### Cancelling must not leave the form disabled or the dialog closed
 
 Nothing needs doing here, and that is the point worth recording: the parked-form

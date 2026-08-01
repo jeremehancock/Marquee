@@ -33,7 +33,60 @@ Plex.
   untouched, reports nothing, and leaves the change dialog open on the tab and
   input the user was on
 
+### Requirement: Operations that store no new image leave the gallery alone
+An operation that does not replace the poster's stored image SHALL NOT re-render
+the gallery. It SHALL report its outcome and leave the grid, its scroll
+position, and every card untouched.
+
+Whether a new image was stored SHALL be decided by what actually reached disk,
+not by whether the operation as a whole succeeded. A change that replaced the
+poster and then failed to push it to Plex has stored a new image, and SHALL
+present it like any other change.
+
+#### Scenario: Re-sending to Plex does not re-render the gallery
+- **WHEN** a user sends a stored poster to Plex
+- **THEN** the result is reported and no card, count, or scroll position in the
+  gallery changes
+
+#### Scenario: A failed change leaves the gallery untouched
+- **WHEN** an operation that would have replaced a poster's image fails before
+  storing anything — an image that is rejected, a URL that cannot be fetched
+- **THEN** the failure is reported and the poster's card keeps the image it was
+  already showing
+
 ## ADDED Requirements
+
+### Requirement: A change that cannot reach Plex still shows the new poster
+A change replaces the poster's file before it uploads to Plex, so a failure to
+reach or update the Plex item leaves a new image already stored. The system SHALL
+report that outcome as distinct from both a clean success and a change that
+stored nothing: it SHALL state that the poster was updated, SHALL carry the
+reason the upload did not happen, and SHALL NOT present it in the styling used
+for an outright failure.
+
+The new poster SHALL be presented immediately, on the same terms as any other
+change — the changed card is re-rendered in place and the rest of the gallery is
+left alone — without requiring the user to reload the page.
+
+#### Scenario: Changing an orphaned poster
+- **WHEN** a user changes the poster of an item that no longer exists in Plex
+- **THEN** the new poster is stored and shown in the gallery straight away, and
+  the message says the poster was updated but could not be sent to Plex, naming
+  the likely orphan as the reason
+
+#### Scenario: Changing a poster while Plex is unreachable
+- **WHEN** a user changes a linked poster and Plex cannot be reached or rejects
+  the token
+- **THEN** the new poster is stored and shown, and the message reports that it
+  could not be sent to Plex along with the underlying reason
+
+#### Scenario: A rejected image is still an outright failure
+- **WHEN** a change fails before anything is stored, because the image is not a
+  supported type, is too large, or the URL cannot be fetched
+- **THEN** it is reported as a failure and the poster's card keeps its previous
+  image
+
+
 
 ### Requirement: Changing a poster is confirmed before it runs
 The change-poster dialog SHALL confirm an Upload or a From URL submission through

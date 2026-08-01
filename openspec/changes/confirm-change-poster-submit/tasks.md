@@ -43,37 +43,55 @@
       matching the change dialog.
 - [x] 4.4 Assert the guarded tray handler in `tests/Functional/GalleryTest.php`.
 
-## 5. Manual verification
+## 5. A change that cannot reach Plex
 
-- [ ] 5.1 Desktop: on each tab, submit and confirm — the poster changes, the
+- [x] 5.1 In `ChangePosterController::upload()` and `url()`, split the catch:
+      `UploadException` stays an error (nothing was stored), while
+      `ExportException | PlexException` reports that the poster was updated but
+      could not be sent to Plex, carrying the underlying reason.
+- [x] 5.2 Add the `warning` flash level: `.alert--warning` in
+      `public/assets/app.css`.
+- [x] 5.3 In `public/assets/gallery.js`, replace `changeSucceeded()` with
+      `posterStored()` — success *or* warning means there is a new image to
+      show — and update the stale comment in `submitForm`.
+- [x] 5.4 In `tests/Functional/ChangePosterTest.php`, assert that a change whose
+      Plex upload throws still writes the file and reports at warning level with
+      the Plex reason intact.
+
+## 6. Manual verification
+
+- [ ] 6.1 Desktop: on each tab, submit and confirm — the poster changes, the
       card updates in place, the dialog closes, and the toast reports the result.
-- [ ] 5.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
+- [ ] 6.2 Desktop: on each tab, submit and cancel (button, backdrop, Escape,
       close control) — nothing is requested, the change dialog is still open on
       the same tab, and the chosen file / typed URL is still there.
-- [ ] 5.3 Phone width: confirm that the confirmation is presented as a tray over
+- [ ] 6.3 Phone width: confirm that the confirmation is presented as a tray over
       the change tray, matching Send to Plex, and that both dismiss cleanly with
       no stuck scroll lock.
-- [ ] 5.4 Confirm Find Posters still applies through its own inline confirm step,
+- [ ] 6.4 Confirm Find Posters still applies through its own inline confirm step,
       and Send/Fetch/Delete confirmations are unchanged.
-- [ ] 5.5 Pick a file and type a URL, dismiss the dialog without changing the
+- [ ] 6.5 Pick a file and type a URL, dismiss the dialog without changing the
       poster, then reopen it — for the same poster and for a different one. Both
       fields are empty, the Upload tab is active, and the change still applies to
       the poster that was opened.
-- [ ] 5.6 Phone width: from a poster's action tray choose Delete, then Send to
+- [ ] 6.6 Change the poster of a known orphan: the new poster appears on its card
+      straight away with no page reload, under an amber message saying it was
+      updated but could not be sent to Plex.
+- [ ] 6.7 Phone width: from a poster's action tray choose Delete, then Send to
       Plex, then Fetch from Plex, cancelling each — the action tray is still open
       every time. Confirm one and check the tray closes. Repeat for Delete inside
       the orphans tray.
 
-## 6. Tests, gates, docs
+## 7. Tests, gates, docs
 
-- [x] 6.1 In `tests/Functional/GalleryTest.php`, assert the rendered gallery
+- [x] 7.1 In `tests/Functional/GalleryTest.php`, assert the rendered gallery
       contains "Change poster" as both submit labels, the plain "Image URL"
       label, and no "Mediux" text.
-- [x] 6.2 In the same test file, assert both change forms carry
+- [x] 7.2 In the same test file, assert both change forms carry
       `data-confirm-title`, `data-confirm-label`, and `data-confirm-tone`, and
       that the URL form carries the bound `:data-confirm` attribute.
-- [x] 6.3 Run `composer test`, `composer stan`, and `composer cs`; fix anything
+- [x] 7.3 Run `composer test`, `composer stan`, and `composer cs`; fix anything
       they report.
-- [x] 6.4 Confirm `README.md`, `docs/`, and `CLAUDE.md` describe none of these
+- [x] 7.4 Confirm `README.md`, `docs/`, and `CLAUDE.md` describe none of these
       labels and need no edit; state that explicitly in the commit rather than
       inventing doc changes.
