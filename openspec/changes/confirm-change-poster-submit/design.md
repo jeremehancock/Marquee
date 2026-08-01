@@ -197,6 +197,33 @@ Alternatives considered:
 Note this deliberately does **not** change Send to Plex or Fetch from Plex. Those
 store nothing when they fail, so `error` remains correct for them.
 
+One consequence: the toast is in practice the *only* place this message is seen.
+The amber `.alert--warning` renders on a full page load, which the AJAX path
+avoids — it parses the flash out and shows its text in the toast. The styling
+still earns its place (it is what `posterStored()` reads, and it is what a
+no-JavaScript user sees), but the toast is what has to carry the explanation.
+
+### Toast dwell time scales with the message
+
+A fixed dwell has to be set for the shortest message it will ever carry. 2400 ms
+suits "Poster updated."; the orphan explanation is 140 characters and had the
+same 2400 ms, so the one message actually worth reading was the one that could
+not be read.
+
+`toastMs()` is `1800 + 40 × length`, clamped to [2400, 9000] — a floor equal to
+the old fixed dwell, and reading time at roughly 25 characters a second. The two
+expressions meet exactly at the length of "Poster updated.", so every short
+message keeps the timing it has today and only longer ones gain.
+
+Alternatives considered:
+
+- *Raise the fixed dwell to fit the longest message.* Rejected — it would leave
+  "Poster deleted." parked over the grid for seven seconds after an action the
+  user already watched happen.
+- *Make the toast dismissible and leave it up until dismissed.* Rejected for this
+  change: it turns an ambient notice into something demanding an interaction, on
+  every routine action. Worth revisiting if more long messages appear.
+
 ### Cancelling must not leave the form disabled or the dialog closed
 
 Nothing needs doing here, and that is the point worth recording: the parked-form

@@ -57,6 +57,9 @@
 - [x] 5.4 In `tests/Functional/ChangePosterTest.php`, assert that a change whose
       Plex upload throws still writes the file and reports at warning level with
       the Plex reason intact.
+- [x] 5.5 Scale the toast's dwell time with the message length in `notify()`, so
+      the orphan explanation is readable. Short messages must keep the dwell they
+      have now.
 
 ## 6. Manual verification
 
@@ -75,8 +78,9 @@
       fields are empty, the Upload tab is active, and the change still applies to
       the poster that was opened.
 - [ ] 6.6 Change the poster of a known orphan: the new poster appears on its card
-      straight away with no page reload, under an amber message saying it was
-      updated but could not be sent to Plex.
+      straight away with no page reload, and the message explaining that it could
+      not be sent to Plex stays up long enough to read to the end. Check a plain
+      "Poster updated." still goes as quickly as it used to.
 - [ ] 6.7 Phone width: from a poster's action tray choose Delete, then Send to
       Plex, then Fetch from Plex, cancelling each — the action tray is still open
       every time. Confirm one and check the tray closes. Repeat for Delete inside

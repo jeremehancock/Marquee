@@ -1,5 +1,30 @@
 ## MODIFIED Requirements
 
+### Requirement: Background poster updates
+The gallery SHALL apply poster actions — change, send to Plex, fetch from Plex,
+and delete — without reloading the whole page, refreshing only the grid and
+reporting the outcome.
+
+A reported outcome SHALL stay on screen long enough to be read, in proportion to
+how much it says. A one-line acknowledgement and an explanation of why an
+operation could not finish SHALL NOT be given the same dwell time, since the
+messages worth reading are the long ones.
+
+#### Scenario: Updating a poster refreshes only the grid
+- **WHEN** a user changes, sends, fetches, or deletes a poster
+- **THEN** the grid reflects the result and a short confirmation is shown, and
+  the surrounding page is not reloaded
+
+#### Scenario: A long outcome message is readable
+- **WHEN** an operation reports something the user has to act on, such as a
+  change that could not be sent to Plex because the item may be orphaned
+- **THEN** the message stays on screen materially longer than a bare
+  acknowledgement like "Poster updated."
+
+#### Scenario: Works without JavaScript
+- **WHEN** a user performs a poster action with JavaScript disabled
+- **THEN** the action still completes via a normal form submission
+
 ### Requirement: Modal confirmations
 Destructive actions SHALL ask for confirmation through an in-app modal rather
 than a native browser dialog. An action counts as destructive when it overwrites

@@ -126,6 +126,21 @@
         return el.classList.contains('alert--success') || el.classList.contains('alert--warning');
     }
 
+    // How long a toast stays up. A fixed dwell has to be set for the shortest
+    // message it will ever carry, which leaves the longest ones unreadable — and
+    // the longest are the ones that matter most, since a bare "Poster updated."
+    // needs no reading at all while "…could not be sent to Plex. This item no
+    // longer exists…" is the whole reason the toast was worth showing.
+    //
+    // The floor is the dwell every toast used to get, and the slope adds reading
+    // time at roughly 25 characters a second. The two meet exactly at the length
+    // of "Poster updated.", so short messages behave as they always have and only
+    // longer ones gain time. The ceiling stops an unexpectedly long message from
+    // parking itself over the grid.
+    function toastMs(text) {
+        return Math.max(2400, Math.min(9000, 1800 + String(text).length * 40));
+    }
+
     // ---- Shared overlay behavior ----
     // The fullscreen viewer, confirm dialog, mobile action tray, and toast are
     // identical on every page that shows poster cards. This factory is spread
@@ -179,7 +194,7 @@
                 var self = this;
                 this.toast = { show: true, text: text };
                 clearTimeout(this._toastTimer);
-                this._toastTimer = setTimeout(function () { self.toast.show = false; }, 2400);
+                this._toastTimer = setTimeout(function () { self.toast.show = false; }, toastMs(text));
             },
         };
     }
