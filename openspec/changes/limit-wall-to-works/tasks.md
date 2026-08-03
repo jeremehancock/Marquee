@@ -43,12 +43,12 @@
 
 ## 5. Validation on the `:dev` image
 
-- [ ] 5.1 Open the Poster Wall against a library that has seasons and
+- [x] 5.1 Open the Poster Wall against a library that has seasons and
   collections imported, and confirm the rotation shows only movie and show
   posters. Expect a visibly smaller pool — that is the intended outcome.
-- [ ] 5.2 Confirm the now-playing takeover is unchanged: start a TV episode and
+- [x] 5.2 Confirm the now-playing takeover is unchanged: start a TV episode and
   verify the wall shows the show's poster with its overlays intact.
-- [ ] 5.3 Confirm seasons and collections are still listed and editable in the
+- [x] 5.3 Confirm seasons and collections are still listed and editable in the
   gallery.
 - [ ] 5.4 After archiving, re-read `openspec/specs/poster-wall/spec.md` and
   confirm the merged Purpose and requirements all describe the works-only wall.
