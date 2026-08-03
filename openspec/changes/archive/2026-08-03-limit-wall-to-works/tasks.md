@@ -50,5 +50,5 @@
   verify the wall shows the show's poster with its overlays intact.
 - [x] 5.3 Confirm seasons and collections are still listed and editable in the
   gallery.
-- [ ] 5.4 After archiving, re-read `openspec/specs/poster-wall/spec.md` and
+- [x] 5.4 After archiving, re-read `openspec/specs/poster-wall/spec.md` and
   confirm the merged Purpose and requirements all describe the works-only wall.
