@@ -23,7 +23,9 @@ final class PosterWallTest extends AppTestCase
     {
         $this->postersDir = $this->makeTempDir();
         mkdir($this->postersDir . '/movies');
+        mkdir($this->postersDir . '/tv-seasons');
         $this->writePng($this->postersDir . '/movies/Solaris.png');
+        $this->writePng($this->postersDir . '/tv-seasons/Severance_-_Season_1.png');
     }
 
     protected function tearDown(): void
@@ -56,6 +58,18 @@ final class PosterWallTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
         self::assertStringContainsString('/posters/movies/Solaris.png', (string) $response->getBody());
+    }
+
+    /**
+     * The batch endpoint is where the wall's pool becomes visible, so the
+     * works-only rule is asserted here as well as on the service: a season
+     * poster on disk must not reach the wall.
+     */
+    public function testPostersEndpointExcludesSeasons(): void
+    {
+        $response = $this->get($this->app(), '/wall/posters');
+
+        self::assertStringNotContainsString('tv-seasons', (string) $response->getBody());
     }
 
     public function testWallIsPublic(): void
