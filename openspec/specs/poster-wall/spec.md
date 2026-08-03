@@ -3,7 +3,7 @@
 ## Purpose
 
 A full-screen, slideshow-style view of the library — posters drawn at random
-from every category, cross-fading indefinitely — that becomes a live now-playing
+from its works, cross-fading indefinitely — that becomes a live now-playing
 board while Plex is streaming. Intended for a spare display or a TV, which is why
 it opens in its own tab and is reachable without signing in, so an unattended
 device needs no login and no authentication-bypass.
