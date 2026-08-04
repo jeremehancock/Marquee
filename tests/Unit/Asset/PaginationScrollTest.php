@@ -122,20 +122,21 @@ final class PaginationScrollTest extends TestCase
         );
     }
 
-    public function testTheSmoothScrollStaysLocalToPaging(): void
+    public function testTheSmoothScrollStaysLocalToTheHelper(): void
     {
         // Exactly one mention, inside the helper: the tab switch and the scroll
         // lock's restore both scroll the document too, and both must stay
-        // instant.
+        // instant. Paging and live search share the helper, so they animate; the
+        // count stays at one however many callers it gains.
         self::assertSame(
             1,
             substr_count($this->gallerySource(), "'smooth'"),
-            'Only paging animates its scroll; every other programmatic scroll must stay instant.'
+            'Only the shared helper animates its scroll; every other programmatic scroll must stay instant.'
         );
         self::assertStringContainsString(
             "'smooth'",
             $this->scrollHelper(),
-            'That one smooth scroll must be the paging helper.'
+            'That one smooth scroll must be the shared helper.'
         );
 
         $paths = glob(dirname(__DIR__, 3) . '/public/assets/*.css');

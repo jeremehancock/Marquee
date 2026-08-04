@@ -8,10 +8,13 @@
 <div class="sheet" x-show="menuOpen" x-cloak
      @keydown.escape.window="menuOpen = false" style="display:none">
     <div class="sheet__backdrop" @click="menuOpen = false"></div>
-    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Actions">
         <div class="sheet__grip"><span class="sheet__handle"></span></div>
         <div class="sheet__head">
-            <span class="sheet__title">Menu</span>
+            {# "Actions", not "Menu": these are things to do, not places to go, and
+               the bare noun matches the sibling trays (Sort, Import from Plex,
+               Orphaned posters). #}
+            <span class="sheet__title">Actions</span>
         </div>
         {# Choosing a link navigates away; close the tray on any click so it is
            dismissed for same-page and new-tab (Poster Wall) destinations alike. #}

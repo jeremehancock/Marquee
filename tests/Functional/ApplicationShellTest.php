@@ -10,8 +10,8 @@ final class ApplicationShellTest extends AppTestCase
 {
     /**
      * The opening tags of the two footers the shared layout renders: the page
-     * footer, and the navigation drawer's, which replaces it on a phone. Both
-     * carry the same chrome, so both are asserted against.
+     * footer, and the menu tray's, which replaces it on a phone. Both carry the
+     * same chrome, so both are asserted against.
      *
      * @var list<string>
      */
@@ -60,6 +60,70 @@ final class ApplicationShellTest extends AppTestCase
         self::assertStringContainsString(
             '<span>My Wall</span>',
             (string) $response->getBody(),
+        );
+    }
+
+    /**
+     * The glyph is the menu's whole promise to the user, and it is the one part
+     * of this control a stylesheet cannot get wrong loudly — a hamburger would
+     * still open the tray, just after telling the user to expect a navigation
+     * drawer that slides in from an edge. Nothing behind the button navigates in
+     * place on a phone, so the overflow form is the honest one.
+     */
+    public function testMenuTriggerPresentsAnOverflowGlyphRatherThanAHamburger(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        $matched = preg_match('#<button[^>]*class="menu-btn".*?</button>#s', $body, $m);
+        self::assertSame(1, $matched, 'The topbar must render the menu trigger.');
+        $button = $m[0];
+
+        // Three dots on one line. Asserting the count matters: a single circle
+        // would satisfy a bare substring check and read as something else.
+        self::assertSame(
+            3,
+            preg_match_all('/<circle\b/', $button),
+            'The overflow glyph is three dots.',
+        );
+        self::assertStringNotContainsString(
+            '<path',
+            $button,
+            'The hamburger rules must be gone, not merely joined by the dots.',
+        );
+        // The glyph is decorative; the button's name is what a screen reader
+        // announces, and it must survive the swap.
+        self::assertStringContainsString('aria-label="Actions"', $button);
+        self::assertStringContainsString('aria-haspopup="true"', $button);
+    }
+
+    /**
+     * The keyword reads like boilerplate and would be an easy thing to drop while
+     * tidying the meta tag, so it is pinned here.
+     *
+     * Under the default `resizes-visual`, an on-screen keyboard shrinks only the
+     * visual viewport while `position: sticky` keeps resolving against the layout
+     * viewport. The pinned toolbar then stays anchored above the visible area, and
+     * scrolling with the keyboard up pushes it out of view entirely — which is the
+     * bug this keyword fixes, on the one browser family that honours it.
+     */
+    public function testViewportLetsTheKeyboardResizeTheLayoutViewport(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        $matched = preg_match('/<meta name="viewport" content="([^"]*)"/', $body, $m);
+        self::assertSame(1, $matched, 'The shared layout must declare a viewport.');
+
+        self::assertStringContainsString('width=device-width', $m[1]);
+        self::assertStringContainsString(
+            'interactive-widget=resizes-content',
+            $m[1],
+            'The pinned toolbar needs the layout viewport to be the visible region when the keyboard is up.',
         );
     }
 

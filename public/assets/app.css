@@ -973,12 +973,15 @@ h1 {
 }
 
 /* Modal.
-   Overlay layering is one ordered scale: the bottom tab bar (40) sits under the
-   trays (.sheet, 50), a dialog sits above whatever tray raised it (.modal, 55),
-   and the fullscreen viewer covers both (.viewer, 60). A dialog must outrank a
-   tray because a confirmation can be raised from inside one — deleting an orphan
-   from the orphans tray is the case — and a confirmation rendered behind the tray
-   that asked the question cannot be answered. */
+   Overlay layering is one ordered scale: the pinned mobile toolbar (.toolbar, 30)
+   sits under the bottom tab bar (40), which sits under the trays (.sheet, 50), a
+   dialog sits above whatever tray raised it (.modal, 55), and the fullscreen
+   viewer covers both (.viewer, 60). A dialog must outrank a tray because a
+   confirmation can be raised from inside one — deleting an orphan from the
+   orphans tray is the case — and a confirmation rendered behind the tray that
+   asked the question cannot be answered. The toolbar takes the lowest tier
+   because it is page chrome, not an overlay: it only has to cover the poster
+   grid, and every overlay must cover it. */
 .modal {
     position: fixed;
     inset: 0;
@@ -1482,6 +1485,28 @@ h1 {
 
     .topnav__desktop {
         display: none;
+    }
+
+    /* Search and sort are used continuously while browsing, so the toolbar stays
+       pinned instead of scrolling away with the content. `sticky` rather than
+       `fixed` keeps it in flow, so it holds its own space at the top of the page
+       and needs no compensating padding on the grid below — padding that would
+       have to be kept in sync with the bar's rendered height. (.tabs is `fixed`
+       because it pins to the bottom, against the document's natural flow.)
+
+       Two declarations here are load-bearing rather than cosmetic. The background
+       is what hides posters passing behind the bar — .toolbar has none of its own,
+       so without it they scroll straight through. The negative side margins,
+       matched by equal padding, bleed the bar past .container's 14px gutters:
+       inside them, posters show through a 14px channel down each edge while the
+       contents stay on the content grid. */
+    .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: var(--bg);
+        margin: 0 -14px 8px;
+        padding: 8px 14px;
     }
 
     /* The toolbar is just search plus the sort trigger; the rest moved to trays. */

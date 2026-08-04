@@ -52,8 +52,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   sign-in, so you can point a spare monitor or TV straight at `/wall`, or embed
   it in a dashboard — the banner text stays readable down to a small tile.
 - **Fast, modern UI** — search as you type, background updates without full page
-  reloads, and a mobile experience built around trays: a navigation menu and a
-  full-size poster action sheet keep the phone view focused on your posters.
+  reloads, and a mobile experience built around trays: an actions menu and a
+  full-size poster action sheet keep the phone view focused on your posters,
+  with search and sort pinned to the top as you scroll.
 - **Installable PWA** — add it to your phone or desktop home screen.
 
 ## Quick start (Docker Compose)
@@ -307,7 +308,8 @@ to do.
 
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
-front and center: secondary navigation lives behind a menu, and tapping a poster
+front and center: the secondary actions live behind the **⋯** Actions menu,
+search and sort stay pinned to the top while you scroll, and tapping a poster
 opens a full-size action sheet.
 
 ## Security considerations

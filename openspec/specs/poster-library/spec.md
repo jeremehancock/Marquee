@@ -379,6 +379,26 @@ the toolbar into its own tray, leaving the mobile toolbar to search plus a sort
 trigger above the poster grid. On a pointer/desktop screen the secondary actions
 and the inline sort control SHALL remain in the toolbar exactly as before.
 
+On a narrow screen the gallery toolbar SHALL remain pinned to the top of the
+viewport as the gallery scrolls, so search and the sort trigger are reachable at
+any scroll position without returning to the top of the page. The pinned toolbar
+SHALL be opaque and SHALL span the full viewport width, so no poster is visible
+passing behind or beside it. It SHALL layer above the poster grid and below every
+overlay — the bottom tab bar, trays, dialogs, and the fullscreen viewer — so an
+open overlay always covers it. On a pointer/desktop screen the toolbar SHALL
+continue to scroll with the page.
+
+Pinning applies only while the page can scroll. When the results are too short to
+fill the viewport — a search with no matches, most obviously — the toolbar SHALL
+rest in its normal position below the topbar. This is the same state as an
+unscrolled page and is not a failure to pin.
+
+The toolbar SHALL stay pinned to the visible area while an on-screen keyboard is
+open, so searching from part-way down the gallery does not push it out of view.
+Where a browser offers the choice, the application SHALL ask that the keyboard
+resize the layout viewport rather than only the visual one, since that is the
+coordinate space the pinned toolbar and the fixed bottom tab bar resolve against.
+
 #### Scenario: No overflow on a phone
 - **WHEN** the gallery is viewed on a narrow (phone-width) screen
 - **THEN** the tabs, toolbar, and poster grid fit without horizontal page overflow
@@ -394,10 +414,37 @@ and the inline sort control SHALL remain in the toolbar exactly as before.
   the gallery toolbar
 - **AND** they are reachable from the app menu tray instead
 
+#### Scenario: Toolbar stays available while scrolling on a phone
+- **WHEN** a user on a narrow screen scrolls down the gallery
+- **THEN** the toolbar stays pinned to the top of the viewport
+- **AND** the search field and the sort trigger remain usable without scrolling
+  back to the top
+
+#### Scenario: Pinned toolbar hides the posters passing under it
+- **WHEN** the gallery is scrolled on a narrow screen with the toolbar pinned
+- **THEN** posters scrolling past are fully hidden behind the toolbar, including
+  at the left and right edges of the viewport
+
+#### Scenario: Results too short to scroll leave the toolbar in flow
+- **WHEN** a search returns no matches on a narrow screen
+- **THEN** the page is too short to scroll and the toolbar rests below the
+  topbar, as it does on an unscrolled page
+
+#### Scenario: Toolbar survives the on-screen keyboard
+- **WHEN** a user on a narrow screen scrolls part-way down the gallery and taps
+  the search field, opening the on-screen keyboard
+- **THEN** the toolbar stays visible at the top of the remaining area rather than
+  being pushed out of view
+
+#### Scenario: Overlays cover the pinned toolbar
+- **WHEN** any tray, dialog, or the fullscreen viewer is open on a narrow screen
+- **THEN** it renders above the pinned toolbar
+
 #### Scenario: Desktop toolbar is unchanged
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
 - **THEN** the secondary navigation actions and the inline sort control render in
   the gallery toolbar as they did before this change
+- **AND** the toolbar scrolls with the page rather than staying pinned
 
 ### Requirement: Fullscreen poster view
 The system SHALL let a user view any gallery poster full screen.

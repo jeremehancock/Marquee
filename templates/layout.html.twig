@@ -3,7 +3,15 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# `interactive-widget=resizes-content` is load-bearing for the pinned mobile
+       toolbar. Under the default (`resizes-visual`) an on-screen keyboard shrinks
+       only the visual viewport, while `position: sticky` keeps resolving against
+       the layout viewport — so with the keyboard up the pinned toolbar stays
+       anchored above the visible area and scrolling pushes it out of view.
+       Resizing the content instead makes the layout viewport the visible region,
+       which is the coordinate space the sticky toolbar and the fixed bottom tab
+       bar both need. Honoured by Chrome; iOS Safari ignores it, harmlessly. #}
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="theme-color" content="#1c1e24">
     {# Both names: iOS reads only the apple- one for a standalone home-screen
        install, and Chrome logs a deprecation warning for it unless the standard
@@ -41,11 +49,17 @@
                 {% if not auth_bypass %}
                     <span class="topnav__desktop">{{ nav.logout_link() }}</span>
                 {% endif %}
+                {# An overflow ("more") glyph rather than a hamburger: nothing behind
+                   this button navigates in place on a phone — Import and Orphans open
+                   as trays over the current page, Poster Wall and Support open new
+                   tabs, and Log out is an action. A hamburger would promise the
+                   edge-anchored navigation drawer this menu deliberately isn't. #}
                 <button type="button" class="menu-btn" @click="menuOpen = true"
-                        aria-label="Menu" aria-haspopup="true">
+                        aria-label="Actions" aria-haspopup="true">
                     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-                        <path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor"
-                              stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="5" cy="12" r="1.9" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="1.9" fill="currentColor"/>
+                        <circle cx="19" cy="12" r="1.9" fill="currentColor"/>
                     </svg>
                 </button>
                 {% include 'partials/_menu.html.twig' %}
