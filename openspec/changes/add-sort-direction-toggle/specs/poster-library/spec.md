@@ -139,10 +139,17 @@ its default direction.
 
 ### Requirement: Sort control indicates field and direction
 Each button in the sort control SHALL identify its field and show a direction
-indicator: an arrow pointing down for a descending order and up for an ascending
-order. The title button's label SHALL read `A–Z` when its direction is ascending
-and `Z–A` when it is descending; the date-added button SHALL keep a constant
-label and convey direction through its indicator alone.
+indicator: an arrow pointing down when that field is running its default
+direction, and up when it has been reversed. The title button's label SHALL read
+`A–Z` when its direction is ascending and `Z–A` when it is descending; the
+date-added button SHALL keep a constant label and convey direction through its
+indicator alone.
+
+The indicator SHALL report reversal rather than ascending or descending, because
+those do not read alike across the two fields: A–Z is ascending and newest-first
+is descending, yet each is the ordinary way to read its own field. Keying the
+arrow to reversal means both buttons rest pointing down, and an arrow that has
+turned over always carries the same meaning.
 
 The direction indicator SHALL be drawn as one half of the glyph that opens the
 phone sort tray, that glyph being a down arrow beside an up arrow, so the control
@@ -160,8 +167,14 @@ SHALL carry a text alternative naming its field and direction in words.
 
 #### Scenario: Active title button shows the current direction
 - **WHEN** the gallery is ordered Z–A
-- **THEN** the title button is marked active, reads `Z–A`, and shows a downward
-  arrow, Z–A being the descending direction of the title field
+- **THEN** the title button is marked active, reads `Z–A`, and shows an upward
+  arrow, Z–A being the title field reversed
+
+#### Scenario: Both fields rest pointing the same way
+- **WHEN** the gallery is ordered A–Z and the date-added field has not been
+  reversed this session
+- **THEN** both buttons show a downward arrow, despite A–Z being ascending and
+  the date field's default being descending
 
 #### Scenario: Direction indicator matches the tray's trigger
 - **WHEN** a user opens the phone sort tray from its trigger
@@ -180,7 +193,8 @@ SHALL carry a text alternative naming its field and direction in words.
 
 #### Scenario: Date-added button conveys direction by indicator
 - **WHEN** the gallery is ordered by date added, oldest first
-- **THEN** the date-added button keeps its label and shows an upward arrow
+- **THEN** the date-added button keeps its label and shows an upward arrow, oldest
+  first being the date field reversed
 
 #### Scenario: Direction is available as text
 - **WHEN** assistive technology reads a sort button

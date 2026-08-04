@@ -166,21 +166,28 @@ Each button is three atoms, with identical direction grammar on both so the
 indicator reads the same way in both places:
 
 ```
-  ascending    [▂▄▆]  A–Z  ↑      [▦]  Date added  ↑     ← oldest first
-  descending   [▂▄▆]  Z–A  ↓      [▦]  Date added  ↓     ← newest first
-                │      │     │
-                │      │     └─ one arrow path, rotated 180° by CSS for ascending
-                │      └─ field name; A–Z/Z–A also encodes direction, harmlessly
-                └─ field glyph, carrying no arrow of its own
+  as it normally runs  [▂▄▆]  A–Z  ↓      [▦]  Date added  ↓   ← newest first
+  reversed             [▂▄▆]  Z–A  ↑      [▦]  Date added  ↑   ← oldest first
+                        │      │     │
+                        │      │     └─ one arrow path, rotated 180° when reversed
+                        │      └─ field name; A–Z/Z–A also encodes direction
+                        └─ field glyph, carrying no arrow of its own
 ```
 
-The arrow means ascending or descending uniformly on both buttons — the
-convention a sortable table header uses — rather than meaning something specific
-to the field it sits on. That is why A–Z and date-added-newest-first point
-opposite ways despite both being their own field's default: one of those defaults
-is ascending and the other is descending.
+**The arrow reports reversal, not ascending versus descending.** Those two words
+do not read alike across the two fields: A–Z is ascending and newest-first is
+descending, yet each is plainly the ordinary way to read its own field. An arrow
+keyed to the direction would therefore point two different ways at two orders
+that are equally unremarkable, and the resting state of the control would look
+like a disagreement between its buttons.
 
-The date button is what this convention actually has to serve. Its label never
+Keyed to reversal instead, both buttons rest pointing down, and an arrow that has
+turned over always means the one thing: this field is running backwards. The
+difference is only visible on the title field — `isReversed()` and "is
+descending" agree on dates and disagree on titles — which is exactly where a
+direction-keyed arrow would have contradicted the `A–Z` label sitting beside it.
+
+The date button is what the indicator actually has to serve. Its label never
 changes, so the arrow is the only thing left to carry direction; on the title
 button the arrow merely restates what `A–Z` and `Z–A` already say.
 

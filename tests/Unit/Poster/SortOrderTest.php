@@ -80,6 +80,26 @@ final class SortOrderTest extends TestCase
         self::assertSame('Sort by date added, oldest first', SortOrder::DateAddedAsc->ariaLabel());
     }
 
+    /**
+     * What the control's arrow reports. Not the direction: A–Z is ascending and
+     * newest first is descending, yet neither is reversed, so both rest pointing
+     * the same way.
+     */
+    public function testIsReversedTracksTheFieldsDefaultRatherThanTheDirection(): void
+    {
+        self::assertFalse(SortOrder::Alphabetical->isReversed(), 'A–Z is how titles normally run.');
+        self::assertFalse(SortOrder::DateAdded->isReversed(), 'Newest first is how dates normally run.');
+        self::assertTrue(SortOrder::AlphabeticalDesc->isReversed());
+        self::assertTrue(SortOrder::DateAddedAsc->isReversed());
+    }
+
+    public function testFlippingAlwaysChangesWhetherAnOrderIsReversed(): void
+    {
+        foreach (SortOrder::cases() as $order) {
+            self::assertNotSame($order->isReversed(), $order->flipped()->isReversed());
+        }
+    }
+
     public function testEveryFieldHasAGlyph(): void
     {
         self::assertSame('sort-title', SortField::Alphabetical->glyph());

@@ -77,6 +77,23 @@ enum SortOrder: string
     }
 
     /**
+     * Whether this order has been turned around from the way its field normally
+     * runs: Z–A rather than A–Z, oldest first rather than newest.
+     *
+     * This, not the direction, is what the control's arrow reports. Ascending
+     * and descending do not mean the same thing to a reader across the two
+     * fields — A–Z is ascending and newest-first is descending, yet both are the
+     * ordinary way to read that field — so an arrow keyed to the direction would
+     * point two different ways at two orders that are equally unremarkable. Keyed
+     * to this, both buttons rest pointing down and an arrow that has turned over
+     * always means the same thing: this one is reversed.
+     */
+    public function isReversed(): bool
+    {
+        return $this->direction() !== $this->field()->defaultDirection();
+    }
+
+    /**
      * Resolve a slug to a sort order, or null when it is unrecognized. Accepts
      * the `alpha` shorthand alongside the full `alphabetical` value.
      */

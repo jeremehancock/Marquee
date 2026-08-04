@@ -499,17 +499,22 @@ h1 {
     stroke-width: 2.5;
 }
 
-/* Drawn pointing down for descending, so ascending is the same path turned over
-   rather than a second glyph that could drift away from it. Turning it over is
-   also exactly how the two-arrow `sort` glyph draws its own second half — this
-   mark being one half of that glyph, the tray's trigger and the direction on the
-   rows inside it stay the same shape. */
+/* Drawn pointing down for a field running its ordinary way, so a reversed field
+   is the same path turned over rather than a second glyph that could drift away
+   from it. Turning it over is also exactly how the two-arrow `sort` glyph draws
+   its own second half — this mark being one half of that glyph, the tray's
+   trigger and the direction on the rows inside it stay the same shape.
+
+   Keyed to reversed rather than to ascending: A–Z is ascending and newest-first
+   is descending, yet both are the ordinary way to read their field, so both rest
+   pointing down. An arrow that has turned over therefore always means the one
+   thing. */
 .sort__dir {
     display: inline-flex;
     align-items: center;
 }
 
-.sort__dir--asc {
+.sort__dir--reversed {
     transform: rotate(180deg);
 }
 

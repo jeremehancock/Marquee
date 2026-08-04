@@ -14,8 +14,8 @@ ignored.
 - Four effective orders instead of two: A–Z, Z–A, date added newest-first, and
   date added oldest-first.
 - Each button shows its direction — the title button's label swaps between
-  `A–Z` and `Z–A`, and both buttons carry an arrow that points down for
-  descending and up for ascending.
+  `A–Z` and `Z–A`, and both buttons carry an arrow that points down while that
+  field runs its ordinary way and up once it has been reversed.
 - Both buttons gain a leading glyph identifying the field: bars for title
   order, a calendar for date added.
 - Direction is remembered per field for the session. Switching to date added

@@ -284,7 +284,7 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('data-sort="date_added"', $head);
     }
 
-    public function testReversingTheTitleOrderSwapsTheLabelAndTheChevron(): void
+    public function testReversingTheTitleOrderSwapsTheLabelAndTheArrow(): void
     {
         $this->writePoster('Solaris.png');
 
@@ -293,7 +293,7 @@ final class GalleryTest extends AppTestCase
         );
 
         self::assertStringContainsString('<span class="sort__text">Z–A</span>', $head);
-        self::assertStringContainsString('sort__dir sort__dir--desc', $head);
+        self::assertStringContainsString('sort__dir sort__dir--reversed', $head);
         // Reading Z–A, it now offers A–Z.
         self::assertStringContainsString('data-sort="alphabetical"', $head);
         self::assertStringNotContainsString('data-sort="alphabetical_desc"', $head);
@@ -304,7 +304,7 @@ final class GalleryTest extends AppTestCase
      * report the direction — and the aria-label is the only thing that can say it
      * in words.
      */
-    public function testDateButtonReportsDirectionByChevronAndText(): void
+    public function testDateButtonReportsDirectionByArrowAndText(): void
     {
         $this->writePoster('Solaris.png');
 
@@ -314,7 +314,27 @@ final class GalleryTest extends AppTestCase
 
         self::assertStringContainsString('<span class="sort__text">Date added</span>', $head);
         self::assertStringContainsString('aria-label="Sort by date added, oldest first"', $head);
-        self::assertStringContainsString('sort__dir sort__dir--asc', $head);
+        self::assertStringContainsString('sort__dir sort__dir--reversed', $head);
+    }
+
+    /**
+     * The arrow reports reversal, not direction. A–Z is ascending and newest
+     * first is descending, yet both are the ordinary way to read their own field,
+     * so at rest both buttons point the same way — and an arrow that has turned
+     * over always means the one thing.
+     */
+    public function testBothFieldsRestPointingTheSameWay(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        // A–Z active, date added offered at newest first: neither is reversed.
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=alphabetical')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
+        self::assertStringContainsString('aria-label="Sort by date added, newest first"', $head);
+        self::assertStringNotContainsString('sort__dir--reversed', $head);
     }
 
     /**

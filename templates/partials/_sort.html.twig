@@ -19,8 +19,10 @@
             {{ icons.icon(button.shown.field.glyph, 16) }}
             <span class="sort__text">{{ button.shown.label }}</span>
             {# The arrow is decorative: aria-label above already states the
-               direction in words, which a rotated glyph cannot. #}
-            <span class="sort__dir sort__dir--{{ button.shown.direction.value }}">{{ icons.icon('sort-direction', 14) }}</span>
+               direction in words, which a rotated glyph cannot. It reports
+               whether the field has been reversed, not whether it is ascending —
+               see SortOrder::isReversed(). #}
+            <span class="sort__dir {{ button.shown.isReversed ? 'sort__dir--reversed' : '' }}">{{ icons.icon('sort-direction', 14) }}</span>
         </a>
     {% endfor %}
 {% endmacro %}
