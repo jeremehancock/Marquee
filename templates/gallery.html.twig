@@ -1,5 +1,6 @@
 {% extends 'layout.html.twig' %}
 {% import 'partials/_icons.html.twig' as icons %}
+{% import 'partials/_sort.html.twig' as sort_control %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
@@ -22,10 +23,13 @@
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
     {% endif %}
 
-    {# Carry the active search (and a non-default sort) into every tab so
-       switching views keeps the current filter even without JavaScript. #}
+    {# Carry the active search and the current sort into every tab so switching
+       views keeps both even without JavaScript. The sort goes on unconditionally
+       rather than only when it differs from the default: with a direction on each
+       field there is no single slug that can be left off safely, and testing for
+       one is how a reversed order silently resets itself on a tab switch. #}
     {% set tab_query = query is not empty ? 'q=' ~ query|url_encode : '' %}
-    {% set tab_query = tab_query ~ (sort == 'date_added' ? (tab_query is not empty ? '&' : '') ~ 'sort=date_added' : '') %}
+    {% set tab_query = tab_query ~ (tab_query is not empty ? '&' : '') ~ 'sort=' ~ sort %}
     {# Short labels drop the "TV " prefix so all five tabs fit the phone tab bar
        under their icons; the full label stays as the link's accessible name. #}
     {% set tab_short = { 'all': 'All', 'movies': 'Movies', 'tv-shows': 'Shows', 'tv-seasons': 'Seasons', 'collections': 'Collections' } %}
@@ -69,12 +73,7 @@
             </button>
             <div class="sort" role="group" aria-label="Sort order">
                 <span class="sort__label">Sort</span>
-                <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
-                   {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
-                <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
-                   {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+                {{ sort_control.control(sort_state, base, sort_q, 'btn--small') }}
             </div>
         </div>
     </div>
@@ -224,12 +223,7 @@
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Sort</span></div>
             <div class="sheet__body menu__body">
-                <a class="btn {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
-                   {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
-                <a class="btn {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-                   href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
-                   {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+                {{ sort_control.control(sort_state, base, sort_q) }}
             </div>
         </div>
     </div>

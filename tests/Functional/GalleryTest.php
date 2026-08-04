@@ -140,9 +140,10 @@ final class GalleryTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
 
-        // Switching to another view keeps the search, even without JavaScript.
-        self::assertStringContainsString('href="/library/all?q=solaris"', $body);
-        self::assertStringContainsString('href="/library/tv-shows?q=solaris"', $body);
+        // Switching to another view keeps the search and the sort, even without
+        // JavaScript.
+        self::assertStringContainsString('href="/library/all?q=solaris&amp;sort=alphabetical"', $body);
+        self::assertStringContainsString('href="/library/tv-shows?q=solaris&amp;sort=alphabetical"', $body);
     }
 
     public function testFilteredEmptyStateIsDistinctFromEmptyLibrary(): void
@@ -170,7 +171,7 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('Severance', $body);
         self::assertStringContainsString('Alien Anthology', $body);
         // The All tab renders and is the active one.
-        self::assertStringContainsString('href="/library/all"', $body);
+        self::assertStringContainsString('href="/library/all?sort=alphabetical"', $body);
         self::assertStringContainsString('tab--active', $body);
     }
 
@@ -247,7 +248,9 @@ final class GalleryTest extends AppTestCase
         $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies')->getBody());
 
         self::assertStringContainsString('role="search"', $head);
-        self::assertStringContainsString('data-sort="alphabetical"', $head);
+        // The active title button carries its reverse, because activating it
+        // toggles; the inactive date button carries itself.
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
         self::assertStringContainsString('data-sort="date_added"', $head);
         self::assertStringContainsString('class="tab ', $head);
 
@@ -258,6 +261,116 @@ final class GalleryTest extends AppTestCase
                 'The secondary actions belong to the page header, not the gallery.',
             );
         }
+    }
+
+    /**
+     * The whole toggle in one document: the active button reads as the order the
+     * gallery is in but links to its reverse, while the inactive button reads and
+     * links to the same order. Getting that backwards is the likeliest way to
+     * break this control, so it is asserted on both buttons at once.
+     */
+    public function testActiveSortButtonReadsTheCurrentOrderAndLinksToItsReverse(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies?sort=alphabetical')->getBody());
+
+        self::assertStringContainsString('aria-label="Sort by title, A to Z"', $head);
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
+        self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
+        self::assertStringNotContainsString('data-sort="alphabetical"', $head);
+
+        self::assertStringContainsString('aria-label="Sort by date added, newest first"', $head);
+        self::assertStringContainsString('data-sort="date_added"', $head);
+    }
+
+    public function testReversingTheTitleOrderSwapsTheLabelAndTheChevron(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=alphabetical_desc')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">Z–A</span>', $head);
+        self::assertStringContainsString('sort__dir sort__dir--desc', $head);
+        // Reading Z–A, it now offers A–Z.
+        self::assertStringContainsString('data-sort="alphabetical"', $head);
+        self::assertStringNotContainsString('data-sort="alphabetical_desc"', $head);
+    }
+
+    /**
+     * The date button keeps one label, so its chevron is the only thing that can
+     * report the direction — and the aria-label is the only thing that can say it
+     * in words.
+     */
+    public function testDateButtonReportsDirectionByChevronAndText(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=date_added_asc')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">Date added</span>', $head);
+        self::assertStringContainsString('aria-label="Sort by date added, oldest first"', $head);
+        self::assertStringContainsString('sort__dir sort__dir--asc', $head);
+    }
+
+    /**
+     * One app instance, so the requests share a session: leaving a field and
+     * coming back to it must offer the direction it was left in, not its default.
+     */
+    public function testInactiveButtonOffersTheDirectionItsFieldWasLeftIn(): void
+    {
+        $this->writePoster('Solaris.png');
+        $app = $this->app();
+
+        $this->get($app, '/library/movies?sort=alphabetical_desc');
+        $head = $this->galleryHead((string) $this->get($app, '/library/movies?sort=date_added')->getBody());
+
+        // The title button is inactive and still reads Z–A, which is also where
+        // it goes.
+        self::assertStringContainsString('<span class="sort__text">Z–A</span>', $head);
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
+    }
+
+    /**
+     * The toolbar and the phone tray render from one macro, so every button
+     * appears exactly twice — the pair that would otherwise drift apart.
+     */
+    public function testPhoneTrayCarriesTheSameSortButtonsAsTheToolbar(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertSame(2, substr_count($body, 'data-sort="alphabetical_desc"'));
+        self::assertSame(2, substr_count($body, 'data-sort="date_added"'));
+    }
+
+    public function testPaginationCarriesAReversedSort(): void
+    {
+        $this->writePoster('Alpha.png');
+        $this->writePoster('Beta.png');
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'AUTH_BYPASS' => 'true',
+            'IMAGES_PER_PAGE' => '1',
+        ]);
+
+        $body = (string) $this->get($app, '/library/movies?sort=alphabetical_desc')->getBody();
+
+        self::assertStringContainsString('page=2&amp;sort=alphabetical_desc', $body);
+    }
+
+    public function testTabsCarryAReversedSort(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?sort=date_added_asc')->getBody();
+
+        self::assertStringContainsString('href="/library/all?sort=date_added_asc"', $body);
     }
 
     /**

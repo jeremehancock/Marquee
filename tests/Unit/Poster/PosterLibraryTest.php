@@ -12,6 +12,7 @@ use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Poster\Search\PosterSearch;
+use App\Poster\SortComparator;
 use App\Poster\SortOrder;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\TestCase;
@@ -46,8 +47,9 @@ final class PosterLibraryTest extends TestCase
 
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], $ignoreArticles, SortOrder::Alphabetical);
+        $comparator = new SortComparator($config);
 
-        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items);
+        return new PosterLibrary($storage, new PosterSearch($comparator), $config, $this->items, $comparator);
     }
 
     public function testArticleAwareSort(): void
@@ -164,6 +166,118 @@ final class PosterLibraryTest extends TestCase
         self::assertSame(['Fallback', 'Stored'], $titles);
     }
 
+    public function testDescendingTitleSortReversesTheOrder(): void
+    {
+        $library = $this->library(['The Matrix.png', 'Alien.png', 'Zodiac.png']);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::AlphabeticalDesc)->items,
+        );
+
+        // Still article-aware: "The Matrix" files under M, so it stays in the middle.
+        self::assertSame(['Zodiac', 'The Matrix', 'Alien'], $titles);
+    }
+
+    /**
+     * Direction reverses the field the user picked and nothing beneath it. The
+     * seasons all compare equal on nothing — they differ by number — so Z–A puts
+     * the highest first, but the numbers stay ordered by value rather than
+     * degrading to 9, 11, 10, 1.
+     */
+    public function testDescendingTitleSortStillOrdersNumbersByValue(): void
+    {
+        $library = $this->library([
+            'Show - Season 1.png',
+            'Show - Season 10.png',
+            'Show - Season 2.png',
+            'Show - Season 11.png',
+        ]);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::AlphabeticalDesc)->items,
+        );
+
+        self::assertSame([
+            'Show - Season 11',
+            'Show - Season 10',
+            'Show - Season 2',
+            'Show - Season 1',
+        ], $titles);
+    }
+
+    /**
+     * A tie on the chosen field keeps its ascending category order in either
+     * direction — otherwise reversing would scramble posters the user never
+     * asked to reorder.
+     */
+    public function testReversingDoesNotReverseTheCategoryTieBreak(): void
+    {
+        $library = $this->libraryAcross([
+            'collections' => ['Alien.png'],
+            'tv-seasons' => ['Alien.png'],
+            'movies' => ['Alien.png'],
+        ]);
+
+        $categories = array_map(
+            static fn ($p): string => $p->category->value,
+            $library->browseAll(null, 1, SortOrder::AlphabeticalDesc)->items,
+        );
+
+        self::assertSame(['movies', 'tv-seasons', 'collections'], $categories);
+    }
+
+    public function testDateAddedAscendingOrdersOldestFirst(): void
+    {
+        $library = $this->library(['Alien.png', 'Matrix.png', 'Zodiac.png']);
+
+        $addedAt = ['movies' => [
+            'Alien.png' => 100,
+            'Matrix.png' => 300,
+            'Zodiac.png' => 200,
+        ]];
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, $addedAt)->items,
+        );
+
+        self::assertSame(['Alien', 'Zodiac', 'Matrix'], $titles);
+    }
+
+    public function testDateAddedAscendingAlsoFallsBackToFileMtime(): void
+    {
+        $library = $this->library(['Old.png', 'Mid.png', 'New.png']);
+
+        touch($this->dir . '/movies/Old.png', 1_000);
+        touch($this->dir . '/movies/Mid.png', 2_000);
+        touch($this->dir . '/movies/New.png', 3_000);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, [])->items,
+        );
+
+        self::assertSame(['Old', 'Mid', 'New'], $titles);
+    }
+
+    public function testAggregateViewAppliesEveryDirection(): void
+    {
+        $library = $this->libraryAcross([
+            'movies' => ['Zodiac.png'],
+            'tv-shows' => ['Alien.png'],
+            'collections' => ['Matrix.png'],
+        ]);
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browseAll(null, 1, SortOrder::AlphabeticalDesc)->items,
+        );
+
+        self::assertSame(['Zodiac', 'Matrix', 'Alien'], $titles);
+    }
+
     public function testPagination(): void
     {
         $library = $this->library(['A.png', 'B.png', 'C.png', 'D.png', 'E.png'], perPage: 2);
@@ -265,8 +379,9 @@ final class PosterLibraryTest extends TestCase
 
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
+        $comparator = new SortComparator($config);
 
-        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items);
+        return new PosterLibrary($storage, new PosterSearch($comparator), $config, $this->items, $comparator);
     }
 
     public function testBrowseAllMergesCategoriesInMixedTitleOrder(): void

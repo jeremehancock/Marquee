@@ -118,9 +118,10 @@
 
 {% if result.totalPages > 1 %}
     {% set q = query is not empty ? '&q=' ~ query|url_encode : '' %}
-    {# Carry a non-default sort so paging keeps the chosen order; A–Z is the
-       default and needs no parameter. #}
-    {% set q = q ~ (sort is defined and sort == 'date_added' ? '&sort=date_added' : '') %}
+    {# Carry the current sort so paging keeps the chosen order, whatever it is.
+       Testing for a non-default slug and leaving it off otherwise is how a
+       reversed order silently resets itself on the way to page two. #}
+    {% set q = q ~ (sort is defined ? '&sort=' ~ sort : '') %}
     <nav class="pagination" aria-label="Gallery pages">
         {% if result.hasPrevious %}
             <a class="btn pagination__step" href="{{ base }}?page=1{{ q }}" aria-label="First page" data-tooltip="First page">&laquo;</a>

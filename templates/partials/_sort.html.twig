@@ -1,0 +1,26 @@
+{# The gallery's sort control: one button per field, rendered from the SortState
+   the controller resolved. Both the desktop toolbar and the phone tray call this,
+   because the two copies of this markup are exactly the pair that would drift.
+
+   The state has already worked out what each button says and what it does, so
+   there is nothing to decide here. Note that on the active button those are two
+   different orders — it reads as the order the gallery is in now, and activating
+   it applies the reverse. That is the toggle. On an inactive button they are the
+   same order: the direction that field was last left in. #}
+{% macro control(state, base, sort_q, btn_class = '') %}
+    {% import 'partials/_icons.html.twig' as icons %}
+    {% for button in state.buttons %}
+        <a class="btn {{ btn_class }} sort__btn {{ button.active ? 'btn--accent' : '' }}"
+           href="{{ base }}?sort={{ button.target.value }}{{ sort_q }}"
+           data-sort="{{ button.target.value }}"
+           aria-label="{{ button.shown.ariaLabel }}"
+           data-tooltip="{{ button.shown.ariaLabel }}"
+           {{ button.active ? 'aria-current="true"' : '' }}>
+            {{ icons.icon(button.shown.field.glyph, 16) }}
+            <span class="sort__text">{{ button.shown.label }}</span>
+            {# The chevron is decorative: aria-label above already states the
+               direction in words, which a rotated glyph cannot. #}
+            <span class="sort__dir sort__dir--{{ button.shown.direction.value }}">{{ icons.icon('chevron', 14) }}</span>
+        </a>
+    {% endfor %}
+{% endmacro %}

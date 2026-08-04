@@ -9,7 +9,7 @@ use App\Database\PlexItemRepository;
 use App\Poster\Search\PosterSearch;
 
 /**
- * Reads a category, applies search or an article-aware sort, and paginates.
+ * Reads a category, applies search or the selected sort order, and paginates.
  */
 final class PosterLibrary
 {
@@ -18,6 +18,7 @@ final class PosterLibrary
         private readonly PosterSearch $search,
         private readonly PosterConfig $config,
         private readonly PlexItemRepository $items,
+        private readonly SortComparator $comparator,
     ) {
     }
 
@@ -64,44 +65,12 @@ final class PosterLibrary
     private function paginate(array $posters, ?string $query, int $page, SortOrder $sort, array $addedAt): Page
     {
         if ($query !== null && trim($query) !== '') {
-            // Search results are already ranked by relevance.
-            $posters = $this->search->filter($posters, $query);
-        } elseif ($sort === SortOrder::DateAdded) {
-            // Newest first by Plex "added at", falling back to the file's
-            // modification time when Plex has no timestamp for the poster.
-            // Category order breaks ties so a mixed listing stays deterministic.
-            usort(
-                $posters,
-                function (Poster $a, Poster $b) use ($addedAt): int {
-                    $byDate = $this->addedAtFor($b, $addedAt) <=> $this->addedAtFor($a, $addedAt);
-
-                    return $byDate !== 0
-                        ? $byDate
-                        : $a->category->sortOrder() <=> $b->category->sortOrder();
-                },
-            );
+            // Search leads on relevance and settles equally relevant results
+            // with the selected order, so the sort control still means something
+            // while a search is active.
+            $posters = $this->search->filter($posters, $query, $sort, $addedAt);
         } else {
-            // Sort by title, breaking ties by category order so a mixed listing
-            // is deterministic. Within a single category the category tiebreak
-            // never fires, so per-category ordering is unchanged.
-            //
-            // The raw title breaks what the category cannot. Digit-aware sort
-            // keys make "Season 01" and "Season 1" genuinely equal — both pad
-            // to the same number — and two such posters in one category would
-            // otherwise be left in whatever order usort happened to produce.
-            // It sits last so the category rule above it still decides first.
-            usort(
-                $posters,
-                fn (Poster $a, Poster $b): int => [
-                    $a->sortKey($this->config->ignoreArticlesInSort),
-                    $a->category->sortOrder(),
-                    $a->title(),
-                ] <=> [
-                    $b->sortKey($this->config->ignoreArticlesInSort),
-                    $b->category->sortOrder(),
-                    $b->title(),
-                ],
-            );
+            usort($posters, $this->comparator->forOrder($sort, $addedAt));
         }
 
         $total = count($posters);
@@ -112,17 +81,6 @@ final class PosterLibrary
         $items = array_slice($posters, ($page - 1) * $perPage, $perPage);
 
         return new Page($items, $page, $perPage, $total);
-    }
-
-    /**
-     * The date to order a poster by: its Plex "added at" timestamp when known,
-     * otherwise the file's modification time so it still holds a stable place.
-     *
-     * @param array<string, array<string, int>> $addedAt
-     */
-    private function addedAtFor(Poster $poster, array $addedAt): int
-    {
-        return $addedAt[$poster->category->value][$poster->filename] ?? $poster->modifiedAt;
     }
 
     public function delete(PosterCategory $category, string $filename): bool

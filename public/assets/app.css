@@ -475,6 +475,25 @@ h1 {
     font-size: 0.9rem;
 }
 
+/* A sort button is three marks in a row: the field's glyph, its label, and the
+   chevron giving the direction. */
+.sort__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Drawn pointing down for descending, so ascending is the same path turned over
+   rather than a second glyph that could drift away from it. */
+.sort__dir {
+    display: inline-flex;
+    align-items: center;
+}
+
+.sort__dir--asc {
+    transform: rotate(180deg);
+}
+
 /* Square icon button (e.g. the phone sort trigger). Hidden on desktop, where the
    inline sort control is used instead. */
 .icon-btn {
@@ -1489,6 +1508,12 @@ h1 {
     text-align: left;
     padding: 13px 15px;
     font-size: 0.95rem;
+}
+
+/* A sort button in the tray is one of those full-width rows, so its chevron goes
+   to the far end instead of trailing the label halfway across the row. */
+.menu__body .sort__btn .sort__dir {
+    margin-left: auto;
 }
 
 .menu__body .nav-ico {

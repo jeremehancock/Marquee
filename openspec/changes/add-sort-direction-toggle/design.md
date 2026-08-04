@@ -1,0 +1,243 @@
+## Context
+
+Sort state today is a single string that travels through three carriers: the
+`?sort=` query parameter, the `sort_order` session key, and the `DEFAULT_SORT`
+environment variable. `SortOrder` has two cases and `SortOrder::fromSlug()`
+parses all three carriers. Direction is not modelled at all — it is baked into
+the comparators in `PosterLibrary::paginate()`, where Alphabetical is always
+ascending and Date added always descending.
+
+Three properties of the existing code shape this design:
+
+- **The toolbar is never re-rendered by the no-reload path.** It lives outside
+  `#results`, and search, paging, and tab switches replace only `#results`. Any
+  design where an action silently changes the sort state would leave the control
+  lying about the listing.
+- **Sort clicks already force a full navigation.** `gallery.js` intercepts
+  `a[data-sort]` and calls `window.location.assign()` with a URL rebuilt from the
+  live pathname plus the link's `data-sort` value, precisely so the toolbar's
+  active state re-renders.
+- **Search ignores sort entirely.** `PosterLibrary::paginate()` branches to
+  `PosterSearch::filter()` when a query is present, and that method ranks by
+  match position with a hardcoded ascending `NaturalOrder` tie-break.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Four effective orders, reached by toggling either of two buttons.
+- Direction remembered per field for the session.
+- The sort control states the current order unambiguously, in text and by glyph.
+- The sort control does something visible while a search is active.
+- Zero migration: existing `DEFAULT_SORT` values, bookmarks, and live sessions
+  keep working.
+
+**Non-Goals:**
+
+- A separate "Relevance" sort mode. It would only be selectable while searching,
+  and the toolbar cannot re-render to show it being auto-selected.
+- Sorting on any field other than title and date added.
+- Persisting sort choice beyond the session.
+- Changing how match position itself is scored.
+
+## Decisions
+
+### Direction lives inside the sort slug, not beside it
+
+`SortOrder` grows from two cases to four:
+
+| Case | Slug | Field | Direction |
+| --- | --- | --- | --- |
+| `Alphabetical` | `alphabetical` | title | ascending |
+| `AlphabeticalDesc` | `alphabetical_desc` | title | descending |
+| `DateAdded` | `date_added` | date added | descending |
+| `DateAddedAsc` | `date_added_asc` | date added | ascending |
+
+The enum gains `field()`, `direction()`, and `flipped()`.
+
+**Why the existing two slugs keep their spelling and become the default
+directions:** `alphabetical` already means A–Z and `date_added` already means
+newest first. Naming the new cases rather than renaming the old ones means
+`DEFAULT_SORT`, old bookmarks, and sessions already holding `alphabetical` or
+`date_added` all continue to resolve correctly, with no migration code and no
+documentation change to `README.md`.
+
+**Alternative rejected — a separate `?dir=` parameter and session key.** It is
+conceptually cleaner (field and direction are genuinely two axes) but it makes
+every URL builder in Twig and `gallery.js` carry a second parameter, gives the
+session two keys that can desync, and forces `DEFAULT_SORT` to either grow a
+companion variable or learn compound parsing. Conflating the two axes in the wire
+format while separating them behind `field()` / `direction()` gets the clean
+model where it matters without the plumbing.
+
+### `SortPreference` resolves to a `SortState`, not a bare `SortOrder`
+
+Remembering direction per field means the session must hold more than the current
+order: rendering the *inactive* button needs the other field's remembered
+direction, which the current slug does not contain.
+
+```
+session
+  sort_order                   → the active order's slug (existing key, existing meaning)
+  sort_direction_alphabetical  → 'asc' | 'desc'
+  sort_direction_date_added    → 'asc' | 'desc'
+
+SortPreference::resolve(session, query, default) → SortState
+    current    : SortOrder   the comparator, and what gets carried in URLs
+    toggled    : SortOrder   current->flipped()   → the active button's href
+    alternate  : SortOrder   the other field at its remembered direction
+                             → the inactive button's href
+```
+
+A valid `?sort=` still wins and is stored, and it now also updates that field's
+remembered direction. Absent direction keys resolve to the field's default
+direction, so a session carrying only a legacy `sort_order` string upgrades
+silently.
+
+Templates then compute nothing: they read three orders and two labels off the
+state. This keeps the toggle arithmetic out of Twig, which matters because the
+control is rendered twice (toolbar and phone tray).
+
+### The active button's label describes the present; its href describes the future
+
+```
+ active field = alphabetical descending,  date added remembered as descending
+
+ ┌────────────────────────────────┬────────────────────────────────┐
+ │  [bars]  Z–A   ⌃    ACTIVE     │  [cal]  Date added  ⌄          │
+ │  label = current order         │  label = remembered direction  │
+ │  href  = ?sort=alphabetical    │  href = ?sort=date_added       │
+ │          (flipped)             │         (matches its own label)│
+ └────────────────────────────────┴────────────────────────────────┘
+         label ≠ href                        label = href
+```
+
+This asymmetry is inherent to "the label shows current state" plus "clicking
+toggles", and is the same contract a sortable table header has. It is called out
+explicitly because it is the part most likely to be implemented backwards.
+
+### `gallery.js` needs no changes
+
+The server renders the *target* slug into `data-sort` — already flipped for the
+active button, already at the remembered direction for the inactive one. The
+existing handler reads that attribute and navigates. The whole toggle is
+server-rendered; no client-side state, no new listener.
+
+### One comparator factory shared by listing and search
+
+`PosterLibrary::paginate()` and `PosterSearch::filter()` currently hand-roll
+`usort` callbacks that duplicate the ordering rules. A single factory keyed by
+`SortOrder` returns the comparator both use, so a direction applies identically
+whether or not a search is active.
+
+The comparator keeps the existing deterministic tie-breaks (category order, then
+the digit-aware title key for the alphabetical field; category order for date
+added). **Direction reverses the primary field only** — the tie-breaks stay
+ascending, so reversing direction does not scramble the ordering of posters that
+compare equal on the field the user actually chose.
+
+`PosterSearch::filter()` gains the active `SortOrder` and the `addedAt` map as
+parameters. `PosterLibrary::paginate()` already has both in scope.
+
+### Search: match position leads, the chosen order breaks ties
+
+`PosterSearch` scores by the position of the earliest matching term and breaks
+ties on an ascending `NaturalOrder` key. The dominant bucket — titles that begin
+with the query, all scoring 0 — is therefore already ordered A–Z. Making the
+tie-break come from the active sort order turns today's behavior into the
+alphabetical-ascending case of a general rule.
+
+```
+ [$score, <tie-break from the active SortOrder>]
+    ▲                    ▲
+    │                    └─ was: always NaturalOrder ascending
+    └─ unchanged: relevance still leads
+```
+
+**Alternative rejected — sort replaces relevance entirely.** Searching "star"
+would then put *A Star Is Born* above *Star Wars*, which is worse than the
+current behavior. Keeping score as the lead also means the `search` capability's
+existing "Results ranked by match position" requirement is extended rather than
+contradicted.
+
+### Icons: field glyph, label, direction chevron
+
+Each button is three atoms, with identical direction grammar on both so the
+indicator reads the same way in both places:
+
+```
+  ascending    [▂▄▆]  A–Z  ⌃      [▦]  Date added  ⌃     ← oldest first
+  descending   [▂▄▆]  Z–A  ⌄      [▦]  Date added  ⌄     ← newest first
+                │      │     │
+                │      │     └─ one chevron path, rotated 180° by CSS for ascending
+                │      └─ field name; A–Z/Z–A also encodes direction, harmlessly
+                └─ field glyph, carrying no arrow of its own
+```
+
+The chevron means ascending or descending uniformly on both buttons — the
+convention a sortable table header uses — rather than meaning something specific
+to the field it sits on. That is why A–Z and date-added-newest-first point
+opposite ways despite both being their own field's default: one of those defaults
+is ascending and the other is descending.
+
+The date button is what this convention actually has to serve. Its label never
+changes, so the chevron is the only thing left to carry direction; on the title
+button the chevron merely restates what `A–Z` and `Z–A` already say.
+
+Two new glyphs join `_icons.html.twig` — bars of increasing length for title
+order, a calendar for date added — drawn in the house style (24 viewBox, no fill,
+`currentColor` stroke at 1.7, round caps and joins). The field glyph deliberately
+contains no arrow so there is exactly one direction indicator per button, and
+neither reads as a duplicate of the existing two-arrow `sort` glyph that opens the
+phone tray.
+
+The chevron is a single path rotated by CSS rather than two drawn glyphs, so the
+two directions cannot drift apart visually.
+
+A bare chevron is not announced by assistive technology, so each button carries an
+`aria-label` naming field and direction in words ("Sort by date added, newest
+first"). The existing `data-tooltip` attribute takes the same string.
+
+### The sort control becomes a Twig macro
+
+The control is currently duplicated between the desktop toolbar and the phone
+tray. With per-button toggle hrefs, active/inactive labelling, glyphs, and
+chevrons, duplicating it invites the two copies to diverge. One macro taking the
+`SortState` renders both.
+
+### The URL-carry rule stops hardcoding `date_added`
+
+Two templates decide whether to append `&sort=` by testing `sort == 'date_added'`
+— pagination links in `gallery_results.html.twig` and tab links in
+`gallery.html.twig`. With four slugs that test silently drops `alphabetical_desc`
+and `date_added_asc`, resetting the order on paging or a tab switch. Both become
+"carry whatever the current order is".
+
+## Risks / Trade-offs
+
+- **Button density on desktop.** `.btn--small` now carries glyph + label +
+  chevron in a toolbar that also holds the search box. → Check visually during
+  implementation; the phone tray uses full-width `.btn` and has room. If the
+  desktop row is tight, the field glyph is the atom to drop first — but only
+  after seeing it rendered, not pre-emptively.
+- **The active button's label and its action differ.** A user may read "Z–A" as
+  what clicking will produce rather than what is on screen. → The button is
+  marked active and the `aria-label` states the current order in words; this
+  matches the near-universal sortable-table convention.
+- **Reversing direction is not a pure reversal of the listing.** Tie-breaks stay
+  ascending, so equal-comparing posters keep their relative order rather than
+  flipping. → Intended: it keeps seasons in numeric order under Z–A. Covered by a
+  scenario so it is not later mistaken for a defect.
+- **Search results reorder less than a user might expect.** With relevance
+  leading, switching to Z–A only rearranges within each equal-relevance group. →
+  Preferable to the alternative of demoting good matches; the dominant group is
+  usually large enough that the change is clearly visible.
+- **Session shape changes.** Two new session keys join `sort_order`. → Absent
+  keys resolve to the field's default direction, so existing sessions degrade to
+  exactly today's behavior rather than erroring.
+
+## Open Questions
+
+None. Behavior, labelling, icon treatment, and search interaction are settled;
+the one deferred judgement is the desktop button density check above, which needs
+rendered output rather than a decision.

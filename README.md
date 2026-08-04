@@ -41,9 +41,10 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
   Seasons, and Collections, or use the **All** view (the default) to see your
   whole library in one grid, each poster tagged with its type.
-- **Sort your way** — order the gallery alphabetically or by when each item was
-  added to Plex (newest first). Toggle it in the gallery, or set the install
-  default with `DEFAULT_SORT`.
+- **Sort your way** — order the gallery by title or by when each item was added
+  to Plex, either way round: tap a sort button again to reverse it (A–Z becomes
+  Z–A, newest first becomes oldest first). Each keeps the direction you left it
+  in. Set the install default with `DEFAULT_SORT`.
 - **Poster Wall** — a full-screen, slideshow-style view of your library that
   turns into a live "now playing" board when someone is watching: it shows the
   poster of what each person is streaming, with a *Currently Streaming* banner
@@ -152,7 +153,7 @@ server.
 | `IMAGES_PER_PAGE` | Posters shown per gallery page | `24` |
 | `MAX_FILE_SIZE` | Maximum upload size, in bytes | `5242880` |
 | `IGNORE_ARTICLES_IN_SORT` | Ignore leading "a/an/the" when sorting | `true` |
-| `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` or `date_added` (by date added to Plex, newest first). Users can toggle it in the gallery. | `alphabetical` |
+| `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` (A–Z) or `date_added` (newest first). Users can switch field and direction in the gallery. | `alphabetical` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 

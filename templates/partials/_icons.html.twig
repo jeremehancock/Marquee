@@ -6,7 +6,8 @@
    currentColor stroke at 1.7, round caps and joins — so a new one can be dropped
    in without looking foreign. Callers:
 
-     category tabs + sort   all, movies, tv-shows, tv-seasons, collections, sort
+     category tabs + sort   all, movies, tv-shows, tv-seasons, collections, sort,
+                            sort-title, sort-date, chevron
      header nav + tray      wall, import, orphans, support, logout
      poster actions         change, send, fetch, download, copy, fullscreen,
                             delete
@@ -25,6 +26,17 @@
    separating Send to Plex from Fetch from Plex — the two actions that move one
    image opposite ways and cannot be undone. Note that the downward arrow the
    import glyph gave up is exactly right for `download`, which now uses it. #}
+
+{# The sort control's three marks divide the work: `sort-title` and `sort-date`
+   name the field, `chevron` states the direction. Neither field glyph carries an
+   arrow of its own, so a button has exactly one direction indicator on it and
+   there is no second arrow to contradict the first.
+
+   `chevron` is drawn pointing down and rotated by CSS for the ascending
+   direction rather than drawn a second time, so the two directions cannot drift
+   apart the first time either is retouched. The two-headed `sort` glyph above is
+   a different job — it opens the phone tray and names sorting as a whole, so it
+   deliberately shows both directions at once. #}
 {% macro icon(name, size = 22) %}
     {# Fetch from Plex and Import from Plex are the same operation at different
        scale: one poster against a whole library. They therefore get the same
@@ -38,6 +50,9 @@
         'tv-seasons': '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12.5l9 5 9-5"/>',
         'collections': '<path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
         'sort': '<path d="M7 4v15M7 19l-3-3M7 19l3-3M17 20V5M17 5l-3 3M17 5l3 3"/>',
+        'sort-title': '<path d="M5 6h5M5 12h9M5 18h13"/>',
+        'sort-date': '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10.5h17"/><path d="M8 3v4M16 3v4"/>',
+        'chevron': '<path d="M6 9.5l6 6 6-6"/>',
         'wall': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.3l4.5 2.7-4.5 2.7z"/>',
         'import': '<path d="M3 12h11"/><path d="M10 16l4-4-4-4"/><path d="M20 5v14"/>',
         'send': '<path d="M3 12h11"/><path d="M7 8l-4 4 4 4"/><path d="M20 5v14"/>',

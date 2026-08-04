@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Poster\Search;
 
-use App\Poster\NaturalOrder;
 use App\Poster\Poster;
+use App\Poster\SortComparator;
+use App\Poster\SortOrder;
 use Normalizer;
 
 /**
@@ -14,42 +15,51 @@ use Normalizer;
  */
 final class PosterSearch
 {
+    public function __construct(private readonly SortComparator $comparator)
+    {
+    }
+
     /**
-     * @param list<Poster> $posters
+     * @param list<Poster>                      $posters
+     * @param array<string, array<string, int>> $addedAt Plex "added at" timestamps,
+     *        needed only when the tie-break orders by date
      *
      * @return list<Poster>
      */
-    public function filter(array $posters, string $query): array
-    {
+    public function filter(
+        array $posters,
+        string $query,
+        SortOrder $sort = SortOrder::Alphabetical,
+        array $addedAt = [],
+    ): array {
         $terms = $this->terms($query);
         if ($terms === []) {
             return $posters;
         }
 
-        /** @var list<array{score: int, order: string, poster: Poster}> $scored */
+        /** @var list<array{score: int, poster: Poster}> $scored */
         $scored = [];
         foreach ($posters as $poster) {
-            $title = $this->normalize($poster->title());
-            $score = $this->score($title, $terms);
+            // Scoring reads the normalized title as-is, because a match position
+            // only means anything against the real string.
+            $score = $this->score($this->normalize($poster->title()), $terms);
             if ($score !== null) {
-                // Scoring reads the normalized title as-is, because a match
-                // position only means anything against the real string. Only
-                // the tie-break key is padded.
-                $scored[] = [
-                    'score' => $score,
-                    'order' => NaturalOrder::key($title),
-                    'poster' => $poster,
-                ];
+                $scored[] = ['score' => $score, 'poster' => $poster];
             }
         }
 
         // The score leads, so relevance still decides the ranking and the
-        // digit-aware key only separates results that match equally early.
-        // Without it a search for a show would list its seasons 1, 10, 11, 2 —
-        // the same defect the gallery's own ordering has already lost.
+        // selected order only separates results that match equally early. That
+        // keeps the sort control meaningful during a search without ever letting
+        // it promote a weaker match above a stronger one.
+        $tieBreak = $this->comparator->forOrder($sort, $addedAt);
         usort(
             $scored,
-            static fn (array $a, array $b): int => [$a['score'], $a['order']] <=> [$b['score'], $b['order']],
+            static function (array $a, array $b) use ($tieBreak): int {
+                $byScore = $a['score'] <=> $b['score'];
+
+                return $byScore !== 0 ? $byScore : $tieBreak($a['poster'], $b['poster']);
+            },
         );
 
         return array_map(static fn (array $row): Poster => $row['poster'], $scored);
