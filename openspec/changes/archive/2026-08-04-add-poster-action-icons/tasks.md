@@ -23,7 +23,7 @@
 - [x] 2.3 Add `send` as `import` with the arrowhead moved to the far end of an
       identical shaft, so the bar and shaft are unchanged and direction is the
       only difference.
-- [ ] 2.4 Put `send` and `fetch` side by side at 20px and confirm the arrowhead
+- [x] 2.4 Put `send` and `fetch` side by side at 20px and confirm the arrowhead
       direction is legible at that size; also compare `send` against `logout`,
       which is deliberately close (see design.md).
 
@@ -64,12 +64,12 @@
 
 ## 6. Verify by hand and close out
 
-- [ ] 6.1 On a desktop viewport, hover a Plex-linked poster and confirm all seven
+- [x] 6.1 On a desktop viewport, hover a Plex-linked poster and confirm all seven
       actions are visible with no scrolling, at the narrowest column width the
       grid produces as well as at the widest.
-- [ ] 6.2 Confirm no label wraps now that an icon takes part of the row — "Fetch
+- [x] 6.2 Confirm no label wraps now that an icon takes part of the row — "Fetch
       from Plex" is the longest and the one to watch.
-- [ ] 6.3 On a phone viewport, tap a poster and confirm the action sheet shows the
+- [x] 6.3 On a phone viewport, tap a poster and confirm the action sheet shows the
       same icons at its own larger size, with nothing clipped.
 - [x] 6.4 Check `README.md`, `docs/`, and `CLAUDE.md` for anything this makes
       stale, and fix it in the same commit — or state explicitly that no
