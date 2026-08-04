@@ -22,6 +22,11 @@ overlay — the bottom tab bar, trays, dialogs, and the fullscreen viewer — so
 open overlay always covers it. On a pointer/desktop screen the toolbar SHALL
 continue to scroll with the page.
 
+Pinning applies only while the page can scroll. When the results are too short to
+fill the viewport — a search with no matches, most obviously — the toolbar SHALL
+rest in its normal position below the topbar. This is the same state as an
+unscrolled page and is not a failure to pin.
+
 #### Scenario: No overflow on a phone
 - **WHEN** the gallery is viewed on a narrow (phone-width) screen
 - **THEN** the tabs, toolbar, and poster grid fit without horizontal page overflow
@@ -47,6 +52,11 @@ continue to scroll with the page.
 - **WHEN** the gallery is scrolled on a narrow screen with the toolbar pinned
 - **THEN** posters scrolling past are fully hidden behind the toolbar, including
   at the left and right edges of the viewport
+
+#### Scenario: Results too short to scroll leave the toolbar in flow
+- **WHEN** a search returns no matches on a narrow screen
+- **THEN** the page is too short to scroll and the toolbar rests below the
+  topbar, as it does on an unscrolled page
 
 #### Scenario: Overlays cover the pinned toolbar
 - **WHEN** any tray, dialog, or the fullscreen viewer is open on a narrow screen

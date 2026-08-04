@@ -1246,6 +1246,14 @@
                 clearTimeout(timer);
                 timer = setTimeout(function () {
                     var q = search.value.trim();
+                    // A new result set is a new list, so it is read from the top —
+                    // the same reason paging and switching category reset the
+                    // scroll. This only became reachable once the toolbar was
+                    // pinned: before that, searching meant scrolling up to the
+                    // toolbar first, which reset the scroll as a side effect.
+                    // Debounced, so it runs once when typing settles rather than
+                    // per keystroke, and it is a no-op at the top of the page.
+                    scrollToTopOfGallery();
                     // Use the live pathname, not the page-load base: a no-reload tab
                     // switch changes the view without replacing the toolbar.
                     load(window.location.pathname + (q ? '?q=' + encodeURIComponent(q) : ''), true);

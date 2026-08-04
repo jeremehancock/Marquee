@@ -35,14 +35,30 @@
 - [x] 3.4 Assert the desktop `.toolbar` rule declares no `position: sticky`, so
   the pinning stays phone-only.
 
-## 4. Docs and gates
+## 4. Return to the top of the results on search
 
-- [x] 4.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
+Found while validating the `:dev` image. The pinned toolbar made searching from
+part-way down the gallery possible for the first time, which exposed that live
+search — unlike pagination and category switching — never resets the scroll.
+
+- [x] 4.1 In `public/assets/gallery.js`, have the live-search handler call
+  `scrollToTopOfGallery()` before it loads, matching how the pagination handler
+  already does it.
+- [x] 4.2 Confirm the existing reduced-motion branch in `scrollToTopOfGallery()`
+  covers the new caller, so no second implementation is introduced.
+- [x] 4.3 Add a test asserting live search resets the scroll through the shared
+  helper rather than its own `scrollTo`.
+
+## 5. Docs and gates
+
+- [x] 5.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
   glyph or the toolbar's scroll behavior; update in the same commit if so, and
   state explicitly that nothing was stale if not.
-- [x] 4.2 Run `composer test`, `composer stan`, and `composer cs` — all three
+- [x] 5.2 Run `composer test`, `composer stan`, and `composer cs` — all three
   must pass before committing.
-- [ ] 4.3 Verify by hand on a phone-width viewport against the `:dev` image:
+- [ ] 5.3 Verify by hand on a phone-width viewport against the `:dev` image:
   the trigger reads as an overflow menu and still opens the tray; the toolbar
   pins while scrolling with no posters visible behind or beside it; opening any
-  tray still covers the toolbar; the desktop layout is unchanged.
+  tray still covers the toolbar; searching from part-way down returns to the
+  first match smoothly; a search with no matches settles cleanly; the desktop
+  layout is unchanged.

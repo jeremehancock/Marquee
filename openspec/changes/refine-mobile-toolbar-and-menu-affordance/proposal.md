@@ -39,6 +39,10 @@ None.
   overflow/more affordance rather than a hamburger.
 - `poster-library`: the "Responsive gallery layout" requirement gains a pinned
   mobile toolbar, so search and sort remain available while scrolling.
+- `search`: the "Live search" requirement gains a return to the top of the
+  results, so a search started part-way down the gallery shows its matches from
+  the first one. The pinned toolbar makes searching mid-scroll possible for the
+  first time, which is what exposed this.
 
 ## Impact
 

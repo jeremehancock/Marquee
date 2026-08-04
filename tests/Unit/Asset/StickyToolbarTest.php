@@ -156,6 +156,72 @@ final class StickyToolbarTest extends TestCase
         self::assertGreaterThan($toolbar, $sheet, 'An open tray must cover the pinned toolbar.');
     }
 
+    private function gallerySource(): string
+    {
+        $path = dirname(__DIR__, 3) . '/public/assets/gallery.js';
+        $source = file_get_contents($path);
+        self::assertIsString($source, 'gallery.js must be readable at ' . $path);
+
+        return $source;
+    }
+
+    /**
+     * A consequence of pinning the toolbar, which is why it is asserted here.
+     *
+     * Before the toolbar was pinned, searching from part-way down the gallery
+     * meant scrolling back up to reach the search box, and that scroll was what
+     * put the user at the top of the results. Pinning removed the trip and with
+     * it the side effect: the new matches would swap in underneath a scroll
+     * offset belonging to the previous, longer list, leaving the user somewhere
+     * in the middle of the results or past the end of them entirely.
+     */
+    public function testSearchReturnsToTheTopOfTheResults(): void
+    {
+        $source = $this->gallerySource();
+
+        $matched = preg_match(
+            '/search\.addEventListener\(\x27input\x27.*?\n            \}\);/s',
+            $source,
+            $m,
+        );
+        self::assertSame(1, $matched, 'The live-search input handler must be findable.');
+        $handler = $m[0];
+
+        self::assertStringContainsString(
+            'scrollToTopOfGallery()',
+            $handler,
+            'A new result set is read from the top, the same as paging and switching category.',
+        );
+        // Going through the shared helper is the point: it carries the
+        // reduced-motion branch, which a bare scrollTo here would bypass.
+        self::assertStringNotContainsString(
+            'window.scrollTo',
+            $handler,
+            'The reset must go through the shared helper, not a second implementation.',
+        );
+    }
+
+    public function testReturnToTopHonoursReducedMotion(): void
+    {
+        $matched = preg_match(
+            '/function scrollToTopOfGallery\(\) \{.*?\n    \}/s',
+            $this->gallerySource(),
+            $m,
+        );
+        self::assertSame(1, $matched, 'The shared scroll helper must be findable.');
+
+        self::assertStringContainsString(
+            'prefers-reduced-motion: reduce',
+            $m[0],
+            'The scroll must be suppressible by the user\'s motion preference.',
+        );
+        self::assertStringContainsString(
+            "behavior: reduced ? 'auto' : 'smooth'",
+            $m[0],
+            'Reduced motion jumps; everyone else gets the smooth scroll.',
+        );
+    }
+
     public function testDesktopToolbarStillScrollsWithThePage(): void
     {
         // Pinning is a phone affordance. The desktop toolbar sits in a 960px
