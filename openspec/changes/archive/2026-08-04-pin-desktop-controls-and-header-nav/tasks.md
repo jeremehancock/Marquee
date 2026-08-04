@@ -47,7 +47,7 @@
 - [x] 3.3 Add the icon-only band: below roughly 900px and above the 640px phone
       breakpoint, hide the labels and keep the icons, wiring each button's
       `data-tooltip` to its full name.
-- [ ] 3.4 Verify the labelled row against a long `SITE_TITLE` at the 960px content
+- [x] 3.4 Verify the labelled row against a long `SITE_TITLE` at the 960px content
       column in a real browser and adjust the 900px changeover if the row crowds —
       the figure is derived from nominal character metrics, not measurement.
 - [x] 3.5 Remove the now-unused `.toolbar__actions` rules, both the base rule and
@@ -77,15 +77,15 @@
 
 ## 5. Verify by hand and close out
 
-- [ ] 5.1 On a desktop viewport: scroll the gallery and confirm the tabs and toolbar
+- [x] 5.1 On a desktop viewport: scroll the gallery and confirm the tabs and toolbar
       stay pinned, posters are fully hidden behind them, and an open tray, dialog,
       and the fullscreen viewer each cover them.
-- [ ] 5.2 Confirm a no-match search leaves the block resting below the header rather
+- [x] 5.2 Confirm a no-match search leaves the block resting below the header rather
       than pinned, and that switching category and paging still return to the top.
-- [ ] 5.3 On a phone viewport: confirm the toolbar still pins through a full scroll
+- [x] 5.3 On a phone viewport: confirm the toolbar still pins through a full scroll
       of the grid rather than releasing early, the bottom tab bar is unchanged, and
       the menu tray still lists all five actions with their full names.
-- [ ] 5.4 Check the intermediate band by narrowing a desktop window through ~900px
+- [x] 5.4 Check the intermediate band by narrowing a desktop window through ~900px
       and ~700px: labels give way to icons, nothing wraps or overflows.
 - [x] 5.5 Check `README.md`, `docs/`, and `CLAUDE.md` for anything the move makes
       stale, and fix it in the same commit — or state explicitly that nothing

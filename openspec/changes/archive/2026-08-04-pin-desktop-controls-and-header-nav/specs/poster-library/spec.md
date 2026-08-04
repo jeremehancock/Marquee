@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Responsive gallery layout
+### Requirement: Responsive gallery layout and pinned controls
 The gallery SHALL remain usable on small screens without horizontal overflow:
 the category tabs — including the All tab, five in total — fit on screen without
 scrolling or crowding, toolbar controls fit their row, and posters are sized so
@@ -85,7 +85,7 @@ coordinate space the pinned toolbar and the fixed bottom tab bar resolve against
 - **THEN** posters scrolling past are fully hidden behind the pinned tabs and
   toolbar, including at the left and right edges of the poster grid
 
-#### Scenario: Results too short to scroll leave the controls in flow
+#### Scenario: Results too short to scroll leave the toolbar in flow
 - **WHEN** a search returns no matches, on a narrow or a pointer/desktop screen
 - **THEN** the page is too short to scroll and the gallery's controls rest below
   the topbar, as they do on an unscrolled page
@@ -96,19 +96,19 @@ coordinate space the pinned toolbar and the fixed bottom tab bar resolve against
 - **THEN** the toolbar stays visible at the top of the remaining area rather than
   being pushed out of view
 
-#### Scenario: Overlays cover the pinned controls
+#### Scenario: Overlays cover the pinned toolbar
 - **WHEN** any tray, dialog, or the fullscreen viewer is open, on a narrow or a
   pointer/desktop screen
 - **THEN** it renders above the gallery's pinned controls
 
-### Requirement: Native-style category tab bar on small screens
+### Requirement: Category tab presentation by screen size
 On a narrow screen the category tabs SHALL be presented as a fixed, always-visible
 bottom tab bar in which all five tabs fit the screen at once — each tab an icon
 above a short label — rather than a scrolling row, so switching categories feels
 like a native app tab bar. The gallery content SHALL reserve space so the tab bar
 never hides the last posters or the footer. On a pointer/desktop screen the tabs
 SHALL remain text tabs above the toolbar, and SHALL be pinned together with it as
-the gallery scrolls (see "Responsive gallery layout"). Each tab SHALL retain its
+the gallery scrolls (see "Responsive gallery layout and pinned controls"). Each tab SHALL retain its
 full category name as its accessible name regardless of which presentation is
 shown.
 
@@ -126,3 +126,27 @@ shown.
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
 - **THEN** the tabs render as text tabs directly above the toolbar, rather than as
   the phone's icon-over-label bottom bar
+
+## REMOVED Requirements
+
+### Requirement: Responsive gallery layout
+**Reason**: Replaced by "Responsive gallery layout and pinned controls". This
+version specified desktop by negation: its "Desktop toolbar is unchanged"
+scenario asserted that the secondary actions stayed in the gallery toolbar and
+that the toolbar scrolled with the page. Both are now false — the actions moved
+to the shared page header, and the tabs and toolbar are pinned together as one
+block. A scenario whose entire content is "this did not change" cannot be carried
+forward once it has, and the renamed requirement covers pinning on both form
+factors rather than treating it as a phone affordance.
+
+**Migration**: None. No route, endpoint, or stored data is affected. Every phone
+scenario is carried into the replacement unchanged.
+
+### Requirement: Native-style category tab bar on small screens
+**Reason**: Replaced by "Category tab presentation by screen size". Its "Desktop
+tabs are unchanged" scenario fixed the tabs in "their original position", which
+they no longer occupy now that they are pinned with the toolbar. The old name
+also undersold the requirement, which always specified the desktop presentation
+as well as the phone one.
+
+**Migration**: None. The phone bottom tab bar is specified exactly as before.
