@@ -322,6 +322,109 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * The glyph is an aid to finding an action, never the thing that names it:
+     * no control carries an aria-label, so the visible label is the accessible
+     * name and the icon is hidden from assistive technology. An icon that leaked
+     * into the accessible name, or a label replaced by one, would be silent.
+     */
+    public function testEveryActionControlPairsAHiddenIconWithItsLabel(): void
+    {
+        $this->writePoster('Solaris.png');
+        $actions = $this->cardActions((string) $this->get($this->app(), '/library/movies')->getBody());
+
+        foreach (['Change poster', 'Download', 'Copy URL', 'Full screen', 'Delete'] as $label) {
+            self::assertStringContainsString(
+                '<span class="card__action-label">' . $label . '</span>',
+                $actions,
+                sprintf('%s must keep its label.', $label),
+            );
+        }
+
+        // One icon per control, each hidden from assistive technology.
+        self::assertSame(
+            5,
+            preg_match_all('/<span class="card__action-ico" aria-hidden="true">/', $actions),
+            'Each of the five unlinked actions carries exactly one hidden icon.',
+        );
+        self::assertStringNotContainsString(
+            'aria-label',
+            $actions,
+            'The label names the control; an aria-label would compete with it.',
+        );
+    }
+
+    /**
+     * Fetch from Plex is Import from Plex narrowed to one item, so it draws the
+     * same mark; Send to Plex is that mark with the arrow reversed. Direction is
+     * the entire distinction between two irreversible actions that move the same
+     * image opposite ways, so a copy-paste slip here would invert the meaning of
+     * one of them while still looking plausible.
+     */
+    public function testSendAndFetchGlyphsDifferOnlyInDirection(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            '1',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.png',
+            time(),
+        ));
+
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+            'AUTH_BYPASS' => 'true',
+            'PLEX_SERVER_URL' => 'http://plex:32400',
+            'PLEX_TOKEN' => 'token',
+        ]);
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+        $actions = $this->cardActions($body);
+
+        $send = $this->glyphPaths($actions, 'Send to Plex');
+        $fetch = $this->glyphPaths($actions, 'Fetch from Plex');
+        $import = $this->glyphPaths($body, 'Import from Plex');
+
+        self::assertSame($import, $fetch, 'Fetch and Import are the same operation and take the same glyph.');
+
+        // The shaft and the boundary are shared; only the arrowhead moves.
+        self::assertCount(3, $send);
+        self::assertSame($fetch[0], $send[0], 'The shaft must not move.');
+        self::assertSame($fetch[2], $send[2], 'The boundary must not move.');
+        self::assertNotSame($fetch[1], $send[1], 'The arrowhead is what distinguishes them.');
+    }
+
+    /** The action control block of the first card. */
+    private function cardActions(string $body): string
+    {
+        $matched = preg_match('#<div class="card__actions">.*?\n {20}</div>#s', $body, $m);
+        self::assertSame(1, $matched, 'The card must render its action controls.');
+
+        return $m[0];
+    }
+
+    /**
+     * The `d` attributes of the glyph belonging to the control with this label,
+     * in document order.
+     *
+     * @return list<string>
+     */
+    private function glyphPaths(string $html, string $label): array
+    {
+        $quoted = preg_quote($label, '#');
+        $matched = preg_match('#<svg[^>]*>(?:(?!</svg>).)*</svg>(?:(?!</svg>).)*?' . $quoted . '</span>#s', $html, $m);
+        self::assertSame(1, $matched, sprintf('Expected a glyph paired with "%s".', $label));
+        preg_match_all('/ d="([^"]+)"/', $m[0], $paths);
+
+        return $paths[1];
+    }
+
+    /**
      * How much of the grid a mutation invalidates is declared by the form, not
      * inferred from its action. Replacing one poster's image touches one card;
      * re-sending stores nothing and touches nothing; deleting changes which
