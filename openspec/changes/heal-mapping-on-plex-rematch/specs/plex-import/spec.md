@@ -180,6 +180,15 @@ A rename SHALL NOT be attempted when the derived name is unchanged, and a rename
 that cannot be completed SHALL leave the poster reachable under its existing
 name rather than failing the import.
 
+Renaming a stored poster SHALL be the last step before its mapping is updated,
+and nothing that can fail SHALL come between the two. A poster renamed by an
+import that then fails is worse than one never renamed at all: the mapping
+addresses a name that no longer exists, the file answers to a name no mapping
+knows, and no later import can reconcile them — the poster is unlinked, showing
+a filename-derived title and refusing every operation that needs its Plex item.
+Whatever an import manages to do, the stored file and its mapping SHALL still
+describe each other when it finishes.
+
 #### Scenario: Colliding name is made unique
 - **WHEN** an import stores a poster whose derived name matches an existing file
   in the category that belongs to a different item
@@ -224,3 +233,8 @@ name rather than failing the import.
 - **WHEN** a stored poster cannot be renamed
 - **THEN** the mapping continues to address the poster by its existing filename
   and the import reports the item without failing the run
+
+#### Scenario: A failed download leaves the file and its mapping agreeing
+- **WHEN** an item's title has changed and fetching its poster from Plex fails
+- **THEN** the mapping still addresses a file that exists, and a later import
+  once Plex is reachable renames the poster and corrects its facts as usual

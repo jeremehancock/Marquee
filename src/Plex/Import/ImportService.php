@@ -89,13 +89,6 @@ final class ImportService
             $existing = $this->items->findByRatingKey($item->ratingKey);
             $thumb = $item->thumb ?? '';
 
-            // Correcting a bad match in Plex ("Fix Match") keeps the item's
-            // rating key but replaces the work behind it. The stored filename is
-            // what the gallery sorts by and what a search matches, so it is
-            // brought back in step here — before the skip check reads it, and
-            // before the download path writes through it.
-            $filename = $existing === null ? '' : $this->renamedToMatch($existing, $item, $category);
-
             // Skip the poster download when Plex's artwork version is unchanged
             // since our last import and the local file still exists. Plex embeds
             // a version token in the thumb path, so an identical path means the
@@ -105,9 +98,15 @@ final class ImportService
                 && $existing !== null
                 && $thumb !== ''
                 && $existing->thumb === $thumb
-                && $this->storage->exists($category, $filename)
+                && $this->storage->exists($category, $existing->filename)
             ) {
-                $this->reconcileFacts($existing, $item, $filename);
+                // Correcting a bad match in Plex ("Fix Match") keeps the item's
+                // rating key but replaces the work behind it. The stored
+                // filename is what the gallery sorts by and what a search
+                // matches, so it is brought back in step even though nothing is
+                // downloaded — this is where a poster locked in Plex lands, and
+                // the only chance to correct one.
+                $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
                 $result->recordSkipped();
 
                 return;
@@ -118,7 +117,16 @@ final class ImportService
             $temp = $this->writeTempFile($bytes);
             try {
                 if ($existing !== null) {
-                    $this->storage->replace($category, $filename, $temp);
+                    // Write through the name the mapping still holds, and rename
+                    // only once that has succeeded. A rename is always the last
+                    // thing to happen before the mapping is updated with what it
+                    // returned, so any failure above leaves the file and the
+                    // mapping still agreeing: a renamed file the mapping cannot
+                    // address is an unlinked poster, and no later import can
+                    // recover it — the mapping would keep pointing at a name
+                    // that no longer exists.
+                    $this->storage->replace($category, $existing->filename, $temp);
+                    $filename = $this->renamedToMatch($existing, $item, $category);
                 } else {
                     $filename = $this->storage->store($category, $this->deriveFilename($item, $bytes), $temp);
                 }
@@ -155,20 +163,28 @@ final class ImportService
      * title or year has moved since the poster was imported.
      *
      * The name is derived from the item and the file's own extension, never
-     * from poster bytes: this runs before the skip check has decided whether to
-     * download anything, and the stored extension is the right one anyway — a
-     * corrected match changes metadata, not the image already on disk.
+     * from poster bytes: the skip path has none to inspect, and the stored
+     * extension is the right one anyway — a corrected match changes metadata,
+     * not the image already on disk.
      *
      * Deciding whether the name actually changed is left to the storage, which
      * owns sanitisation: the derived name here is raw, and only its sanitised
      * form is comparable to what is on disk. An unchanged name moves nothing.
      *
+     * Callers MUST record the returned name immediately, and MUST NOT do
+     * anything that can fail between calling this and recording it. The return
+     * value is the one description of the file that is true either way — the new
+     * name when the move happened, the old one when it did not — so a caller
+     * that renames and then fails before writing has stranded the poster: the
+     * mapping addresses a name that no longer exists, the file answers to a name
+     * no mapping knows, and no later import can reconcile them.
+     *
      * A rename that cannot be completed is not worth failing an item's import
      * over. The poster stays reachable under its existing name and its facts are
      * still corrected, which is strictly better than leaving both stale. That
      * also covers the poster whose file has gone missing: there is nothing to
-     * move, the download path below recreates it under the old name, and the
-     * next import — which now finds a file — renames it.
+     * move, the download path recreates it under the old name, and the next
+     * import — which now finds a file — renames it.
      */
     private function renamedToMatch(PlexItemRecord $existing, PlexItem $item, PosterCategory $category): string
     {

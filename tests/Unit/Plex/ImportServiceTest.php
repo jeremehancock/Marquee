@@ -565,6 +565,58 @@ final class ImportServiceTest extends TestCase
     }
 
     /**
+     * A failed download must not leave the poster renamed. The mapping is only
+     * updated after the download succeeds, so renaming before it strands the
+     * file under a name no mapping knows — the gallery then captions it from the
+     * filename ("The Shield TV Shows"), Find Posters and Send to Plex report it
+     * as unlinked, and no later import reconciles the two, because the mapping
+     * still addresses a name that is gone.
+     *
+     * Plex makes this ordinary rather than exotic: right after a corrected match
+     * it regenerates artwork, so the thumb path read from the library listing
+     * can 404 by the time the poster is fetched.
+     */
+    public function testAFailedDownloadLeavesTheFileAndTheMappingAgreeing(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('2', 'TV Shows', 'show');
+
+        $wrong = new PlexItem('100', PlexMediaType::Show, "Marvel's Agents of S.H.I.E.L.D.", 2013, '/t/100/v1', 'TV Shows', sectionKey: '2', tmdbId: '1403');
+        $plexWrong = new FakePlexClient([$library], ['2' => [$wrong]]);
+        (new ImportService($plexWrong, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        // Corrected match, new artwork — but fetching the poster fails.
+        $fixed = new PlexItem('100', PlexMediaType::Show, 'The Shield', 2002, '/t/100/v2', 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $plexFailing = new FakePlexClient([$library], ['2' => [$fixed]], failingKeys: ['100']);
+        $result = (new ImportService($plexFailing, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        self::assertSame(1, $result->failed());
+
+        // Whatever the import managed, the file on disk and the mapping must
+        // still describe each other.
+        $record = $items->findByRatingKey('100');
+        self::assertNotNull($record);
+        self::assertTrue(
+            $storage->exists(PosterCategory::TvShows, $record->filename),
+            'the mapping must address a file that exists',
+        );
+        self::assertSame(1, $this->countFiles('tv-shows'));
+
+        // And a later import, once Plex is answering again, still heals it.
+        $plexOk = new FakePlexClient([$library], ['2' => [$fixed]]);
+        (new ImportService($plexOk, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $healed = $items->findByRatingKey('100');
+        self::assertNotNull($healed);
+        self::assertSame('The_Shield_TV_Shows.png', $healed->filename);
+        self::assertSame('The Shield', $healed->title);
+        self::assertSame(1, $this->countFiles('tv-shows'));
+    }
+
+    /**
      * A rename obeys the same uniqueness rule a first import does: it may never
      * take a name that belongs to another item's poster.
      */
