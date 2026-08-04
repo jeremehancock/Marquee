@@ -77,7 +77,7 @@ viewport, so the pinned toolbar ends up anchored above the visible area.
   state explicitly that nothing was stale if not.
 - [x] 7.2 Run `composer test`, `composer stan`, and `composer cs` — all three
   must pass before committing.
-- [ ] 7.3 Verify by hand on a phone-width viewport against the `:dev` image:
+- [x] 7.3 Verify by hand on a phone-width viewport against the `:dev` image:
   the trigger reads as an overflow menu and still opens the tray; the toolbar
   pins while scrolling with no posters visible behind or beside it; opening any
   tray still covers the toolbar; searching from part-way down returns to the
