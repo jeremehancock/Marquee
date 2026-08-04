@@ -10,8 +10,8 @@ final class ApplicationShellTest extends AppTestCase
 {
     /**
      * The opening tags of the two footers the shared layout renders: the page
-     * footer, and the navigation drawer's, which replaces it on a phone. Both
-     * carry the same chrome, so both are asserted against.
+     * footer, and the menu tray's, which replaces it on a phone. Both carry the
+     * same chrome, so both are asserted against.
      *
      * @var list<string>
      */
@@ -61,6 +61,42 @@ final class ApplicationShellTest extends AppTestCase
             '<span>My Wall</span>',
             (string) $response->getBody(),
         );
+    }
+
+    /**
+     * The glyph is the menu's whole promise to the user, and it is the one part
+     * of this control a stylesheet cannot get wrong loudly — a hamburger would
+     * still open the tray, just after telling the user to expect a navigation
+     * drawer that slides in from an edge. Nothing behind the button navigates in
+     * place on a phone, so the overflow form is the honest one.
+     */
+    public function testMenuTriggerPresentsAnOverflowGlyphRatherThanAHamburger(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        $matched = preg_match('#<button[^>]*class="menu-btn".*?</button>#s', $body, $m);
+        self::assertSame(1, $matched, 'The topbar must render the menu trigger.');
+        $button = $m[0];
+
+        // Three dots on one line. Asserting the count matters: a single circle
+        // would satisfy a bare substring check and read as something else.
+        self::assertSame(
+            3,
+            preg_match_all('/<circle\b/', $button),
+            'The overflow glyph is three dots.',
+        );
+        self::assertStringNotContainsString(
+            '<path',
+            $button,
+            'The hamburger rules must be gone, not merely joined by the dots.',
+        );
+        // The glyph is decorative; the button's name is what a screen reader
+        // announces, and it must survive the swap.
+        self::assertStringContainsString('aria-label="Menu"', $button);
+        self::assertStringContainsString('aria-haspopup="true"', $button);
     }
 
     public function testBothFootersLinkTheProductNameToTheProjectSite(): void

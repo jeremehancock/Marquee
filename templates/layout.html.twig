@@ -41,11 +41,17 @@
                 {% if not auth_bypass %}
                     <span class="topnav__desktop">{{ nav.logout_link() }}</span>
                 {% endif %}
+                {# An overflow ("more") glyph rather than a hamburger: nothing behind
+                   this button navigates in place on a phone — Import and Orphans open
+                   as trays over the current page, Poster Wall and Support open new
+                   tabs, and Log out is an action. A hamburger would promise the
+                   edge-anchored navigation drawer this menu deliberately isn't. #}
                 <button type="button" class="menu-btn" @click="menuOpen = true"
                         aria-label="Menu" aria-haspopup="true">
                     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-                        <path d="M3 6h18M3 12h18M3 18h18" fill="none" stroke="currentColor"
-                              stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="5" cy="12" r="1.9" fill="currentColor"/>
+                        <circle cx="12" cy="12" r="1.9" fill="currentColor"/>
+                        <circle cx="19" cy="12" r="1.9" fill="currentColor"/>
                     </svg>
                 </button>
                 {% include 'partials/_menu.html.twig' %}
