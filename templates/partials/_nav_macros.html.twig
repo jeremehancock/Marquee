@@ -1,27 +1,11 @@
 {# Single source of truth for the secondary navigation links. Rendered both in
    the desktop page header and in the mobile menu tray, so the same links appear
-   in both places without divergent markup. #}
+   in both places without divergent markup.
 
-{# Small inline icon set for the nav items, kept here so the macros stay
-   self-contained (referenced via _self). #}
-{# The import glyph is sideways rather than downward: an arrow falling onto a
-   tray is the download idiom, and importing is not downloading. Turned a quarter
-   anticlockwise it becomes an arrow entering a boundary — the mirror of the
-   logout glyph, which puts the same bar on the right and sends the arrow the
-   other way. The geometry is the old path rotated exactly, so the 6px gap
-   between the arrowhead and the bar is the one it always had. #}
-{% macro ic(name) %}
-    {% set paths = {
-        'wall': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.3l4.5 2.7-4.5 2.7z"/>',
-        'import': '<path d="M3 12h11"/><path d="M10 16l4-4-4-4"/><path d="M20 5v14"/>',
-        'orphans': '<path d="M10.5 13.5a4 4 0 0 0 5.5-.2l2-2a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M13.5 10.5a4 4 0 0 0-5.5.2l-2 2a4 4 0 0 0 5.7 5.7l1-1"/><path d="M4 4l16 16"/>',
-        'support': '<path d="M12 20.3l-1.1-1C6.1 15 3 12.2 3 8.8 3 6.1 5.1 4 7.8 4c1.5 0 3 .7 4.2 2 1.2-1.3 2.7-2 4.2-2C18.9 4 21 6.1 21 8.8c0 3.4-3.1 6.2-7.9 10.5l-1.1 1z"/>',
-        'logout': '<path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 12H3"/><path d="M6 9l-3 3 3 3"/>'
-    } %}
-    <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
-         stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-         stroke-linejoin="round" aria-hidden="true" focusable="false">{{ paths[name]|default('')|raw }}</svg>
-{% endmacro %}
+   The glyphs come from the shared icon macro; nav items ask for 20px, against
+   the 22px the category tab bar uses. That import lives inside `item()` rather
+   than at the top of this file: a Twig macro sees only its own arguments, so a
+   file-level import is invisible from inside one. #}
 
 {# One nav item, in the single presentation used by both the header and the tray:
    an icon beside a label. Two labels are rendered, not one — the header is a
@@ -39,8 +23,9 @@
    rather than an anchor: a link pointing at the page you are already on is the
    thing being avoided, and removing the href is what actually removes it. #}
 {% macro item(key, href, label, short, current, external = false) %}
+    {% import 'partials/_icons.html.twig' as icons %}
     {% set body %}
-        <span class="nav-ico" aria-hidden="true">{{ _self.ic(key) }}</span>
+        <span class="nav-ico" aria-hidden="true">{{ icons.icon(key, 20) }}</span>
         <span class="nav-label" aria-hidden="true">{{ label }}</span>
         <span class="nav-label nav-label--short" aria-hidden="true">{{ short }}</span>
     {% endset %}

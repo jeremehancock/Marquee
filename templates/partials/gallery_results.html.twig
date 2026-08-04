@@ -1,6 +1,17 @@
 {# View-level base drives pagination over the whole (combined or category) list. #}
 {% set base = '/library/' ~ view.value %}
 
+{# One action control. The icon leads and is hidden from assistive technology —
+   the label is what names the control, here and in the touch action sheet, which
+   renders this same markup. 18px against the 0.8rem line box, so the row's height
+   is set by the text as it was before icons: the stack must not grow (see
+   "Poster cards fit their full action stack"). #}
+{% macro action_body(glyph, label) %}
+    {% import 'partials/_icons.html.twig' as icons %}
+    <span class="card__action-ico" aria-hidden="true">{{ icons.icon(glyph, 18) }}</span>
+    <span class="card__action-label">{{ label }}</span>
+{% endmacro %}
+
 {% if query is not empty %}
     {# A search is active: name the query and its match count for THIS view, and
        offer a clear control so the filtered state is unmistakable. #}
@@ -49,7 +60,7 @@
                         <button type="button" class="btn btn--small btn--accent"
                                 data-action="change" data-filename="{{ poster.filename }}"
                                 data-title="{{ caption_title }}" data-category="{{ poster.category.value }}">
-                            Change poster
+                            {{ _self.action_body('change', 'Change poster') }}
                         </button>
                         {# data-refresh tells the gallery script how much of the grid a
                            mutation invalidates. `none`: nothing stored changed, so there
@@ -75,7 +86,7 @@
                                   data-confirm-label="Send to Plex"
                                   data-confirm-tone="accent">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small">Send to Plex</button>
+                                <button type="submit" class="btn btn--small">{{ _self.action_body('send', 'Send to Plex') }}</button>
                             </form>
                             <form class="js-mutate" method="post" action="{{ poster_base }}/fetch-from-plex"
                                   data-refresh="card" data-category="{{ poster.category.value }}"
@@ -84,16 +95,16 @@
                                   data-confirm-label="Fetch from Plex"
                                   data-confirm-tone="accent">
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
-                                <button type="submit" class="btn btn--small">Fetch from Plex</button>
+                                <button type="submit" class="btn btn--small">{{ _self.action_body('fetch', 'Fetch from Plex') }}</button>
                             </form>
                         {% endif %}
-                        <a class="btn btn--small" href="{{ poster.url }}" download>Download</a>
-                        <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">Copy URL</button>
-                        <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">Full screen</button>
+                        <a class="btn btn--small" href="{{ poster.url }}" download>{{ _self.action_body('download', 'Download') }}</a>
+                        <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">{{ _self.action_body('copy', 'Copy URL') }}</button>
+                        <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
-                            <button type="submit" class="btn btn--small btn--danger">Delete</button>
+                            <button type="submit" class="btn btn--small btn--danger">{{ _self.action_body('delete', 'Delete') }}</button>
                         </form>
                     </div>
                 </div>

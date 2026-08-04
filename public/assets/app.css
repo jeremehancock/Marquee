@@ -573,10 +573,21 @@ h1 {
     outline-offset: 2px;
 }
 
-/* Poster grid */
+/* Poster grid.
+
+   The 200px minimum is set by the action stack, not by how posters look. A card
+   is `aspect-ratio: 2 / 3`, so its height is 1.5x the column; the tallest stack —
+   the seven actions shown for a poster linked to Plex — needs about 295px, which
+   wants a column of at least ~197px. At the old 190px minimum a linked poster's
+   actions were clipped and the overlay scrolled, which "Poster presentation" has
+   always forbidden ("large enough for the overlay action stack to fit").
+
+   Four columns still fit the 912px content column, so nothing changes at full
+   width; five never fit at either value. Retune this with the control height in
+   .card__actions .btn, never alone. */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 18px;
 }
 
@@ -793,12 +804,36 @@ h1 {
     display: block;
 }
 
+/* Left-aligned with a leading icon, so the glyphs form one column the eye can
+   scan. Centring them would put every icon at a different horizontal position,
+   which is most of what the icons were meant to fix.
+
+   The row must not grow: the glyph is 18px against a 20.48px line box (0.8rem at
+   the inherited 1.6), so the text still sets the height and the seven-action
+   stack occupies exactly what it did before icons. Anything that makes this
+   taller — a larger glyph, a wrapped label — puts the stack back over the card's
+   height. See the .grid minimum, which is sized against that stack. */
 .card__actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
-    text-align: center;
+    text-align: left;
     padding: 6px 8px;
     font-size: 0.8rem;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.card__action-ico {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+/* The label is what names the control — no action carries an aria-label, so this
+   text is the accessible name in both the hover overlay and the action sheet. */
+.card__action-label {
+    min-width: 0;
 }
 
 /* On the dark hover overlay a plain surface button reads as half-transparent;
