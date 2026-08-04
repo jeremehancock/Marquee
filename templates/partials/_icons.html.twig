@@ -7,7 +7,7 @@
    in without looking foreign. Callers:
 
      category tabs + sort   all, movies, tv-shows, tv-seasons, collections, sort,
-                            sort-title, sort-date, chevron
+                            sort-title, sort-date, sort-direction
      header nav + tray      wall, import, orphans, support, logout
      poster actions         change, send, fetch, download, copy, fullscreen,
                             delete
@@ -28,15 +28,25 @@
    import glyph gave up is exactly right for `download`, which now uses it. #}
 
 {# The sort control's three marks divide the work: `sort-title` and `sort-date`
-   name the field, `chevron` states the direction. Neither field glyph carries an
-   arrow of its own, so a button has exactly one direction indicator on it and
-   there is no second arrow to contradict the first.
+   name the field, `sort-direction` states which way it runs. Neither field glyph
+   carries an arrow of its own, so a button has exactly one direction indicator on
+   it and there is no second arrow to contradict the first.
 
-   `chevron` is drawn pointing down and rotated by CSS for the ascending
-   direction rather than drawn a second time, so the two directions cannot drift
-   apart the first time either is retouched. The two-headed `sort` glyph above is
-   a different job — it opens the phone tray and names sorting as a whole, so it
-   deliberately shows both directions at once. #}
+   `sort-direction` is one half of the `sort` glyph above, moved to the centre.
+   That glyph is a down arrow beside an up arrow — it opens the phone tray and so
+   has to name sorting as a whole rather than any one direction — and its two
+   halves are the same shape at different x. Splitting it therefore costs nothing:
+   the down half drawn at x=12 is `sort-direction`, and turning that half over is
+   how the up half is already drawn. So the tray's trigger and the direction on
+   the buttons inside it are literally the same mark, whole and halved.
+
+   Being one half of a two-arrow glyph is also why it is not a bare chevron. It
+   keeps the shaft, which is most of the mark's weight, and that is what lets it
+   hold up at the small size a button needs.
+
+   It is drawn pointing down and rotated by CSS for the ascending direction rather
+   than drawn a second time, so the two directions cannot drift apart the first
+   time either is retouched. #}
 {% macro icon(name, size = 22) %}
     {# Fetch from Plex and Import from Plex are the same operation at different
        scale: one poster against a whole library. They therefore get the same
@@ -52,7 +62,7 @@
         'sort': '<path d="M7 4v15M7 19l-3-3M7 19l3-3M17 20V5M17 5l-3 3M17 5l3 3"/>',
         'sort-title': '<path d="M5 6h5M5 12h9M5 18h13"/>',
         'sort-date': '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10.5h17"/><path d="M8 3v4M16 3v4"/>',
-        'chevron': '<path d="M6 9.5l6 6 6-6"/>',
+        'sort-direction': '<path d="M12 4v15M12 19l-3-3M12 19l3-3"/>',
         'wall': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.3l4.5 2.7-4.5 2.7z"/>',
         'import': '<path d="M3 12h11"/><path d="M10 16l4-4-4-4"/><path d="M20 5v14"/>',
         'send': '<path d="M3 12h11"/><path d="M7 8l-4 4 4 4"/><path d="M20 5v14"/>',

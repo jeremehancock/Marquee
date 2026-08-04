@@ -19,7 +19,7 @@ use App\Poster\SortOrder;
 final class SortButton
 {
     public function __construct(
-        /** What the button reads: its label, its chevron, its text alternative. */
+        /** What the button reads: its label, its arrow, its text alternative. */
         public readonly SortOrder $shown,
         /** What activating it applies, and so the slug its link carries. */
         public readonly SortOrder $target,

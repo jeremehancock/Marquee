@@ -160,41 +160,63 @@ current behavior. Keeping score as the lead also means the `search` capability's
 existing "Results ranked by match position" requirement is extended rather than
 contradicted.
 
-### Icons: field glyph, label, direction chevron
+### Icons: field glyph, label, direction arrow
 
 Each button is three atoms, with identical direction grammar on both so the
 indicator reads the same way in both places:
 
 ```
-  ascending    [▂▄▆]  A–Z  ⌃      [▦]  Date added  ⌃     ← oldest first
-  descending   [▂▄▆]  Z–A  ⌄      [▦]  Date added  ⌄     ← newest first
+  ascending    [▂▄▆]  A–Z  ↑      [▦]  Date added  ↑     ← oldest first
+  descending   [▂▄▆]  Z–A  ↓      [▦]  Date added  ↓     ← newest first
                 │      │     │
-                │      │     └─ one chevron path, rotated 180° by CSS for ascending
+                │      │     └─ one arrow path, rotated 180° by CSS for ascending
                 │      └─ field name; A–Z/Z–A also encodes direction, harmlessly
                 └─ field glyph, carrying no arrow of its own
 ```
 
-The chevron means ascending or descending uniformly on both buttons — the
+The arrow means ascending or descending uniformly on both buttons — the
 convention a sortable table header uses — rather than meaning something specific
 to the field it sits on. That is why A–Z and date-added-newest-first point
 opposite ways despite both being their own field's default: one of those defaults
 is ascending and the other is descending.
 
 The date button is what this convention actually has to serve. Its label never
-changes, so the chevron is the only thing left to carry direction; on the title
-button the chevron merely restates what `A–Z` and `Z–A` already say.
+changes, so the arrow is the only thing left to carry direction; on the title
+button the arrow merely restates what `A–Z` and `Z–A` already say.
 
-Two new glyphs join `_icons.html.twig` — bars of increasing length for title
+**The direction indicator is one half of the `sort` glyph**, not a new mark. That
+glyph opens the phone tray and so has to name sorting as a whole rather than any
+one direction, which it does by drawing a down arrow beside an up arrow — and its
+two halves are the same shape at different x:
+
+```
+  sort (existing)   M7 4v15  M7 19l-3-3  M7 19l3-3     ← down half
+                    M17 20V5 M17 5l-3 3  M17 5l3 3     ← up half
+
+  sort-direction    M12 4v15 M12 19l-3-3 M12 19l3-3    ← the down half, centred
+                    └─ rotated 180° by CSS, this *is* the up half
+```
+
+So the tray's trigger and the direction on the rows inside it are literally the
+same mark, whole and halved — the same derive-don't-redraw rule `_icons.html.twig`
+already applies to `send` and `import`. Rotating one path rather than drawing two
+also means the two directions cannot drift apart.
+
+A bare chevron was the first attempt and was the wrong mark twice over: it shares
+nothing with the trigger, and it is mostly empty space, so at the 14px a button
+allows it came out as a hairline. Keeping the shaft keeps the weight.
+
+Two further glyphs join `_icons.html.twig` — bars of increasing length for title
 order, a calendar for date added — drawn in the house style (24 viewBox, no fill,
 `currentColor` stroke at 1.7, round caps and joins). The field glyph deliberately
-contains no arrow so there is exactly one direction indicator per button, and
-neither reads as a duplicate of the existing two-arrow `sort` glyph that opens the
-phone tray.
+contains no arrow, so there is exactly one direction indicator per button.
 
-The chevron is a single path rotated by CSS rather than two drawn glyphs, so the
-two directions cannot drift apart visually.
+That 1.7 stroke is tuned for the ~22px the tabs draw at, where it lands at 1.56px
+on screen. The sort control draws smaller to fit inside a button, so its marks
+take a heavier nominal stroke by CSS to hold the same weight — and a further step
+on the active button, whose label is set in 600.
 
-A bare chevron is not announced by assistive technology, so each button carries an
+An arrow is not announced by assistive technology, so each button carries an
 `aria-label` naming field and direction in words ("Sort by date added, newest
 first"). The existing `data-tooltip` attribute takes the same string.
 
@@ -202,8 +224,8 @@ first"). The existing `data-tooltip` attribute takes the same string.
 
 The control is currently duplicated between the desktop toolbar and the phone
 tray. With per-button toggle hrefs, active/inactive labelling, glyphs, and
-chevrons, duplicating it invites the two copies to diverge. One macro taking the
-`SortState` renders both.
+direction arrows, duplicating it invites the two copies to diverge. One macro
+taking the `SortState` renders both.
 
 ### The URL-carry rule stops hardcoding `date_added`
 
@@ -216,10 +238,11 @@ and `date_added_asc`, resetting the order on paging or a tab switch. Both become
 ## Risks / Trade-offs
 
 - **Button density on desktop.** `.btn--small` now carries glyph + label +
-  chevron in a toolbar that also holds the search box. → Check visually during
+  arrow in a toolbar that also holds the search box. → Check visually during
   implementation; the phone tray uses full-width `.btn` and has room. If the
   desktop row is tight, the field glyph is the atom to drop first — but only
-  after seeing it rendered, not pre-emptively.
+  after seeing it rendered, not pre-emptively. *(Checked at 1280px: comfortable,
+  nothing dropped.)*
 - **The active button's label and its action differ.** A user may read "Z–A" as
   what clicking will produce rather than what is on screen. → The button is
   marked active and the `aria-label` states the current order in words; this

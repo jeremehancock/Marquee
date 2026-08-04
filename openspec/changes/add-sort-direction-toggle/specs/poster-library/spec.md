@@ -139,10 +139,14 @@ its default direction.
 
 ### Requirement: Sort control indicates field and direction
 Each button in the sort control SHALL identify its field and show a direction
-indicator: a chevron pointing down for a descending order and up for an
-ascending order. The title button's label SHALL read `A–Z` when its direction is
-ascending and `Z–A` when it is descending; the date-added button SHALL keep a
-constant label and convey direction through its indicator alone.
+indicator: an arrow pointing down for a descending order and up for an ascending
+order. The title button's label SHALL read `A–Z` when its direction is ascending
+and `Z–A` when it is descending; the date-added button SHALL keep a constant
+label and convey direction through its indicator alone.
+
+The direction indicator SHALL be drawn as one half of the glyph that opens the
+phone sort tray, that glyph being a down arrow beside an up arrow, so the control
+and its trigger read as one mark whole and halved.
 
 Each button SHALL carry a leading glyph identifying its field, drawn in the
 application's existing icon style.
@@ -151,13 +155,18 @@ The active button SHALL show the order the gallery is currently in, while
 activating it applies the reversed order. Each inactive button SHALL show that
 field's remembered direction, which is also the order activating it applies.
 
-Because a chevron alone is not announced by assistive technology, each button
+Because an arrow alone is not announced by assistive technology, each button
 SHALL carry a text alternative naming its field and direction in words.
 
 #### Scenario: Active title button shows the current direction
 - **WHEN** the gallery is ordered Z–A
 - **THEN** the title button is marked active, reads `Z–A`, and shows a downward
-  chevron, Z–A being the descending direction of the title field
+  arrow, Z–A being the descending direction of the title field
+
+#### Scenario: Direction indicator matches the tray's trigger
+- **WHEN** a user opens the phone sort tray from its trigger
+- **THEN** the direction shown on each row inside is the same mark as one half of
+  the trigger's own two-arrow glyph
 
 #### Scenario: Activating the active button applies the reverse of its label
 - **WHEN** the title button reads `Z–A` and the user activates it
@@ -171,7 +180,7 @@ SHALL carry a text alternative naming its field and direction in words.
 
 #### Scenario: Date-added button conveys direction by indicator
 - **WHEN** the gallery is ordered by date added, oldest first
-- **THEN** the date-added button keeps its label and shows an upward chevron
+- **THEN** the date-added button keeps its label and shows an upward arrow
 
 #### Scenario: Direction is available as text
 - **WHEN** assistive technology reads a sort button

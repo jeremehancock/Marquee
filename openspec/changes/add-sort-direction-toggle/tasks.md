@@ -34,12 +34,12 @@
 ## 6. Icons and the sort control
 
 - [x] 6.1 Add a `sort-title` glyph (bars of increasing length, no arrow) and a `sort-date` glyph (calendar) to `templates/partials/_icons.html.twig` in the house style, and extend the header comment's caller list
-- [x] 6.2 Add a `chevron` glyph, rotated 180° by CSS for the ascending direction rather than drawn twice
-- [x] 6.3 Add a Twig macro rendering the sort control from a `SortState`: one button per field with field glyph, label, and direction chevron
+- [x] 6.2 Add a `arrow` glyph, rotated 180° by CSS for the ascending direction rather than drawn twice
+- [x] 6.3 Add a Twig macro rendering the sort control from a `SortState`: one button per field with field glyph, label, and direction arrow
 - [x] 6.4 Render the active button with its current order as the label and its flipped order as the href; render the inactive button with its remembered direction as both label and href
 - [x] 6.5 Give each button an `aria-label` and `data-tooltip` naming field and direction in words, and keep `aria-current` on the active button
 - [x] 6.6 Replace the duplicated markup in the desktop toolbar and the phone sort tray in `templates/gallery.html.twig` with the macro
-- [x] 6.7 Add the button layout and chevron rotation rules to `public/assets/app.css`
+- [x] 6.7 Add the button layout and arrow rotation rules to `public/assets/app.css`
 
 ## 7. URL carrying
 
@@ -60,6 +60,6 @@
 ## 9. Verification
 
 - [x] 9.1 Run `composer test`, `composer stan`, and `composer cs` and fix anything they report
-- [x] 9.2 Check the desktop toolbar's button density with glyph, label, and chevron rendered; if the row is tight, drop the field glyph on the desktop control only
+- [x] 9.2 Check the desktop toolbar's button density with glyph, label, and arrow rendered; if the row is tight, drop the field glyph on the desktop control only
 - [x] 9.3 Exercise the four orders in a browser, including toggling, switching fields and back, paging, tab switching, the phone tray, and sorting while a search is active
 - [x] 9.4 Check whether `README.md` or `docs/` describe sort behavior and update them in the same commit; `DEFAULT_SORT`'s accepted values are unchanged, so state explicitly if nothing needs editing

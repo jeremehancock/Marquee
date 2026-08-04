@@ -25,7 +25,7 @@ enum SortOrder: string
     /**
      * What the sort control's button reads. The title button carries its
      * direction in the label because A–Z and Z–A are a natural pair; the
-     * date-added button keeps one label and shows direction by its chevron
+     * date-added button keeps one label and shows direction by its arrow
      * alone, there being no equally short pair of words for it.
      */
     public function label(): string
@@ -38,7 +38,7 @@ enum SortOrder: string
     }
 
     /**
-     * Field and direction spelled out in words. A chevron is not announced by
+     * Field and direction spelled out in words. An arrow is not announced by
      * assistive technology, so every button needs this as its text alternative.
      */
     public function ariaLabel(): string

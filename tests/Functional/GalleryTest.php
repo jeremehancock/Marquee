@@ -300,7 +300,7 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * The date button keeps one label, so its chevron is the only thing that can
+     * The date button keeps one label, so its arrow is the only thing that can
      * report the direction — and the aria-label is the only thing that can say it
      * in words.
      */
@@ -510,6 +510,57 @@ final class GalleryTest extends AppTestCase
         self::assertSame($fetch[0], $send[0], 'The shaft must not move.');
         self::assertSame($fetch[2], $send[2], 'The boundary must not move.');
         self::assertNotSame($fetch[1], $send[1], 'The arrowhead is what distinguishes them.');
+    }
+
+    /**
+     * The direction on a sort button is one half of the glyph that opens the
+     * phone sort tray — that glyph being a down arrow beside an up arrow. Drawing
+     * a separate mark instead would let the tray's trigger and the rows inside it
+     * drift apart, so the halves are asserted against the whole rather than
+     * against a copy of their own coordinates.
+     */
+    public function testSortDirectionIsOneHalfOfTheSortGlyph(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // The phone tray's trigger carries the whole glyph: a shaft and two
+        // arrowhead arms, then the same three again for the opposite arrow.
+        $trigger = $this->firstPath(
+            $body,
+            '#class="icon-btn sort-trigger".*?<svg.*? d="([^"]+)"#s',
+            'The sort tray trigger must render a glyph.',
+        );
+
+        // A sort button's direction mark.
+        $direction = $this->firstPath(
+            $body,
+            '#class="sort__dir[^"]*">\s*<svg.*? d="([^"]+)"#s',
+            'A sort button must render a direction glyph.',
+        );
+
+        // Both halves of the trigger are the same shape at a different x, so the
+        // direction mark — that shape centred — matches either of them once the
+        // x coordinates are normalised away.
+        $normalise = static fn (string $d): string => preg_replace('/(?<=[MLmlHhVv])\s*\d+(\.\d+)?/', 'x', $d) ?? $d;
+
+        self::assertStringContainsString(
+            $normalise($direction),
+            $normalise($trigger),
+            'The direction arrow must be one half of the sort glyph, not a mark of its own.',
+        );
+    }
+
+    /** The first captured `d` attribute matched by the pattern. */
+    private function firstPath(string $html, string $pattern, string $message): string
+    {
+        preg_match($pattern, $html, $m);
+        if (!isset($m[1])) {
+            self::fail($message);
+        }
+
+        return $m[1];
     }
 
     /** The action control block of the first card. */

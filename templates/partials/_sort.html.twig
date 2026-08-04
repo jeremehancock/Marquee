@@ -18,9 +18,9 @@
            {{ button.active ? 'aria-current="true"' : '' }}>
             {{ icons.icon(button.shown.field.glyph, 16) }}
             <span class="sort__text">{{ button.shown.label }}</span>
-            {# The chevron is decorative: aria-label above already states the
+            {# The arrow is decorative: aria-label above already states the
                direction in words, which a rotated glyph cannot. #}
-            <span class="sort__dir sort__dir--{{ button.shown.direction.value }}">{{ icons.icon('chevron', 14) }}</span>
+            <span class="sort__dir sort__dir--{{ button.shown.direction.value }}">{{ icons.icon('sort-direction', 14) }}</span>
         </a>
     {% endfor %}
 {% endmacro %}

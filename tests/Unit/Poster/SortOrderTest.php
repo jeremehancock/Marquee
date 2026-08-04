@@ -59,7 +59,7 @@ final class SortOrderTest extends TestCase
 
     /**
      * The title button carries its direction in the label; the date button has
-     * no equally short pair of words for it and shows direction by chevron alone.
+     * no equally short pair of words for it and shows direction by arrow alone.
      */
     public function testLabels(): void
     {
@@ -70,7 +70,7 @@ final class SortOrderTest extends TestCase
     }
 
     /**
-     * A chevron is not announced, so every order needs its direction in words.
+     * An arrow is not announced, so every order needs its direction in words.
      */
     public function testEveryOrderHasADistinctAriaLabel(): void
     {

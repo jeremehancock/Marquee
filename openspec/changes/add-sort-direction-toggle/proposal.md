@@ -14,7 +14,7 @@ ignored.
 - Four effective orders instead of two: A–Z, Z–A, date added newest-first, and
   date added oldest-first.
 - Each button shows its direction — the title button's label swaps between
-  `A–Z` and `Z–A`, and both buttons carry a chevron that points down for
+  `A–Z` and `Z–A`, and both buttons carry an arrow that points down for
   descending and up for ascending.
 - Both buttons gain a leading glyph identifying the field: bars for title
   order, a calendar for date added.
@@ -54,7 +54,7 @@ None. This extends existing gallery and search behavior.
   `templates/partials/_icons.html.twig` — sort control extracted to a macro used
   by the toolbar and the phone tray, two new glyphs, and the URL-carry rule that
   currently hardcodes `date_added`.
-- `public/assets/app.css` — chevron rotation and sort button layout.
+- `public/assets/app.css` — arrow rotation and sort button layout.
 - No change to `public/assets/gallery.js`: the target slug is rendered into
   `data-sort`, so the existing click handler navigates correctly as-is.
 - No change to `DEFAULT_SORT` parsing, the session key's meaning for existing

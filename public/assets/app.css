@@ -476,7 +476,7 @@ h1 {
 }
 
 /* A sort button is three marks in a row: the field's glyph, its label, and the
-   chevron giving the direction. */
+   arrow giving the direction. */
 .sort__btn {
     display: inline-flex;
     align-items: center;
@@ -493,22 +493,17 @@ h1 {
     stroke-width: 2.3;
 }
 
-.sort__dir .icon {
-    stroke-width: 2.6;
-}
-
 /* The active button sets its label in 600, so its marks have to gain the same
    weight or the bolder text shows them up. */
 .sort__btn.btn--accent .icon {
     stroke-width: 2.5;
 }
 
-.sort__btn.btn--accent .sort__dir .icon {
-    stroke-width: 2.9;
-}
-
 /* Drawn pointing down for descending, so ascending is the same path turned over
-   rather than a second glyph that could drift away from it. */
+   rather than a second glyph that could drift away from it. Turning it over is
+   also exactly how the two-arrow `sort` glyph draws its own second half — this
+   mark being one half of that glyph, the tray's trigger and the direction on the
+   rows inside it stay the same shape. */
 .sort__dir {
     display: inline-flex;
     align-items: center;
@@ -1534,7 +1529,7 @@ h1 {
     font-size: 0.95rem;
 }
 
-/* A sort button in the tray is one of those full-width rows, so its chevron goes
+/* A sort button in the tray is one of those full-width rows, so its arrow goes
    to the far end instead of trailing the label halfway across the row. */
 .menu__body .sort__btn .sort__dir {
     margin-left: auto;
