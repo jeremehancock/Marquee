@@ -99,6 +99,34 @@ final class ApplicationShellTest extends AppTestCase
         self::assertStringContainsString('aria-haspopup="true"', $button);
     }
 
+    /**
+     * The keyword reads like boilerplate and would be an easy thing to drop while
+     * tidying the meta tag, so it is pinned here.
+     *
+     * Under the default `resizes-visual`, an on-screen keyboard shrinks only the
+     * visual viewport while `position: sticky` keeps resolving against the layout
+     * viewport. The pinned toolbar then stays anchored above the visible area, and
+     * scrolling with the keyboard up pushes it out of view entirely — which is the
+     * bug this keyword fixes, on the one browser family that honours it.
+     */
+    public function testViewportLetsTheKeyboardResizeTheLayoutViewport(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        $matched = preg_match('/<meta name="viewport" content="([^"]*)"/', $body, $m);
+        self::assertSame(1, $matched, 'The shared layout must declare a viewport.');
+
+        self::assertStringContainsString('width=device-width', $m[1]);
+        self::assertStringContainsString(
+            'interactive-widget=resizes-content',
+            $m[1],
+            'The pinned toolbar needs the layout viewport to be the visible region when the keyboard is up.',
+        );
+    }
+
     public function testBothFootersLinkTheProductNameToTheProjectSite(): void
     {
         $body = (string) $this->get(

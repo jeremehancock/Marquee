@@ -110,11 +110,21 @@ updates.
 
 ## Risks / Trade-offs
 
-- **iOS Safari, keyboard up** → `position: sticky` resolves against the layout
-  viewport, not the visual one, so with the search field focused the pinned bar
-  can sit under the URL bar. Accepted: iOS scrolls the focused input into view,
-  so it self-corrects, and the alternative (visual-viewport JavaScript) is far
-  more machinery than the wart justifies.
+- **On-screen keyboard vs. the layout viewport** → `position: sticky` resolves
+  against the layout viewport, not the visual one. Under a browser's default
+  (`interactive-widget=resizes-visual`) a keyboard shrinks only the visual
+  viewport, leaving the pinned toolbar anchored above the visible area; scrolling
+  with the keyboard up then pushes it out of view entirely. This was observed on
+  Android Chrome, not theorised. Mitigated by asking for
+  `interactive-widget=resizes-content` in the viewport meta, which makes the
+  layout viewport the visible region. Chrome honours it; **iOS Safari ignores it**,
+  so the wart may persist there. The remaining alternative is VisualViewport
+  JavaScript repositioning the bar by hand — far more machinery, and not worth it
+  unless iOS proves bad in practice.
+- **Consequence of `resizes-content`** → the fixed bottom tab bar now sits
+  directly above the keyboard rather than off-screen behind it, which shortens the
+  visible gallery further while typing. Accepted: it is the standard behavior for
+  a bottom tab bar, and the alternative is a broken sticky header.
 - **Vertical space** → the pinned toolbar permanently costs ~56px of an already
   short phone viewport. Accepted deliberately; it is why the topbar is *not* also
   pinned.

@@ -201,27 +201,6 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testReturnToTopHonoursReducedMotion(): void
-    {
-        $matched = preg_match(
-            '/function scrollToTopOfGallery\(\) \{.*?\n    \}/s',
-            $this->gallerySource(),
-            $m,
-        );
-        self::assertSame(1, $matched, 'The shared scroll helper must be findable.');
-
-        self::assertStringContainsString(
-            'prefers-reduced-motion: reduce',
-            $m[0],
-            'The scroll must be suppressible by the user\'s motion preference.',
-        );
-        self::assertStringContainsString(
-            "behavior: reduced ? 'auto' : 'smooth'",
-            $m[0],
-            'Reduced motion jumps; everyone else gets the smooth scroll.',
-        );
-    }
-
     public function testDesktopToolbarStillScrollsWithThePage(): void
     {
         // Pinning is a phone affordance. The desktop toolbar sits in a 960px

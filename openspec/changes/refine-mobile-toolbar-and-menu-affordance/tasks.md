@@ -49,14 +49,28 @@ search — unlike pagination and category switching — never resets the scroll.
 - [x] 4.3 Add a test asserting live search resets the scroll through the shared
   helper rather than its own `scrollTo`.
 
-## 5. Docs and gates
+## 5. Keep the toolbar pinned when the keyboard opens
 
-- [x] 5.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
+Found on Android Chrome while validating `:dev`. A keyboard shrinks only the
+visual viewport by default, while `position: sticky` resolves against the layout
+viewport, so the pinned toolbar ends up anchored above the visible area.
+
+- [x] 5.1 Add `interactive-widget=resizes-content` to the viewport meta in
+  `templates/layout.html.twig`, so the keyboard resizes the layout viewport.
+- [x] 5.2 Assert the keyword in `tests/Functional/ApplicationShellTest.php` — it
+  reads as boilerplate and is easy to drop while tidying.
+- [x] 5.3 Drop the reduced-motion test duplicated into `StickyToolbarTest`;
+  `PaginationScrollTest` already owns that assertion, and update its now-stale
+  "only paging animates" comment to name the shared helper instead.
+
+## 6. Docs and gates
+
+- [x] 6.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
   glyph or the toolbar's scroll behavior; update in the same commit if so, and
   state explicitly that nothing was stale if not.
-- [x] 5.2 Run `composer test`, `composer stan`, and `composer cs` — all three
+- [x] 6.2 Run `composer test`, `composer stan`, and `composer cs` — all three
   must pass before committing.
-- [ ] 5.3 Verify by hand on a phone-width viewport against the `:dev` image:
+- [ ] 6.3 Verify by hand on a phone-width viewport against the `:dev` image:
   the trigger reads as an overflow menu and still opens the tray; the toolbar
   pins while scrolling with no posters visible behind or beside it; opening any
   tray still covers the toolbar; searching from part-way down returns to the

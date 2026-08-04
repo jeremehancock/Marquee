@@ -3,7 +3,15 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# `interactive-widget=resizes-content` is load-bearing for the pinned mobile
+       toolbar. Under the default (`resizes-visual`) an on-screen keyboard shrinks
+       only the visual viewport, while `position: sticky` keeps resolving against
+       the layout viewport — so with the keyboard up the pinned toolbar stays
+       anchored above the visible area and scrolling pushes it out of view.
+       Resizing the content instead makes the layout viewport the visible region,
+       which is the coordinate space the sticky toolbar and the fixed bottom tab
+       bar both need. Honoured by Chrome; iOS Safari ignores it, harmlessly. #}
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="theme-color" content="#1c1e24">
     {# Both names: iOS reads only the apple- one for a standalone home-screen
        install, and Chrome logs a deprecation warning for it unless the standard

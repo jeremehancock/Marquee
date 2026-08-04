@@ -27,6 +27,12 @@ fill the viewport — a search with no matches, most obviously — the toolbar S
 rest in its normal position below the topbar. This is the same state as an
 unscrolled page and is not a failure to pin.
 
+The toolbar SHALL stay pinned to the visible area while an on-screen keyboard is
+open, so searching from part-way down the gallery does not push it out of view.
+Where a browser offers the choice, the application SHALL ask that the keyboard
+resize the layout viewport rather than only the visual one, since that is the
+coordinate space the pinned toolbar and the fixed bottom tab bar resolve against.
+
 #### Scenario: No overflow on a phone
 - **WHEN** the gallery is viewed on a narrow (phone-width) screen
 - **THEN** the tabs, toolbar, and poster grid fit without horizontal page overflow
@@ -57,6 +63,12 @@ unscrolled page and is not a failure to pin.
 - **WHEN** a search returns no matches on a narrow screen
 - **THEN** the page is too short to scroll and the toolbar rests below the
   topbar, as it does on an unscrolled page
+
+#### Scenario: Toolbar survives the on-screen keyboard
+- **WHEN** a user on a narrow screen scrolls part-way down the gallery and taps
+  the search field, opening the on-screen keyboard
+- **THEN** the toolbar stays visible at the top of the remaining area rather than
+  being pushed out of view
 
 #### Scenario: Overlays cover the pinned toolbar
 - **WHEN** any tray, dialog, or the fullscreen viewer is open on a narrow screen
