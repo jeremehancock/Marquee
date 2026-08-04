@@ -25,6 +25,135 @@ final class ApplicationShellTest extends AppTestCase
     ];
 
 
+    /**
+     * The header's secondary navigation, isolated from the tray, which renders
+     * the same macro on every page and would otherwise satisfy any assertion made
+     * against the whole body.
+     */
+    private function header(string $body): string
+    {
+        $matched = preg_match('#<div class="topnav__desktop">.*?\n\s*</div>#s', $body, $m);
+        self::assertSame(1, $matched, 'The topbar must render the desktop navigation.');
+
+        return $m[0];
+    }
+
+    /**
+     * These links used to live in the gallery's own toolbar, which left /plex and
+     * /orphans with no navigation at all — reaching one from the other meant a
+     * detour through the gallery. Rendering them from the shared layout is what
+     * fixes that, so the reach is asserted on a page that is not the gallery.
+     */
+    public function testSecondaryActionsRenderInTheHeaderOnEveryPageWithNavigation(): void
+    {
+        // Authenticated rather than bypassed, so Log out is part of the group.
+        $app = $this->makeApp(['AUTH_BYPASS' => 'false']);
+        $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
+
+        foreach (['/library/movies', '/plex', '/orphans'] as $path) {
+            $header = $this->header((string) $this->get($app, $path)->getBody());
+
+            foreach (['Poster Wall', 'Import from Plex', 'Orphans', 'Support Development'] as $label) {
+                self::assertStringContainsString(
+                    'aria-label="' . $label . '"',
+                    $header,
+                    sprintf('%s must be reachable from the header on %s.', $label, $path),
+                );
+            }
+
+            // Log out is presented like the rest rather than as a plain link, so
+            // the group reads as one set of actions.
+            self::assertStringContainsString('href="/logout"', $header);
+            self::assertStringContainsString('nav-item', $header);
+            self::assertStringNotContainsString('<nav><a href="/logout">', $header);
+        }
+    }
+
+    /**
+     * Every item renders both labels and lets CSS choose, so the visible text can
+     * shorten — or vanish entirely in the narrow band. That makes the visible text
+     * unusable as the accessible name, which is why each item carries an explicit
+     * one holding the full name.
+     */
+    public function testHeaderActionsCarryFullNamesRegardlessOfTheVisibleLabel(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody());
+
+        // Both forms are present in the markup...
+        self::assertStringContainsString('>Import from Plex</span>', $header);
+        self::assertStringContainsString('nav-label--short" aria-hidden="true">Import</span>', $header);
+        // ...but only the full one names the control.
+        self::assertStringContainsString('aria-label="Import from Plex"', $header);
+        self::assertStringNotContainsString('aria-label="Import"', $header);
+    }
+
+    /**
+     * A link pointing at the page you are already on is the thing being avoided,
+     * so the href goes rather than merely being marked — the item renders as a
+     * span, which is what actually stops it behaving as a link.
+     */
+    public function testTheCurrentDestinationIsMarkedAndNotLinked(): void
+    {
+        $app = $this->makeApp(['AUTH_BYPASS' => 'true']);
+
+        $plex = $this->header((string) $this->get($app, '/plex')->getBody());
+        self::assertMatchesRegularExpression(
+            '#<span class="btn nav-item nav-item--current" aria-current="page" aria-label="Import from Plex"#',
+            $plex,
+            'Import must not link to the page it is on.',
+        );
+        self::assertStringNotContainsString('href="/plex"', $plex);
+        // The others on that page are untouched.
+        self::assertStringContainsString('href="/orphans"', $plex);
+
+        $orphans = $this->header((string) $this->get($app, '/orphans')->getBody());
+        self::assertStringContainsString('aria-current="page" aria-label="Orphans"', $orphans);
+        self::assertStringNotContainsString('href="/orphans"', $orphans);
+        self::assertStringContainsString('href="/plex"', $orphans);
+    }
+
+    /**
+     * The tray shares the macro with the header but has a full-width row per item,
+     * so it keeps the full name where the header shortens it.
+     */
+    public function testTrayKeepsTheFullNamesTheHeaderShortens(): void
+    {
+        $body = (string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody();
+
+        $matched = preg_match('#<div class="sheet__body menu__body".*?\n\s*</div>#s', $body, $m);
+        self::assertSame(1, $matched, 'The menu tray must render its link list.');
+
+        self::assertStringContainsString('>Import from Plex</span>', $m[0]);
+        self::assertStringContainsString('>Support Development</span>', $m[0]);
+    }
+
+    public function testLoginPageRendersNoSecondaryNavigation(): void
+    {
+        $body = (string) $this->get($this->makeApp(), '/login')->getBody();
+
+        self::assertStringNotContainsString('topnav__desktop', $body);
+        self::assertStringNotContainsString('aria-label="Import from Plex"', $body);
+        self::assertStringNotContainsString('menu-btn', $body);
+    }
+
+    public function testHeaderOmitsLogOutWhenAuthenticationIsBypassed(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            '/library/movies',
+        )->getBody());
+
+        self::assertStringNotContainsString('href="/logout"', $header);
+        // The rest of the group is unaffected.
+        self::assertStringContainsString('aria-label="Support Development"', $header);
+    }
+
     public function testHealthReturnsOkWithoutAuthentication(): void
     {
         $response = $this->get($this->makeApp(), '/health');

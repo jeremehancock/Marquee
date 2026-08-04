@@ -232,10 +232,58 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('data-action="view"', $body);
         // The title moved to a caption; the old overlay title class is gone.
         self::assertStringNotContainsString('card__title', $body);
-        // Poster Wall opens in a new tab.
-        self::assertStringContainsString('target="_blank"', $body);
         // The mobile action sheet is wired up.
         self::assertStringContainsString('x-html="sheet.actions"', $body);
+    }
+
+    /**
+     * The secondary actions moved to the shared header. This is asserted against
+     * .gallery-head rather than the page, because the header renders on the same
+     * page and would satisfy any whole-body check — the failure being guarded
+     * against is them creeping back into the toolbar, not disappearing.
+     */
+    public function testGalleryControlsCarryOnlySearchAndSort(): void
+    {
+        $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies')->getBody());
+
+        self::assertStringContainsString('role="search"', $head);
+        self::assertStringContainsString('data-sort="alphabetical"', $head);
+        self::assertStringContainsString('data-sort="date_added"', $head);
+        self::assertStringContainsString('class="tab ', $head);
+
+        foreach (['/wall', '/plex', '/orphans', 'getmarquee.now/#support'] as $href) {
+            self::assertStringNotContainsString(
+                'href="' . $href . '"',
+                $head,
+                'The secondary actions belong to the page header, not the gallery.',
+            );
+        }
+    }
+
+    /**
+     * The tabs and the toolbar are pinned as one block, so they share a wrapper.
+     * #results stays outside it: a no-reload update swaps that element wholesale,
+     * and anything inside it would be discarded on every search, sort and page.
+     */
+    public function testPinnableControlsWrapTheTabsAndToolbarButNotTheResults(): void
+    {
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+        $head = $this->galleryHead($body);
+
+        self::assertStringContainsString('<nav class="tabs">', $head);
+        self::assertStringContainsString('<div class="toolbar">', $head);
+        self::assertStringNotContainsString('id="results"', $head);
+    }
+
+    /**
+     * The wrapper holding the tabs and the toolbar, up to the toolbar's close.
+     */
+    private function galleryHead(string $body): string
+    {
+        $matched = preg_match('#<div class="gallery-head">.*?\n    </div>#s', $body, $m);
+        self::assertSame(1, $matched, 'The gallery must render its pinnable control block.');
+
+        return $m[0];
     }
 
     /**

@@ -46,9 +46,23 @@
                bypassed; only the Log out link is gated on auth_bypass. Pages with
                no navigation (login) override this block to empty. #}
             <div class="topnav" x-data="{ menuOpen: false }">
-                {% if not auth_bypass %}
-                    <span class="topnav__desktop">{{ nav.logout_link() }}</span>
-                {% endif %}
+                {# The secondary actions live here rather than in any one page's
+                   content, so they are reachable from every page that draws
+                   navigation — the reach the tray already gives a phone. Import
+                   and Orphans previously sat in the gallery toolbar, which left
+                   /plex and /orphans with no navigation at all beyond their own
+                   back link.
+
+                   `nav_current` names the destination being viewed, set by that
+                   page as a top-level {% verbatim %}{% set %}{% endverbatim %} —
+                   Twig runs those before handing the context to this layout. It
+                   suppresses the link that would point at the current page. #}
+                <div class="topnav__desktop">
+                    {{ nav.secondary_links(nav_current|default('')) }}
+                    {% if not auth_bypass %}
+                        {{ nav.logout_link() }}
+                    {% endif %}
+                </div>
                 {# An overflow ("more") glyph rather than a hamburger: nothing behind
                    this button navigates in place on a phone — Import and Orphans open
                    as trays over the current page, Poster Wall and Support open new
