@@ -605,6 +605,15 @@ final class ImportServiceTest extends TestCase
         );
         self::assertSame(1, $this->countFiles('tv-shows'));
 
+        // The identity came from the library listing, not from the artwork, so
+        // it is corrected even though the poster could not be fetched.
+        self::assertSame('The Shield', $record->title);
+        self::assertSame(2002, $record->year);
+        self::assertSame('1826', $record->tmdbId);
+        self::assertSame('The_Shield_TV_Shows.png', $record->filename);
+        // The recorded thumb is untouched, so the next import retries the fetch.
+        self::assertSame('/t/100/v1', $record->thumb);
+
         // And a later import, once Plex is answering again, still heals it.
         $plexOk = new FakePlexClient([$library], ['2' => [$fixed]]);
         (new ImportService($plexOk, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);

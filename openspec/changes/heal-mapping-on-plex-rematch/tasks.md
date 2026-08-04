@@ -55,7 +55,25 @@ longer existed, so no later import could reconcile it.
 - [x] 5.4 `ImportServiceTest::testAFailedDownloadLeavesTheFileAndTheMappingAgreeing` — after a failed fetch the mapping still addresses a file that exists, and a later successful import still heals the name and facts. (Verified load-bearing by restoring the old ordering: fails with "the mapping must address a file that exists".)
 - [x] 5.5 Add the ordering constraint to the `Safe, unique filenames` requirement and a scenario for the failed download, so the rule is specified rather than only commented.
 
-## 6. Gates and docs
+## 6. Fix: correcting an item's facts must not depend on fetching its poster
 
-- [x] 6.1 `composer test`, `composer stan`, `composer cs` all pass.
-- [x] 6.2 Check whether `README.md`, `docs/` or `CLAUDE.md` describe import as write-once or otherwise go stale; update in the same commit, or state explicitly that nothing user-facing changed. (Added a README FAQ entry for correcting a match in Plex, placed ahead of the "Can I start over?" answer — deleting `/config` was the workaround this change removes the need for. `docs/` and `CLAUDE.md` make no claims that went stale.)
+Found on `:dev`, second round. After Change poster + Send to Plex, then Fix
+Match, the show kept its old title and year — identically with and without
+force, while its season corrected fine. Reproduced: the show's poster download
+was failing, and because the corrected facts shared one write with the
+downloaded image, a failed fetch discarded them too.
+
+The two failures are not independent. Plex regenerates artwork right after a
+corrected match, so the thumb read from the library listing can 404 for exactly
+the item whose identity most needs fixing — the item stays wrong for as long as
+the fetch keeps failing.
+
+- [x] 6.1 Catch the download failure separately: reconcile the item's facts (and rename) before reporting it as failed.
+- [x] 6.2 Leave the recorded `thumb` untouched on that path, so a later import still sees the poster as outstanding and retries the fetch.
+- [x] 6.3 Extend `testAFailedDownloadLeavesTheFileAndTheMappingAgreeing` to assert the facts are corrected, the filename is renamed, and the recorded thumb is unchanged.
+- [x] 6.4 Specify it: reconciliation does not depend on the download, plus a scenario.
+
+## 7. Gates and docs
+
+- [x] 7.1 `composer test`, `composer stan`, `composer cs` all pass.
+- [x] 7.2 Check whether `README.md`, `docs/` or `CLAUDE.md` describe import as write-once or otherwise go stale; update in the same commit, or state explicitly that nothing user-facing changed. (Added a README FAQ entry for correcting a match in Plex, placed ahead of the "Can I start over?" answer — deleting `/config` was the workaround this change removes the need for. `docs/` and `CLAUDE.md` make no claims that went stale.)

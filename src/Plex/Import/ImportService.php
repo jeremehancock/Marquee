@@ -112,7 +112,29 @@ final class ImportService
                 return;
             }
 
-            $bytes = $this->plex->downloadPoster($item);
+            try {
+                $bytes = $this->plex->downloadPoster($item);
+            } catch (Throwable) {
+                // An item's identity comes from the library listing, not from
+                // its artwork: the corrected title, year and id are already in
+                // hand and cost nothing to record. Failing to fetch a poster is
+                // a reason to report a failure, not a reason to leave the item
+                // describing the wrong work — and the two coincide precisely,
+                // because Plex regenerates artwork right after a corrected
+                // match, so the thumb read from the listing can 404 for exactly
+                // the item whose identity most needs fixing. Left coupled, a
+                // re-matched item would stay wrong for as long as the fetch
+                // kept failing, which can be indefinitely.
+                //
+                // The recorded thumb is deliberately not updated, so the next
+                // import still sees a mismatch and tries the download again.
+                if ($existing !== null) {
+                    $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
+                }
+                $result->recordFailed();
+
+                return;
+            }
 
             $temp = $this->writeTempFile($bytes);
             try {

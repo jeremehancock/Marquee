@@ -45,6 +45,18 @@ the download is skipped and the skip path is the only place the correction can
 happen. An item whose recorded facts all still match SHALL cause no write, so a
 scheduled import over an unchanged library costs no more than it does today.
 
+Reconciliation SHALL NOT depend on the poster download succeeding. An item's
+identity is reported by the library listing, not carried by its artwork, so it is
+already known before any image is fetched. A poster that cannot be downloaded
+SHALL still be reported as failed, but the item's recorded facts SHALL be
+corrected regardless. The two failures coincide rather than being independent:
+Plex regenerates artwork immediately after a corrected match, so the artwork path
+read from the listing can be momentarily unfetchable for exactly the item whose
+identity most needs correcting. Left coupled, such an item would keep describing
+the wrong work for as long as the fetch kept failing. The recorded artwork
+version SHALL NOT be advanced when the download fails, so a later import still
+recognises the poster as outstanding and fetches it again.
+
 #### Scenario: Re-import overwrites, not duplicates
 - **WHEN** a user imports a library and later imports it again
 - **THEN** each item's poster is updated in place and no duplicate poster is
@@ -130,6 +142,13 @@ scheduled import over an unchanged library costs no more than it does today.
   recorded
 - **THEN** the system corrects those facts without downloading the poster, and
   still counts the item as skipped
+
+#### Scenario: A re-matched item is corrected even when its poster cannot be fetched
+- **WHEN** an item is re-imported with a corrected title, year or TMDB identifier
+  and fetching its poster from Plex fails
+- **THEN** the system records the corrected facts, reports the item as failed,
+  and leaves the recorded artwork version untouched so a later import fetches
+  the poster again
 
 #### Scenario: An item whose facts are unchanged is not rewritten
 - **WHEN** an import processes an item whose recorded title, release year and
