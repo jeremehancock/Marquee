@@ -9,17 +9,27 @@ use PHPUnit\Framework\TestCase;
 /**
  * A shape tripwire, not a behavior test — the sibling of TrayDismissalTest.
  *
- * On a phone the gallery toolbar is pinned, which turns three ordinary-looking
+ * The gallery's controls are pinned on both form factors, but not the same ones:
+ * a phone pins .toolbar alone, because its category tabs are already permanently
+ * on screen as a bottom bar, while a pointer/desktop screen pins .gallery-head —
+ * the tabs and the toolbar together. Pinning turns several ordinary-looking
  * declarations into load-bearing ones. Drop the background and posters scroll
- * straight through the bar, because .toolbar has none of its own. Drop the
- * negative side margins and they show through a 14px channel down each edge,
- * where .container's gutters sit outside the bar's own background. Raise the
- * z-index above the tab bar or the trays and an open overlay no longer covers
- * it. Each of those reads as a rendering bug rather than a missing rule, and
- * none is visible from a desktop viewport.
+ * straight through the bar, because neither .toolbar nor .tabs has one of its
+ * own. Drop the phone's negative side margins and they show through a 14px
+ * channel down each edge, where .container's gutters sit outside the bar's own
+ * background. Raise the z-index above the tab bar or the trays and an open
+ * overlay no longer covers it. Each of those reads as a rendering bug rather
+ * than a missing rule.
  *
- * Whether the bar actually stays put while scrolling is verified by hand against
- * the :dev image; this pins the arrangement that lets it.
+ * The sharpest trap is the wrapper. A sticky element cannot travel outside its
+ * containing block, so wrapping the phone's already-sticky .toolbar in a short
+ * .gallery-head would cut its range to that wrapper's height and unpin it after
+ * about one tab bar of scrolling — a phone regression caused entirely by desktop
+ * CSS, and invisible from a desktop viewport. `display: contents` on the phone is
+ * what prevents it, which is why it is asserted here rather than assumed.
+ *
+ * Whether the bars actually stay put while scrolling is verified by hand against
+ * the :dev image; this pins the arrangement that lets them.
  */
 final class StickyToolbarTest extends TestCase
 {
@@ -201,15 +211,72 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testDesktopToolbarStillScrollsWithThePage(): void
+    public function testDesktopPinsTheTabsAndToolbarTogether(): void
     {
-        // Pinning is a phone affordance. The desktop toolbar sits in a 960px
-        // column with the whole viewport to scroll; pinning it there would only
-        // spend vertical space.
+        $head = $this->rule($this->baseBlock(), '.gallery-head');
+
+        self::assertStringContainsString(
+            'position: sticky',
+            $head,
+            'Search, sort and every category must stay reachable at any scroll position.',
+        );
+        self::assertStringContainsString(
+            'top: 0',
+            $head,
+            'A sticky element without an inset never pins.',
+        );
+    }
+
+    public function testPinnedDesktopControlsHideThePostersPassingUnderThem(): void
+    {
+        // Neither .tabs nor .toolbar has a background, so the wrapper has to
+        // supply one or the grid scrolls visibly through the pinned block. No
+        // gutter bleed is needed as it is on a phone: the poster grid sits inside
+        // .container's padding box, so nothing ever renders beside this block.
+        self::assertStringContainsString(
+            'background: var(--bg)',
+            $this->rule($this->baseBlock(), '.gallery-head'),
+            'The pinned desktop controls must be opaque.',
+        );
+    }
+
+    public function testDesktopToolbarIsNotPinnedIndependentlyOfTheWrapper(): void
+    {
+        // Two siblings both stuck to top: 0 would land on top of each other. The
+        // wrapper is the sticky one; .toolbar must stay in flow inside it.
         self::assertStringNotContainsString(
             'position: sticky',
             $this->rule($this->baseBlock(), '.toolbar'),
-            'The desktop toolbar must keep scrolling with the page.',
+            'Pinning the desktop toolbar as well would stack it under the tabs.',
+        );
+    }
+
+    public function testEveryOverlayCoversThePinnedDesktopControls(): void
+    {
+        $css = $this->stylesheet();
+
+        $head = $this->zIndex($this->baseBlock(), '.gallery-head');
+        $sheet = $this->zIndex($css, '.sheet');
+        $modal = $this->zIndex($css, '.modal');
+        $viewer = $this->zIndex($css, '.viewer');
+
+        self::assertGreaterThan($head, $sheet, 'An open tray must cover the pinned controls.');
+        self::assertGreaterThan($head, $modal, 'A dialog must cover the pinned controls.');
+        self::assertGreaterThan($head, $viewer, 'The fullscreen viewer must cover the pinned controls.');
+    }
+
+    /**
+     * The one that matters most, and the one whose absence is hardest to spot: it
+     * is a phone bug with no phone-side cause, introduced by a wrapper added for
+     * desktop. See the class docblock.
+     */
+    public function testTheWrapperLeavesTheBoxTreeOnAPhone(): void
+    {
+        self::assertStringContainsString(
+            'display: contents',
+            $this->rule($this->mobileBlock(), '.gallery-head'),
+            'The wrapper must not become the phone toolbar\'s containing block, '
+            . 'or its sticky range collapses to the wrapper\'s own height.',
         );
     }
 }

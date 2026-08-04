@@ -1,5 +1,4 @@
 {% extends 'layout.html.twig' %}
-{% import 'partials/_nav_macros.html.twig' as nav %}
 {% import 'partials/_icons.html.twig' as icons %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
@@ -30,44 +29,53 @@
     {# Short labels drop the "TV " prefix so all five tabs fit the phone tab bar
        under their icons; the full label stays as the link's accessible name. #}
     {% set tab_short = { 'all': 'All', 'movies': 'Movies', 'tv-shows': 'Shows', 'tv-seasons': 'Seasons', 'collections': 'Collections' } %}
-    <nav class="tabs">
-        {% for tab in tabs %}
-            <a class="tab {{ tab.active ? 'tab--active' : '' }}"
-               href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}"
-               aria-label="{{ tab.label }}" {{ tab.active ? 'aria-current="page"' : '' }}>
-                <span class="tab__icon" aria-hidden="true">{{ icons.icon(tab.value) }}</span>
-                <span class="tab__text" aria-hidden="true">{{ tab.label }}</span>
-                <span class="tab__text tab__text--short" aria-hidden="true">{{ tab_short[tab.value] ?? tab.label }}</span>
-            </a>
-        {% endfor %}
-    </nav>
+    {# Tabs and toolbar are pinned as one block on a pointer/desktop screen, so
+       every category, search, and sort stay reachable at any scroll position.
+       They are wrapped rather than pinned individually: two siblings both stuck
+       to top: 0 would land on top of each other, and offsetting the second by the
+       first's height would be a constant to keep in sync with the tabs' padding
+       and font size. The wrapper has no such constant.
 
-    <div class="toolbar">
-        {# The only clear control lives with the filtered-state summary in
-           #results — the toolbar is never swapped by a no-reload update, so a
-           clear link here would go stale the moment the results change. #}
-        <form class="search" method="get" action="{{ base }}" role="search">
-            <input type="search" name="q" value="{{ query }}" autocomplete="off"
-                   placeholder="Search {{ view.label }}…" aria-label="Search">
-        </form>
-        {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
-        {# Phone-only affordance: opens the sort tray. The inline .sort group below
-           stays for desktop. #}
-        <button type="button" class="icon-btn sort-trigger" @click="sortOpen = true"
-                aria-label="Sort order" data-tooltip="Sort">
-            {{ icons.icon('sort') }}
-        </button>
-        <div class="sort" role="group" aria-label="Sort order">
-            <span class="sort__label">Sort</span>
-            <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
-               {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
-            <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
-               href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
-               {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
-        </div>
-        <div class="toolbar__actions">
-            {{ nav.secondary_links() }}
+       On a phone the wrapper is `display: contents` (see app.css) — .toolbar does
+       its own pinning there, and a sticky element cannot travel outside its
+       containing block, so a wrapper this short would cut its range to nothing. #}
+    <div class="gallery-head">
+        <nav class="tabs">
+            {% for tab in tabs %}
+                <a class="tab {{ tab.active ? 'tab--active' : '' }}"
+                   href="/library/{{ tab.value }}{{ tab_query is not empty ? '?' ~ tab_query : '' }}"
+                   aria-label="{{ tab.label }}" {{ tab.active ? 'aria-current="page"' : '' }}>
+                    <span class="tab__icon" aria-hidden="true">{{ icons.icon(tab.value) }}</span>
+                    <span class="tab__text" aria-hidden="true">{{ tab.label }}</span>
+                    <span class="tab__text tab__text--short" aria-hidden="true">{{ tab_short[tab.value] ?? tab.label }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+
+        <div class="toolbar">
+            {# The only clear control lives with the filtered-state summary in
+               #results — the toolbar is never swapped by a no-reload update, so a
+               clear link here would go stale the moment the results change. #}
+            <form class="search" method="get" action="{{ base }}" role="search">
+                <input type="search" name="q" value="{{ query }}" autocomplete="off"
+                       placeholder="Search {{ view.label }}…" aria-label="Search">
+            </form>
+            {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
+            {# Phone-only affordance: opens the sort tray. The inline .sort group
+               below stays for desktop. #}
+            <button type="button" class="icon-btn sort-trigger" @click="sortOpen = true"
+                    aria-label="Sort order" data-tooltip="Sort">
+                {{ icons.icon('sort') }}
+            </button>
+            <div class="sort" role="group" aria-label="Sort order">
+                <span class="sort__label">Sort</span>
+                <a class="btn btn--small {{ sort == 'alphabetical' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=alphabetical{{ sort_q }}" data-sort="alphabetical"
+                   {{ sort == 'alphabetical' ? 'aria-current="true"' : '' }}>A–Z</a>
+                <a class="btn btn--small {{ sort == 'date_added' ? 'btn--accent' : '' }}"
+                   href="{{ base }}?sort=date_added{{ sort_q }}" data-sort="date_added"
+                   {{ sort == 'date_added' ? 'aria-current="true"' : '' }}>Date added</a>
+            </div>
         </div>
     </div>
 

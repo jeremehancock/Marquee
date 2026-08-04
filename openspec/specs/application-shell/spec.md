@@ -324,9 +324,9 @@ bottom border, and spacing.
 #### Scenario: Alignment does not alter the header's contents
 - **WHEN** the header is rendered on any page that extends the shared layout,
   including the login page which renders no navigation
-- **THEN** the brand, the desktop Log out link, the menu control, and the
-  navigation tray are presented and behave as their own requirements specify,
-  unaffected by the header's alignment or colour
+- **THEN** the brand, the desktop secondary navigation actions, the Log out
+  control, the menu control, and the navigation tray are presented and behave as
+  their own requirements specify, unaffected by the header's alignment or colour
 
 ### Requirement: Header brand mark matches the logo asset
 The brand mark rendered inline in the page header SHALL draw the same shapes as
@@ -420,13 +420,15 @@ dismissal — see "App-style tray dismissal") rather than introducing a separate
 drawer system, and SHALL also dismiss after a link is chosen. The secondary links
 SHALL have a single source of truth shared between their desktop placement and the
 mobile tray, so the same set of links is presented in both without divergent
-markup. The Support Development link SHALL open the project's support page at
-`https://getmarquee.now/#support` in a new browsing context, leaving the current
-page in place. The menu SHALL be available whether or not authentication is
-bypassed, so the secondary actions stay reachable on a phone; only the Log out
-link SHALL be gated on authentication being enabled. On a pointer/desktop screen
-the menu control and tray SHALL NOT be shown and the secondary links SHALL render
-in their existing desktop positions.
+markup; where the desktop placement shortens a visible label to fit, the tray SHALL
+continue to show the full name. The Support Development link SHALL open the
+project's support page at `https://getmarquee.now/#support` in a new browsing
+context, leaving the current page in place. The menu SHALL be available whether or
+not authentication is bypassed, so the secondary actions stay reachable on a phone;
+only the Log out link SHALL be gated on authentication being enabled. On a
+pointer/desktop screen the menu control and tray SHALL NOT be shown and the
+secondary links SHALL render in the page header instead (see "Secondary navigation
+in the desktop page header").
 
 The topbar SHALL NOT be pinned to the viewport, so the menu control scrolls out of
 view with it. This is deliberate: a phone already keeps the category tab bar and
@@ -445,6 +447,11 @@ of the viewport than the menu's occasional use justifies.
   control
 - **THEN** a tray opens listing Poster Wall, Import from Plex, Orphans, Support
   Development, and Log out
+
+#### Scenario: Tray shows full names even where the header shortens them
+- **WHEN** the menu tray is opened on a narrow screen
+- **THEN** each link shows its full name, regardless of any shortened label the
+  desktop header presents for the same link
 
 #### Scenario: Support Development opens the project's support page
 - **WHEN** a user activates the Support Development link, from either the
@@ -465,7 +472,7 @@ of the viewport than the menu's occasional use justifies.
 #### Scenario: Menu is hidden on desktop
 - **WHEN** the app is viewed on a pointer/desktop-width screen
 - **THEN** the topbar menu control and its tray are not shown and the secondary
-  navigation renders in its existing desktop positions
+  navigation renders in the page header
 
 #### Scenario: Menu is present even when auth is bypassed
 - **WHEN** an authenticated-optional install runs with authentication bypassed
@@ -477,4 +484,74 @@ of the viewport than the menu's occasional use justifies.
 - **WHEN** a page renders without any navigation (for example the login page,
   which overrides the navigation region)
 - **THEN** no menu control is shown
+
+### Requirement: Secondary navigation in the desktop page header
+On a pointer/desktop screen the shared layout SHALL present the application's
+secondary navigation — Poster Wall, Import from Plex, Orphans, Support
+Development, and Log out — in the page header, rather than inside any single
+page's own content. Because the header is shared, these actions SHALL therefore be
+reachable from every page that renders navigation, not only the gallery, matching
+the reach the menu tray already provides on a narrow screen. A page that renders
+no navigation at all (the login page) SHALL continue to show none.
+
+The actions SHALL be presented consistently with one another as icon-and-label
+controls, drawing on the same icon set used by the menu tray. Log out SHALL be
+presented in the same form as the others rather than as a plain text link, so the
+group reads as one set of actions. Log out SHALL remain gated on authentication
+not being bypassed; the remaining actions SHALL be shown regardless.
+
+Where the header is too narrow to present labels beside the brand — which is
+user-configurable and therefore of unbounded width — the actions SHALL fall back
+to their icons alone, identified by the application's custom tooltips. Each
+action's full name SHALL remain its accessible name at every width, so the visible
+label may shorten but what assistive technology announces SHALL NOT.
+
+Where one of these actions targets the page currently being viewed, it SHALL be
+marked as the current page and SHALL NOT be presented as a live link to itself.
+
+The header SHALL NOT be pinned to the viewport on any screen, so these actions
+scroll out of view with it. This is deliberate on desktop for the same reason it
+is on a phone: the gallery's own pinned controls are the surface that earns the
+permanent space, and a second pinned bar would cost more of the viewport than
+these occasional destinations justify.
+
+#### Scenario: Secondary actions render in the header on desktop
+- **WHEN** a page that renders navigation is viewed on a pointer/desktop-width
+  screen
+- **THEN** Poster Wall, Import from Plex, Orphans, Support Development, and Log out
+  are presented in the page header as icon-and-label actions
+- **AND** Log out is presented in the same form as the others rather than as a
+  plain text link
+
+#### Scenario: Secondary actions are reachable from every page with navigation
+- **WHEN** a user on a pointer/desktop-width screen is on the Import from Plex or
+  Orphaned posters page
+- **THEN** the secondary actions are available in the header, without returning to
+  the gallery first
+
+#### Scenario: The current destination is marked rather than linked
+- **WHEN** a user on a pointer/desktop-width screen is viewing a page that one of
+  the header actions targets
+- **THEN** that action is marked as the current page and does not act as a link to
+  the page already being viewed
+
+#### Scenario: Labels give way to icons on a narrow desktop window
+- **WHEN** the viewport is too narrow to fit the labelled actions beside the brand,
+  but is wider than a narrow (phone-width) screen
+- **THEN** the actions render as icons alone, identified by the application's
+  custom tooltips
+
+#### Scenario: Accessible names do not shorten with the labels
+- **WHEN** the header actions are rendered at any width, whether labelled, shortened,
+  or icon-only
+- **THEN** each action's accessible name is its full name
+
+#### Scenario: Log out follows the authentication setting
+- **WHEN** an install runs with authentication bypassed
+- **THEN** the header presents the other secondary actions but omits Log out
+
+#### Scenario: Header actions scroll away with the header
+- **WHEN** a user on a pointer/desktop-width screen scrolls down a page
+- **THEN** the header and its actions scroll out of view rather than remaining
+  pinned to the viewport
 

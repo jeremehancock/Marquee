@@ -79,10 +79,86 @@ body {
     align-items: center;
 }
 
-/* Nav-item icons show only in the mobile menu tray; the desktop toolbar keeps
-   plain text buttons. */
+/* The secondary actions, in the header. Ghost buttons rather than filled ones:
+   five bordered controls would read as a toolbar bolted to the header, and the
+   header is specified as page-coloured chrome. The surface arrives on hover. */
+.topnav__desktop {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.topnav__desktop .nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-color: transparent;
+    background: none;
+    color: var(--muted);
+    font-size: 0.92rem;
+    white-space: nowrap;
+}
+
+/* .topbar a is (0,1,1) and would otherwise beat .btn's own colour, so the hover
+   and focus states are stated at matching weight. */
+.topbar .topnav__desktop .nav-item:hover,
+.topbar .topnav__desktop .nav-item:focus-visible {
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+/* The destination already being viewed. Rendered as a span rather than a link,
+   so this only has to look settled rather than clickable — the accent echoes how
+   .tab--active marks the current category. */
+.topbar .topnav__desktop .nav-item--current,
+.topbar .topnav__desktop .nav-item--current:hover {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--accent);
+    cursor: default;
+}
+
 .nav-ico {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+/* Two labels are rendered for every nav item; which one shows depends on where
+   it is. The header is a single row sharing its width with a brand of unbounded
+   length (SITE_TITLE is user-configurable), so it takes the short form; the tray
+   has a full-width row per item and takes the full name. */
+.nav-label {
     display: none;
+}
+
+.nav-label--short {
+    display: inline;
+}
+
+.menu__body .nav-label {
+    display: inline;
+}
+
+.menu__body .nav-label--short {
+    display: none;
+}
+
+/* Between the phone breakpoint and the width where labelled actions still fit
+   beside the brand, the header keeps the icons and drops the labels. Even the
+   short forms come to ~656px with the brand, against the 652px a 700px viewport
+   leaves inside the content column. The custom tooltip names each action here —
+   see data-tooltip-collapsed in app.js, which is what keeps it silent once a
+   label is back on screen. */
+@media (min-width: 641px) and (max-width: 900px) {
+    .topnav__desktop .nav-label {
+        display: none;
+    }
+
+    .topnav__desktop .nav-item {
+        padding: 8px;
+    }
 }
 
 /* Mobile menu button: hidden on desktop, revealed on narrow screens (see the
@@ -285,13 +361,41 @@ h1 {
     font-size: 0.85rem;
 }
 
+/* The gallery's controls — the category tabs and the search/sort toolbar —
+   pinned to the top of the viewport as one block, so every category, the search
+   field, and the sort control stay reachable at any scroll position.
+
+   One wrapper rather than two sticky siblings: both stuck to `top: 0` would land
+   on top of each other, and offsetting the toolbar by the tabs' rendered height
+   would be a constant to keep in sync with their padding and font size. The
+   wrapper introduces no such constant.
+
+   `background` is load-bearing, not cosmetic — the same trap the phone toolbar
+   documents below. Neither .tabs nor .toolbar has a background of its own, so
+   without it the posters scroll straight through the pinned block. No bleed past
+   the gutters is needed here (the phone rule needs one): the poster grid sits
+   inside .container's padding box, so nothing ever renders beside this block.
+
+   The rule along the bottom edge is .tabs' old border, moved out here. Inside a
+   single pinned block that border read as a divider between the tabs and the
+   toolbar rather than as the edge of the thing; on the block it bounds the whole
+   of it, matching how the page header is separated from the content. */
+.gallery-head {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--bg);
+    padding-top: 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
 /* Category tabs */
 .tabs {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 .tab {
@@ -358,11 +462,6 @@ h1 {
     color: var(--muted);
     font-size: 0.9rem;
     margin: 8px 0 16px;
-}
-
-.toolbar__actions {
-    display: flex;
-    gap: 8px;
 }
 
 .sort {
@@ -973,15 +1072,16 @@ h1 {
 }
 
 /* Modal.
-   Overlay layering is one ordered scale: the pinned mobile toolbar (.toolbar, 30)
-   sits under the bottom tab bar (40), which sits under the trays (.sheet, 50), a
-   dialog sits above whatever tray raised it (.modal, 55), and the fullscreen
-   viewer covers both (.viewer, 60). A dialog must outrank a tray because a
-   confirmation can be raised from inside one — deleting an orphan from the
-   orphans tray is the case — and a confirmation rendered behind the tray that
-   asked the question cannot be answered. The toolbar takes the lowest tier
-   because it is page chrome, not an overlay: it only has to cover the poster
-   grid, and every overlay must cover it. */
+   Overlay layering is one ordered scale: the gallery's pinned controls (30 — the
+   whole .gallery-head on desktop, .toolbar alone on a phone) sit under the bottom
+   tab bar (40), which sits under the trays (.sheet, 50), a dialog sits above
+   whatever tray raised it (.modal, 55), and the fullscreen viewer covers both
+   (.viewer, 60). A dialog must outrank a tray because a confirmation can be
+   raised from inside one — deleting an orphan from the orphans tray is the case —
+   and a confirmation rendered behind the tray that asked the question cannot be
+   answered. The pinned controls take the lowest tier because they are page
+   chrome, not an overlay: they only have to cover the poster grid, and every
+   overlay must cover them. */
 .modal {
     position: fixed;
     inset: 0;
@@ -1391,6 +1491,20 @@ h1 {
         padding: 20px 14px;
     }
 
+    /* The desktop wrapper leaves the box tree entirely on a phone, restoring the
+       arrangement the rules below expect: .tabs pins itself to the bottom of the
+       viewport and .toolbar does its own pinning at the top.
+
+       This is not tidiness — it is what keeps the phone toolbar working. A sticky
+       element cannot travel outside its containing block, so leaving the wrapper
+       in place would cut the toolbar's sticky range to the wrapper's own height
+       and unpin it after roughly one tab bar of scrolling. `display: contents` is
+       safe on this element specifically because it is a bare <div> carrying no
+       semantics of its own to lose. */
+    .gallery-head {
+        display: contents;
+    }
+
     /* Room for the fixed bottom tab bar so the last posters are never hidden. */
     body {
         padding-bottom: calc(76px + env(safe-area-inset-bottom));
@@ -1518,8 +1632,7 @@ h1 {
         display: inline-flex;
     }
 
-    .sort,
-    .toolbar__actions {
+    .sort {
         display: none;
     }
 

@@ -61,12 +61,26 @@
         return pointerDevice.matches;
     }
 
-    // A host whose tooltip only restates text it has visually truncated (a poster
-    // caption) opts in with [data-tooltip-truncated], and shows nothing while its
-    // text fits — a bubble repeating what is already on screen is noise. Hosts
-    // carrying a real hint (pagination steps, Sort) don't opt in and always show.
+    // A host whose tooltip only restates text already on screen opts in to being
+    // conditional, and stays silent while that text is readable — a bubble
+    // repeating what is visible is noise. Hosts carrying a real hint (pagination
+    // steps, Sort) don't opt in and always show.
+    //
+    // Two ways to restate: [data-tooltip-truncated] for text cut off by an
+    // ellipsis (a poster caption), and [data-tooltip-collapsed] for a label the
+    // layout has dropped outright (a header nav action narrowed to its icon).
     function conditional(target) {
-        return target.hasAttribute('data-tooltip-truncated');
+        return target.hasAttribute('data-tooltip-truncated')
+            || target.hasAttribute('data-tooltip-collapsed');
+    }
+
+    // Whether a conditional host is currently restating something visible, in
+    // which case the bubble is withheld.
+    function redundant(target) {
+        if (target.hasAttribute('data-tooltip-truncated')) {
+            return !truncated(target);
+        }
+        return !collapsed(target);
     }
 
     // Measured at trigger time rather than tracked with an observer: a caption's
@@ -77,6 +91,20 @@
     // hosts are.
     function truncated(target) {
         return target.scrollWidth > target.clientWidth;
+    }
+
+    // True when none of the host's labels renders a box — the narrow-header state
+    // where a nav action is down to its icon and nothing on screen names it. Read
+    // at trigger time for the same reason `truncated` is: which label shows is a
+    // function of the viewport, and any cached answer goes stale on a resize.
+    // `getClientRects()` rather than a class check, so it stays true to what is
+    // actually painted regardless of which rule did the hiding.
+    function collapsed(target) {
+        var labels = target.querySelectorAll('.nav-label');
+        for (var i = 0; i < labels.length; i++) {
+            if (labels[i].getClientRects().length) { return false; }
+        }
+        return true;
     }
 
     function ensure() {
@@ -111,7 +139,7 @@
 
     function show(target) {
         if (!allowed()) { return; }
-        if (conditional(target) && !truncated(target)) { return; }
+        if (conditional(target) && redundant(target)) { return; }
         var text = target.getAttribute('data-tooltip');
         if (!text) { return; }
         current = target;
