@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Plex;
 
+use App\Config\PosterConfig;
 use App\Database\Database;
+use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Database\PlexLibraryRepository;
 use App\Plex\Import\ImportService;
@@ -12,6 +14,10 @@ use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
 use App\Poster\FilesystemPosterStorage;
+use App\Poster\PosterCategory;
+use App\Poster\PosterLibrary;
+use App\Poster\Search\PosterSearch;
+use App\Poster\SortOrder;
 use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\TestCase;
@@ -282,10 +288,12 @@ final class ImportServiceTest extends TestCase
     }
 
     /**
-     * Backfill is null → known only. A scheduled import over a library that is
-     * already fully populated must not rewrite every row.
+     * A mapping caches what Plex said, and Plex changes its mind: correcting a
+     * match rewrites an item's id under the same rating key. The skip path is
+     * where a locked poster lands, so it is the only place that correction can
+     * happen — and a stale id is what sends Find Posters to the wrong work.
      */
-    public function testSkippedItemWithAnExistingTmdbIdIsNotRewritten(): void
+    public function testSkippedItemWithAChangedTmdbIdIsCorrected(): void
     {
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $database = new Database(':memory:');
@@ -297,14 +305,89 @@ final class ImportServiceTest extends TestCase
         $plexStored = new FakePlexClient([$library], ['1' => [$stored]]);
         (new ImportService($plexStored, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
 
-        // Same artwork, but Plex now reports a different id. The skip path must
-        // leave the stored one alone — only a real re-import updates a mapping.
+        // Same artwork, but Plex now reports a different id.
         $changed = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '9999');
         $plexChanged = new FakePlexClient([$library], ['1' => [$changed]]);
         $result = (new ImportService($plexChanged, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
 
         self::assertSame(1, $result->skipped());
-        self::assertSame('1726', $items->findByRatingKey('10')?->tmdbId);
+        self::assertSame([], $plexChanged->downloads);
+        self::assertSame('9999', $items->findByRatingKey('10')?->tmdbId);
+    }
+
+    /**
+     * The other half of the rule: Plex reporting nothing is not news. A server
+     * mid-refresh that stops reporting a guid must not erase what we know —
+     * losing a fact is worse than holding a stale one, and the next import that
+     * reports a value corrects it anyway.
+     */
+    public function testSkippedItemKeepsRecordedFactsPlexNoLongerReports(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $stored = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '1726');
+        $plexStored = new FakePlexClient([$library], ['1' => [$stored]]);
+        (new ImportService($plexStored, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        $silent = new PlexItem('10', PlexMediaType::Movie, 'Solaris', null, $thumb, 'Movies', tmdbId: null);
+        $plexSilent = new FakePlexClient([$library], ['1' => [$silent]]);
+        $result = (new ImportService($plexSilent, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        $record = $items->findByRatingKey('10');
+        self::assertNotNull($record);
+        self::assertSame(1, $result->skipped());
+        self::assertSame('1726', $record->tmdbId);
+        self::assertSame(1972, $record->year);
+    }
+
+    /**
+     * The guard that makes reconciliation affordable: an item whose facts all
+     * still match writes nothing. A scheduled import over a populated library
+     * is the common case and it must stay free.
+     */
+    public function testSkippedItemWithUnchangedFactsIsNotRewritten(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, $thumb, 'Movies', tmdbId: '1726');
+        $plex = new FakePlexClient([$library], ['1' => [$movie]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        $before = $items->findByRatingKey('10');
+        self::assertNotNull($before);
+
+        // Backdate the row to a timestamp no write could plausibly produce. A
+        // second import that touches it would stamp the current time, so the
+        // sentinel surviving is the observable proof that no row was written —
+        // and it proves it without making the suite sleep.
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $before->ratingKey,
+            mediaType: $before->mediaType,
+            category: $before->category,
+            libraryTitle: $before->libraryTitle,
+            title: $before->title,
+            filename: $before->filename,
+            updatedAt: 1,
+            sectionKey: $before->sectionKey,
+            thumb: $before->thumb,
+            addedAt: $before->addedAt,
+            year: $before->year,
+            seasonNumber: $before->seasonNumber,
+            tmdbId: $before->tmdbId,
+        ));
+
+        $result = (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertSame(1, $items->findByRatingKey('10')?->updatedAt);
     }
 
     /**
@@ -379,10 +462,11 @@ final class ImportServiceTest extends TestCase
     }
 
     /**
-     * Backfill is null → known only, for the year exactly as for the id: a
-     * scheduled import over a populated library must not rewrite every row.
+     * The year moves for the same reason the id does — a corrected match is a
+     * different work — and for a movie the year is part of the filename, so the
+     * poster follows it onto a new name.
      */
-    public function testSkippedItemWithAnExistingYearIsNotRewritten(): void
+    public function testSkippedItemWithAChangedYearIsCorrected(): void
     {
         $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
         $database = new Database(':memory:');
@@ -394,14 +478,159 @@ final class ImportServiceTest extends TestCase
         $plexStored = new FakePlexClient([$library], ['1' => [$stored]]);
         (new ImportService($plexStored, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
 
-        // Same artwork, but Plex now reports a different year. The skip path
-        // must leave the stored one alone — only a real re-import updates it.
+        // Same artwork, but Plex now reports a different year.
         $changed = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 2002, $thumb, 'Movies', tmdbId: '1726');
         $plexChanged = new FakePlexClient([$library], ['1' => [$changed]]);
         $result = (new ImportService($plexChanged, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
 
+        $record = $items->findByRatingKey('10');
+        self::assertNotNull($record);
         self::assertSame(1, $result->skipped());
-        self::assertSame(1972, $items->findByRatingKey('10')?->year);
+        self::assertSame(2002, $record->year);
+        self::assertSame('Solaris_2002_Movies.png', $record->filename);
+        self::assertSame(1, $this->countFiles('movies'));
+    }
+
+    /**
+     * The reported bug. A show matched as the wrong series, corrected in Plex
+     * with "Fix Match", keeps its rating key — so the poster is overwritten in
+     * place and its filename never moves. The caption follows the new title but
+     * the gallery sorts by the filename and search matches it, which files the
+     * poster under the old name and makes it unfindable by the new one.
+     */
+    public function testCorrectedMatchRenamesThePosterToTheNewTitle(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('2', 'TV Shows', 'show');
+
+        $wrong = new PlexItem('100', PlexMediaType::Show, "Marvel's Agents of S.H.I.E.L.D.", 2013, '/t/100/v1', 'TV Shows', sectionKey: '2', tmdbId: '1403');
+        $plexWrong = new FakePlexClient([$library], ['2' => [$wrong]]);
+        (new ImportService($plexWrong, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+        self::assertSame('Marvel_s_Agents_of_S.H.I.E.L.D._TV_Shows.png', $items->findByRatingKey('100')?->filename);
+
+        // Fix Match: same rating key, different work, new artwork.
+        $fixed = new PlexItem('100', PlexMediaType::Show, 'The Shield', 2002, '/t/100/v2', 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $plexFixed = new FakePlexClient([$library], ['2' => [$fixed]]);
+        (new ImportService($plexFixed, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $record = $items->findByRatingKey('100');
+        self::assertSame('The_Shield_TV_Shows.png', $record->filename);
+        self::assertSame('The Shield', $record->title);
+        self::assertSame('1826', $record->tmdbId);
+        self::assertSame(2002, $record->year);
+        // Renamed, not copied: the old name is gone and there is still one file.
+        self::assertFalse($storage->exists(PosterCategory::TvShows, 'Marvel_s_Agents_of_S.H.I.E.L.D._TV_Shows.png'));
+        self::assertSame(1, $this->countFiles('tv-shows'));
+    }
+
+    /**
+     * The half of the bug that the download path cannot reach. A poster the user
+     * customised and locked in Plex keeps its artwork across a corrected match,
+     * so the import skips it — and the skip path was returning before it ever
+     * compared a title.
+     */
+    public function testCorrectedMatchRenamesEvenWhenTheArtworkIsUnchanged(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('2', 'TV Shows', 'show');
+        $locked = '/t/100/locked';
+
+        $wrong = new PlexItem('100', PlexMediaType::Show, "Marvel's Agents of S.H.I.E.L.D.", 2013, $locked, 'TV Shows', sectionKey: '2', tmdbId: '1403');
+        $plexWrong = new FakePlexClient([$library], ['2' => [$wrong]]);
+        (new ImportService($plexWrong, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $before = file_get_contents($this->dir . '/tv-shows/Marvel_s_Agents_of_S.H.I.E.L.D._TV_Shows.png');
+
+        // Same locked artwork, corrected match.
+        $fixed = new PlexItem('100', PlexMediaType::Show, 'The Shield', 2002, $locked, 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $plexFixed = new FakePlexClient([$library], ['2' => [$fixed]]);
+        $result = (new ImportService($plexFixed, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $record = $items->findByRatingKey('100');
+        self::assertNotNull($record);
+        self::assertSame('The_Shield_TV_Shows.png', $record->filename);
+        self::assertSame('The Shield', $record->title);
+        self::assertSame('1826', $record->tmdbId);
+        // Still a skip, and the image itself was never re-fetched or rewritten.
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexFixed->downloads);
+        self::assertSame($before, file_get_contents($this->dir . '/tv-shows/The_Shield_TV_Shows.png'));
+    }
+
+    /**
+     * A rename obeys the same uniqueness rule a first import does: it may never
+     * take a name that belongs to another item's poster.
+     */
+    public function testRenameDoesNotOverwriteAnUnrelatedPoster(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('2', 'TV Shows', 'show');
+
+        $other = new PlexItem('200', PlexMediaType::Show, 'The Shield', 2002, '/t/200/v1', 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $wrong = new PlexItem('100', PlexMediaType::Show, 'Wrong Match', 2013, '/t/100/v1', 'TV Shows', sectionKey: '2', tmdbId: '1403');
+        $plexBefore = new FakePlexClient([$library], ['2' => [$other, $wrong]]);
+        (new ImportService($plexBefore, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+        self::assertSame('The_Shield_TV_Shows.png', $items->findByRatingKey('200')?->filename);
+
+        // Item 100 is corrected to a title item 200 already occupies.
+        $fixed = new PlexItem('100', PlexMediaType::Show, 'The Shield', 2002, '/t/100/v2', 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $plexAfter = new FakePlexClient([$library], ['2' => [$other, $fixed]]);
+        (new ImportService($plexAfter, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $renamed = $items->findByRatingKey('100');
+        $untouched = $items->findByRatingKey('200');
+        self::assertNotNull($renamed);
+        self::assertSame('The_Shield_TV_Shows-1.png', $renamed->filename);
+        self::assertSame('The_Shield_TV_Shows.png', $untouched->filename);
+        self::assertSame(2, $this->countFiles('tv-shows'));
+    }
+
+    /**
+     * The symptom as the user met it, asserted where they met it. A corrected
+     * match left the poster captioned with its new title but sorted and searched
+     * under the old one, so it sat under the wrong letter and no query for its
+     * real name found it — which reads, in a library of any size, as the show
+     * having vanished. Note "shield" alone: search normalises S.H.I.E.L.D. to
+     * "s h i e l d", so not even a one-word query reached it.
+     */
+    public function testACorrectedMatchIsSortedAndFoundUnderItsNewTitle(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $section = new PlexLibrary('2', 'TV Shows', 'show');
+
+        $wrong = new PlexItem('100', PlexMediaType::Show, "Marvel's Agents of S.H.I.E.L.D.", 2013, '/t/100/v1', 'TV Shows', sectionKey: '2', tmdbId: '1403');
+        $plexWrong = new FakePlexClient([$section], ['2' => [$wrong]]);
+        (new ImportService($plexWrong, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $fixed = new PlexItem('100', PlexMediaType::Show, 'The Shield', 2002, '/t/100/v2', 'TV Shows', sectionKey: '2', tmdbId: '1826');
+        $plexFixed = new FakePlexClient([$section], ['2' => [$fixed]]);
+        (new ImportService($plexFixed, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+
+        $config = new PosterConfig(24, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
+        $gallery = new PosterLibrary($storage, new PosterSearch(), $config, $items);
+
+        $listed = $gallery->browse(PosterCategory::TvShows, null, 1)->items;
+        self::assertCount(1, $listed);
+        // Article-aware sort drops "The", so the poster files under S, not M.
+        self::assertSame('shield tv shows', $listed[0]->sortKey(true));
+
+        foreach (['The Shield', 'shield'] as $query) {
+            self::assertCount(1, $gallery->browse(PosterCategory::TvShows, $query, 1)->items, sprintf('search for "%s"', $query));
+        }
+        self::assertCount(0, $gallery->browse(PosterCategory::TvShows, 'agents', 1)->items);
     }
 
     public function testForceReimportsUnchangedPosters(): void

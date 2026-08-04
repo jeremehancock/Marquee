@@ -11,6 +11,7 @@ use App\Plex\PlexClient;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
+use App\Poster\PosterCategory;
 use App\Poster\PosterStorage;
 use Throwable;
 
@@ -88,6 +89,13 @@ final class ImportService
             $existing = $this->items->findByRatingKey($item->ratingKey);
             $thumb = $item->thumb ?? '';
 
+            // Correcting a bad match in Plex ("Fix Match") keeps the item's
+            // rating key but replaces the work behind it. The stored filename is
+            // what the gallery sorts by and what a search matches, so it is
+            // brought back in step here — before the skip check reads it, and
+            // before the download path writes through it.
+            $filename = $existing === null ? '' : $this->renamedToMatch($existing, $item, $category);
+
             // Skip the poster download when Plex's artwork version is unchanged
             // since our last import and the local file still exists. Plex embeds
             // a version token in the thumb path, so an identical path means the
@@ -97,9 +105,9 @@ final class ImportService
                 && $existing !== null
                 && $thumb !== ''
                 && $existing->thumb === $thumb
-                && $this->storage->exists($category, $existing->filename)
+                && $this->storage->exists($category, $filename)
             ) {
-                $this->backfillMissingFacts($existing, $item);
+                $this->reconcileFacts($existing, $item, $filename);
                 $result->recordSkipped();
 
                 return;
@@ -110,7 +118,6 @@ final class ImportService
             $temp = $this->writeTempFile($bytes);
             try {
                 if ($existing !== null) {
-                    $filename = $existing->filename;
                     $this->storage->replace($category, $filename, $temp);
                 } else {
                     $filename = $this->storage->store($category, $this->deriveFilename($item, $bytes), $temp);
@@ -126,15 +133,15 @@ final class ImportService
                 mediaType: $item->mediaType->value,
                 category: $category->value,
                 libraryTitle: $item->libraryTitle,
-                title: $item->displayTitle(),
+                title: $this->mergedTitle($existing, $item),
                 filename: $filename,
                 updatedAt: time(),
                 sectionKey: $item->sectionKey,
                 thumb: $thumb,
                 addedAt: $item->addedAt ?? 0,
-                year: $item->year,
+                year: $item->year ?? $existing?->year,
                 seasonNumber: $item->seasonNumber,
-                tmdbId: $item->tmdbId,
+                tmdbId: $item->tmdbId ?? $existing?->tmdbId,
             ));
 
             $result->recordImported($category);
@@ -144,25 +151,69 @@ final class ImportService
     }
 
     /**
-     * Record the search facts a mapping predates — its TMDB id and its release
-     * year — without downloading the poster the skip check just decided was
-     * unchanged.
+     * The filename the stored poster should have, renaming it when the item's
+     * title or year has moved since the poster was imported.
      *
-     * Only null → known writes, and only when something is actually missing. A
-     * blanket refresh here would rewrite every row on every scheduled import,
-     * where the skip path's whole purpose is to cost almost nothing; this fires
-     * once per item and then never again.
+     * The name is derived from the item and the file's own extension, never
+     * from poster bytes: this runs before the skip check has decided whether to
+     * download anything, and the stored extension is the right one anyway — a
+     * corrected match changes metadata, not the image already on disk.
      *
-     * Both facts move in one upsert rather than one write each, because a
-     * season that predates either is missing both and the skip path should not
-     * pay twice for one item.
+     * Deciding whether the name actually changed is left to the storage, which
+     * owns sanitisation: the derived name here is raw, and only its sanitised
+     * form is comparable to what is on disk. An unchanged name moves nothing.
+     *
+     * A rename that cannot be completed is not worth failing an item's import
+     * over. The poster stays reachable under its existing name and its facts are
+     * still corrected, which is strictly better than leaving both stale. That
+     * also covers the poster whose file has gone missing: there is nothing to
+     * move, the download path below recreates it under the old name, and the
+     * next import — which now finds a file — renames it.
      */
-    private function backfillMissingFacts(PlexItemRecord $existing, PlexItem $item): void
+    private function renamedToMatch(PlexItemRecord $existing, PlexItem $item, PosterCategory $category): string
     {
-        $tmdbId = $existing->tmdbId ?? $item->tmdbId;
-        $year = $existing->year ?? $item->year;
+        $extension = pathinfo($existing->filename, PATHINFO_EXTENSION);
+        $desired = $this->deriveBaseName($item) . '.' . $extension;
 
-        if ($tmdbId === $existing->tmdbId && $year === $existing->year) {
+        try {
+            return $this->storage->rename($category, $existing->filename, $desired);
+        } catch (Throwable) {
+            return $existing->filename;
+        }
+    }
+
+    /**
+     * Bring a skipped item's recorded facts back in line with Plex without
+     * downloading the poster the skip check just decided was unchanged.
+     *
+     * A mapping records what the item was when it was imported, and a Plex item
+     * does not hold still: a corrected match gives it a new title, year and
+     * TMDB id under the same rating key. So each fact is taken from Plex
+     * wherever Plex reports one, and kept wherever it does not — losing a known
+     * fact to a server that has momentarily stopped reporting it is worse than
+     * holding a stale one, and the next import that reports a value corrects it.
+     *
+     * Nothing is written unless something actually differs. That guard is what
+     * keeps this affordable: the skip path's whole purpose is to cost almost
+     * nothing, and a library whose items have not changed still writes no rows.
+     * The comparison itself is free — every value is already in memory.
+     *
+     * Every fact moves in one upsert rather than one write each, because an item
+     * whose match was corrected has changed all of them at once and the skip
+     * path should not pay repeatedly for one item.
+     */
+    private function reconcileFacts(PlexItemRecord $existing, PlexItem $item, string $filename): void
+    {
+        $title = $this->mergedTitle($existing, $item);
+        $year = $item->year ?? $existing->year;
+        $tmdbId = $item->tmdbId ?? $existing->tmdbId;
+
+        if (
+            $title === $existing->title
+            && $year === $existing->year
+            && $tmdbId === $existing->tmdbId
+            && $filename === $existing->filename
+        ) {
             return;
         }
 
@@ -171,8 +222,8 @@ final class ImportService
             mediaType: $existing->mediaType,
             category: $existing->category,
             libraryTitle: $existing->libraryTitle,
-            title: $existing->title,
-            filename: $existing->filename,
+            title: $title,
+            filename: $filename,
             updatedAt: time(),
             sectionKey: $existing->sectionKey,
             thumb: $existing->thumb,
@@ -183,15 +234,39 @@ final class ImportService
         ));
     }
 
+    /**
+     * The title to record: Plex's, unless it reports none and we already have
+     * one. An item with no mapping and no title records the empty string, which
+     * is what the gallery already treats as "fall back to the filename".
+     */
+    private function mergedTitle(?PlexItemRecord $existing, PlexItem $item): string
+    {
+        $title = $item->displayTitle();
+        if ($title !== '') {
+            return $title;
+        }
+
+        return $existing === null ? '' : $existing->title;
+    }
+
     private function deriveFilename(PlexItem $item, string $bytes): string
+    {
+        return $this->deriveBaseName($item) . '.' . $this->extensionFor($bytes);
+    }
+
+    /**
+     * The filename an item would be given today, without its extension. Shared
+     * by a first import, which takes its extension from the downloaded bytes,
+     * and by a rename, which keeps the stored file's own.
+     */
+    private function deriveBaseName(PlexItem $item): string
     {
         $title = $item->displayTitle();
         if ($item->mediaType === PlexMediaType::Movie && $item->year !== null) {
             $title .= ' (' . $item->year . ')';
         }
-        $title .= ' [' . $item->libraryTitle . ']';
 
-        return $title . '.' . $this->extensionFor($bytes);
+        return $title . ' [' . $item->libraryTitle . ']';
     }
 
     private function extensionFor(string $bytes): string

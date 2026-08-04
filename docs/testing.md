@@ -1,15 +1,17 @@
 # Testing Marquee against Plex
 
-Three Plex-facing behaviors are worth verifying by hand from time to time:
+Four Plex-facing behaviors are worth verifying by hand from time to time:
 
 1. A poster is **locked** in Plex after you update it in Marquee.
 2. The **Kometa "Overlay" label** feature (`PLEX_REMOVE_OVERLAY_LABEL`).
 3. **Orphan detection** — posters for media that no longer exists in Plex.
+4. **A corrected match** — Plex's **Fix Match**, and what the next import does
+   with it.
 
 The first two can be checked automatically with the included script
 ([`scripts/marquee-plex-test.py`](../scripts/marquee-plex-test.py)) or manually
-against the Plex API. Orphan detection is a real-world workflow test (remove
-something from Plex, then check Marquee) — see the last section.
+against the Plex API. The last two are real-world workflow tests (change
+something in Plex, then check Marquee) — see the final sections.
 
 > The unit/functional test suite (`composer test`) covers Marquee's internal
 > logic. This page is about validating the *live* round-trip to a real Plex
@@ -227,3 +229,53 @@ Same flow, but be aware deleting a movie in Plex removes its media files:
   keeps deleted items until trash is emptied.
 - **"Plex must be configured to detect orphans."** → set `PLEX_SERVER_URL` /
   `PLEX_TOKEN` and recreate the container.
+
+---
+
+## A corrected match (real-world test)
+
+Plex's **Fix Match** keeps an item's rating key but replaces the work behind it:
+new title, new year, new external ids, usually new artwork. Marquee's mapping
+records what the item *was*, so the next import has to reconcile it — including
+renaming the stored poster, because the gallery sorts by the filename and search
+matches against it. A poster left under its old name reads, in a library of any
+size, as the show having vanished.
+
+This can't be exercised without a real Plex server, so it's a workflow test.
+
+1. In Plex, pick a show or movie and use ⋯ → **Fix Match** → **Search options**
+   to deliberately match it to the *wrong* title. (Choose something you don't
+   mind re-matching — the media files are untouched either way.)
+2. In Marquee, **Import from Plex** for that type. The poster arrives under the
+   wrong title.
+3. In Plex, **Fix Match** again and pick the correct title.
+4. In Marquee, run an ordinary import — no need to tick **Re-download unchanged
+   posters**.
+
+### Expected results
+
+| Step | Expected |
+| --- | --- |
+| After the corrected import | The poster's caption is the correct title |
+| Sort position | Filed under the correct title, not the old one |
+| Search for the correct title | Finds the poster |
+| Search for the old, wrong title | Finds nothing |
+| Poster count | Unchanged — the file is renamed, not duplicated |
+| **Find Posters** on that item | Offers the correct work's artwork |
+
+### Worth testing separately: a locked poster
+
+The case that used to be missed entirely. Before step 3, change the poster in
+Marquee (upload anything) and **Send to Plex** so the artwork is locked. Then fix
+the match and re-import. Because the artwork didn't change, the import *skips*
+the download — but the rename and the corrected details must still happen, and
+the import summary should still count the item as **skipped**, not imported. Your
+uploaded image must survive unchanged.
+
+### Troubleshooting
+
+- **Poster still under the old title** → confirm Plex actually shows the new
+  title (the agent may still be refreshing), then import again.
+- **A leftover poster under the old title on the TV Seasons tab** → expected.
+  Plex recreates season items on a re-match, so they arrive with new rating keys
+  and the old ones become genuine orphans. Clear them from **Orphans**.

@@ -1,0 +1,226 @@
+## MODIFIED Requirements
+
+### Requirement: Plex item mapping
+The system SHALL record, for each stored poster, the Plex item it came from (by
+rating key) together with the Plex library section that item belongs to, the
+item's Plex "added at" timestamp, the item's release year where Plex reports one,
+the item's TMDB identifier where Plex reports one, and — for seasons — the Plex
+season number, so later operations can address the item for artwork, locking, and
+label edits, so the gallery can order posters by when their media was added to
+Plex, and so a poster search can be built from recorded facts rather than
+re-parsed from a display title. On re-import the system SHALL overwrite the same
+poster file rather than creating a duplicate.
+
+A TMDB identifier is recorded only where Plex reports one. Movies and shows carry
+their own; a season carries its **show's** identifier, because a season is
+addressed as a show together with a season number; a collection carries none,
+because a Plex collection is a local grouping with no upstream record. An item
+Plex never matched carries none. A missing identifier SHALL be recorded as
+unknown and SHALL NOT be treated as an error.
+
+A season SHALL likewise carry its **show's** release year, for the same reason it
+carries the show's identifier: a season search resolves the show and then the
+season within it, so the year that identifies the work is the show's. A season has
+no release year of its own, and the show's is known at the moment the season is
+imported. Recording it is what lets a search tell two shows that share a title
+apart when the recorded identifier is not one the source recognises — without it
+those shows are indistinguishable and the search resolves to whichever is more
+popular.
+
+A mapping records what the Plex item was at the moment it was imported, and a
+Plex item does not hold still. Correcting a bad match — Plex's "Fix Match" — keeps
+the item's rating key but replaces the work behind it: a new title, a new release
+year, a new TMDB identifier. The system SHALL therefore treat the recorded facts
+as a cache to be reconciled rather than as a record written once. On re-import,
+when a mapping already exists for an item's rating key, the system SHALL compare
+the item's current title, release year and TMDB identifier against the recorded
+ones and SHALL update the mapping wherever they differ. A recorded fact SHALL NOT
+be replaced with an unknown one: where Plex now reports nothing, what is already
+recorded stands, because losing a known fact is worse than holding a stale one.
+
+This reconciliation SHALL run whether or not the poster itself is downloaded. The
+item most in need of it is the one whose artwork did not change — a poster the
+user has customised and locked in Plex keeps its artwork across a re-match, so
+the download is skipped and the skip path is the only place the correction can
+happen. An item whose recorded facts all still match SHALL cause no write, so a
+scheduled import over an unchanged library costs no more than it does today.
+
+#### Scenario: Re-import overwrites, not duplicates
+- **WHEN** a user imports a library and later imports it again
+- **THEN** each item's poster is updated in place and no duplicate poster is
+  created
+
+#### Scenario: Section recorded on import
+- **WHEN** an item is imported from a Plex library
+- **THEN** the system stores that library's section identifier with the item's
+  poster mapping
+
+#### Scenario: Added-at recorded on import
+- **WHEN** an item that reports a Plex "added at" timestamp is imported
+- **THEN** the system stores that timestamp with the item's poster mapping so it
+  can order the gallery by date added
+
+#### Scenario: Missing added-at does not fail import
+- **WHEN** an item does not report a Plex "added at" timestamp
+- **THEN** the import still records the mapping and the poster remains browsable
+
+#### Scenario: Release year recorded on import
+- **WHEN** a movie or show that reports a release year is imported
+- **THEN** the system stores that year with the item's poster mapping
+
+#### Scenario: A season records its show's release year
+- **WHEN** a TV season is imported and Plex reports a release year for its show
+- **THEN** the system stores the show's release year with the season's poster
+  mapping, so a search for that season can distinguish shows that share a title
+
+#### Scenario: A season of a show with no release year still imports
+- **WHEN** a TV season is imported and Plex reports no release year for its show
+- **THEN** the system records the mapping with the year left unknown and the
+  poster remains browsable
+
+#### Scenario: Season number recorded on import
+- **WHEN** a TV season is imported
+- **THEN** the system stores the Plex season number for that season with the
+  item's poster mapping, including zero for a Specials season
+
+#### Scenario: TMDB identifier recorded for a movie or show
+- **WHEN** a movie or show for which Plex reports a TMDB identifier is imported
+- **THEN** the system stores that identifier with the item's poster mapping
+
+#### Scenario: A season records its show's TMDB identifier
+- **WHEN** a TV season is imported and Plex reports a TMDB identifier for its show
+- **THEN** the system stores the show's identifier with the season's poster
+  mapping, alongside the season number already recorded for it
+
+#### Scenario: Collections record no TMDB identifier
+- **WHEN** a collection is imported
+- **THEN** the system records no TMDB identifier for it and the import succeeds
+
+#### Scenario: An unmatched item records no TMDB identifier
+- **WHEN** an item for which Plex reports no TMDB identifier is imported
+- **THEN** the system records the mapping with the identifier left unknown and
+  the poster remains browsable
+
+#### Scenario: A server that reports no identifiers does not fail the import
+- **WHEN** an import runs against a Plex server that reports no TMDB identifiers
+  for any item
+- **THEN** every item is imported with its identifier left unknown, and no item
+  is reported as failed
+
+#### Scenario: A skipped item still gains a missing TMDB identifier
+- **WHEN** an import skips an item because its poster is unchanged, and the
+  stored mapping has no TMDB identifier while Plex now reports one
+- **THEN** the system records the identifier without downloading the poster, and
+  still counts the item as skipped
+
+#### Scenario: A skipped item still gains a missing release year
+- **WHEN** an import skips an item because its poster is unchanged, and the
+  stored mapping has no release year while Plex now reports one
+- **THEN** the system records the year without downloading the poster, and still
+  counts the item as skipped
+
+#### Scenario: A re-matched item's recorded facts are corrected
+- **WHEN** an item is re-imported and Plex now reports a different title, release
+  year or TMDB identifier than the mapping recorded
+- **THEN** the system replaces each differing fact with the one Plex now reports
+
+#### Scenario: A re-matched item is corrected even when its poster is unchanged
+- **WHEN** an import skips an item because its artwork is unchanged, and Plex now
+  reports a different title, release year or TMDB identifier than the mapping
+  recorded
+- **THEN** the system corrects those facts without downloading the poster, and
+  still counts the item as skipped
+
+#### Scenario: An item whose facts are unchanged is not rewritten
+- **WHEN** an import processes an item whose recorded title, release year and
+  TMDB identifier all still match what Plex reports
+- **THEN** the system leaves the mapping untouched rather than rewriting it on
+  every import
+
+#### Scenario: A recorded fact is not replaced by an unknown one
+- **WHEN** an item is re-imported and Plex now reports no release year or no TMDB
+  identifier while the mapping records one
+- **THEN** the system keeps the recorded value rather than clearing it
+
+#### Scenario: Missing year or season number does not fail import
+- **WHEN** an item does not report a release year, or is not a season and so has
+  no season number
+- **THEN** the import still records the mapping and the poster remains browsable
+
+#### Scenario: Existing mappings gain the new facts on re-import
+- **WHEN** a library imported by an earlier version of Marquee is imported again
+- **THEN** the stored mappings are updated with the release year, season number
+  and TMDB identifier without requiring the user to delete or rebuild anything
+
+#### Scenario: Existing season mappings gain their show's year without a rebuild
+- **WHEN** a library whose seasons were imported without a release year is
+  imported again and the seasons' posters are unchanged
+- **THEN** those season mappings gain their show's release year without the user
+  deleting, rebuilding, or forcing a re-download of anything
+
+### Requirement: Safe, unique filenames
+When storing an imported poster the system SHALL derive a filename from the Plex
+item, sanitize it to a safe character set, preserve a valid image extension, and
+make it unique within the category so an import never overwrites an unrelated
+poster.
+
+A poster's filename is not merely a storage detail: the gallery orders posters by
+it and a search matches against it. A filename that no longer describes its item
+therefore hides the poster — it sorts under the wrong letter and matches no query
+for the name it now displays. The system SHALL therefore keep a stored poster's
+filename in step with the item it belongs to. On re-import, when a mapping's
+recorded title or release year has changed, the system SHALL rename the stored
+file to the name that item would be given today, apply the same sanitisation and
+uniqueness rules a first import applies, and record the new filename with the
+mapping in the same operation, so a poster is never left addressed by a name it
+no longer has. The file's existing image extension SHALL be preserved: renaming
+follows a metadata change, not a new download, and the stored image is unchanged.
+
+A rename SHALL NOT be attempted when the derived name is unchanged, and a rename
+that cannot be completed SHALL leave the poster reachable under its existing
+name rather than failing the import.
+
+#### Scenario: Colliding name is made unique
+- **WHEN** an import stores a poster whose derived name matches an existing file
+  in the category that belongs to a different item
+- **THEN** the system stores it under a unique name without overwriting the
+  existing poster
+
+#### Scenario: Unsafe characters are removed
+- **WHEN** an item's title contains path separators or other unsafe characters
+- **THEN** the stored filename contains none of them and keeps a valid image
+  extension
+
+#### Scenario: A re-matched item's poster is renamed
+- **WHEN** an item is re-imported and Plex now reports a different title than the
+  mapping recorded
+- **THEN** the system renames the stored poster to the name derived from the new
+  title and records that filename with the mapping, so the poster sorts and is
+  found under its current name
+
+#### Scenario: A re-matched item's poster is renamed even when its artwork is unchanged
+- **WHEN** an import skips an item because its artwork is unchanged and Plex now
+  reports a different title than the mapping recorded
+- **THEN** the system renames the stored poster without downloading it and still
+  counts the item as skipped
+
+#### Scenario: A rename does not overwrite an unrelated poster
+- **WHEN** a rename's derived name matches an existing file in the category that
+  belongs to a different item
+- **THEN** the system renames it to a unique name instead, and the other item's
+  poster is left untouched
+
+#### Scenario: A rename preserves the stored image
+- **WHEN** a stored poster is renamed because its item's title changed
+- **THEN** the image itself is unchanged, keeps its existing extension, and the
+  poster is not re-downloaded from Plex
+
+#### Scenario: An unchanged name is not renamed
+- **WHEN** an import processes an item whose derived filename matches the stored
+  one
+- **THEN** the system leaves the file where it is
+
+#### Scenario: A failed rename does not lose the poster
+- **WHEN** a stored poster cannot be renamed
+- **THEN** the mapping continues to address the poster by its existing filename
+  and the import reports the item without failing the run

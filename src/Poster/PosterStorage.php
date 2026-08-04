@@ -35,5 +35,16 @@ interface PosterStorage
      */
     public function replace(PosterCategory $category, string $filename, string $sourcePath): void;
 
+    /**
+     * Move a stored poster to $desiredFilename within the same category,
+     * returning the actual (possibly de-duplicated, sanitized) filename it now
+     * has — which may differ from the one requested, so callers must record
+     * what comes back rather than what they asked for.
+     *
+     * Renaming to the name the file already has is a no-op. The stored image is
+     * never read or rewritten: this moves a file, it does not replace one.
+     */
+    public function rename(PosterCategory $category, string $currentFilename, string $desiredFilename): string;
+
     public function delete(PosterCategory $category, string $filename): bool;
 }
