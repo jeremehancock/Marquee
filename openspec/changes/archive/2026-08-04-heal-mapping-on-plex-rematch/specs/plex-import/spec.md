@@ -150,6 +150,12 @@ recognises the poster as outstanding and fetches it again.
   and leaves the recorded artwork version untouched so a later import fetches
   the poster again
 
+#### Scenario: A skipped item does not have a recorded year overwritten
+- **WHEN** an import skips an item whose stored mapping already records a release
+  year and Plex reports that same year
+- **THEN** the system leaves the recorded year as it is rather than rewriting it
+  on every import
+
 #### Scenario: An item whose facts are unchanged is not rewritten
 - **WHEN** an import processes an item whose recorded title, release year and
   TMDB identifier all still match what Plex reports
