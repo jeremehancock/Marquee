@@ -4,7 +4,7 @@
   `.menu-btn` SVG with a horizontal-ellipsis (overflow) glyph — three filled
   circles on the horizontal centre line, sized to match the existing 24×24
   viewBox and the surrounding icon weight.
-- [x] 1.2 Confirm the button keeps `aria-label="Menu"`, `aria-haspopup="true"`,
+- [x] 1.2 Confirm the button keeps an accessible name, `aria-haspopup="true"`,
   its `.menu-btn` class, and `@click="menuOpen = true"`. Nothing about the tray,
   the link macros, or the mobile/desktop visibility rules changes.
 
@@ -63,14 +63,21 @@ viewport, so the pinned toolbar ends up anchored above the visible area.
   `PaginationScrollTest` already owns that assertion, and update its now-stale
   "only paging animates" comment to name the shared helper instead.
 
-## 6. Docs and gates
+## 6. Name the menu for what it holds
 
-- [x] 6.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
+- [x] 6.1 Retitle the tray from "Menu" to "Actions" in
+  `templates/partials/_menu.html.twig`, and update its `aria-label` to match.
+- [x] 6.2 Update the trigger's `aria-label` in `templates/layout.html.twig` to
+  "Actions", and the assertion in `tests/Functional/ApplicationShellTest.php`.
+
+## 7. Docs and gates
+
+- [x] 7.1 Check whether `README.md`, `docs/`, or `CLAUDE.md` describe the menu
   glyph or the toolbar's scroll behavior; update in the same commit if so, and
   state explicitly that nothing was stale if not.
-- [x] 6.2 Run `composer test`, `composer stan`, and `composer cs` — all three
+- [x] 7.2 Run `composer test`, `composer stan`, and `composer cs` — all three
   must pass before committing.
-- [ ] 6.3 Verify by hand on a phone-width viewport against the `:dev` image:
+- [ ] 7.3 Verify by hand on a phone-width viewport against the `:dev` image:
   the trigger reads as an overflow menu and still opens the tray; the toolbar
   pins while scrolling with no posters visible behind or beside it; opening any
   tray still covers the toolbar; searching from part-way down returns to the

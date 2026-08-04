@@ -308,9 +308,9 @@ to do.
 
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
-front and center: the secondary actions live behind the **⋯** menu, search and
-sort stay pinned to the top while you scroll, and tapping a poster opens a
-full-size action sheet.
+front and center: the secondary actions live behind the **⋯** Actions menu,
+search and sort stay pinned to the top while you scroll, and tapping a poster
+opens a full-size action sheet.
 
 ## Security considerations
 

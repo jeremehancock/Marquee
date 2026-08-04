@@ -95,7 +95,7 @@ final class ApplicationShellTest extends AppTestCase
         );
         // The glyph is decorative; the button's name is what a screen reader
         // announces, and it must survive the swap.
-        self::assertStringContainsString('aria-label="Menu"', $button);
+        self::assertStringContainsString('aria-label="Actions"', $button);
         self::assertStringContainsString('aria-haspopup="true"', $button);
     }
 

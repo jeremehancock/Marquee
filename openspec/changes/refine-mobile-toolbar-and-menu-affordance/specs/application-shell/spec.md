@@ -18,7 +18,9 @@ provide.
 
 On a narrow screen the topbar SHALL present a single overflow menu control;
 activating it SHALL open a tray listing the secondary links (Poster Wall, Import
-from Plex, Orphans, Support Development, and Log out). The tray SHALL reuse the
+from Plex, Orphans, Support Development, and Log out). The control's accessible
+name and the tray's heading SHALL both name these as actions, so what the glyph
+signifies is also what the menu calls itself. The tray SHALL reuse the
 application's shared bottom-sheet/tray presentation (including its app-style
 dismissal — see "App-style tray dismissal") rather than introducing a separate
 drawer system, and SHALL also dismiss after a link is chosen. The secondary links
@@ -41,7 +43,8 @@ of the viewport than the menu's occasional use justifies.
 - **WHEN** the topbar is rendered on a narrow screen
 - **THEN** the menu control's glyph signifies "more actions" rather than a
   hamburger
-- **AND** it carries an accessible name identifying it as the menu
+- **AND** it carries an accessible name identifying it as the actions menu
+- **AND** the tray it opens is headed as actions rather than as navigation
 
 #### Scenario: Menu opens the navigation tray on a phone
 - **WHEN** an authenticated user on a narrow screen activates the topbar menu
