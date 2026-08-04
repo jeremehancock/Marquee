@@ -102,6 +102,29 @@ final class FilesystemPosterStorage implements PosterStorage
         }
     }
 
+    public function rename(PosterCategory $category, string $currentFilename, string $desiredFilename): string
+    {
+        $source = $this->path($category, $currentFilename);
+        if ($source === null) {
+            throw new RuntimeException('Cannot rename a poster that is not stored.');
+        }
+
+        // The file being renamed is not an obstacle to its own new name, so it
+        // is excluded from the collision check. Without that, recasing a title
+        // would collide with itself on a case-insensitive filesystem and be
+        // pushed to a "-1" suffix.
+        $filename = $this->uniqueFilename($category, $this->sanitizeFilename($desiredFilename), $currentFilename);
+        if ($filename === $currentFilename) {
+            return $currentFilename;
+        }
+
+        if (!rename($source, $this->categoryDir($category) . '/' . $filename)) {
+            throw new RuntimeException('Could not rename the poster file.');
+        }
+
+        return $filename;
+    }
+
     public function delete(PosterCategory $category, string $filename): bool
     {
         $path = $this->path($category, $filename);
@@ -143,10 +166,24 @@ final class FilesystemPosterStorage implements PosterStorage
         return $name . '.' . $extension;
     }
 
-    private function uniqueFilename(PosterCategory $category, string $filename): string
+    /**
+     * A free filename in the category, suffixing until one is.
+     *
+     * $ignore names a file that does not count as an obstacle — the file being
+     * renamed, which must be allowed to take a name that resolves back to
+     * itself. Identity is settled by device and inode rather than by comparing
+     * the strings, because a case-insensitive filesystem answers is_file() for
+     * a name that differs from the stored one only in case.
+     */
+    private function uniqueFilename(PosterCategory $category, string $filename, ?string $ignore = null): string
     {
         $dir = $this->categoryDir($category);
-        if (!is_file($dir . '/' . $filename)) {
+        $ignored = $ignore === null ? null : $dir . '/' . $ignore;
+
+        $taken = fn (string $candidate): bool => is_file($dir . '/' . $candidate)
+            && !$this->isSameFile($dir . '/' . $candidate, $ignored);
+
+        if (!$taken($filename)) {
             return $filename;
         }
 
@@ -156,9 +193,26 @@ final class FilesystemPosterStorage implements PosterStorage
         do {
             $candidate = sprintf('%s-%d.%s', $name, $counter, $extension);
             $counter++;
-        } while (is_file($dir . '/' . $candidate));
+        } while ($taken($candidate));
 
         return $candidate;
+    }
+
+    /**
+     * Whether two paths are the same file on disk. Compares device and inode so
+     * that two spellings of one file — which is what a case-insensitive
+     * filesystem hands back — are recognised as one.
+     */
+    private function isSameFile(string $path, ?string $other): bool
+    {
+        if ($other === null) {
+            return false;
+        }
+
+        $a = @stat($path);
+        $b = @stat($other);
+
+        return $a !== false && $b !== false && $a['dev'] === $b['dev'] && $a['ino'] === $b['ino'];
     }
 
     private function moveFile(string $source, string $target): bool

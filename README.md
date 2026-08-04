@@ -258,6 +258,14 @@ your mind, remove the library from `EXCLUDED_LIBRARIES`, restart, and its
 posters go back to being ordinary posters; anything you already deleted comes
 back with a fresh import.
 
+**I fixed a wrong match in Plex. Do I need to do anything in Marquee?**
+Just run an import. When you correct a match in Plex — the **Fix Match** option —
+the item becomes a different movie or show, and the next import brings Marquee's
+copy into line: the poster is renamed to the new title, so it sorts and searches
+under that title rather than the old one, and the details behind **Find Posters**
+are corrected too. This happens even if the artwork itself didn't change, so a
+poster you'd already customised and locked is fixed up as well.
+
 **Something's wrong with my posters. Can I start over?**
 Usually you don't need to. If a poster is stale or wrong, run the import again
 with **Re-download unchanged posters** checked — that pulls fresh art from Plex
