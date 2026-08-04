@@ -20,11 +20,11 @@
 - [x] 3.3 Replace the two hand-rolled `usort` callbacks in `PosterLibrary::paginate()` with the factory
 - [x] 3.4 Preserve the file-modification-time fallback for posters with no Plex `added at` timestamp, in both directions
 
-## 4. Search tie-break
+## 4. Search becomes a filter
 
-- [x] 4.1 Give `PosterSearch::filter()` the active `SortOrder` and the `addedAt` map as parameters
-- [x] 4.2 Replace the hardcoded ascending `NaturalOrder` tie-break with the comparator from task 3.1, keeping the match-position score as the lead key
-- [x] 4.3 Pass the sort order and `addedAt` through from `PosterLibrary::paginate()`'s search branch
+- [x] 4.1 Reduce `PosterSearch::filter()` to a match test, dropping the match-position score, its `usort`, and the `NaturalOrder` tie-break
+- [x] 4.2 Remove the `SortComparator` dependency from `PosterSearch` — ordering is no longer its concern
+- [x] 4.3 Replace `PosterLibrary::paginate()`'s search-or-sort branch with filter-then-always-sort
 
 ## 5. Controller and view data
 
@@ -52,7 +52,8 @@
 - [x] 8.1 Extend `tests/Unit/Poster/SortOrderTest.php` for the four slugs, `field()`, `direction()`, `flipped()`, labels, and the `alpha` shorthand
 - [x] 8.2 Add tests for `SortState` and the updated `SortPreference`: toggling, per-field direction memory, a legacy session value, and `?sort=` updating the remembered direction
 - [x] 8.3 Extend `tests/Unit/Poster/PosterLibraryTest.php` for Z–A and oldest-first listings, the aggregate view, stable tie-breaks under reversal, and the modification-time fallback in both directions
-- [x] 8.4 Extend `tests/Unit/Poster/PosterSearchTest.php` for the sort-order tie-break, including that match position still leads and that reversing the order reverses only equally relevant results
+- [x] 8.4 Rework `tests/Unit/Poster/PosterSearchTest.php` for filter-only behaviour: where a term matches carries no weight, and matches come back in the order they were given
+- [x] 8.8 Cover the reported defect in `tests/Unit/Poster/PosterLibraryTest.php` — sorting by date added while searching orders every match, including one whose title contains the query mid-string
 - [x] 8.5 Confirm `tests/Unit/Config/PosterConfigTest.php` still covers `DEFAULT_SORT` mapping `alphabetical` to A–Z and `date_added` to newest first
 - [x] 8.6 Add functional coverage in `tests/Functional/GalleryTest.php` for the rendered control: active button label and flipped href, inactive button label matching its href, and sort carried in pagination and tab links
 - [x] 8.7 Check `tests/Unit/Asset/StickyToolbarTest.php` and any other asset tests asserting on toolbar markup, and update them for the macro output

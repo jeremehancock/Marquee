@@ -683,7 +683,7 @@ final class ImportServiceTest extends TestCase
 
         $config = new PosterConfig(24, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
         $comparator = new SortComparator($config);
-        $gallery = new PosterLibrary($storage, new PosterSearch($comparator), $config, $items, $comparator);
+        $gallery = new PosterLibrary($storage, new PosterSearch(), $config, $items, $comparator);
 
         $listed = $gallery->browse(PosterCategory::TvShows, null, 1)->items;
         self::assertCount(1, $listed);

@@ -64,14 +64,14 @@ final class PosterLibrary
      */
     private function paginate(array $posters, ?string $query, int $page, SortOrder $sort, array $addedAt): Page
     {
+        // Searching narrows the listing; it never reorders it. The selected sort
+        // then applies to whatever survives, so the sort control means the same
+        // thing whether or not a search is active.
         if ($query !== null && trim($query) !== '') {
-            // Search leads on relevance and settles equally relevant results
-            // with the selected order, so the sort control still means something
-            // while a search is active.
-            $posters = $this->search->filter($posters, $query, $sort, $addedAt);
-        } else {
-            usort($posters, $this->comparator->forOrder($sort, $addedAt));
+            $posters = $this->search->filter($posters, $query);
         }
+
+        usort($posters, $this->comparator->forOrder($sort, $addedAt));
 
         $total = count($posters);
         $perPage = $this->config->perPage;

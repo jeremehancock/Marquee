@@ -1,46 +1,50 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Results ranked by match position
-The system SHALL order matching posters by how early the query first matches in
-the normalized title, so titles that begin with the query appear before titles
-that merely contain it, breaking ties by the gallery's active sort order.
+**Reason**: Ranking by match position competed with the gallery's sort order, and
+once each sort field gained a direction the competition read as a defect. A
+poster whose title merely contained the query was held below every title
+beginning with it, whatever order the user had asked for — so choosing "date
+added, newest first" during a search could leave the newest poster at the bottom
+of the page. The ranking appeared to work only when every match happened to score
+equally, which made the sort control look intermittently broken rather than
+deliberately overridden.
 
-The tie-break SHALL apply the same ordering the gallery would use for an
-unfiltered listing under the active sort order — including its direction — so
-the sort control remains meaningful while a search is active. For the title
-field this compares titles on the same digit-aware terms the gallery uses: a run
-of digits within a title is ordered by its numeric value rather than character by
-character. Without this, searching for a show would list its equally relevant
-seasons as Season 1, Season 10, Season 11, Season 2 — the ordering defect the
-gallery's own listing does not have.
+Relevance is also not something the user asked for, whereas the sort order is:
+there is no state in which no sort is selected, so an implicit ranking could only
+ever contradict an explicit choice.
 
-Match position SHALL always lead, so changing the sort order rearranges results
-within each group of equally relevant matches but never promotes a weaker match
-above a stronger one.
+**Migration**: None. Search behaves as a filter and the gallery's active sort
+orders the results — see "Search filters without reordering" below. Users who
+relied on titles beginning with the query appearing first can reach the same
+grouping by sorting A–Z, which orders those titles together anyway.
 
-#### Scenario: Earlier match ranks first
-- **WHEN** a user searches "matrix" and both "Matrix Reloaded" and "The Matrix"
-  match
-- **THEN** the poster whose normalized title matches earliest is listed first
+## ADDED Requirements
 
-#### Scenario: Equally relevant results order numbers by value
-- **WHEN** a user searches for a show whose season posters all match equally
-  early and the gallery is ordered A–Z
-- **THEN** the seasons are listed Season 1, Season 2, Season 3 and so on, with
-  Season 10 after Season 9
+### Requirement: Search filters without reordering
+The system SHALL treat a search as a filter over the current listing: it SHALL
+decide which posters match the query and SHALL NOT influence the order in which
+they are presented. The gallery's active sort order SHALL order the matching
+posters exactly as it would order the same posters unfiltered.
 
-#### Scenario: Ranking still leads
-- **WHEN** results differ both in where the query matches and in the numbers
-  their titles contain
-- **THEN** match position determines the order, and the tie-break comparison
-  applies only between results that match equally early
+Where a term appears within a title SHALL carry no weight — only whether it
+appears at all.
 
-#### Scenario: Reversing the sort reverses equally relevant results
-- **WHEN** a user searches with the gallery ordered A–Z, then switches to Z–A
-- **THEN** results that match equally early are listed in the opposite order,
-  while results that match earlier still precede results that match later
+#### Scenario: The sort order decides the order of results
+- **WHEN** a user searches and the gallery is ordered by date added, newest first
+- **THEN** the matching posters are listed newest first, including any poster
+  whose title contains the query somewhere other than at its start
 
-#### Scenario: Date order breaks ties while searching
-- **WHEN** a user searches with the gallery ordered by date added, newest first
-- **THEN** results that match equally early are listed with the most recently
-  added poster first
+#### Scenario: Reversing the sort reverses the results
+- **WHEN** a user searches with the gallery ordered A–Z and then switches to Z–A
+- **THEN** the same matching posters are listed in the opposite order
+
+#### Scenario: Filtering does not disturb the surviving order
+- **WHEN** a user searches within a view
+- **THEN** the matching posters appear in the same relative order they hold in
+  the unfiltered listing under that sort order
+
+#### Scenario: Match position does not promote a result
+- **WHEN** one matching title begins with the query and another contains it later
+- **THEN** neither is favoured for that reason, and the active sort order alone
+  decides which is listed first

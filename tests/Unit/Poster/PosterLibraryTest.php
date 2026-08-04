@@ -49,7 +49,7 @@ final class PosterLibraryTest extends TestCase
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], $ignoreArticles, SortOrder::Alphabetical);
         $comparator = new SortComparator($config);
 
-        return new PosterLibrary($storage, new PosterSearch($comparator), $config, $this->items, $comparator);
+        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items, $comparator);
     }
 
     public function testArticleAwareSort(): void
@@ -262,6 +262,83 @@ final class PosterLibraryTest extends TestCase
         self::assertSame(['Old', 'Mid', 'New'], $titles);
     }
 
+    /**
+     * The reported defect: sorting by date added while a search was active only
+     * appeared to work. Match position used to lead, so a poster whose title
+     * merely contained the query was held below every title beginning with it —
+     * and the newest poster could land last under newest-first. The sort now
+     * orders whatever the search leaves, whatever the query matched.
+     */
+    public function testDateSortOrdersSearchResultsOutright(): void
+    {
+        $library = $this->library([
+            'Alien.png',
+            'Aliens.png',
+            'Alien Covenant.png',
+            'The Alien Movie.png',
+        ]);
+
+        // The one poster that does not begin with the query is by far the newest.
+        $addedAt = ['movies' => [
+            'Alien.png' => 100,
+            'Aliens.png' => 200,
+            'Alien Covenant.png' => 300,
+            'The Alien Movie.png' => 9_999,
+        ]];
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, 'alien', 1, SortOrder::DateAdded, $addedAt)->items,
+        );
+
+        self::assertSame([
+            'The Alien Movie',
+            'Alien Covenant',
+            'Aliens',
+            'Alien',
+        ], $titles);
+    }
+
+    public function testSearchResultsReverseWithTheSortOrder(): void
+    {
+        $library = $this->library(['Alien.png', 'Aliens.png', 'Alien Covenant.png']);
+
+        $ascending = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, 'alien', 1, SortOrder::Alphabetical)->items,
+        );
+        $descending = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, 'alien', 1, SortOrder::AlphabeticalDesc)->items,
+        );
+
+        self::assertSame(['Alien', 'Alien Covenant', 'Aliens'], $ascending);
+        self::assertSame(array_reverse($ascending), $descending);
+    }
+
+    /**
+     * Searching narrows the listing and changes nothing else, so a filtered view
+     * is ordered exactly as the same posters would be unfiltered.
+     */
+    public function testSearchingDoesNotReorderWhatItLeaves(): void
+    {
+        $library = $this->library(['Alien.png', 'Aliens.png', 'Dune.png', 'Alien Covenant.png']);
+
+        $unfiltered = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, null, 1)->items,
+        );
+        $filtered = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, 'alien', 1)->items,
+        );
+
+        self::assertSame(
+            array_values(array_filter($unfiltered, static fn (string $t): bool => str_contains($t, 'Alien'))),
+            $filtered,
+        );
+    }
+
     public function testAggregateViewAppliesEveryDirection(): void
     {
         $library = $this->libraryAcross([
@@ -381,7 +458,7 @@ final class PosterLibraryTest extends TestCase
         $config = new PosterConfig($perPage, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
         $comparator = new SortComparator($config);
 
-        return new PosterLibrary($storage, new PosterSearch($comparator), $config, $this->items, $comparator);
+        return new PosterLibrary($storage, new PosterSearch(), $config, $this->items, $comparator);
     }
 
     public function testBrowseAllMergesCategoriesInMixedTitleOrder(): void

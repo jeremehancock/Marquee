@@ -20,9 +20,10 @@ ignored.
   order, a calendar for date added.
 - Direction is remembered per field for the session. Switching to date added
   and back returns to the title direction last used, not to A–Z.
-- Search results honour the selected sort. Match position still leads the
-  ranking, but the chosen order now breaks ties instead of a hardcoded
-  ascending title key.
+- Search results honour the selected sort. Searching becomes a filter and
+  nothing more: the chosen order arranges whatever matches, exactly as it would
+  arrange the same posters unfiltered. Ranking by match position is dropped,
+  because it silently overrode the order the user had asked for.
 - `DEFAULT_SORT` is unchanged: `alphabetical` still means A–Z and `date_added`
   still means newest-first. Existing configuration, bookmarks, and live
   sessions keep working without migration.
@@ -38,8 +39,8 @@ None. This extends existing gallery and search behavior.
 - `poster-library`: the two sort orders become four, gaining a direction that
   the user can toggle and that persists per field for the session; the sort
   control gains per-field glyphs and a direction indicator.
-- `search`: match-position ranking gains an explicit tiebreak rule — the active
-  sort order breaks ties, replacing the fixed ascending title key.
+- `search`: match-position ranking is removed. Search becomes a filter, and the
+  gallery's active sort order arranges the results.
 
 ## Impact
 

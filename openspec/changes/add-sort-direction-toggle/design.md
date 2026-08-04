@@ -19,7 +19,8 @@ Three properties of the existing code shape this design:
   active state re-renders.
 - **Search ignores sort entirely.** `PosterLibrary::paginate()` branches to
   `PosterSearch::filter()` when a query is present, and that method ranks by
-  match position with a hardcoded ascending `NaturalOrder` tie-break.
+  match position with a hardcoded ascending `NaturalOrder` tie-break. The branch
+  means a query and a sort order are alternatives rather than composable.
 
 ## Goals / Non-Goals
 
@@ -38,7 +39,8 @@ Three properties of the existing code shape this design:
   and the toolbar cannot re-render to show it being auto-selected.
 - Sorting on any field other than title and date added.
 - Persisting sort choice beyond the session.
-- Changing how match position itself is scored.
+- Changing which posters a query matches. Only the ordering of the matches
+  changes; the matching rule itself is untouched.
 
 ## Decisions
 
@@ -139,26 +141,57 @@ compare equal on the field the user actually chose.
 `PosterSearch::filter()` gains the active `SortOrder` and the `addedAt` map as
 parameters. `PosterLibrary::paginate()` already has both in scope.
 
-### Search: match position leads, the chosen order breaks ties
+### Search: a filter and nothing more
 
-`PosterSearch` scores by the position of the earliest matching term and breaks
-ties on an ascending `NaturalOrder` key. The dominant bucket — titles that begin
-with the query, all scoring 0 — is therefore already ordered A–Z. Making the
-tie-break come from the active sort order turns today's behavior into the
-alphabetical-ascending case of a general rule.
+`PosterSearch` scored by the position of the earliest matching term and broke
+ties on an ascending `NaturalOrder` key. It now only decides *whether* a poster
+matches; the gallery sorts what survives.
 
 ```
- [$score, <tie-break from the active SortOrder>]
-    ▲                    ▲
-    │                    └─ was: always NaturalOrder ascending
-    └─ unchanged: relevance still leads
+  before   filter → rank by score → tie-break by title
+  after    filter                                        ← PosterSearch
+           sort by the active order                      ← PosterLibrary
 ```
 
-**Alternative rejected — sort replaces relevance entirely.** Searching "star"
-would then put *A Star Is Born* above *Star Wars*, which is worse than the
-current behavior. Keeping score as the lead also means the `search` capability's
-existing "Results ranked by match position" requirement is extended rather than
-contradicted.
+**This was tried the other way first and was wrong.** Keeping score as the lead
+and letting the sort order break ties looks conservative — it extends the
+existing "Results ranked by match position" requirement instead of contradicting
+it — but it fails the case the sort control exists for:
+
+```
+  search "alien", newest first, where The Alien Movie is by far the newest
+
+  score-leads    Alien Covenant · Aliens · Alien · The Alien Movie
+                                                   └── newest, listed last
+  sort-leads     The Alien Movie · Alien Covenant · Aliens · Alien
+```
+
+Because the three titles *beginning* with the query form one relevance group, the
+sort only rearranges within it, and the one mid-string match is stranded below
+them however the user asked for the list to be ordered. Worse, it looks correct
+whenever the matches happen to score equally — so the control appears
+intermittently broken rather than deliberately overridden.
+
+The deciding argument is that **there is no state in which no sort is selected.**
+An implicit relevance ranking can therefore only ever contradict an explicit
+choice, never fill a gap. So the `search` capability's ranking requirement is
+REMOVED rather than modified.
+
+The cost is real but small: a mid-string match is no longer pushed below titles
+that begin with the query. Searching "star" under A–Z now lists *A Star Is Born*
+first. That is predictable, which is what the control promises.
+
+This also simplifies both classes rather than complicating them. `PosterSearch`
+loses its scoring, its `usort`, and the `SortComparator` dependency the tie-break
+would have required; `PosterLibrary::paginate()` loses its branch, because
+filtering and sorting are now sequential steps rather than alternatives:
+
+```php
+if ($query is present) {
+    $posters = $this->search->filter($posters, $query);
+}
+usort($posters, $this->comparator->forOrder($sort, $addedAt));
+```
 
 ### Icons: field glyph, label, direction arrow
 
@@ -258,10 +291,11 @@ and `date_added_asc`, resetting the order on paging or a tab switch. Both become
   ascending, so equal-comparing posters keep their relative order rather than
   flipping. → Intended: it keeps seasons in numeric order under Z–A. Covered by a
   scenario so it is not later mistaken for a defect.
-- **Search results reorder less than a user might expect.** With relevance
-  leading, switching to Z–A only rearranges within each equal-relevance group. →
-  Preferable to the alternative of demoting good matches; the dominant group is
-  usually large enough that the change is clearly visible.
+- **Titles beginning with the query are no longer surfaced first.** Searching
+  "star" under A–Z lists *A Star Is Born* above *Star Wars*. → Accepted, and the
+  reason the ranking was dropped: the sort control is an explicit instruction and
+  an implicit ranking could only override it. A–Z already groups titles beginning
+  with the query together, so most of the old grouping survives anyway.
 - **Session shape changes.** Two new session keys join `sort_order`. → Absent
   keys resolve to the field's default direction, so existing sessions degrade to
   exactly today's behavior rather than erroring.

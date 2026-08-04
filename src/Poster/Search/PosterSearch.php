@@ -5,85 +5,58 @@ declare(strict_types=1);
 namespace App\Poster\Search;
 
 use App\Poster\Poster;
-use App\Poster\SortComparator;
-use App\Poster\SortOrder;
 use Normalizer;
 
 /**
  * Specific (not broadly fuzzy) poster search: every query term must appear in
- * the normalized title. Results are ranked by how early the query matches.
+ * the normalized title.
+ *
+ * This decides which posters match and nothing else. Their order is the gallery's
+ * to choose, and it applies the sort the user selected — searching narrows the
+ * listing without rearranging what survives.
+ *
+ * It did once rank by how early the query matched, which read as a defect the
+ * moment the sort control gained directions: a poster whose title merely contained
+ * the query sat below every title beginning with it, however the user had asked
+ * for the list to be ordered. Sorting by date added would then leave the newest
+ * poster stranded at the bottom. Relevance is not something the user asked for;
+ * the sort order is.
  */
 final class PosterSearch
 {
-    public function __construct(private readonly SortComparator $comparator)
-    {
-    }
-
     /**
-     * @param list<Poster>                      $posters
-     * @param array<string, array<string, int>> $addedAt Plex "added at" timestamps,
-     *        needed only when the tie-break orders by date
+     * @param list<Poster> $posters
      *
      * @return list<Poster>
      */
-    public function filter(
-        array $posters,
-        string $query,
-        SortOrder $sort = SortOrder::Alphabetical,
-        array $addedAt = [],
-    ): array {
+    public function filter(array $posters, string $query): array
+    {
         $terms = $this->terms($query);
         if ($terms === []) {
             return $posters;
         }
 
-        /** @var list<array{score: int, poster: Poster}> $scored */
-        $scored = [];
-        foreach ($posters as $poster) {
-            // Scoring reads the normalized title as-is, because a match position
-            // only means anything against the real string.
-            $score = $this->score($this->normalize($poster->title()), $terms);
-            if ($score !== null) {
-                $scored[] = ['score' => $score, 'poster' => $poster];
-            }
-        }
-
-        // The score leads, so relevance still decides the ranking and the
-        // selected order only separates results that match equally early. That
-        // keeps the sort control meaningful during a search without ever letting
-        // it promote a weaker match above a stronger one.
-        $tieBreak = $this->comparator->forOrder($sort, $addedAt);
-        usort(
-            $scored,
-            static function (array $a, array $b) use ($tieBreak): int {
-                $byScore = $a['score'] <=> $b['score'];
-
-                return $byScore !== 0 ? $byScore : $tieBreak($a['poster'], $b['poster']);
-            },
-        );
-
-        return array_map(static fn (array $row): Poster => $row['poster'], $scored);
+        return array_values(array_filter(
+            $posters,
+            fn (Poster $poster): bool => $this->matches($this->normalize($poster->title()), $terms),
+        ));
     }
 
     /**
-     * @param list<string> $terms
+     * Every term must appear somewhere in the title — where it appears carries no
+     * weight, only whether it does.
      *
-     * @return int|null lower is a better match, or null if not all terms match
+     * @param list<string> $terms
      */
-    private function score(string $haystack, array $terms): ?int
+    private function matches(string $haystack, array $terms): bool
     {
-        $firstPosition = null;
         foreach ($terms as $term) {
-            $position = strpos($haystack, $term);
-            if ($position === false) {
-                return null;
-            }
-            if ($firstPosition === null || $position < $firstPosition) {
-                $firstPosition = $position;
+            if (!str_contains($haystack, $term)) {
+                return false;
             }
         }
 
-        return $firstPosition ?? 0;
+        return true;
     }
 
     /**
