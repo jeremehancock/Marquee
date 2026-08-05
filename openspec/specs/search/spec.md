@@ -26,34 +26,6 @@ specific rather than broadly fuzzy.
 - **WHEN** a search matches no posters in the category
 - **THEN** the system shows an empty gallery and reports zero results
 
-### Requirement: Results ranked by match position
-The system SHALL order matching posters by how early the query first matches in
-the normalized title, so titles that begin with the query appear before titles
-that merely contain it, breaking ties by title.
-
-The tie-break SHALL compare titles on the same digit-aware terms the gallery
-uses for its own ordering: a run of digits within a title is ordered by its
-numeric value rather than character by character. Without this, searching for a
-show would list its equally relevant seasons as Season 1, Season 10, Season 11,
-Season 2 — the ordering defect the gallery's own listing does not have.
-
-#### Scenario: Earlier match ranks first
-- **WHEN** a user searches "matrix" and both "Matrix Reloaded" and "The Matrix"
-  match
-- **THEN** the poster whose normalized title matches earliest is listed first
-
-#### Scenario: Equally relevant results order numbers by value
-- **WHEN** a user searches for a show whose season posters all match equally
-  early
-- **THEN** the seasons are listed Season 1, Season 2, Season 3 and so on, with
-  Season 10 after Season 9
-
-#### Scenario: Ranking still leads
-- **WHEN** results differ both in where the query matches and in the numbers
-  their titles contain
-- **THEN** match position determines the order, and the digit-aware comparison
-  applies only between results that match equally early
-
 ### Requirement: Live search
 The gallery SHALL filter posters as the user types in the search box, without
 requiring the user to submit, and SHALL restore the full list when the box is
@@ -153,4 +125,32 @@ search input is not a gallery control and is not counted here.
 - **THEN** the empty grid indicates the view is filtered by the query, not that
   the view has no posters
 - **AND** provides a way to clear the search
+
+### Requirement: Search filters without reordering
+The system SHALL treat a search as a filter over the current listing: it SHALL
+decide which posters match the query and SHALL NOT influence the order in which
+they are presented. The gallery's active sort order SHALL order the matching
+posters exactly as it would order the same posters unfiltered.
+
+Where a term appears within a title SHALL carry no weight — only whether it
+appears at all.
+
+#### Scenario: The sort order decides the order of results
+- **WHEN** a user searches and the gallery is ordered by date added, newest first
+- **THEN** the matching posters are listed newest first, including any poster
+  whose title contains the query somewhere other than at its start
+
+#### Scenario: Reversing the sort reverses the results
+- **WHEN** a user searches with the gallery ordered A–Z and then switches to Z–A
+- **THEN** the same matching posters are listed in the opposite order
+
+#### Scenario: Filtering does not disturb the surviving order
+- **WHEN** a user searches within a view
+- **THEN** the matching posters appear in the same relative order they hold in
+  the unfiltered listing under that sort order
+
+#### Scenario: Match position does not promote a result
+- **WHEN** one matching title begins with the query and another contains it later
+- **THEN** neither is favoured for that reason, and the active sort order alone
+  decides which is listed first
 

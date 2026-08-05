@@ -11,7 +11,7 @@ view.
 Each field SHALL have a default direction: ascending for Alphabetical and
 descending (newest first) for Date added.
 
-#### Scenario: Alphabetical ascending lists by title
+#### Scenario: Alphabetical order lists by title
 - **WHEN** the effective sort order is Alphabetical ascending
 - **THEN** the gallery lists posters by title using the existing article-aware
   ordering, from A to Z
@@ -95,7 +95,7 @@ choice, the control SHALL reflect the configured default.
 - **WHEN** a user selects Z–A and then navigates to another category
 - **THEN** that category is also ordered Z–A without re-selecting it
 
-#### Scenario: Control reflects the configured default before any choice
+#### Scenario: Toggle reflects the configured default before any choice
 - **WHEN** a user opens the gallery having made no sort selection this session
 - **THEN** the control indicates the field and direction given by `DEFAULT_SORT`
 
@@ -104,11 +104,11 @@ When sorting by Date added in either direction, the system SHALL order posters
 that have no stored Plex "added at" timestamp using their file modification time,
 so every poster holds a stable position in the ordering.
 
-#### Scenario: Poster without a Plex timestamp still sorts
-- **WHEN** a poster has no stored Plex "added at" timestamp and the gallery is
-  ordered by date added
-- **THEN** the poster is ordered by its file modification time rather than being
-  omitted or grouped arbitrarily
+#### Scenario: Unmapped poster still has a position
+- **WHEN** the gallery is ordered by date added in either direction and a poster
+  has no Plex "added at" value
+- **THEN** the poster is ordered by its file modification time rather than
+  omitted or grouped unpredictably
 
 ## ADDED Requirements
 
