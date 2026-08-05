@@ -17,6 +17,7 @@ use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
 use App\Poster\Search\PosterSearch;
+use App\Poster\SortComparator;
 use App\Poster\SortOrder;
 use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\MakesImages;
@@ -681,7 +682,8 @@ final class ImportServiceTest extends TestCase
         (new ImportService($plexFixed, $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
 
         $config = new PosterConfig(24, 5_000_000, ['jpg', 'jpeg', 'png', 'webp'], true, SortOrder::Alphabetical);
-        $gallery = new PosterLibrary($storage, new PosterSearch(), $config, $items);
+        $comparator = new SortComparator($config);
+        $gallery = new PosterLibrary($storage, new PosterSearch(), $config, $items, $comparator);
 
         $listed = $gallery->browse(PosterCategory::TvShows, null, 1)->items;
         self::assertCount(1, $listed);

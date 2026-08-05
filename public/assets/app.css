@@ -475,6 +475,49 @@ h1 {
     font-size: 0.9rem;
 }
 
+/* A sort button is three marks in a row: the field's glyph, its label, and the
+   arrow giving the direction. */
+.sort__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* The icon macro's 1.7 stroke is set against a 24 viewBox and holds its weight
+   at the ~22px the tabs and header draw at, where it lands at 1.56px on screen.
+   These two render much smaller to fit a button, and the stroke shrinks with
+   them — at 14px a 1.7 comes out under 1px and reads as a hairline. Scaling the
+   nominal stroke back up keeps the drawn weight where the rest of the set sits
+   rather than letting these two thin out on their own. */
+.sort__btn .icon {
+    stroke-width: 2.3;
+}
+
+/* The active button sets its label in 600, so its marks have to gain the same
+   weight or the bolder text shows them up. */
+.sort__btn.btn--accent .icon {
+    stroke-width: 2.5;
+}
+
+/* Drawn pointing down for a field running its ordinary way, so a reversed field
+   is the same path turned over rather than a second glyph that could drift away
+   from it. Turning it over is also exactly how the two-arrow `sort` glyph draws
+   its own second half — this mark being one half of that glyph, the tray's
+   trigger and the direction on the rows inside it stay the same shape.
+
+   Keyed to reversed rather than to ascending: A–Z is ascending and newest-first
+   is descending, yet both are the ordinary way to read their field, so both rest
+   pointing down. An arrow that has turned over therefore always means the one
+   thing. */
+.sort__dir {
+    display: inline-flex;
+    align-items: center;
+}
+
+.sort__dir--reversed {
+    transform: rotate(180deg);
+}
+
 /* Square icon button (e.g. the phone sort trigger). Hidden on desktop, where the
    inline sort control is used instead. */
 .icon-btn {
@@ -1489,6 +1532,12 @@ h1 {
     text-align: left;
     padding: 13px 15px;
     font-size: 0.95rem;
+}
+
+/* A sort button in the tray is one of those full-width rows, so its arrow goes
+   to the far end instead of trailing the label halfway across the row. */
+.menu__body .sort__btn .sort__dir {
+    margin-left: auto;
 }
 
 .menu__body .nav-ico {

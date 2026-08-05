@@ -10,7 +10,7 @@ use App\Database\PlexItemRepository;
 use App\Poster\GalleryView;
 use App\Poster\PosterCategory;
 use App\Poster\PosterLibrary;
-use App\Poster\SortOrder;
+use App\Poster\SortField;
 use App\Support\Flash;
 use App\Support\LastCategory;
 use App\Support\Session\SessionInterface;
@@ -58,13 +58,17 @@ final class GalleryController
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
         // Effective sort: a valid ?sort= wins and is remembered, else the
-        // session's stored choice, else the DEFAULT_SORT config default.
-        $sort = SortPreference::resolve($this->session, $params, $this->posterConfig->defaultSort);
+        // session's stored choice, else the DEFAULT_SORT config default. The
+        // state carries what the toolbar's buttons need besides the order in
+        // force — each field's remembered direction.
+        $sortState = SortPreference::resolve($this->session, $params, $this->posterConfig->defaultSort);
+        $sort = $sortState->current;
 
-        // Date-added sort needs each poster's Plex "added at" timestamp, keyed
-        // by category then filename. Only fetched when it will be used.
+        // The date field needs each poster's Plex "added at" timestamp, keyed by
+        // category then filename. Only fetched when it will be used — which is
+        // either direction of that field, not just the newest-first one.
         $addedAt = [];
-        if ($sort === SortOrder::DateAdded) {
+        if ($sort->field() === SortField::DateAdded) {
             foreach ($view->categories() as $cat) {
                 $addedAt[$cat->value] = $this->plexItems->addedAtForCategory($cat->value);
             }
@@ -112,6 +116,7 @@ final class GalleryController
             'plex_titles' => $plexTitles,
             'plex_years' => $plexYears,
             'sort' => $sort->value,
+            'sort_state' => $sortState,
         ]);
     }
 

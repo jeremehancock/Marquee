@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace App\Poster\Search;
 
-use App\Poster\NaturalOrder;
 use App\Poster\Poster;
 use Normalizer;
 
 /**
  * Specific (not broadly fuzzy) poster search: every query term must appear in
- * the normalized title. Results are ranked by how early the query matches.
+ * the normalized title.
+ *
+ * This decides which posters match and nothing else. Their order is the gallery's
+ * to choose, and it applies the sort the user selected — searching narrows the
+ * listing without rearranging what survives.
+ *
+ * It did once rank by how early the query matched, which read as a defect the
+ * moment the sort control gained directions: a poster whose title merely contained
+ * the query sat below every title beginning with it, however the user had asked
+ * for the list to be ordered. Sorting by date added would then leave the newest
+ * poster stranded at the bottom. Relevance is not something the user asked for;
+ * the sort order is.
  */
 final class PosterSearch
 {
@@ -26,54 +36,27 @@ final class PosterSearch
             return $posters;
         }
 
-        /** @var list<array{score: int, order: string, poster: Poster}> $scored */
-        $scored = [];
-        foreach ($posters as $poster) {
-            $title = $this->normalize($poster->title());
-            $score = $this->score($title, $terms);
-            if ($score !== null) {
-                // Scoring reads the normalized title as-is, because a match
-                // position only means anything against the real string. Only
-                // the tie-break key is padded.
-                $scored[] = [
-                    'score' => $score,
-                    'order' => NaturalOrder::key($title),
-                    'poster' => $poster,
-                ];
-            }
-        }
-
-        // The score leads, so relevance still decides the ranking and the
-        // digit-aware key only separates results that match equally early.
-        // Without it a search for a show would list its seasons 1, 10, 11, 2 —
-        // the same defect the gallery's own ordering has already lost.
-        usort(
-            $scored,
-            static fn (array $a, array $b): int => [$a['score'], $a['order']] <=> [$b['score'], $b['order']],
-        );
-
-        return array_map(static fn (array $row): Poster => $row['poster'], $scored);
+        return array_values(array_filter(
+            $posters,
+            fn (Poster $poster): bool => $this->matches($this->normalize($poster->title()), $terms),
+        ));
     }
 
     /**
-     * @param list<string> $terms
+     * Every term must appear somewhere in the title — where it appears carries no
+     * weight, only whether it does.
      *
-     * @return int|null lower is a better match, or null if not all terms match
+     * @param list<string> $terms
      */
-    private function score(string $haystack, array $terms): ?int
+    private function matches(string $haystack, array $terms): bool
     {
-        $firstPosition = null;
         foreach ($terms as $term) {
-            $position = strpos($haystack, $term);
-            if ($position === false) {
-                return null;
-            }
-            if ($firstPosition === null || $position < $firstPosition) {
-                $firstPosition = $position;
+            if (!str_contains($haystack, $term)) {
+                return false;
             }
         }
 
-        return $firstPosition ?? 0;
+        return true;
     }
 
     /**

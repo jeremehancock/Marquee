@@ -66,51 +66,59 @@ final class PosterSearchTest extends TestCase
         self::assertSame([], $this->search->filter($posters, 'matrix'));
     }
 
-    public function testRanksEarlierMatchesFirst(): void
+    /**
+     * A term counts wherever it appears. Ranking a title that begins with the
+     * query above one that merely contains it is what used to strand a poster
+     * below the sort the user had actually asked for.
+     */
+    public function testWhereATermMatchesCarriesNoWeight(): void
     {
         $posters = $this->posters(['The Dark Knight.jpg', 'Knight Rider.jpg']);
 
         $result = $this->titles($this->search->filter($posters, 'knight'));
 
-        self::assertSame(['Knight Rider', 'The Dark Knight'], $result);
+        self::assertCount(2, $result);
+        self::assertContains('Knight Rider', $result);
+        self::assertContains('The Dark Knight', $result);
     }
 
     /**
-     * Every season matches at the same position, so the tiebreak decides the
-     * whole order. Without a digit-aware key this lists 1, 10, 11, 2 — the
-     * defect the gallery's own ordering no longer has.
+     * Filtering leaves the incoming order alone: whatever the caller hands over
+     * comes back in the same sequence, minus what did not match. The gallery
+     * sorts afterwards, so a reordering here would be silently overwritten in
+     * production and only ever mislead a reader.
      */
-    public function testEquallyRelevantResultsOrderNumbersByValue(): void
+    public function testMatchesComeBackInTheOrderTheyWereGiven(): void
     {
         $posters = $this->posters([
-            'Breaking Bad - Season 11.jpg',
-            'Breaking Bad - Season 2.jpg',
-            'Breaking Bad - Season 10.jpg',
-            'Breaking Bad - Season 1.jpg',
+            'Alien Covenant.jpg',
+            'Dune.jpg',
+            'Aliens.jpg',
+            'Alien.jpg',
         ]);
 
-        $result = $this->titles($this->search->filter($posters, 'breaking bad'));
+        $result = $this->titles($this->search->filter($posters, 'alien'));
 
-        self::assertSame([
-            'Breaking Bad - Season 1',
-            'Breaking Bad - Season 2',
-            'Breaking Bad - Season 10',
-            'Breaking Bad - Season 11',
-        ], $result);
+        self::assertSame(['Alien Covenant', 'Aliens', 'Alien'], $result);
+    }
+
+    public function testEmptyQueryReturnsEverythingUntouched(): void
+    {
+        $posters = $this->posters(['Zodiac.jpg', 'Alien.jpg']);
+
+        self::assertSame(['Zodiac', 'Alien'], $this->titles($this->search->filter($posters, '   ')));
     }
 
     /**
-     * Relevance still leads: the digit-aware key only separates results that
-     * match equally early, it never overrides where the query matched.
+     * Punctuation and separators are flattened on both sides, so a query need not
+     * reproduce the filename's own punctuation to match it.
      */
-    public function testMatchPositionStillOutranksTheNumber(): void
+    public function testPunctuationIsFlattenedOnBothSides(): void
     {
-        // "Episode 2" matches "episode" at position 0; "Season 1 Episode 9"
-        // matches it late. The later match sorts last despite the lower number.
-        $posters = $this->posters(['Season 1 Episode 9.jpg', 'Episode 2.jpg']);
+        $posters = $this->posters(['Spider-Man - No Way Home.jpg', 'Dune.jpg']);
 
-        $result = $this->titles($this->search->filter($posters, 'episode'));
+        $result = $this->titles($this->search->filter($posters, 'spider man'));
 
-        self::assertSame(['Episode 2', 'Season 1 Episode 9'], $result);
+        self::assertSame(['Spider-Man - No Way Home'], $result);
     }
 }

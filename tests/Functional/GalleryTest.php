@@ -140,9 +140,10 @@ final class GalleryTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
 
-        // Switching to another view keeps the search, even without JavaScript.
-        self::assertStringContainsString('href="/library/all?q=solaris"', $body);
-        self::assertStringContainsString('href="/library/tv-shows?q=solaris"', $body);
+        // Switching to another view keeps the search and the sort, even without
+        // JavaScript.
+        self::assertStringContainsString('href="/library/all?q=solaris&amp;sort=alphabetical"', $body);
+        self::assertStringContainsString('href="/library/tv-shows?q=solaris&amp;sort=alphabetical"', $body);
     }
 
     public function testFilteredEmptyStateIsDistinctFromEmptyLibrary(): void
@@ -170,7 +171,7 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('Severance', $body);
         self::assertStringContainsString('Alien Anthology', $body);
         // The All tab renders and is the active one.
-        self::assertStringContainsString('href="/library/all"', $body);
+        self::assertStringContainsString('href="/library/all?sort=alphabetical"', $body);
         self::assertStringContainsString('tab--active', $body);
     }
 
@@ -247,7 +248,9 @@ final class GalleryTest extends AppTestCase
         $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies')->getBody());
 
         self::assertStringContainsString('role="search"', $head);
-        self::assertStringContainsString('data-sort="alphabetical"', $head);
+        // The active title button carries its reverse, because activating it
+        // toggles; the inactive date button carries itself.
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
         self::assertStringContainsString('data-sort="date_added"', $head);
         self::assertStringContainsString('class="tab ', $head);
 
@@ -258,6 +261,150 @@ final class GalleryTest extends AppTestCase
                 'The secondary actions belong to the page header, not the gallery.',
             );
         }
+    }
+
+    /**
+     * The whole toggle in one document: the active button reads as the order the
+     * gallery is in but links to its reverse, while the inactive button reads and
+     * links to the same order. Getting that backwards is the likeliest way to
+     * break this control, so it is asserted on both buttons at once.
+     */
+    public function testActiveSortButtonReadsTheCurrentOrderAndLinksToItsReverse(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies?sort=alphabetical')->getBody());
+
+        // The active button states what it is and names what it does, because
+        // those differ on it. Naming only the order it shows would read as an
+        // instruction to sort the way it is already sorted.
+        self::assertStringContainsString(
+            'aria-label="Sorted by title, A to Z — activate for Z to A"',
+            $head,
+        );
+        // The tooltip is the same sentence with the verb a hover implies.
+        self::assertStringContainsString(
+            'data-tooltip="Sorted by title, A to Z — click for Z to A"',
+            $head,
+        );
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
+        self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
+        self::assertStringNotContainsString('data-sort="alphabetical"', $head);
+
+        self::assertStringContainsString('aria-label="Sort by date added, newest first"', $head);
+        self::assertStringContainsString('data-sort="date_added"', $head);
+    }
+
+    public function testReversingTheTitleOrderSwapsTheLabelAndTheArrow(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=alphabetical_desc')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">Z–A</span>', $head);
+        self::assertStringContainsString('sort__dir sort__dir--reversed', $head);
+        // Reading Z–A, it now offers A–Z.
+        self::assertStringContainsString('data-sort="alphabetical"', $head);
+        self::assertStringNotContainsString('data-sort="alphabetical_desc"', $head);
+    }
+
+    /**
+     * The date button keeps one label, so its arrow is the only thing that can
+     * report the direction — and the aria-label is the only thing that can say it
+     * in words.
+     */
+    public function testDateButtonReportsDirectionByArrowAndText(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=date_added_asc')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">Date added</span>', $head);
+        self::assertStringContainsString(
+            'aria-label="Sorted by date added, oldest first — activate for newest first"',
+            $head,
+        );
+        self::assertStringContainsString('sort__dir sort__dir--reversed', $head);
+    }
+
+    /**
+     * The arrow reports reversal, not direction. A–Z is ascending and newest
+     * first is descending, yet both are the ordinary way to read their own field,
+     * so at rest both buttons point the same way — and an arrow that has turned
+     * over always means the one thing.
+     */
+    public function testBothFieldsRestPointingTheSameWay(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        // A–Z active, date added offered at newest first: neither is reversed.
+        $head = $this->galleryHead(
+            (string) $this->get($this->app(), '/library/movies?sort=alphabetical')->getBody(),
+        );
+
+        self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
+        self::assertStringContainsString('aria-label="Sort by date added, newest first"', $head);
+        self::assertStringNotContainsString('sort__dir--reversed', $head);
+    }
+
+    /**
+     * One app instance, so the requests share a session: leaving a field and
+     * coming back to it must offer the direction it was left in, not its default.
+     */
+    public function testInactiveButtonOffersTheDirectionItsFieldWasLeftIn(): void
+    {
+        $this->writePoster('Solaris.png');
+        $app = $this->app();
+
+        $this->get($app, '/library/movies?sort=alphabetical_desc');
+        $head = $this->galleryHead((string) $this->get($app, '/library/movies?sort=date_added')->getBody());
+
+        // The title button is inactive and still reads Z–A, which is also where
+        // it goes.
+        self::assertStringContainsString('<span class="sort__text">Z–A</span>', $head);
+        self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
+    }
+
+    /**
+     * The toolbar and the phone tray render from one macro, so every button
+     * appears exactly twice — the pair that would otherwise drift apart.
+     */
+    public function testPhoneTrayCarriesTheSameSortButtonsAsTheToolbar(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertSame(2, substr_count($body, 'data-sort="alphabetical_desc"'));
+        self::assertSame(2, substr_count($body, 'data-sort="date_added"'));
+    }
+
+    public function testPaginationCarriesAReversedSort(): void
+    {
+        $this->writePoster('Alpha.png');
+        $this->writePoster('Beta.png');
+        $app = $this->makeApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'AUTH_BYPASS' => 'true',
+            'IMAGES_PER_PAGE' => '1',
+        ]);
+
+        $body = (string) $this->get($app, '/library/movies?sort=alphabetical_desc')->getBody();
+
+        self::assertStringContainsString('page=2&amp;sort=alphabetical_desc', $body);
+    }
+
+    public function testTabsCarryAReversedSort(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?sort=date_added_asc')->getBody();
+
+        self::assertStringContainsString('href="/library/all?sort=date_added_asc"', $body);
     }
 
     /**
@@ -397,6 +544,57 @@ final class GalleryTest extends AppTestCase
         self::assertSame($fetch[0], $send[0], 'The shaft must not move.');
         self::assertSame($fetch[2], $send[2], 'The boundary must not move.');
         self::assertNotSame($fetch[1], $send[1], 'The arrowhead is what distinguishes them.');
+    }
+
+    /**
+     * The direction on a sort button is one half of the glyph that opens the
+     * phone sort tray — that glyph being a down arrow beside an up arrow. Drawing
+     * a separate mark instead would let the tray's trigger and the rows inside it
+     * drift apart, so the halves are asserted against the whole rather than
+     * against a copy of their own coordinates.
+     */
+    public function testSortDirectionIsOneHalfOfTheSortGlyph(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // The phone tray's trigger carries the whole glyph: a shaft and two
+        // arrowhead arms, then the same three again for the opposite arrow.
+        $trigger = $this->firstPath(
+            $body,
+            '#class="icon-btn sort-trigger".*?<svg.*? d="([^"]+)"#s',
+            'The sort tray trigger must render a glyph.',
+        );
+
+        // A sort button's direction mark.
+        $direction = $this->firstPath(
+            $body,
+            '#class="sort__dir[^"]*">\s*<svg.*? d="([^"]+)"#s',
+            'A sort button must render a direction glyph.',
+        );
+
+        // Both halves of the trigger are the same shape at a different x, so the
+        // direction mark — that shape centred — matches either of them once the
+        // x coordinates are normalised away.
+        $normalise = static fn (string $d): string => preg_replace('/(?<=[MLmlHhVv])\s*\d+(\.\d+)?/', 'x', $d) ?? $d;
+
+        self::assertStringContainsString(
+            $normalise($direction),
+            $normalise($trigger),
+            'The direction arrow must be one half of the sort glyph, not a mark of its own.',
+        );
+    }
+
+    /** The first captured `d` attribute matched by the pattern. */
+    private function firstPath(string $html, string $pattern, string $message): string
+    {
+        preg_match($pattern, $html, $m);
+        if (!isset($m[1])) {
+            self::fail($message);
+        }
+
+        return $m[1];
     }
 
     /** The action control block of the first card. */
