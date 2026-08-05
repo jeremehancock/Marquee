@@ -163,7 +163,10 @@ activating it applies the reversed order. Each inactive button SHALL show that
 field's remembered direction, which is also the order activating it applies.
 
 Because an arrow alone is not announced by assistive technology, each button
-SHALL carry a text alternative, and the same wording SHALL serve as its tooltip.
+SHALL carry a text alternative, and the same wording SHALL serve as its tooltip
+save for the verb naming the action: the tooltip SHALL say "click", appearing as
+it does only on hover, and the text alternative SHALL use a device-neutral verb,
+being read where there may be no pointer at all.
 
 The active button's wording SHALL both state the order the gallery is in and name
 the order activating it applies, those being different orders. Wording that names
@@ -182,6 +185,13 @@ shows and applies the same order and SHALL name that one order as an instruction
 - **WHEN** a user reads or hovers an inactive button
 - **THEN** the wording names the single order activating it applies, as an
   instruction
+
+#### Scenario: The tooltip names the action as a click
+- **WHEN** a user hovers the active button
+- **THEN** the tooltip names the action as clicking, a tooltip being reachable
+  only with a pointer
+- **AND** the button's text alternative names the same action in a way that does
+  not assume one
 
 #### Scenario: No button instructs the order it already shows
 - **WHEN** any button is read in any of the four orders

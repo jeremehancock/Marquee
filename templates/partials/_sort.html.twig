@@ -14,7 +14,7 @@
            href="{{ base }}?sort={{ button.target.value }}{{ sort_q }}"
            data-sort="{{ button.target.value }}"
            aria-label="{{ button.description }}"
-           data-tooltip="{{ button.description }}"
+           data-tooltip="{{ button.tooltip }}"
            {{ button.active ? 'aria-current="true"' : '' }}>
             {{ icons.icon(button.shown.field.glyph, 16) }}
             <span class="sort__text">{{ button.shown.label }}</span>

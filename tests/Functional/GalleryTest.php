@@ -282,6 +282,11 @@ final class GalleryTest extends AppTestCase
             'aria-label="Sorted by title, A to Z — activate for Z to A"',
             $head,
         );
+        // The tooltip is the same sentence with the verb a hover implies.
+        self::assertStringContainsString(
+            'data-tooltip="Sorted by title, A to Z — click for Z to A"',
+            $head,
+        );
         self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
         self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
         self::assertStringNotContainsString('data-sort="alphabetical"', $head);

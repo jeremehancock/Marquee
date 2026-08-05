@@ -274,10 +274,22 @@ gallery is already sorted, when activating it reverses:
 ```
 
 So `SortOrder` exposes the pieces — `stateLabel()`, `actionLabel()`, and the bare
-`directionPhrase()` — and `SortButton::description()` assembles whichever sentence
-its state calls for. Dropping the state half would leave the current order
-announced by nothing at all, since the arrow is silent and the date button's
-visible label never changes.
+`directionPhrase()` — and `SortButton` assembles whichever sentence its state
+calls for. Dropping the state half would leave the current order announced by
+nothing at all, since the arrow is silent and the date button's visible label
+never changes.
+
+The verb differs between the two attributes, which is the one place they part:
+
+| | verb | why |
+| --- | --- | --- |
+| `data-tooltip` | *click for Z to A* | a tooltip appears only on hover, so its reader is holding a pointer |
+| `aria-label` | *activate for Z to A* | a name is read wherever the control is, pointer or not — ARIA's own verb, for that reason |
+
+`SortButton::tooltip()` and `::description()` are therefore the same private
+sentence built with a different verb, rather than two strings to keep in step. On
+the inactive button there is no instruction to phrase, so both return the same
+text and cannot drift at all.
 
 ### The sort control becomes a Twig macro
 

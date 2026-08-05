@@ -146,6 +146,31 @@ final class SortPreferenceTest extends TestCase
     }
 
     /**
+     * A tooltip only appears on hover, so its reader has a pointer; an accessible
+     * name is read wherever the control is, pointer or not. Hence two verbs for
+     * the one sentence.
+     */
+    public function testTooltipSaysClickWhereTheAccessibleNameSaysActivate(): void
+    {
+        $active = $this->resolve(['sort' => 'alphabetical'])->buttons()[0];
+
+        self::assertSame('Sorted by title, A to Z — click for Z to A', $active->tooltip());
+        self::assertStringContainsString('activate for', $active->description());
+        self::assertStringNotContainsString('click', $active->description());
+    }
+
+    /**
+     * The inactive button gives no instruction to phrase, so the two are equal
+     * and cannot drift.
+     */
+    public function testInactiveButtonReadsTheSameEitherWay(): void
+    {
+        $inactive = $this->resolve(['sort' => 'alphabetical'])->buttons()[1];
+
+        self::assertSame($inactive->description(), $inactive->tooltip());
+    }
+
+    /**
      * The inactive button shows and applies the same order, so it has only the
      * one thing to say, and says it as the instruction it is.
      */
