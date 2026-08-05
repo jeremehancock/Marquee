@@ -74,10 +74,10 @@ final class SortOrderTest extends TestCase
      */
     public function testEveryOrderHasADistinctAriaLabel(): void
     {
-        $labels = array_map(static fn (SortOrder $o): string => $o->ariaLabel(), SortOrder::cases());
+        $labels = array_map(static fn (SortOrder $o): string => $o->actionLabel(), SortOrder::cases());
 
         self::assertCount(4, array_unique($labels));
-        self::assertSame('Sort by date added, oldest first', SortOrder::DateAddedAsc->ariaLabel());
+        self::assertSame('Sort by date added, oldest first', SortOrder::DateAddedAsc->actionLabel());
     }
 
     /**

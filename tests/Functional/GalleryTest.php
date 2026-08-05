@@ -275,7 +275,13 @@ final class GalleryTest extends AppTestCase
 
         $head = $this->galleryHead((string) $this->get($this->app(), '/library/movies?sort=alphabetical')->getBody());
 
-        self::assertStringContainsString('aria-label="Sort by title, A to Z"', $head);
+        // The active button states what it is and names what it does, because
+        // those differ on it. Naming only the order it shows would read as an
+        // instruction to sort the way it is already sorted.
+        self::assertStringContainsString(
+            'aria-label="Sorted by title, A to Z — activate for Z to A"',
+            $head,
+        );
         self::assertStringContainsString('data-sort="alphabetical_desc"', $head);
         self::assertStringContainsString('<span class="sort__text">A–Z</span>', $head);
         self::assertStringNotContainsString('data-sort="alphabetical"', $head);
@@ -313,7 +319,10 @@ final class GalleryTest extends AppTestCase
         );
 
         self::assertStringContainsString('<span class="sort__text">Date added</span>', $head);
-        self::assertStringContainsString('aria-label="Sort by date added, oldest first"', $head);
+        self::assertStringContainsString(
+            'aria-label="Sorted by date added, oldest first — activate for newest first"',
+            $head,
+        );
         self::assertStringContainsString('sort__dir sort__dir--reversed', $head);
     }
 

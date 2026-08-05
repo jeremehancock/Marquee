@@ -38,17 +38,40 @@ enum SortOrder: string
     }
 
     /**
-     * Field and direction spelled out in words. An arrow is not announced by
-     * assistive technology, so every button needs this as its text alternative.
+     * The direction in words. An arrow is not announced by assistive technology
+     * and a rotated one says even less, so every button needs its direction
+     * spelled out somewhere.
      */
-    public function ariaLabel(): string
+    public function directionPhrase(): string
     {
         return match ($this) {
-            self::Alphabetical => 'Sort by title, A to Z',
-            self::AlphabeticalDesc => 'Sort by title, Z to A',
-            self::DateAdded => 'Sort by date added, newest first',
-            self::DateAddedAsc => 'Sort by date added, oldest first',
+            self::Alphabetical => 'A to Z',
+            self::AlphabeticalDesc => 'Z to A',
+            self::DateAdded => 'newest first',
+            self::DateAddedAsc => 'oldest first',
         };
+    }
+
+    /**
+     * What activating a button applies — phrased as the instruction it is.
+     */
+    public function actionLabel(): string
+    {
+        return sprintf('Sort by %s, %s', $this->field()->phrase(), $this->directionPhrase());
+    }
+
+    /**
+     * The order the gallery is in — phrased as the description it is.
+     *
+     * Kept distinct from the action because on the active button the two differ,
+     * that difference being the whole toggle. One string doing both jobs reads as
+     * an instruction while describing a state, which is precisely the misreading
+     * to avoid: hovering the active button and being told "Sort by title, A to Z"
+     * suggests that is what activating it will do, when activating it reverses.
+     */
+    public function stateLabel(): string
+    {
+        return sprintf('Sorted by %s, %s', $this->field()->phrase(), $this->directionPhrase());
     }
 
     public function field(): SortField

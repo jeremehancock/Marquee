@@ -132,6 +132,49 @@ final class SortPreferenceTest extends TestCase
     }
 
     /**
+     * The active button shows one order and applies another, so describing it
+     * with a single "Sort by …" reads as an instruction to sort the way it is
+     * already sorted — the misreading that made hovering it look like it would
+     * do the opposite of what it does. It states the current order and names the
+     * one activating it applies.
+     */
+    public function testActiveButtonDescribesBothWhatItIsAndWhatItDoes(): void
+    {
+        $buttons = $this->resolve(['sort' => 'alphabetical'])->buttons();
+
+        self::assertSame('Sorted by title, A to Z — activate for Z to A', $buttons[0]->description());
+    }
+
+    /**
+     * The inactive button shows and applies the same order, so it has only the
+     * one thing to say, and says it as the instruction it is.
+     */
+    public function testInactiveButtonDescribesOnlyWhatItDoes(): void
+    {
+        $buttons = $this->resolve(['sort' => 'alphabetical'])->buttons();
+
+        self::assertSame('Sort by date added, newest first', $buttons[1]->description());
+    }
+
+    /**
+     * Whatever the state, a button never claims that activating it applies the
+     * order it is already showing.
+     */
+    public function testNoButtonEverInstructsTheOrderItAlreadyShows(): void
+    {
+        foreach (['alphabetical', 'alphabetical_desc', 'date_added', 'date_added_asc'] as $slug) {
+            foreach ($this->resolve(['sort' => $slug])->buttons() as $button) {
+                if ($button->active) {
+                    self::assertStringNotContainsString($button->shown->actionLabel(), $button->description());
+                    self::assertStringContainsString($button->target->directionPhrase(), $button->description());
+                } else {
+                    self::assertSame($button->shown->actionLabel(), $button->description());
+                }
+            }
+        }
+    }
+
+    /**
      * Title first, date second, whichever is active — a control that reordered
      * itself as you used it would move the button out from under the pointer.
      */

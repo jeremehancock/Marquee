@@ -49,6 +49,18 @@ enum SortField: string
     }
 
     /**
+     * The field named in words, for the sentences a button's text alternative
+     * and tooltip are built from.
+     */
+    public function phrase(): string
+    {
+        return match ($this) {
+            self::Alphabetical => 'title',
+            self::DateAdded => 'date added',
+        };
+    }
+
+    /**
      * The glyph naming this field on its sort button, resolved here rather than
      * by a conditional in the template — the same way a category tab's icon is
      * named by the category itself.

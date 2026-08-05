@@ -257,8 +257,27 @@ take a heavier nominal stroke by CSS to hold the same weight — and a further s
 on the active button, whose label is set in 600.
 
 An arrow is not announced by assistive technology, so each button carries an
-`aria-label` naming field and direction in words ("Sort by date added, newest
-first"). The existing `data-tooltip` attribute takes the same string.
+`aria-label` naming field and direction in words, and the existing `data-tooltip`
+attribute takes the same string.
+
+**That wording cannot be one sentence on the active button.** It shows one order
+and applies another, so a single "Sort by title, A to Z" describes the state in
+the grammar of an instruction — hover it and you are told to sort the way the
+gallery is already sorted, when activating it reverses:
+
+```
+  active     "Sorted by title, A to Z — activate for Z to A"
+              └─ what it is ─────────┘   └─ what it does ─┘
+
+  inactive   "Sort by date added, newest first"
+              └─ both, the two being the same order ─┘
+```
+
+So `SortOrder` exposes the pieces — `stateLabel()`, `actionLabel()`, and the bare
+`directionPhrase()` — and `SortButton::description()` assembles whichever sentence
+its state calls for. Dropping the state half would leave the current order
+announced by nothing at all, since the arrow is silent and the date button's
+visible label never changes.
 
 ### The sort control becomes a Twig macro
 

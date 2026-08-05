@@ -163,7 +163,30 @@ activating it applies the reversed order. Each inactive button SHALL show that
 field's remembered direction, which is also the order activating it applies.
 
 Because an arrow alone is not announced by assistive technology, each button
-SHALL carry a text alternative naming its field and direction in words.
+SHALL carry a text alternative, and the same wording SHALL serve as its tooltip.
+
+The active button's wording SHALL both state the order the gallery is in and name
+the order activating it applies, those being different orders. Wording that names
+only the order the button shows SHALL NOT be used on the active button: phrased as
+an instruction it would tell the user to sort the way the gallery is already
+sorted, which is the opposite of what activating it does. The inactive button
+shows and applies the same order and SHALL name that one order as an instruction.
+
+#### Scenario: Active button says what it is and what it does
+- **WHEN** a user reads or hovers the active button while the gallery is ordered
+  A–Z
+- **THEN** the wording states that the gallery is sorted by title A to Z and names
+  Z to A as what activating it applies
+
+#### Scenario: Inactive button names only what it does
+- **WHEN** a user reads or hovers an inactive button
+- **THEN** the wording names the single order activating it applies, as an
+  instruction
+
+#### Scenario: No button instructs the order it already shows
+- **WHEN** any button is read in any of the four orders
+- **THEN** it never presents the order it is showing as the order activating it
+  would apply
 
 #### Scenario: Active title button shows the current direction
 - **WHEN** the gallery is ordered Z–A
@@ -199,7 +222,7 @@ SHALL carry a text alternative naming its field and direction in words.
 #### Scenario: Direction is available as text
 - **WHEN** assistive technology reads a sort button
 - **THEN** it announces the button's field and direction in words rather than
-  only the label
+  only the label, the arrow carrying no announcement of its own
 
 #### Scenario: Control is consistent on phone and desktop
 - **WHEN** a user opens the phone sort tray
