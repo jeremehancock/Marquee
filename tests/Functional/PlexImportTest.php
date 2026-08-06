@@ -33,12 +33,14 @@ final class PlexImportTest extends AppTestCase
         $this->removeDir($this->dataDir);
     }
 
-    public function testPlexPageShowsNotConfiguredMessage(): void
+    public function testPlexPageShowsNotConnectedMessage(): void
     {
         $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/plex');
+        $body = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('not configured', (string) $response->getBody());
+        self::assertStringContainsString('Plex is not connected', $body);
+        self::assertStringContainsString('Sign in to Plex', $body);
     }
 
     public function testPlexPageListsLibraries(): void

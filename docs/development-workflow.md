@@ -57,7 +57,8 @@ services:
       TZ: "Etc/UTC"
       AUTH_BYPASS: "true"          # convenient on a trusted LAN for testing
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      PLEX_TOKEN: "your-plex-token"
+      # Sign in to Plex from the app, or set PLEX_TOKEN here (it takes
+      # precedence). Signing in is worth exercising on :dev before release.
     volumes:
       - ./marquee-dev/config:/config
     restart: unless-stopped
@@ -438,7 +439,7 @@ Marquee/
 ├─ tests/             # PHPUnit (Unit, Functional)
 ├─ docker/            # s6 services, nginx conf, auto-import cron
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
-├─ docs/              # this file + testing.md + docker.md
+├─ docs/              # this file + testing.md + docker.md + plex-connection.md
 ├─ openspec/          # config.yaml, specs/, changes/
 └─ .claude/commands/  # the /opsx:* slash commands
 ```

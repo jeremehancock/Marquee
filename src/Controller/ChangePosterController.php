@@ -8,6 +8,7 @@ use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Plex\Export\ExportException;
 use App\Plex\PlexException;
+use App\Plex\PlexFailureMessage;
 use App\Plex\PlexMediaType;
 use App\Poster\Edit\ChangePosterService;
 use App\Poster\PosterCategory;
@@ -37,6 +38,7 @@ final class ChangePosterController
         private readonly PosterSource $source,
         private readonly Flash $flash,
         private readonly LoggerInterface $logger,
+        private readonly PlexFailureMessage $plexMessage,
     ) {
     }
 
@@ -56,7 +58,7 @@ final class ChangePosterController
             $pushed = $this->change->changeFromUploadedFile($category, $filename, $file);
             $this->flashChanged($pushed);
         } catch (UploadException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         } catch (ExportException | PlexException $e) {
             $this->flashChangedButNotPushed($e);
         }
@@ -78,7 +80,7 @@ final class ChangePosterController
             $pushed = $this->change->changeFromUrl($category, $filename, $url);
             $this->flashChanged($pushed);
         } catch (UploadException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         } catch (ExportException | PlexException $e) {
             $this->flashChangedButNotPushed($e);
         }
@@ -98,7 +100,7 @@ final class ChangePosterController
             $this->change->sendToPlex($category, $filename);
             $this->flash->add('success', 'Sent the current poster to Plex.');
         } catch (ExportException | PlexException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         }
 
         return $this->back($response, $category);
@@ -116,7 +118,7 @@ final class ChangePosterController
             $this->change->fetchFromPlex($category, $filename);
             $this->flash->add('success', 'Fetched the current poster from Plex.');
         } catch (ExportException | PlexException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         }
 
         return $this->back($response, $category);
@@ -295,7 +297,7 @@ final class ChangePosterController
      */
     private function flashChangedButNotPushed(Throwable $e): void
     {
-        $this->flash->add('warning', 'Poster updated, but it could not be sent to Plex. ' . $e->getMessage());
+        $this->flash->add('warning', 'Poster updated, but it could not be sent to Plex. ' . $this->plexMessage->for($e));
     }
 
     /**

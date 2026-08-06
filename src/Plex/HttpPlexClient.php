@@ -198,6 +198,36 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
     }
 
     /**
+     * The server's friendly name, read from the root endpoint.
+     *
+     * That response also carries `myPlexUsername`, which is deliberately not
+     * read: it is an email address, and the connection panel it would appear on
+     * is exactly the screen users paste into support threads. The server's name
+     * identifies the connection without disclosing anything personal, and for a
+     * poster manager it is the more useful of the two — it says which server is
+     * connected, which is what goes wrong when a URL points at the wrong host.
+     *
+     * Every failure is absorbed: the name is decoration, and no page should
+     * break because a server did not answer.
+     */
+    public function serverName(): ?string
+    {
+        if (!$this->config->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $xml = $this->get('/');
+        } catch (PlexException) {
+            return null;
+        }
+
+        $name = $this->attr($xml, 'friendlyName');
+
+        return $name !== null && $name !== '' ? $name : null;
+    }
+
+    /**
      * Map one `/status/sessions` child element to a session, or null when the
      * element carries no usable type. Music and unrecognised types are still
      * returned (typed accordingly) so the caller decides what to drop.

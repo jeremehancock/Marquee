@@ -13,11 +13,10 @@
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
     {% endif %}
 
+    {% include 'partials/plex_connection.html.twig' with { connection: connection } only %}
+
     {% if not configured %}
-        <div class="panel">
-            <p>Plex is not configured yet. Set <code>PLEX_SERVER_URL</code> and
-               <code>PLEX_TOKEN</code> in your environment and restart Marquee.</p>
-        </div>
+        {# The connection panel above already says what to do about it. #}
     {% elseif error %}
         <p class="alert" role="alert">{{ error }}</p>
     {% elseif libraries is empty %}

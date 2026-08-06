@@ -39,9 +39,16 @@ abstract class AppTestCase extends TestCase
             'EXCLUDED_LIBRARIES' => '',
             'UPDATE_CHECK_ENABLED' => 'false',
         ];
-        foreach (array_merge($defaults, $env) as $key => $value) {
+        $merged = array_merge($defaults, $env);
+        foreach ($merged as $key => $value) {
             putenv($key . '=' . $value);
         }
+
+        // The data directory is shared between tests and survives the run, so a
+        // token stored by one test would otherwise leave Plex connected for
+        // every later one. Start each app with no stored connection; a test that
+        // wants one writes it after calling this.
+        @unlink(rtrim($merged['DATA_DIR'], '/') . '/plex-connection.json');
 
         // Use an in-memory session so the auth flow never touches PHP globals.
         $overrides = array_merge(

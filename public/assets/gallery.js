@@ -564,6 +564,106 @@
 
     // ---- Alpine component: the overlays ----
     document.addEventListener('alpine:init', function () {
+        // ---- Alpine component: the Plex connection panel ----
+        // Signing in runs Plex's PIN flow: the user approves Marquee in a Plex
+        // window, and this polls our own origin until the token lands.
+        //
+        // Two details are load-bearing. The window is opened synchronously in
+        // the click handler and its location set afterwards, because opening it
+        // once the request resolves is what popup blockers stop. And polling is
+        // ordinary short requests rather than a held-open connection, which a
+        // reverse proxy or CDN in front of Marquee would buffer or cut.
+        window.Alpine.data('plexConnection', function () {
+            var POLL_MS = 2000;
+            var GIVE_UP_MS = 15 * 60 * 1000;
+
+            return {
+                busy: false,
+                message: '',
+                fallbackUrl: '',
+                _timer: null,
+
+                signIn: function () {
+                    if (this.busy) { return; }
+                    this.busy = true;
+                    this.message = '';
+                    this.fallbackUrl = '';
+
+                    // Must happen now, inside the gesture, not in the .then().
+                    var plexWindow = window.open('', '_blank');
+                    var self = this;
+
+                    fetch('/plex/connection/sign-in', {
+                        method: 'POST',
+                        headers: { Accept: 'application/json' },
+                        credentials: 'same-origin'
+                    })
+                        .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+                        .then(function (result) {
+                            if (!result.ok || !result.data || !result.data.authUrl) {
+                                if (plexWindow) { plexWindow.close(); }
+                                throw new Error((result.data && result.data.error) || 'Could not start sign-in.');
+                            }
+                            if (plexWindow) {
+                                plexWindow.location = result.data.authUrl;
+                            } else {
+                                // Blocked. Offer the link so the flow still completes.
+                                self.fallbackUrl = result.data.authUrl;
+                            }
+                            self._watch(Date.now() + GIVE_UP_MS);
+                        })
+                        .catch(function (e) {
+                            self.busy = false;
+                            self.message = e.message || 'Could not start sign-in.';
+                        });
+                },
+
+                _watch: function (deadline) {
+                    var self = this;
+                    this._timer = window.setTimeout(function () {
+                        if (Date.now() > deadline) {
+                            self._stop('Sign-in timed out. Try again.');
+                            return;
+                        }
+
+                        fetch('/plex/connection/status', {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin'
+                        })
+                            .then(function (res) { return res.json(); })
+                            .then(function (data) {
+                                if (!data) { throw new Error('Sign-in failed.'); }
+                                if (data.status === 'completed') {
+                                    // Re-render so every state on the page — the
+                                    // panel and the footer status — comes from
+                                    // the server rather than being patched here.
+                                    window.location.reload();
+                                    return;
+                                }
+                                if (data.status === 'expired') {
+                                    self._stop('The Plex sign-in expired. Try again.');
+                                    return;
+                                }
+                                if (data.status === 'not_started') {
+                                    self._stop('Sign-in was not started.');
+                                    return;
+                                }
+                                if (data.error) { throw new Error(data.error); }
+                                self._watch(deadline);
+                            })
+                            .catch(function (e) { self._stop(e.message || 'Sign-in failed.'); });
+                    }, POLL_MS);
+                },
+
+                _stop: function (message) {
+                    if (this._timer) { window.clearTimeout(this._timer); this._timer = null; }
+                    this.busy = false;
+                    this.fallbackUrl = '';
+                    this.message = message;
+                }
+            };
+        });
+
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },

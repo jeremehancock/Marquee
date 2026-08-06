@@ -18,6 +18,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 
 ## Features
 
+- **Sign in to Plex** — connect Marquee to your server from inside the app, so
+  no Plex token has to go in your compose file. Setting `PLEX_TOKEN` still works
+  and still takes precedence.
 - **Import from Plex** — pull the current poster for every Movie, TV Show, TV
   Season, and Collection. A step-by-step picker asks what you want first, then
   shows only the libraries that can provide it.
@@ -82,7 +85,9 @@ services:
 
       # --- Plex (required for import / send / fetch / orphans) ---
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      PLEX_TOKEN: "your-plex-token"
+      # Sign in to Plex from the app after it starts — no token needed here.
+      # To supply one anyway (automated deploys), set PLEX_TOKEN; it wins.
+      # See docs/plex-connection.md
       # PLEX_REMOVE_OVERLAY_LABEL: "false"   # "true" if you use Kometa overlays
 
       # --- Auto-import (optional) ---
@@ -139,7 +144,7 @@ server.
 | `AUTH_BYPASS` | Disable authentication entirely (trusted LAN only) | `false` |
 | `SESSION_DURATION` | Login session lifetime, in seconds | `3600` |
 | `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
-| `PLEX_TOKEN` | Plex authentication token (`X-Plex-Token`) | _(unset)_ |
+| `PLEX_TOKEN` | Plex authentication token (`X-Plex-Token`). Optional — sign in to Plex from the app instead. When set it overrides an in-app sign-in, which suits automated deployments. See [docs/plex-connection.md](docs/plex-connection.md). | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
 | `PLEX_CONNECT_TIMEOUT` | Plex connect timeout, in seconds | `10` |
 | `PLEX_REQUEST_TIMEOUT` | Plex request timeout, in seconds | `60` |
@@ -157,7 +162,19 @@ server.
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 
-### Finding your Plex token
+### Connecting to Plex
+
+Set `PLEX_SERVER_URL`, start Marquee, then open **Import from Plex** and choose
+**Sign in to Plex**. Marquee stores the token under `/config`, so it never has
+to go in your compose file.
+
+Setting `PLEX_TOKEN` is still fully supported and takes precedence over an
+in-app sign-in — use it for automated or GitOps deployments.
+[docs/plex-connection.md](docs/plex-connection.md) compares the two.
+
+#### Finding your Plex token
+
+Only needed if you are setting `PLEX_TOKEN` yourself.
 
 1. Log in to your Plex Web App.
 2. Browse to any media item.
@@ -332,6 +349,8 @@ authentication token.
 - **Use HTTPS** (behind a reverse proxy) if you expose Marquee to the internet.
 - **Back up your `/config` directory** regularly — an import can rebuild
   everything Plex already has, but not art you uploaded and never sent there.
+  If you signed in to Plex from the app, your Plex token is in there too, so
+  treat those backups as you would the token itself.
 
 Only enable `AUTH_BYPASS` on a network you fully trust — it disables login
 entirely.

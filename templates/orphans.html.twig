@@ -17,7 +17,10 @@
     {% endif %}
 
     {% if not configured %}
-        <div class="panel"><p>Plex must be configured to detect orphans.</p></div>
+        <div class="panel">
+            <p>Marquee must be connected to Plex to detect orphans.
+               <a href="/plex">Connect it on the Import page.</a></p>
+        </div>
     {% else %}
         {# Filled by GET /orphans/list once the scan resolves. #}
         <div id="orphan-results" x-ref="results">

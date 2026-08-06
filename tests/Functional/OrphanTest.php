@@ -129,7 +129,9 @@ final class OrphanTest extends AppTestCase
 
         $body = (string) $this->get($app, '/orphans')->getBody();
 
-        self::assertStringContainsString('Plex must be configured', $body);
+        self::assertStringContainsString('must be connected to Plex', $body);
+        // The message points at the connection panel rather than dead-ending.
+        self::assertStringContainsString('href="/plex"', $body);
         self::assertStringContainsString('orphansPage(false)', $body);
         self::assertStringNotContainsString('Checking Plex for orphans', $body);
     }

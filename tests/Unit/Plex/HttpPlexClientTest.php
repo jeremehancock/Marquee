@@ -492,7 +492,9 @@ final class HttpPlexClientTest extends TestCase
 
     public function testRejectedTokenReportsAnAuthProblem(): void
     {
-        $this->expectExceptionMessage('The Plex server rejected the token. Check PLEX_TOKEN.');
+        // The remedy is no longer baked in here; PlexFailureMessage supplies
+        // one that matches the connection source.
+        $this->expectExceptionMessage('The Plex server rejected the credential.');
         $this->client([new Response(401)])->libraries();
     }
 
@@ -500,8 +502,49 @@ final class HttpPlexClientTest extends TestCase
     {
         $error = new ConnectException('down', new Request('GET', '/library/sections'));
 
-        $this->expectExceptionMessage('Could not connect to the Plex server. Check the URL and token.');
+        $this->expectExceptionMessage('Could not connect to the Plex server.');
         $this->client([$error])->libraries();
+    }
+
+    public function testServerNameIsReadFromTheRootEndpoint(): void
+    {
+        // Shaped like a real Plex root response, including the account field
+        // that must not be used.
+        $xml = '<MediaContainer size="26" friendlyName="Anansi" '
+            . 'machineIdentifier="7c85f9bcd13e3aa1df7ac77edc7cfa8934931e5e" '
+            . 'myPlexUsername="someone@example.com" myPlexSigninState="ok"/>';
+
+        self::assertSame('Anansi', $this->client([new Response(200, [], $xml)])->serverName());
+    }
+
+    public function testServerNameIsNullWhenTheAttributeIsAbsent(): void
+    {
+        $xml = '<MediaContainer size="26" myPlexUsername="someone@example.com"/>';
+
+        self::assertNull($this->client([new Response(200, [], $xml)])->serverName());
+    }
+
+    public function testServerNameIsNullWhenTheRequestFails(): void
+    {
+        $error = new ConnectException('down', new Request('GET', '/'));
+
+        // A name is decoration; failing to read it must not raise.
+        self::assertNull($this->client([$error])->serverName());
+    }
+
+    public function testServerNameIsNullWhenPlexIsNotConfigured(): void
+    {
+        self::assertNull($this->client([], configured: false)->serverName());
+    }
+
+    public function testServerNameNeverReportsTheAccountEmail(): void
+    {
+        $xml = '<MediaContainer friendlyName="Anansi" myPlexUsername="someone@example.com"/>';
+
+        $name = $this->client([new Response(200, [], $xml)])->serverName();
+
+        self::assertNotNull($name);
+        self::assertStringNotContainsString('@', $name);
     }
 
     private function recordingClient(MockHandler $mock): HttpPlexClient

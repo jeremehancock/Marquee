@@ -13,6 +13,10 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
 use App\Database\Database;
+use App\Plex\Connection\PlexConnectionState;
+use App\Plex\Connection\PlexConnectionStatus;
+use App\Plex\Connection\PlexConnectionStore;
+use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
@@ -65,7 +69,11 @@ function buildContainer(array $overrides = []): Container
         AppConfig::class => static fn (): AppConfig => AppConfig::fromEnv(),
         AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
         PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
-        PlexConfig::class => static fn (): PlexConfig => PlexConfig::fromEnv(),
+        PlexConnectionStore::class => static fn (AppConfig $app): PlexConnectionStore
+            => new PlexConnectionStore($app->dataDir),
+        PlexPinClient::class => static fn (ClientInterface $http, PlexConnectionStore $store): PlexPinClient
+            => new PlexPinClient($http, $store, readVersion()),
+        PlexConfig::class => static fn (PlexConnectionStore $store): PlexConfig => PlexConfig::resolve($store),
         AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
         LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
@@ -87,10 +95,15 @@ function buildContainer(array $overrides = []): Container
         ): HttpPlexClient => new HttpPlexClient($http, $plex, $exclusions),
         PlexClient::class => \DI\get(HttpPlexClient::class),
         PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
-        // The wall's now-playing poster tokens are signed with the Plex token:
-        // a secret the server already holds, stable across requests, and empty
-        // only when Plex is unconfigured (when the wall never leaves random mode).
-        StreamToken::class => static fn (PlexConfig $plex): StreamToken => new StreamToken($plex->token),
+        // The wall's now-playing poster tokens are signed with a secret of the
+        // application's own, generated once and kept in the connection store.
+        // It deliberately does not reuse the Plex token: that token can now be
+        // replaced by signing in again, which would rotate the secret and
+        // invalidate every token already rendered onto a running wall, and it
+        // is empty until Plex is connected, which would make signatures
+        // computable by anyone.
+        StreamToken::class => static fn (PlexConnectionStore $store): StreamToken
+            => new StreamToken($store->signingSecret()),
         PosterWallController::class => static fn (
             Twig $twig,
             PosterWallService $wall,
@@ -122,7 +135,7 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
+        Twig::class => static function (AppConfig $config, AuthConfig $auth, PlexConnectionStatus $plex): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
@@ -130,6 +143,15 @@ function buildContainer(array $overrides = []): Container
             $twig->getEnvironment()->addGlobal('app_name', AppConfig::APP_NAME);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
             $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
+
+            // The Plex connection, for the app-wide status line. A function
+            // rather than a global so only the templates that ask pay for the
+            // lookup — the poster wall never does. It reads cached data and
+            // never contacts Plex, so it cannot delay a page.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'plex_connection',
+                static fn (): PlexConnectionState => $plex->current(),
+            ));
 
             // Cache-busting asset URLs: append the file's mtime so a changed
             // stylesheet or script is a new URL that defeats every cache layer.
