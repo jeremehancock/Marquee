@@ -194,9 +194,13 @@ Until you have, every page redirects to the **Plex Connection** screen.
    out.
 
 **Sign in with the Plex account that owns the server.** Marquee refuses any
-other account, including one your server is shared with. A shared account cannot
-change artwork in Plex, but it could still delete posters here — and a poster
-you never sent to Plex has no copy to restore.
+other account, including one your server is shared with.
+
+That is stricter than Plex itself would be, on purpose. Plex would stop a shared
+account changing your artwork — but deleting a poster in Marquee is a local
+action Plex has no say over, and a poster you never sent to Plex has no copy to
+restore. Rather than rely on Plex to limit an account it only partly limits,
+Marquee does not accept one.
 
 The token is stored at `/config/data/plex-connection.json`, owner-readable only
 (`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the

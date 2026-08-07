@@ -18,6 +18,9 @@
       Plex connection — with what each controls and who sets it
 - [x] 2.4 State plainly that the Plex connection does not restrict people, only
       which credential Marquee holds
+- [x] 2.6 Reword the owner-only rule's rationale, which described a shared
+      account deleting posters in the present tense and so read as current
+      behaviour rather than as the reason the account is refused
 - [x] 2.5 Check whether `CLAUDE.md` or `docs/` describe the relationship
       inaccurately, and correct them or record explicitly that they do not —
       they do not: the remaining `AUTH_BYPASS` mentions are the dev compose
