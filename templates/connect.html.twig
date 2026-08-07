@@ -64,17 +64,22 @@
            x-show="message" x-cloak x-text="message"></p>
     </div>
 
-    {# With login disabled, this screen — and its sign-in and sign-out buttons —
-       are reachable by anyone who can reach the host. That was worth saying when
-       bypass exposed a gallery of posters; it is worth saying plainly now that
-       Marquee holds a credential that can write to the user's Plex library. #}
+    {# Restricting sign-in to the server's owner reads like a limit on people.
+       It is not — it decides which credential Marquee holds. Every Plex action
+       runs on that credential and no route asks who the visitor is, so with the
+       login off, whoever reaches Marquee acts as the owner. Saying only that a
+       stranger "could change the connection" invites exactly the wrong
+       inference, so the risk is named as use of the connection, and the
+       owner-only rule is stated and then closed off. #}
     {% if auth_bypass %}
         <div class="alert plex-connection__obsolete" role="status">
             <p><strong>Login is disabled (<code>AUTH_BYPASS</code>).</strong>
-               Anyone who can reach Marquee can sign this install in or out of
-               Plex, and use the stored connection to change your library's
-               artwork.</p>
-            <p>Only leave it disabled on a network you fully trust.</p>
+               Anyone who can reach Marquee acts with your stored Plex
+               connection — they can change and delete posters, send artwork to
+               your Plex library, and disconnect this install.</p>
+            <p>Only your own Plex account can connect Marquee, but that does not
+               limit what someone can do once it is connected. Leave the login
+               disabled only on a network you fully trust.</p>
         </div>
     {% endif %}
 

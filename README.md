@@ -80,8 +80,8 @@ services:
       # --- Authentication (CHANGE THESE) ---
       AUTH_USERNAME: "admin"
       AUTH_PASSWORD: "change-me"
-      # AUTH_BYPASS: "false"          # "true" disables login entirely.
-      # Anyone reaching Marquee could then use your stored Plex connection.
+      # AUTH_BYPASS: "false"          # "true" disables the login entirely.
+      # Anyone reaching Marquee then acts with your stored Plex connection.
 
       # --- Plex (required for import / send / fetch / orphans) ---
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
@@ -140,7 +140,7 @@ server.
 | `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `AUTH_USERNAME` | Login username | `admin` |
 | `AUTH_PASSWORD` | Login password | `changeme` |
-| `AUTH_BYPASS` | Disable authentication entirely. Anyone who can reach Marquee can then sign it in or out of Plex and change your library's artwork. Trusted networks only. | `false` |
+| `AUTH_BYPASS` | Disable the login entirely. Anyone who can reach Marquee then acts with your stored Plex connection: changing and deleting posters, sending artwork to your Plex library, and disconnecting the install. Trusted networks only. | `false` |
 | `SESSION_DURATION` | Login session lifetime, in seconds | `3600` |
 | `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
@@ -159,6 +159,27 @@ server.
 | `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` (A–Z) or `date_added` (newest first). Users can switch field and direction in the gallery. | `alphabetical` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
+
+### Two separate things: the login and the Plex connection
+
+Marquee protects itself with a login, and separately holds a connection to your
+Plex server. They do different jobs, and it is worth knowing which is which.
+
+| | Controls | Set by |
+| --- | --- | --- |
+| **Marquee login** | who may open the app at all | `AUTH_USERNAME` / `AUTH_PASSWORD`, or disabled with `AUTH_BYPASS` |
+| **Plex connection** | which server Marquee talks to, and whose Plex account it acts as | signing in to Plex, in the app |
+
+**The Plex connection does not restrict people — it decides which credential
+Marquee holds.** Every Plex action runs on that credential, and no page asks who
+you are. So anyone who gets past the login acts with it.
+
+Marquee accepts only the Plex account that owns your server, which is what keeps
+someone else's account from becoming the credential. It is not a limit on who
+may use the app once connected — the login is the only thing doing that job.
+
+There are no user accounts or roles inside Marquee, by design: it is a
+single-user tool for managing your own posters.
 
 ### Connecting to Plex
 
@@ -379,11 +400,13 @@ authentication token.
   Your Plex token is in there too, so treat those backups as you would the
   token itself.
 
-Only enable `AUTH_BYPASS` on a network you fully trust — it disables login
-entirely. Since Marquee stores your Plex credential, that means anyone who can
-reach it can sign the install in or out of Plex and use the connection to
-overwrite artwork in your library. The Plex Connection screen says so while
-bypass is on.
+Only enable `AUTH_BYPASS` on a network you fully trust — it disables the login
+entirely. Marquee performs every Plex action with the credential it stores, and
+no page asks who you are, so anyone who can reach it then acts with your Plex
+connection: overwriting artwork in your library, deleting posters, and
+disconnecting the install. Restricting sign-in to your own Plex account does not
+change that — it only guarantees the stored credential is yours. The Plex
+Connection screen says so while bypass is on.
 
 If you want to reach Marquee from outside your network, prefer a VPN over
 opening a port to the internet. <a href="https://www.tailscale.com/" target="_blank" rel="noopener">Tailscale™</a>

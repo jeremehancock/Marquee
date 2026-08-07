@@ -168,12 +168,27 @@ final class PlexConnectionTest extends AppTestCase
 
     public function testScreenWarnsWhenLoginIsDisabled(): void
     {
-        // Bypass now exposes a credential that can write to the user's library,
-        // not just a gallery — so the screen carrying the sign-out button says so.
+        // Bypass exposes a credential that can write to the user's library, not
+        // just a gallery — so the screen carrying the sign-out button says so.
         $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
 
         self::assertStringContainsString('AUTH_BYPASS', $body);
         self::assertStringContainsString('Login is disabled', $body);
+    }
+
+    public function testTheBypassWarningDescribesUseNotConnecting(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        // The risk is what a visitor does with the connection Marquee already
+        // holds. Only the owner can establish one, and saying a stranger could
+        // "change the connection" teaches the opposite of the useful lesson.
+        self::assertStringContainsString('acts with your stored Plex', $body);
+        self::assertStringContainsString('delete posters', $body);
+        self::assertStringNotContainsString('can sign this install in', $body);
+        // The owner-only rule is stated, then explicitly closed off.
+        self::assertStringContainsString('does not', $body);
+        self::assertStringContainsString('once it is connected', $body);
     }
 
     public function testScreenIsQuietWhenAuthenticationIsEnforced(): void
