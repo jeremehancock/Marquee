@@ -13,11 +13,7 @@
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
     {% endif %}
 
-    {% include 'partials/plex_connection.html.twig' with { connection: connection } only %}
-
-    {% if not configured %}
-        {# The connection panel above already says what to do about it. #}
-    {% elseif error %}
+    {% if error %}
         <p class="alert" role="alert">{{ error }}</p>
     {% elseif libraries is empty %}
         <div class="panel">

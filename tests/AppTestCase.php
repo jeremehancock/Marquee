@@ -7,6 +7,7 @@ namespace App\Tests;
 use function App\buildContainer;
 use function App\createApp;
 
+use App\Plex\Connection\PlexConnectionStore;
 use App\Support\Session\ArraySession;
 use App\Support\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
@@ -16,6 +17,12 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 
 abstract class AppTestCase extends TestCase
 {
+    /** Data directory of the most recently built app, for the Plex helpers. */
+    private string $dataDir = '';
+
+    /** Whether the next makeApp() should start with Plex already connected. */
+    private bool $connectNext = false;
+
     /**
      * @param array<string, string> $env
      * @param array<string, mixed>  $overrides
@@ -33,6 +40,8 @@ abstract class AppTestCase extends TestCase
             'DATA_DIR' => sys_get_temp_dir() . '/marquee-test-data',
             'DISPLAY_ERRORS' => 'false',
             // Reset Plex vars each time so one test's config cannot leak into another.
+            // PLEX_TOKEN is cleared rather than set: it is no longer a credential,
+            // and leaving it set would raise the "no longer used" notice everywhere.
             'PLEX_SERVER_URL' => '',
             'PLEX_TOKEN' => '',
             'PLEX_REMOVE_OVERLAY_LABEL' => 'false',
@@ -44,11 +53,21 @@ abstract class AppTestCase extends TestCase
             putenv($key . '=' . $value);
         }
 
+        $this->dataDir = rtrim($merged['DATA_DIR'], '/');
+
         // The data directory is shared between tests and survives the run, so a
         // token stored by one test would otherwise leave Plex connected for
-        // every later one. Start each app with no stored connection; a test that
-        // wants one writes it after calling this.
-        @unlink(rtrim($merged['DATA_DIR'], '/') . '/plex-connection.json');
+        // every later one. Start each app with no stored connection; use
+        // connectPlex() to give one back.
+        @unlink($this->dataDir . '/plex-connection.json');
+
+        // Before createApp(), not after: building the app resolves the gate
+        // middleware, which resolves PlexConfig, which reads the store. A token
+        // written later would be invisible for the whole life of this app.
+        if ($this->connectNext) {
+            $this->connectNext = false;
+            $this->connectPlex();
+        }
 
         // Use an in-memory session so the auth flow never touches PHP globals.
         $overrides = array_merge(
@@ -57,6 +76,42 @@ abstract class AppTestCase extends TestCase
         );
 
         return createApp(buildContainer($overrides));
+    }
+
+    /**
+     * Build an app with Plex already connected.
+     *
+     * Connecting is a precondition for reaching almost any route, so most
+     * functional tests want this rather than makeApp(). The token is written
+     * after the container is built, which works because configuration resolves
+     * lazily on the first request.
+     *
+     * @param array<string, string> $env
+     * @param array<string, mixed>  $overrides
+     *
+     * @return App<\Psr\Container\ContainerInterface|null>
+     */
+    protected function makeConnectedApp(array $env = [], array $overrides = []): App
+    {
+        $this->connectNext = true;
+
+        return $this->makeApp(array_merge(['PLEX_SERVER_URL' => 'http://plex:32400'], $env), $overrides);
+    }
+
+    /**
+     * Store a Plex token, so the connection gate lets requests through.
+     */
+    protected function connectPlex(string $token = 'test-plex-token'): void
+    {
+        (new PlexConnectionStore($this->dataDir))->storeToken($token);
+    }
+
+    /**
+     * Forget the stored Plex token, putting the app back behind the gate.
+     */
+    protected function disconnectPlex(): void
+    {
+        (new PlexConnectionStore($this->dataDir))->clearToken();
     }
 
     /**

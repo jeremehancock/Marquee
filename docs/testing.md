@@ -228,8 +228,8 @@ Same flow, but be aware deleting a movie in Plex removes its media files:
   (search for it). Emptying the Plex library's trash may be required if Plex
   keeps deleted items until trash is emptied.
 - **"Marquee must be connected to Plex to detect orphans."** → set
-  `PLEX_SERVER_URL`, then either sign in to Plex on the Import page or set
-  `PLEX_TOKEN` and recreate the container.
+  `PLEX_SERVER_URL`, recreate the container, and sign in to Plex on the
+  **Plex Connection** page.
 
 ---
 

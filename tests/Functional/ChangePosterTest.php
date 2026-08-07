@@ -64,13 +64,11 @@ final class ChangePosterTest extends AppTestCase
         $http = $this->createMock(ClientInterface::class);
         $http->method('request')->willReturn(new Response(200, [], $this->pngBytes(2, 3)));
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             [
                 'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
-                'PLEX_SERVER_URL' => 'http://plex:32400',
-                'PLEX_TOKEN' => 'token',
             ],
             [
                 ClientInterface::class => static fn (): ClientInterface => $http,
@@ -117,13 +115,11 @@ final class ChangePosterTest extends AppTestCase
         $http = $this->createMock(ClientInterface::class);
         $http->method('request')->willReturn(new Response(200, [], $this->pngBytes(2, 3)));
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             [
                 'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
-                'PLEX_SERVER_URL' => 'http://plex:32400',
-                'PLEX_TOKEN' => 'token',
             ],
             [
                 ClientInterface::class => static fn (): ClientInterface => $http,
@@ -160,7 +156,7 @@ final class ChangePosterTest extends AppTestCase
      */
     private function findPosters(FakePosterSource $source): array
     {
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PosterSource::class => static fn (): PosterSource => $source],
         );
@@ -478,7 +474,7 @@ final class ChangePosterTest extends AppTestCase
     {
         $source = $this->fakeSource(PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]));
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PosterSource::class => static fn (): PosterSource => $source],
         );
@@ -496,13 +492,11 @@ final class ChangePosterTest extends AppTestCase
     {
         $writer = new FakePlexPosterWriter();
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             [
                 'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
-                'PLEX_SERVER_URL' => 'http://plex:32400',
-                'PLEX_TOKEN' => 'token',
             ],
             [PlexPosterWriter::class => static fn (): PlexPosterWriter => $writer],
         );
@@ -516,7 +510,7 @@ final class ChangePosterTest extends AppTestCase
 
     public function testFetchFromPlexReplacesLocal(): void
     {
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
         );

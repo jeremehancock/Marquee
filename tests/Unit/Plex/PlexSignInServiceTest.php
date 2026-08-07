@@ -163,6 +163,17 @@ final class PlexSignInServiceTest extends TestCase
         $service->poll();
     }
 
+    public function testTheAuthorizationRequestAsksForAStrongCode(): void
+    {
+        $this->service([
+            new Response(200, [], (string) json_encode(['id' => 1, 'code' => 'ABCD', 'expiresIn' => 900])),
+        ])->start();
+
+        // Without this Plex issues a short plex.tv/link code, and the
+        // app.plex.tv/auth deep link refuses it outright.
+        self::assertStringContainsString('strong=true', (string) $this->sent[0]->getUri());
+    }
+
     public function testMalformedCreateResponseIsRejected(): void
     {
         $this->expectException(PlexSignInException::class);
@@ -215,6 +226,7 @@ final class PlexSignInServiceTest extends TestCase
         self::assertStringContainsString(rawurlencode($store->clientIdentifier()), $url);
         // No forward URL: nothing has to route back into Marquee.
         self::assertStringNotContainsString('forwardUrl', $url);
+
     }
 
     /**

@@ -576,12 +576,37 @@
         window.Alpine.data('plexConnection', function () {
             var POLL_MS = 2000;
             var GIVE_UP_MS = 15 * 60 * 1000;
+            // Outside the returned object on purpose — see signIn().
+            var plexWindowRef = null;
 
             return {
                 busy: false,
                 message: '',
                 fallbackUrl: '',
                 _timer: null,
+
+                // A sized popup rather than a bare _blank, which browsers open
+                // as a full tab. Plex's sign-in page is a small form, and a
+                // popup keeps Marquee visible behind it — the sign-in reads as
+                // a step in the page you are on rather than a trip somewhere
+                // else. Naming the window means a second click reuses it
+                // instead of stacking another.
+                _open: function () {
+                    var w = 620;
+                    var h = 720;
+                    var baseLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+                    var baseTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+                    // Centre on the window Marquee is in, not the primary
+                    // display, so it lands on the right monitor.
+                    var left = Math.round(baseLeft + Math.max(0, (window.outerWidth - w) / 2));
+                    var top = Math.round(baseTop + Math.max(0, (window.outerHeight - h) / 2));
+
+                    return window.open(
+                        '',
+                        'marquee-plex-signin',
+                        'popup=yes,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top
+                    );
+                },
 
                 signIn: function () {
                     if (this.busy) { return; }
@@ -590,7 +615,13 @@
                     this.fallbackUrl = '';
 
                     // Must happen now, inside the gesture, not in the .then().
-                    var plexWindow = window.open('', '_blank');
+                    //
+                    // Held in a closure, deliberately not on the component:
+                    // Alpine makes component state deeply reactive, and wrapping
+                    // a cross-origin Window in a proxy is what stops us being
+                    // able to close it again.
+                    var plexWindow = this._open();
+                    plexWindowRef = plexWindow;
                     var self = this;
 
                     fetch('/plex/connection/sign-in', {
@@ -634,9 +665,12 @@
                             .then(function (data) {
                                 if (!data) { throw new Error('Sign-in failed.'); }
                                 if (data.status === 'completed') {
-                                    // Re-render so every state on the page — the
-                                    // panel and the footer status — comes from
-                                    // the server rather than being patched here.
+                                    // Plex leaves its own "you can close this"
+                                    // page up; closing it ourselves finishes the
+                                    // flow where it started.
+                                    self._closeWindow();
+                                    // Re-render from the server rather than
+                                    // patching the panel here.
                                     window.location.reload();
                                     return;
                                 }
@@ -649,14 +683,29 @@
                                     return;
                                 }
                                 if (data.error) { throw new Error(data.error); }
+                                // A sign-in that never completes is otherwise
+                                // silent for fifteen minutes; this is what makes
+                                // a stalled approval reportable.
+                                if (window.console) {
+                                    window.console.debug('[marquee] plex sign-in:', data.status);
+                                }
                                 self._watch(deadline);
                             })
                             .catch(function (e) { self._stop(e.message || 'Sign-in failed.'); });
                     }, POLL_MS);
                 },
 
+                _closeWindow: function () {
+                    // Only ours, and only if it is still open.
+                    try {
+                        if (plexWindowRef && !plexWindowRef.closed) { plexWindowRef.close(); }
+                    } catch (e) { /* already gone; nothing to do */ }
+                    plexWindowRef = null;
+                },
+
                 _stop: function (message) {
                     if (this._timer) { window.clearTimeout(this._timer); this._timer = null; }
+                    this._closeWindow();
                     this.busy = false;
                     this.fallbackUrl = '';
                     this.message = message;

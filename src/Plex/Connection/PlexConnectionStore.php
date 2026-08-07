@@ -73,8 +73,10 @@ final class PlexConnectionStore
      */
     public function clearToken(): void
     {
-        $data = $this->load();
+        $data = $this->read();
         if (!isset($data[self::KEY_TOKEN])) {
+            $this->data = $data;
+
             return;
         }
 
@@ -128,10 +130,22 @@ final class PlexConnectionStore
         return $value;
     }
 
+    /**
+     * Set one key, re-reading first so a write changes only that key.
+     *
+     * The in-memory copy can be older than the file: the web process and the
+     * scheduled import each hold their own store, and either may generate the
+     * client identifier or the signing secret. Writing back a whole stale
+     * snapshot would silently drop whatever the other one had added. Writes are
+     * rare — signing in, signing out, first-use generation — so the extra read
+     * costs nothing worth counting.
+     */
     private function put(string $key, string $value): void
     {
-        $data = $this->load();
+        $data = $this->read();
         if (($data[$key] ?? null) === $value) {
+            $this->data = $data;
+
             return;
         }
 

@@ -4,87 +4,49 @@ declare(strict_types=1);
 
 namespace App\Plex\Connection;
 
-use App\Config\PlexTokenSource;
-
 /**
- * How Marquee is connected to Plex, as the interface needs to describe it.
+ * How Marquee stands with Plex, as the connection screen needs to describe it.
  *
- * There are four states, and the third is the one that has to be said out loud:
- *
- *   1. connected by signing in
- *   2. connected by `PLEX_TOKEN`
- *   3. connected by `PLEX_TOKEN` while a signed-in token also exists, which is
- *      not in use because the variable wins
- *   4. not connected
- *
- * Reporting the third as a plain "signed in" would be a lie with consequences:
- * a user who then removed `PLEX_TOKEN` and restarted could find the stored
- * token belongs to a different Plex account, or was never completed.
+ * Two states, because there is one way to connect: connected, or not. What the
+ * screen still has to distinguish is *why* it is not connected — a missing
+ * credential is fixed by signing in, a missing server address is not, and
+ * offering the wrong remedy strands the user behind the connection gate.
  */
 final class PlexConnectionState
 {
     public function __construct(
-        public readonly PlexTokenSource $source,
+        public readonly bool $hasToken,
         public readonly ?string $serverName,
-        public readonly bool $hasStoredToken,
         public readonly bool $hasServerUrl,
+        public readonly bool $obsoleteEnvToken,
     ) {
     }
 
     /**
-     * Whether Plex requests can be made at all — a token and a server URL.
+     * Whether Plex requests can be made at all — a token and a server address.
      */
     public function isConnected(): bool
     {
-        return $this->hasServerUrl && $this->source !== PlexTokenSource::None;
+        return $this->hasToken && $this->hasServerUrl;
     }
 
     /**
-     * Whether the token in use came from signing in.
-     */
-    public function isSignedIn(): bool
-    {
-        return $this->source === PlexTokenSource::Stored;
-    }
-
-    /**
-     * Whether the token in use came from the environment.
-     */
-    public function usesEnvironment(): bool
-    {
-        return $this->source === PlexTokenSource::Environment;
-    }
-
-    /**
-     * Whether a stored sign-in exists but is being overridden by `PLEX_TOKEN`.
-     */
-    public function isOverridden(): bool
-    {
-        return $this->hasStoredToken && $this->source === PlexTokenSource::Environment;
-    }
-
-    /**
-     * Whether a token exists but no server URL does, which is connected in
-     * credential but not in address — a distinct thing to tell the user, since
-     * signing in again would not fix it.
+     * Whether the missing piece is the address rather than the credential.
+     *
+     * Signing in cannot supply an address, so this case must be worded
+     * differently or the user is told to do something that cannot help.
      */
     public function needsServerUrl(): bool
     {
-        return !$this->hasServerUrl && $this->source !== PlexTokenSource::None;
+        return !$this->hasServerUrl;
     }
 
     /**
-     * A short label for the connection, for the app-wide status line.
+     * Whether a `PLEX_TOKEN` is still set in the environment, where it no
+     * longer does anything. True only until the user removes it.
      */
-    public function summary(): string
+    public function hasObsoleteEnvToken(): bool
     {
-        if (!$this->isConnected()) {
-            return 'Plex: not connected';
-        }
-
-        $where = $this->serverName ?? 'connected';
-        $how = $this->isSignedIn() ? 'signed in' : 'PLEX_TOKEN';
-
-        return sprintf('Plex: %s (%s)', $where, $how);
+        return $this->obsoleteEnvToken;
     }
 }

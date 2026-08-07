@@ -45,6 +45,11 @@ function registerRoutes(App $app): void
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 
+    // The Plex connection lives on its own page: it is where the connection
+    // gate sends anyone who has not connected, and where a connected user goes
+    // to sign out.
+    $app->get('/connect', [PlexConnectionController::class, 'show']);
+
     $app->get('/plex', [PlexImportController::class, 'show']);
     $app->post('/plex/import', [PlexImportController::class, 'run']);
 

@@ -327,6 +327,37 @@ h1 {
     color: #e4b55f;
 }
 
+/* The Plex connection screen. A single panel with one action, so the spacing is
+   set here rather than inherited from the form-heavy layouts elsewhere: a bare
+   button sitting directly under a paragraph reads as an afterthought without it.
+   The obsolete-PLEX_TOKEN notice is a multi-paragraph alert, which the compact
+   single-line padding on .alert is not built for. */
+.plex-connection > :first-child {
+    margin-top: 0;
+}
+
+.plex-connection form,
+.plex-connection > .btn {
+    margin-top: 20px;
+}
+
+.plex-connection__obsolete {
+    margin-top: 20px;
+    padding: 16px 18px;
+}
+
+.plex-connection__obsolete p {
+    margin: 0 0 10px;
+}
+
+.plex-connection__obsolete p:last-child {
+    margin-bottom: 0;
+}
+
+.plex-connection__obsolete code {
+    color: inherit;
+}
+
 [x-cloak] {
     display: none !important;
 }

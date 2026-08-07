@@ -33,14 +33,22 @@ final class PlexImportTest extends AppTestCase
         $this->removeDir($this->dataDir);
     }
 
-    public function testPlexPageShowsNotConnectedMessage(): void
+    public function testImportPageIsUnreachableUntilPlexIsConnected(): void
     {
+        // The import page no longer explains how to connect — it cannot be
+        // reached at all until you have.
         $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/plex');
-        $body = (string) $response->getBody();
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Plex is not connected', $body);
-        self::assertStringContainsString('Sign in to Plex', $body);
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/connect', $response->getHeaderLine('Location'));
+    }
+
+    public function testImportPageOffersNoConnectionManagement(): void
+    {
+        $body = (string) $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/plex')->getBody();
+
+        self::assertStringNotContainsString('Sign in to Plex', $body);
+        self::assertStringNotContainsString('Sign out of Plex', $body);
     }
 
     public function testPlexPageListsLibraries(): void
@@ -50,7 +58,7 @@ final class PlexImportTest extends AppTestCase
             new PlexLibrary('2', 'TV', 'show'),
         ]);
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -69,7 +77,7 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Kids'],
         );
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Kids'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -87,7 +95,7 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Movies', 'TV'],
         );
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Movies,TV'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -105,7 +113,7 @@ final class PlexImportTest extends AppTestCase
         $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
         $fake = new FakePlexClient([$library], ['1' => [$movie]]);
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );

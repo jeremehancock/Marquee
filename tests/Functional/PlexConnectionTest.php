@@ -44,28 +44,201 @@ final class PlexConnectionTest extends AppTestCase
     {
         $app = $this->makeApp($this->env(['AUTH_BYPASS' => 'false']));
 
-        $status = $this->get($app, '/plex/connection/status');
-        self::assertSame(302, $status->getStatusCode());
-        self::assertSame('/login', $status->getHeaderLine('Location'));
+        foreach ([['GET', '/connect'], ['GET', '/plex/connection/status']] as [, $path]) {
+            $response = $this->get($app, $path);
+            self::assertSame(302, $response->getStatusCode(), $path);
+            self::assertSame('/login', $response->getHeaderLine('Location'), $path);
+        }
 
         $signIn = $this->postForm($app, '/plex/connection/sign-in', []);
-        self::assertSame(302, $signIn->getStatusCode());
         self::assertSame('/login', $signIn->getHeaderLine('Location'));
 
         $signOut = $this->postForm($app, '/plex/connection/sign-out', []);
-        self::assertSame(302, $signOut->getStatusCode());
         self::assertSame('/login', $signOut->getHeaderLine('Location'));
     }
 
     public function testNoResponseEverCarriesTheToken(): void
     {
-        $app = $this->signedInApp('super-secret-token');
+        $app = $this->connectedApp();
 
-        foreach (['/plex', '/plex/connection/status', '/library/all', '/orphans'] as $path) {
+        foreach (['/connect', '/plex/connection/status', '/library/all', '/orphans'] as $path) {
             $body = (string) $this->get($app, $path)->getBody();
-            self::assertStringNotContainsString('super-secret-token', $body, $path);
+            self::assertStringNotContainsString('test-plex-token', $body, $path);
         }
     }
+
+    public function testSignOutClearsOnlyTheTokenAndReturnsToTheScreen(): void
+    {
+        $app = $this->connectedApp();
+        $store = new PlexConnectionStore($this->dataDir);
+        $clientId = $store->clientIdentifier();
+        $secret = $store->signingSecret();
+
+        $response = $this->postForm($app, '/plex/connection/sign-out', []);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/connect', $response->getHeaderLine('Location'));
+
+        $after = new PlexConnectionStore($this->dataDir);
+        self::assertNull($after->token());
+        self::assertSame($clientId, $after->clientIdentifier());
+        self::assertSame($secret, $after->signingSecret());
+    }
+
+    // ---- The connection screen ----
+
+    public function testScreenWhenConnected(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        self::assertStringContainsString('Connected to Anansi', $body);
+        self::assertStringContainsString('Sign out of Plex', $body);
+        self::assertStringNotContainsString('Plex is not connected', $body);
+    }
+
+    public function testScreenWhenNotConnected(): void
+    {
+        $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('Plex is not connected', $body);
+        self::assertStringContainsString('Sign in to Plex', $body);
+    }
+
+    public function testScreenSaysWhenTheServerAddressIsMissing(): void
+    {
+        // No PLEX_SERVER_URL. Signing in cannot supply an address, so offering
+        // it as the remedy would strand the user behind the gate.
+        $body = (string) $this->get($this->makeApp($this->env()), '/connect')->getBody();
+
+        self::assertStringContainsString('PLEX_SERVER_URL', $body);
+        self::assertStringContainsString('docker compose up -d', $body);
+        self::assertStringNotContainsString('Sign in to Plex</button>', $body);
+    }
+
+    public function testScreenExplainsAnObsoleteEnvironmentToken(): void
+    {
+        $app = $this->makeApp($this->env([
+            'PLEX_SERVER_URL' => 'http://plex:32400',
+            'PLEX_TOKEN' => 'left-over-from-an-older-version',
+        ]));
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('no longer used', $body);
+        self::assertStringContainsString('Sign in to Plex', $body);
+        // Editing the compose file is not enough — the environment is read once
+        // at container start, so the instruction has to say recreate.
+        self::assertStringContainsString('docker compose up -d', $body);
+        // The obsolete value must never be echoed back.
+        self::assertStringNotContainsString('left-over-from-an-older-version', $body);
+    }
+
+    public function testTheObsoleteNoticeAdaptsOnceConnected(): void
+    {
+        $app = $this->makeConnectedApp(
+            $this->env(['PLEX_TOKEN' => 'left-over']),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        // Already connected: telling them to "sign in above" would be nonsense.
+        self::assertStringContainsString('safe to remove', $body);
+        self::assertStringNotContainsString('Sign in above', $body);
+        self::assertStringContainsString('docker compose up -d', $body);
+    }
+
+    public function testScreenWarnsWhenLoginIsDisabled(): void
+    {
+        // Bypass now exposes a credential that can write to the user's library,
+        // not just a gallery — so the screen carrying the sign-out button says so.
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        self::assertStringContainsString('AUTH_BYPASS', $body);
+        self::assertStringContainsString('Login is disabled', $body);
+    }
+
+    public function testScreenIsQuietWhenAuthenticationIsEnforced(): void
+    {
+        $app = $this->makeConnectedApp(
+            $this->env(['AUTH_BYPASS' => 'false']),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+
+        $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('Connected to Anansi', $body);
+        self::assertStringNotContainsString('Login is disabled', $body);
+    }
+
+    public function testScreenSaysNothingAboutTheVariableWhenItIsAbsent(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        self::assertStringNotContainsString('no longer used', $body);
+    }
+
+    public function testScreenFallsBackWhenTheServerNameIsUnavailable(): void
+    {
+        $app = $this->connectedApp($this->namelessClient());
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('Connected to Plex', $body);
+        self::assertStringContainsString('Sign out of Plex', $body);
+    }
+
+    // ---- The gate ----
+
+    public function testGalleryIsUnreachableUntilPlexIsConnected(): void
+    {
+        $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+
+        foreach (['/library/all', '/plex', '/orphans'] as $path) {
+            $response = $this->get($app, $path);
+            self::assertSame(302, $response->getStatusCode(), $path);
+            self::assertSame('/connect', $response->getHeaderLine('Location'), $path);
+        }
+    }
+
+    public function testConnectingReleasesTheGate(): void
+    {
+        self::assertSame(200, $this->get($this->connectedApp(), '/library/all')->getStatusCode());
+    }
+
+    public function testAuthenticationComesBeforeTheGate(): void
+    {
+        // Not logged in and not connected: login wins, or the connection screen
+        // and its sign-in action would be exposed to anyone reaching the host.
+        $app = $this->makeApp($this->env(['AUTH_BYPASS' => 'false']));
+
+        $response = $this->get($app, '/library/all');
+
+        self::assertSame('/login', $response->getHeaderLine('Location'));
+    }
+
+    public function testTheWallRunsWithoutAPlexConnection(): void
+    {
+        // Specified to run unattended on a display; a gate would break that
+        // exactly while someone is reconfiguring Plex.
+        $app = $this->makeApp($this->env());
+
+        self::assertSame(200, $this->get($app, '/wall')->getStatusCode());
+        self::assertSame(200, $this->get($app, '/wall/posters')->getStatusCode());
+    }
+
+    public function testHealthAndManifestStayReachable(): void
+    {
+        $app = $this->makeApp($this->env());
+
+        self::assertSame(200, $this->get($app, '/health')->getStatusCode());
+        self::assertSame(200, $this->get($app, '/manifest.webmanifest')->getStatusCode());
+    }
+
+    // ---- Signing in end to end ----
 
     public function testACompleteSignInStoresTheTokenAndNeverLogsIt(): void
     {
@@ -95,10 +268,12 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringContainsString('completed', $poll);
         self::assertStringNotContainsString('granted-secret-token', $poll);
 
-        self::assertSame('granted-secret-token', $this->store()->token());
+        self::assertSame(
+            'granted-secret-token',
+            (new PlexConnectionStore($this->dataDir))->token(),
+        );
 
         foreach ($handler->getRecords() as $record) {
-            // The whole record — message, context, extra, formatted output.
             self::assertStringNotContainsString('granted-secret-token', (string) json_encode($record->toArray()));
         }
     }
@@ -110,20 +285,22 @@ final class PlexConnectionTest extends AppTestCase
             new Response(404, [], '{}'),
         ]))]);
 
-        $app = $this->makeApp(
-            $this->env(['PLEX_SERVER_URL' => 'http://plex:32400']),
+        $app = $this->makeConnectedApp(
+            $this->env(),
             [
                 PlexClient::class => static fn (): PlexClient => new FakePlexClient(),
                 ClientInterface::class => static fn (): ClientInterface => $plexTv,
             ],
         );
-        $this->store()->storeToken('already-connected');
 
         $this->postForm($app, '/plex/connection/sign-in', []);
         $poll = (string) $this->get($app, '/plex/connection/status')->getBody();
 
         self::assertStringContainsString('expired', $poll);
-        self::assertSame('already-connected', $this->store()->token());
+        self::assertSame(
+            'test-plex-token',
+            (new PlexConnectionStore($this->dataDir))->token(),
+        );
     }
 
     public function testStatusReportsNothingOutstandingWhenNoSignInIsRunning(): void
@@ -131,140 +308,6 @@ final class PlexConnectionTest extends AppTestCase
         $body = (string) $this->get($this->connectedApp(), '/plex/connection/status')->getBody();
 
         self::assertStringContainsString('not_started', $body);
-    }
-
-    public function testSignOutClearsOnlyTheToken(): void
-    {
-        $app = $this->signedInApp('stored-token');
-        $store = $this->store();
-        $clientId = $store->clientIdentifier();
-        $secret = $store->signingSecret();
-
-        $response = $this->postForm($app, '/plex/connection/sign-out', []);
-
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/plex', $response->getHeaderLine('Location'));
-
-        $after = $this->store();
-        self::assertNull($after->token());
-        self::assertSame($clientId, $after->clientIdentifier());
-        self::assertSame($secret, $after->signingSecret());
-    }
-
-    // ---- The four connection panel states ----
-
-    public function testPanelWhenNotConnected(): void
-    {
-        $body = (string) $this->get($this->makeApp($this->env()), '/plex')->getBody();
-
-        self::assertStringContainsString('Plex is not connected', $body);
-        self::assertStringContainsString('Sign in to Plex', $body);
-        self::assertStringNotContainsString('Signed in to Plex.', $body);
-    }
-
-    public function testPanelWhenSignedIn(): void
-    {
-        $body = (string) $this->get($this->signedInApp('stored-token'), '/plex')->getBody();
-
-        self::assertStringContainsString('Connected to Anansi', $body);
-        self::assertStringContainsString('Signed in to Plex.', $body);
-        self::assertStringContainsString('Sign out of Plex', $body);
-    }
-
-    public function testPanelWhenUsingTheEnvironmentVariable(): void
-    {
-        $body = (string) $this->get(
-            $this->connectedApp(['PLEX_TOKEN' => 'from-environment']),
-            '/plex',
-        )->getBody();
-
-        self::assertStringContainsString('Connected to Anansi', $body);
-        self::assertStringContainsString('Using <code>PLEX_TOKEN</code>', $body);
-        self::assertStringContainsString('Sign in to Plex instead', $body);
-        self::assertStringNotContainsString('not in use', $body);
-    }
-
-    public function testPanelWhenSignedInButOverriddenByTheEnvironment(): void
-    {
-        $app = $this->signedInApp('stored-token', ['PLEX_TOKEN' => 'from-environment']);
-
-        $body = (string) $this->get($app, '/plex')->getBody();
-
-        // The state that must never be reported as a plain "signed in".
-        self::assertStringContainsString('stored but not in use', $body);
-        self::assertStringContainsString('takes precedence', $body);
-        self::assertStringContainsString('Remove <code>PLEX_TOKEN</code>', $body);
-    }
-
-    public function testPanelFallsBackWhenTheServerNameIsUnavailable(): void
-    {
-        $app = $this->signedInApp('stored-token', [], $this->namelessClient());
-
-        $body = (string) $this->get($app, '/plex')->getBody();
-
-        self::assertStringContainsString('Connected to Plex', $body);
-        self::assertStringContainsString('Signed in to Plex.', $body);
-    }
-
-    public function testPanelLinksToTheComparisonDocumentation(): void
-    {
-        $body = (string) $this->get($this->makeApp($this->env()), '/plex')->getBody();
-
-        self::assertStringContainsString('docs/plex-connection.md', $body);
-        self::assertStringContainsString("What's the difference?", $body);
-    }
-
-    // ---- The app-wide status line ----
-
-    public function testStatusLineAppearsOnAnAuthenticatedPage(): void
-    {
-        $app = $this->signedInApp('stored-token');
-        // The panel is what refreshes the cached name the status line reports.
-        $this->get($app, '/plex');
-
-        $body = (string) $this->get($app, '/library/all')->getBody();
-
-        self::assertStringContainsString('Plex: Anansi (signed in)', $body);
-    }
-
-    public function testStatusLineNamesTheEnvironmentSource(): void
-    {
-        $app = $this->connectedApp(['PLEX_TOKEN' => 'from-environment']);
-        $this->get($app, '/plex');
-
-        $body = (string) $this->get($app, '/library/all')->getBody();
-
-        self::assertStringContainsString('Plex: Anansi (PLEX_TOKEN)', $body);
-    }
-
-    public function testStatusLineReportsNotConnected(): void
-    {
-        $body = (string) $this->get($this->makeApp($this->env()), '/library/all')->getBody();
-
-        self::assertStringContainsString('Plex: not connected', $body);
-    }
-
-    public function testStatusLineIsAbsentFromThePosterWall(): void
-    {
-        $app = $this->signedInApp('stored-token');
-        $this->get($app, '/plex');
-
-        $body = (string) $this->get($app, '/wall')->getBody();
-
-        self::assertStringNotContainsString('Plex: Anansi', $body);
-        self::assertStringNotContainsString('footer__plex', $body);
-    }
-
-    public function testAnUnreachablePlexDoesNotStopPagesRendering(): void
-    {
-        // Configured, but the server never answers — the case a health check on
-        // every page render would stall for the connect timeout.
-        $app = $this->signedInApp('stored-token', [], $this->namelessClient());
-
-        $response = $this->get($app, '/library/all');
-
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Plex:', (string) $response->getBody());
     }
 
     /**
@@ -282,41 +325,16 @@ final class PlexConnectionTest extends AppTestCase
     }
 
     /**
-     * An app whose Plex server address is set, so a token is all that is
-     * missing.
-     *
-     * @param array<string, string> $extra
-     *
      * @return App<\Psr\Container\ContainerInterface|null>
      */
-    private function connectedApp(array $extra = [], ?PlexClient $client = null): App
+    private function connectedApp(?PlexClient $client = null): App
     {
         $client ??= new FakePlexClient();
 
-        return $this->makeApp(
-            $this->env(array_merge(['PLEX_SERVER_URL' => 'http://plex:32400'], $extra)),
+        return $this->makeConnectedApp(
+            $this->env(),
             [PlexClient::class => static fn (): PlexClient => $client],
         );
-    }
-
-    /**
-     * The same, with a token already stored.
-     *
-     * The token is written after the app is built, because building one clears
-     * any stored connection so that tests cannot leak one into each other. The
-     * configuration is resolved lazily on the first request, so a token written
-     * here is still the one the request sees.
-     *
-     * @param array<string, string> $extra
-     *
-     * @return App<\Psr\Container\ContainerInterface|null>
-     */
-    private function signedInApp(string $token, array $extra = [], ?PlexClient $client = null): App
-    {
-        $app = $this->connectedApp($extra, $client);
-        $this->store()->storeToken($token);
-
-        return $app;
     }
 
     /**
@@ -326,10 +344,5 @@ final class PlexConnectionTest extends AppTestCase
     private function namelessClient(): FakePlexClient
     {
         return new FakePlexClient([], [], [], [], [], true, [], [], [], null);
-    }
-
-    private function store(): PlexConnectionStore
-    {
-        return new PlexConnectionStore($this->dataDir);
     }
 }

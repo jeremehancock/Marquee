@@ -1,249 +1,221 @@
 ## Context
 
-Marquee reaches Plex with a token supplied as `PLEX_TOKEN`. `PlexConfig::fromEnv()`
-reads it once at bootstrap, `HttpPlexClient` sends it as `X-Plex-Token`, and
-`templates/plex.html.twig` tells an unconfigured user to set the variable and
-restart the container.
+Marquee reaches Plex with a token supplied as `PLEX_TOKEN`. `PlexConfig` reads
+it once at bootstrap, `HttpPlexClient` sends it as `X-Plex-Token`, and an
+unconfigured user is told to set the variable and restart the container.
 
-Three properties of the current system shape this design, all confirmed against
-the running image rather than assumed:
+A first cut of this change added signing in *alongside* `PLEX_TOKEN`, with the
+variable taking precedence. Testing the built image showed the cost of that
+choice: two ways to connect meant four connection states, a status line that had
+to explain which one was live, and a "signed in but not in use" state that
+existed only to stop the interface lying. None of that complexity served a user
+who just wants Marquee talking to their server. Marquee is in alpha, so the
+simpler design — one way in — is worth a one-time break.
+
+Three properties of the running system shape the rest, all confirmed against the
+built image rather than assumed:
 
 - **The scheduled import has no session.** `bin/auto-import.php` is a separate
   PHP CLI process started by busybox cron. It builds its own container with no
   HTTP request behind it, so any credential it needs must be readable from disk.
 - **Cron crosses no privilege boundary.** `crond` runs jobs as `abc`, the same
-  user as the php-fpm pool (`user = abc` in `www.conf`) and the owner of
-  `/config`. A file readable by the web app is readable by cron and vice versa.
-- **The environment already reaches cron by inheritance.** `svc-cron/run` is a
-  `with-contenv` script, so `crond` and its children inherit the container
-  environment directly. `docker-env.sh` contributes nothing to this and its
-  `PLEX_`/`AUTO_IMPORT_` patterns match nothing, which is harmless and out of
-  scope here.
+  user as the php-fpm pool and the owner of `/config`. A file readable by the
+  web process is readable by cron.
+- **The environment already reaches cron by inheritance**, so nothing about
+  removing `PLEX_TOKEN` disturbs how the remaining variables get there.
 
-The application also has a latent coupling: `bootstrap.php:93` uses the Plex
-token as the HMAC secret for poster-wall now-playing tokens. That is safe while
-the token is a boot-time constant and stops being safe once it becomes mutable
-user state.
+The application also has a latent coupling: the poster wall signs its
+now-playing tokens with the Plex token, which is safe only while that token is a
+boot-time constant.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Obtain a Plex token by signing in to Plex from within the application
-- Break nothing for anyone currently setting `PLEX_TOKEN`, with no migration
+- Exactly one way to connect Marquee to Plex
+- Make connecting the first thing a new install asks for, not something to find
 - Keep the scheduled auto-import working with a token obtained by signing in
-- Make the active connection legible wherever a user acts on Plex
-- Give Plex failures a remedy that matches how the connection was made
-- Add no new security exposure relative to a token in `docker-compose.yml`
+- Explain themselves to users disconnected by the upgrade
+- Give Plex failures a remedy that still exists
 
 **Non-Goals:**
 
-- Replacing Marquee's own username and password login. `AUTH_USERNAME`,
-  `AUTH_PASSWORD`, `AUTH_BYPASS`, and sessions are untouched. Signing in to Plex
-  is an action taken by an already-authenticated user.
-- Server discovery or a server picker. `PLEX_SERVER_URL` stays a manual setting.
-- Deprecating or removing `PLEX_TOKEN`.
+- Replacing Marquee's own username and password login. Signing in to Plex is an
+  action an already-authenticated user takes.
+- Server discovery or a picker. `PLEX_SERVER_URL` stays an environment variable.
+- Backwards compatibility with `PLEX_TOKEN`. Removing it is the point.
 - Reporting whether Plex is reachable right now.
-- Supporting Marquee at a URL sub-path, which it does not support today.
 
 ## Decisions
+
+### One credential source, and it is the store
+
+`PLEX_TOKEN` is no longer read as a credential. The token comes from the
+connection store or Marquee is not connected.
+
+Supporting both was tried and rejected on the evidence. Precedence has to be
+explained wherever the connection is described; it produces a state where a
+stored token exists but is inert, which the interface must call out or mislead;
+and it forces every Plex error message to branch on which source is live. The
+variable's remaining argument was automated deployment — real, but not worth
+that surface area for a self-hosted app in alpha whose users configure it once.
+
+The variable is still *read*, for exactly one purpose: if it is set, the
+connection screen says it is no longer used. An upgrade that silently
+disconnects an install and offers no explanation is the worst version of this
+change; one sentence turns it into an instruction.
+
+### A gate, not a hint
+
+A middleware redirects to `/connect` until a token is stored. The gallery,
+import, and orphan detection are unreachable before then.
+
+The alternative — leave the app usable and let each feature fail on its own —
+is what the previous design did, and it buries the one action a new install
+needs behind pages that cannot work yet. A gate states the precondition once.
+
+It sits **after** authentication so an anonymous visitor is asked to log in
+before being asked to connect Plex; the reverse would expose the connection
+screen, and its sign-in action, to anyone who can reach the host.
+
+Exempt: `/connect`, login and logout, `/health`, the manifest, `/assets/`, and
+the **poster wall**. The wall is specified as publicly reachable so it can run
+unattended on a display, and a gate in front of it would break that contract for
+the case where it matters most — a wall left running while someone
+reconfigures Plex.
+
+`PLEX_SERVER_URL` stays in the environment, which the gate has to respect: a
+missing address cannot be fixed by signing in, so the connection screen
+distinguishes the two and says which one is missing. Moving the address into the
+app would mean fetching candidate connections handed back by plex.tv — the one
+genuinely SSRF-shaped surface in this feature — and is deliberately excluded.
+
+### No app-wide connection status
+
+The first cut put the connected server's name and source in the footer and the
+mobile menu. It is removed.
+
+Behind the gate it is invariant: every page a user can reach is one where Plex
+is connected, so a status line saying so carries no information. It was also the
+place the two-source design leaked into every screen, which is what made it read
+as noise. The connected server's name still appears where it is actionable — on
+the connection screen.
+
+Nothing here contacts Plex on page render. That remains deliberate: with a
+ten-second connect timeout, a probe on render would stall every page in the app
+exactly when the server is down.
 
 ### Popup and polling, not a redirect back to Marquee
 
 Plex's PIN flow can either redirect the browser back to a `forwardUrl` or let
-the caller poll for completion. Marquee polls.
+the caller poll. Marquee polls.
 
 The redirect variant requires Marquee to know its own externally reachable URL
-and to trust `X-Forwarded-*` headers to construct it. Marquee has no such code —
-the only `getUri()` call in the codebase reads a path in `AuthMiddleware` — and
-self-hosted deployments behind a reverse proxy are exactly where guessing that
-URL goes wrong. The redirect is also a cross-site top-level navigation back into
-Marquee, which a `SameSite=Strict` session cookie would not survive.
+and to trust `X-Forwarded-*` to build it — which is exactly what a reverse proxy
+makes unguessable — and arrives as a cross-site navigation that a strict session
+cookie would not survive. Polling needs neither.
 
-Polling needs none of that. The browser opens `app.plex.tv` in a new window,
-Marquee's server talks to `plex.tv` directly, and the page polls its own origin.
-No inbound callback ever traverses the proxy.
+Two constraints follow: the Plex window must be opened synchronously inside the
+click handler, because opening it after the request resolves is what popup
+blockers stop; and polling must be short request/response, never long-polling or
+SSE, which proxy buffering and CDN request caps mangle.
 
-Two constraints follow:
+### The token lives in a file, not in SQLite
 
-- The Plex window MUST be opened synchronously inside the click handler.
-  Awaiting the request that creates the authorization code and opening the
-  window afterwards gets blocked as a popup.
-- Polling MUST be short-interval request/response, never long-polling or SSE.
-  `proxy_buffering` and CDN request caps mangle held-open connections. The
-  existing wall poller in `public/assets/wall.js` is the pattern to follow.
-
-### The environment keeps precedence, and nothing is migrated automatically
-
-`PlexConfig` resolves its token from the environment first and the store second.
-
-Precedence this way round means an existing deployment behaves identically, the
-test suite keeps working unchanged (`tests/AppTestCase.php` sets `PLEX_TOKEN`),
-and automated or GitOps deployments retain a non-interactive path. The reverse
-precedence would let an in-app action silently override a deliberately declared
-configuration, which is worse in every scenario.
-
-Copying an existing `PLEX_TOKEN` into the store at boot would make removing the
-variable a single step, and is rejected: it persists a credential the user did
-not ask to persist, and it creates a stale-copy trap where rotating `PLEX_TOKEN`
-leaves an old token waiting to take over.
-
-The cost is a state where a stored token exists but is not in use. That state is
-real and must be surfaced explicitly rather than papered over — see the panel
-below.
-
-### The token lives in a file under the data directory, not in SQLite
-
-`marquee.sqlite` is documented and specified as a pure cache that is safe to
-delete. Putting a credential in it would make deleting it a destructive act and
-would force the recreatable-state invariant to bend further than necessary.
+`marquee.sqlite` is specified as a pure cache that is safe to delete. A
+credential in it would make deleting it destructive.
 
 A separate file under the data directory, written `0600` and owned by `abc`,
-keeps the database a cache, gives the credential its own explicit permissions
-rather than an inherited umask, and is readable by cron for free because cron
-runs as the same user.
+keeps the database a cache, gives the credential explicit permissions rather
+than an inherited umask, and is readable by cron for free. It also holds the
+generated client identifier, so repeated sign-ins present Marquee to Plex as one
+device rather than accumulating entries.
 
-The same file holds the generated client identifier, so repeated sign-ins
-present Marquee to Plex as one device rather than accumulating entries.
+### Server identity is the server's name
 
-### Server identity comes from the Plex server, and it is the server's name
+`GET /` on the Plex server returns both `friendlyName` and `myPlexUsername`, and
+`myPlexUsername` is an email address.
 
-The panel needs something to display. `GET /` on the Plex Media Server returns
-both `friendlyName` and `myPlexUsername`, and `myPlexUsername` is an email
-address.
+The connection screen shows `friendlyName`. It is not personal, which matters
+because this screen is what users screenshot into support threads; it says which
+server is connected, which is the more useful fact for a poster manager; and
+obtaining it at all proves the address and the token work together. Reading it
+from the Plex server rather than plex.tv keeps the display working with no
+internet access.
 
-The panel shows `friendlyName`. It is not personal, which matters because this
-panel is precisely what users screenshot into support threads; it identifies
-which server is connected, which is more operationally useful for a poster
-manager than which account; and obtaining it at all proves the URL and the token
-work together.
+### Plex errors carry a reason; presentation supplies the remedy
 
-Using the Plex server for this — rather than `plex.tv/api/v2/user` — means one
-code path for both connection sources, no divergence between them, and no
-`plex.tv` dependency for anyone who never signs in.
+`PlexException`'s messages embedded the fix ("Check `PLEX_TOKEN`."), which is now
+advice about a variable the application no longer reads.
 
-### Cached status app-wide, and no health check anywhere
-
-The connection status appears with the application's other status information,
-which renders on every authenticated page. It is served from a cached server
-name, refreshed when the connection panel renders.
-
-Contacting Plex on every page render was rejected: `PLEX_CONNECT_TIMEOUT`
-defaults to 10 seconds, so an unreachable Plex server would stall every page for
-up to ten seconds — worst exactly when the user needs the interface to work.
-
-Restricting a live indicator to the import page was also rejected, because Send
-to Plex and Fetch from Plex are gallery actions; an indicator that is accurate
-only on the page where those actions do not happen is worse than none.
-
-The cached name is Plex data and therefore recreatable from Plex, so it belongs
-in SQLite and needs no exception to the persistence invariant. The status is
-text and carries no health claim — no coloured dot, because a dot that is one
-page-load stale asserts something this design deliberately does not check.
-
-### Plex errors carry a reason; the presentation layer supplies the remedy
-
-`PlexException`'s messages currently embed the fix: "Check `PLEX_TOKEN`.",
-"Set `PLEX_SERVER_URL` and `PLEX_TOKEN`." Those become actively misleading for a
-signed-in user, so they have to change regardless of anything else in this
-change.
-
-Passing configuration into the exception would put presentation logic in a value
-object. Instead the exception carries a typed reason — not configured, rejected
-credential, connection failed, item missing, unexpected response — and the
-presentation layer renders the remedy for the source actually in use.
-
-This is also why no health indicator is needed: every entry point that can fail
-already surfaces these errors, so making them source-aware gives the right advice
-at the moment of failure, everywhere, at no runtime cost.
+The exception carries a typed reason and the presentation layer renders the
+remedy. With one credential source the remedy no longer branches, but the
+separation still earns its place: it keeps user-facing copy out of a value
+object, and it is what lets the auto-import log say the same thing the interface
+does.
 
 ### The poster wall gets its own signing secret
 
-`StreamToken` signs the now-playing poster proxy's tokens so it cannot be used
-to fetch arbitrary paths from Plex. Its secret is currently the Plex token.
+`StreamToken` signs the now-playing proxy's tokens so it cannot be used to fetch
+arbitrary paths from Plex. Its secret was the Plex token.
 
-Once the token is mutable, signing in again rotates the secret and invalidates
-tokens already on the wall; and a secret that can be empty makes signatures
-computable by anyone. Neither is reachable today, and both become reachable if
-the coupling is left in place.
-
-A random secret generated once and stored alongside the connection removes the
+Once that token is mutable, signing in again rotates the secret and invalidates
+tokens already on a running wall; and a secret that can be empty makes
+signatures computable by anyone. A random secret generated once removes the
 coupling. No wall behaviour changes, so this is an implementation concern rather
-than a specified one — but it needs a regression test proving that signing in
-again does not break wall tokens.
-
-### No server discovery
-
-Resolving `PLEX_SERVER_URL` automatically from `plex.tv/api/v2/resources` is the
-obvious follow-on and is excluded. It returns candidate connection URIs that
-Marquee would then have to fetch — the one genuinely SSRF-shaped surface in the
-whole feature — and container networking makes probing them unreliable. Keeping
-the server URL manual holds that surface at zero.
+than a specified one — but it needs a regression test.
 
 ## Risks / Trade-offs
 
-- **The credential now enters `/config` backups** → Accepted and documented.
-  Today it lives in `docker-compose.yml`, which people commit to version control
-  and paste into support threads; that is the leak that actually happens. The
-  new file is `0600` and absent from `docker inspect`.
+- **Every existing install is disconnected on upgrade** → Accepted; this is the
+  breaking change. Mitigated by the connection screen detecting a leftover
+  `PLEX_TOKEN` and saying what to do, so the install explains itself instead of
+  looking broken. Called out in the release notes and the README.
 
-- **A stored-but-overridden token can mislead** → The panel names this state
-  explicitly rather than showing a bare "signed in". Without that, a user who
-  removes `PLEX_TOKEN` and restarts could find the stored token belongs to a
-  different account.
+- **Automated and GitOps deployments lose their non-interactive path** → A real
+  loss, accepted knowingly. Such a deployment must now sign in once by hand
+  after first start. If this bites, the answer is a first-run provisioning
+  mechanism, not restoring a second credential source.
 
-- **`AUTH_BYPASS=true` lets any LAN visitor sign in or out** → Documented, not
-  fixed. Bypass already grants deleting every poster; this is consistent with
-  its stated "trusted network only" contract.
+- **The credential lives in `/config` and so enters backups of it** → Documented.
+  Previously it lived in `docker-compose.yml`, which people commit to version
+  control and paste into support threads; the file is `0600` and absent from
+  `docker inspect`.
 
-- **No CSRF protection exists anywhere in the application** → Pre-existing and
-  unchanged by this work, so not a regression. It now guards a credential as
-  well as destructive actions, which strengthens the case for addressing it in
-  its own change.
+- **A gate can strand a user** → The failure mode is `PLEX_SERVER_URL` unset: no
+  amount of signing in helps. The screen must name that case specifically, which
+  is why it is a spec scenario rather than a detail.
 
-- **The cached server name can go stale** → Cosmetic only. Renaming a Plex
-  server leaves the old name in the status until the connection panel is next
-  visited.
-
-- **`plex.tv` becomes an outbound dependency** → Only for the sign-in flow.
-  Deployments that set `PLEX_TOKEN` never contact it, so air-gapped and LAN-only
-  installs are unaffected. Outbound HTTPS is already exercised by the poster
-  source and the update check.
+- **The functional test suite configures Plex through `PLEX_TOKEN`** → Every
+  such test must instead write the connection store, and every authenticated
+  route test must satisfy the gate. Mechanical but broad.
 
 - **Popup blockers** → The likeliest practical failure, and not proxy-related.
-  Mitigated by opening the window inside the click gesture and by offering a
+  Mitigated by opening the window inside the click gesture and offering a
   visible link as a fallback.
 
-## Migration Plan
+## Upgrade Notes
 
-No migration is required and no user action is ever forced. `PLEX_TOKEN` keeps
-working indefinitely.
+There is no migration path and none is offered — the token cannot be moved from
+the environment into the store on the user's behalf without persisting a
+credential they did not ask to persist, and without creating a stale copy that
+would silently outlive a rotation.
 
-Because the environment wins, an existing deployment will never surface the
-sign-in flow on its own — so the panel must offer signing in *while* the
-variable is still set. That gives a zero-downtime opt-in path:
+What an upgrading user sees: Marquee starts, login works as before, and the
+first page redirects to the connection screen, which says `PLEX_TOKEN` is no
+longer used and offers to sign in. After signing in they remove the variable
+from their compose file at leisure; leaving it set changes nothing except that
+the notice keeps appearing.
 
-1. Sign in to Plex from the connection panel. The token is stored but not yet in
-   use.
-2. Remove `PLEX_TOKEN` from `docker-compose.yml`.
-3. Restart. The stored token takes over with no gap.
-
-Refusing to store a token until the variable is removed would invert this and
-leave Plex unconfigured between the restart and the sign-in, during which import
-fails and a scheduled auto-import would skip.
-
-Rollback at any point is putting `PLEX_TOKEN` back and restarting; it wins again
-immediately, whatever is stored.
-
-The in-app update notice cannot carry this explanation — it sets a single string
-of the form "Update available (vX)" with no link or body — so the release notes
-and `docs/plex-connection.md` are the only prose channels, and the panel copy
-must stand on its own.
+Rolling back means returning to the previous image, where `PLEX_TOKEN` still
+works. The stored token is ignored by that version and left in place, so rolling
+forward again needs no repeat sign-in.
 
 ## Open Questions
 
-- Does the service worker in `public/sw.js` cache pages in a way that would
-  serve a stale connection panel after signing in or out? Unverified; check
-  during implementation and add a cache exclusion if so.
 - Confirm the exact `plex.tv` PIN expiry so the client stops polling when the
   authorization request can no longer succeed, rather than on a guessed timeout.
+
+Resolved during implementation: the service worker cannot serve a stale
+connection screen — `public/sw.js` returns early for any path outside
+`/assets/`, so pages and the connection JSON are never cached.

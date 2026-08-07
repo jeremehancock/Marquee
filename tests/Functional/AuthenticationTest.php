@@ -10,7 +10,7 @@ final class AuthenticationTest extends AppTestCase
 {
     public function testValidCredentialsGrantAccess(): void
     {
-        $app = $this->makeApp();
+        $app = $this->makeConnectedApp();
 
         $login = $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
         self::assertSame(302, $login->getStatusCode());
@@ -34,7 +34,7 @@ final class AuthenticationTest extends AppTestCase
 
     public function testLogoutEndsSession(): void
     {
-        $app = $this->makeApp();
+        $app = $this->makeConnectedApp();
 
         $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
         self::assertSame(200, $this->get($app, '/library/movies')->getStatusCode());
@@ -48,7 +48,7 @@ final class AuthenticationTest extends AppTestCase
 
     public function testAuthBypassGrantsAccessWithoutLogin(): void
     {
-        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/library/movies');
+        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/library/movies');
 
         self::assertSame(200, $response->getStatusCode());
     }

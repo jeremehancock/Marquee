@@ -5,12 +5,15 @@ The system SHALL read all configuration from environment variables exactly once
 at bootstrap into immutable, typed configuration objects, applying documented
 defaults when a variable is absent.
 
-The Plex authentication token MAY additionally come from a persisted store
-written by the in-application sign-in flow. When both sources supply a token the
-environment variable SHALL win, so a deployment that sets `PLEX_TOKEN` behaves
-exactly as it did before the store existed. Resolution SHALL still happen once
-at bootstrap into the same immutable configuration object; no other setting
-gains a second source.
+The Plex authentication token is the one exception: it SHALL come from the
+persisted connection store written by signing in to Plex, and SHALL NOT be read
+from the environment. A `PLEX_TOKEN` variable, if present, SHALL NOT be used to
+authenticate to Plex — the system MAY read it only to tell the user it is no
+longer used. Resolution SHALL still happen once at bootstrap into the same
+immutable configuration object; no other setting gains a second source.
+
+The Plex server address remains an environment variable. Signing in supplies a
+credential, never an address.
 
 #### Scenario: Default applied for missing variable
 - **WHEN** an optional environment variable such as `SITE_TITLE` is not set
@@ -26,20 +29,18 @@ gains a second source.
 - **WHEN** a variable expected to be an integer is set to a numeric string
 - **THEN** the configuration exposes it as an integer
 
-#### Scenario: Environment token wins over a stored token
-- **WHEN** `PLEX_TOKEN` is set and a token has also been stored by signing in
-- **THEN** the configuration exposes the environment token
-- **AND** Plex requests are made with the environment token
+#### Scenario: Stored token is the credential
+- **WHEN** a token has been stored by signing in to Plex
+- **THEN** Plex requests are made with the stored token
 
-#### Scenario: Stored token used when the variable is absent
-- **WHEN** `PLEX_TOKEN` is unset or empty and a token has been stored by
-  signing in
-- **THEN** the configuration exposes the stored token
-- **AND** the system reports Plex as configured
+#### Scenario: An environment token is not a credential
+- **WHEN** `PLEX_TOKEN` is set in the environment and no token has been stored
+- **THEN** the system treats Plex as not connected
+- **AND** no Plex request is made with the value of `PLEX_TOKEN`
 
-#### Scenario: Neither source supplies a token
-- **WHEN** `PLEX_TOKEN` is unset and no token has been stored
-- **THEN** the system reports Plex as not configured
+#### Scenario: No token at all
+- **WHEN** no token has been stored
+- **THEN** the system reports Plex as not connected
 
 ### Requirement: Persisted state is recreatable
 Everything Marquee persists SHALL be recreatable from Plex: the poster files
@@ -86,15 +87,15 @@ a safe reset that costs only the cache.
   it is not held in the database
 
 #### Scenario: Losing the stored credential returns to first-run
-- **WHEN** the stored Plex token is removed and no `PLEX_TOKEN` is set
+- **WHEN** the stored Plex token is removed
 - **THEN** the system presents the sign-in prompt rather than an error state
 
 ## ADDED Requirements
 
 ### Requirement: Sign in to Plex from the application
 The system SHALL let an authenticated user obtain a Plex token by signing in to
-Plex from within the application, using Plex's PIN authorization flow, so that
-no token has to be supplied through the environment.
+Plex from within the application, using Plex's PIN authorization flow. This is
+the only way to supply a Plex credential.
 
 The flow SHALL open Plex's own sign-in page in a separate browser window and
 poll for completion, rather than relying on a redirect back to Marquee. Marquee
@@ -109,9 +110,6 @@ The resulting token SHALL be written outside the SQLite database with
 owner-only permissions, and SHALL be readable by the scheduled auto-import
 process, which runs without a browser session.
 
-The system SHALL NOT copy an existing `PLEX_TOKEN` into the store on its own.
-Storing a credential SHALL always be the result of a deliberate sign-in.
-
 #### Scenario: Successful sign-in
 - **WHEN** an authenticated user starts sign-in and approves Marquee in Plex
 - **THEN** the system stores the returned token and reports Plex as connected
@@ -122,29 +120,24 @@ Storing a credential SHALL always be the result of a deliberate sign-in.
 - **THEN** the system stores no token and reports that sign-in did not complete
 - **AND** any previously stored token is left untouched
 
-#### Scenario: Scheduled import uses a stored token
-- **WHEN** a token was obtained by signing in and no `PLEX_TOKEN` is set
+#### Scenario: Scheduled import uses the stored token
+- **WHEN** a token was obtained by signing in
 - **THEN** the scheduled auto-import authenticates to Plex with the stored token
 
 #### Scenario: Signing out
 - **WHEN** an authenticated user signs out of Plex
-- **THEN** the system removes the stored token
-- **AND** Plex is reported as not connected unless `PLEX_TOKEN` supplies one
-
-#### Scenario: An existing environment token is never stored automatically
-- **WHEN** `PLEX_TOKEN` is set and the user has never signed in
-- **THEN** no token is written to the store
+- **THEN** the system removes the stored token and reports Plex as not connected
 
 ### Requirement: The stored Plex token is never disclosed
-The system SHALL NOT render a Plex token — from either source — into any page,
-response body, or log entry. The connection is described by the name of the
-connected server, never by the credential that reached it.
+The system SHALL NOT render a Plex token into any page, response body, or log
+entry. The connection is described by the name of the connected server, never by
+the credential.
 
 An in-progress sign-in SHALL be bound to the session that started it, so that
 one browser session cannot complete or claim an authorization request begun by
 another.
 
-#### Scenario: Token absent from the connection panel
+#### Scenario: Token absent from the connection screen
 - **WHEN** any connection state renders
 - **THEN** the page contains no Plex token
 
@@ -157,92 +150,115 @@ another.
 - **WHEN** a sign-in succeeds or fails
 - **THEN** no log entry contains the token
 
-### Requirement: Plex connection panel
-The system SHALL present a connection panel that states whether Plex is
-connected, names the connected server, and identifies which source supplied the
-token. The panel SHALL replace the previous instruction to set environment
-variables and restart.
+### Requirement: Plex connection screen
+The system SHALL provide a dedicated connection screen, reachable from the
+application's navigation, that reports whether Plex is connected and offers to
+sign in or sign out. It SHALL be the only place the Plex connection is managed;
+no other page SHALL offer to change it.
 
-Because `PLEX_TOKEN` takes precedence, the panel MUST distinguish a stored token
-that is in use from one that is being overridden, so a user is never told they
-are signed in while a different credential is actually serving requests.
+When connected, the screen SHALL name the connected server using the friendly
+name reported by the Plex server itself, and SHALL NOT display the Plex account
+identifier, which is an email address. Where the name cannot be obtained the
+screen SHALL still report that Plex is connected.
 
-The panel SHALL name the connected server using the friendly name reported by
-the Plex server itself, and SHALL NOT display the Plex account identifier, which
-is an email address. Where the name cannot be obtained the panel SHALL still
-report the connection source.
+Because a Plex address cannot be supplied by signing in, the screen SHALL
+distinguish a missing server address from a missing credential and say that the
+address must be set in the environment.
 
-The panel SHALL link to documentation comparing the two connection sources.
+When a `PLEX_TOKEN` variable is present in the environment, the screen SHALL
+state that it is no longer used and that signing in replaces it, so that an
+install disconnected by upgrading explains itself.
 
-#### Scenario: Connected by signing in
-- **WHEN** a stored token is in use
-- **THEN** the panel names the connected server, states that the user is signed
-  in, and offers to sign out
+When authentication is bypassed, the screen SHALL warn that anyone who can reach
+Marquee can change the Plex connection. Bypass now exposes a stored credential
+that can write to the user's Plex library, not merely a gallery of posters, and
+the screen carrying the sign-in and sign-out actions is where that consequence
+is concrete.
 
-#### Scenario: Connected by environment variable
-- **WHEN** `PLEX_TOKEN` supplies the token and no token is stored
-- **THEN** the panel names the connected server, states that `PLEX_TOKEN` is in
-  use, and offers to sign in to Plex
-
-#### Scenario: Signed in but overridden
-- **WHEN** a token is stored and `PLEX_TOKEN` is also set
-- **THEN** the panel states that the stored sign-in is not in use because
-  `PLEX_TOKEN` takes precedence
-- **AND** the panel explains that removing the variable and restarting will
-  activate the sign-in
+#### Scenario: Connected
+- **WHEN** a token is stored and the server address is set
+- **THEN** the screen names the connected server and offers to sign out
 
 #### Scenario: Not connected
-- **WHEN** neither source supplies a token
-- **THEN** the panel reports that Plex is not connected and offers to sign in
+- **WHEN** no token is stored
+- **THEN** the screen reports that Plex is not connected and offers to sign in
 
 #### Scenario: Server name unavailable
 - **WHEN** the connected server's name cannot be read
-- **THEN** the panel still reports the connection source rather than failing
+- **THEN** the screen still reports that Plex is connected rather than failing
 
-### Requirement: Plex connection status is visible app-wide
-The system SHALL report the Plex connection — the connected server's name and
-which source supplied the token — on every authenticated page, so the connection
-is legible from the gallery where posters are sent to and fetched from Plex, and
-not only on the import page.
+#### Scenario: Server address missing
+- **WHEN** no Plex server address is configured
+- **THEN** the screen says the address must be set in the environment
+- **AND** does not present signing in as the remedy
 
-The status SHALL be served from cached information and SHALL NOT contact Plex on
-page render, so a slow or unreachable Plex server never delays a page. It
-therefore reports the configured connection, and SHALL NOT claim that Plex is
-currently reachable.
+#### Scenario: Obsolete environment token explained
+- **WHEN** `PLEX_TOKEN` is set in the environment
+- **THEN** the screen states that it is no longer used and that signing in
+  replaces it
 
-The status SHALL NOT appear on the poster wall, which runs unattended on a
-display and carries no application chrome.
+#### Scenario: Bypassed authentication is called out
+- **WHEN** authentication is bypassed and the connection screen renders
+- **THEN** the screen warns that anyone who can reach Marquee can change the
+  Plex connection
 
-#### Scenario: Status shown alongside other application status
-- **WHEN** an authenticated page renders
-- **THEN** the connected server's name and the connection source appear with the
-  application's other status information
+#### Scenario: No warning when authentication is enforced
+- **WHEN** authentication is enforced and the connection screen renders
+- **THEN** no such warning appears
 
-#### Scenario: Status does not delay a page
-- **WHEN** the Plex server is unreachable
-- **THEN** pages render without waiting on Plex
+### Requirement: A Plex connection is required to use the application
+The system SHALL require a connected Plex server before any route that depends
+on one may be used, redirecting to the connection screen until Plex is
+connected. Connecting is therefore the first thing a new installation asks for.
 
-#### Scenario: Wall carries no status
-- **WHEN** the poster wall renders
-- **THEN** no connection status appears
+This gate SHALL apply after authentication, so a visitor signs in to Marquee
+before being asked to connect Plex.
+
+The connection screen itself, the login and logout routes, the health endpoint,
+the web app manifest, static assets, and the Poster Wall SHALL remain reachable
+while Plex is not connected. The wall is exempt because it is specified to run
+unattended without anyone signing in; a gate in front of it would break that.
+
+#### Scenario: Gallery is unreachable until Plex is connected
+- **WHEN** an authenticated user requests the gallery while Plex is not
+  connected
+- **THEN** the system redirects to the connection screen
+
+#### Scenario: Connecting releases the gate
+- **WHEN** a user signs in to Plex successfully
+- **THEN** the previously gated routes are served normally
+
+#### Scenario: Authentication comes first
+- **WHEN** an unauthenticated visitor requests a gated route while Plex is not
+  connected
+- **THEN** the system redirects to login rather than to the connection screen
+
+#### Scenario: The wall runs without a Plex connection
+- **WHEN** the poster wall is requested while Plex is not connected
+- **THEN** the system serves it rather than redirecting
+
+#### Scenario: Health stays reachable
+- **WHEN** the health endpoint is requested while Plex is not connected
+- **THEN** the system serves it
 
 ### Requirement: Plex failures name the applicable remedy
-When a Plex request fails, the system SHALL describe the remedy that matches the
-connection source in use. A user who signed in SHALL NOT be advised to check an
-environment variable they have not set.
+When a Plex request fails, the system SHALL describe a remedy the user can act
+on. Because a Plex credential can only come from signing in, a rejected
+credential SHALL direct the user to sign in to Plex again, and no message SHALL
+instruct the user to check an environment variable that is no longer read.
 
 This applies wherever a Plex operation can fail, including sending a poster to
-Plex, fetching one from it, importing, and detecting orphans.
+Plex, fetching one from it, importing, detecting orphans, and the scheduled
+auto-import.
 
-#### Scenario: Rejected credential while signed in
-- **WHEN** Plex rejects the credential and the token came from signing in
+#### Scenario: Rejected credential
+- **WHEN** Plex rejects the credential
 - **THEN** the message advises signing in to Plex again and offers a way to do so
 
-#### Scenario: Rejected credential from the environment
-- **WHEN** Plex rejects the credential and the token came from `PLEX_TOKEN`
-- **THEN** the message advises checking `PLEX_TOKEN`
+#### Scenario: No message names the obsolete variable
+- **WHEN** any Plex failure is reported
+- **THEN** the message does not instruct the user to check `PLEX_TOKEN`
 
-#### Scenario: Not connected at all
-- **WHEN** a Plex operation is attempted while neither source supplies a token
-- **THEN** the message reports that Marquee is not connected to Plex and points
-  to the connection panel
+#### Scenario: Server unreachable
+- **WHEN** the Plex server cannot be reached
+- **THEN** the message names the server address as the thing to check

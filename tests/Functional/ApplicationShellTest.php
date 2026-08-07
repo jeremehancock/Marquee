@@ -47,7 +47,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testSecondaryActionsRenderInTheHeaderOnEveryPageWithNavigation(): void
     {
         // Authenticated rather than bypassed, so Log out is part of the group.
-        $app = $this->makeApp(['AUTH_BYPASS' => 'false']);
+        $app = $this->makeConnectedApp(['AUTH_BYPASS' => 'false']);
         $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
 
         foreach (['/library/movies', '/plex', '/orphans'] as $path) {
@@ -78,7 +78,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testHeaderActionsCarryFullNamesRegardlessOfTheVisibleLabel(): void
     {
         $header = $this->header((string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody());
 
@@ -97,7 +97,7 @@ final class ApplicationShellTest extends AppTestCase
      */
     public function testTheCurrentDestinationIsMarkedAndNotLinked(): void
     {
-        $app = $this->makeApp(['AUTH_BYPASS' => 'true']);
+        $app = $this->makeConnectedApp(['AUTH_BYPASS' => 'true']);
 
         $plex = $this->header((string) $this->get($app, '/plex')->getBody());
         self::assertMatchesRegularExpression(
@@ -122,7 +122,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testTrayKeepsTheFullNamesTheHeaderShortens(): void
     {
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 
@@ -145,7 +145,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testHeaderOmitsLogOutWhenAuthenticationIsBypassed(): void
     {
         $header = $this->header((string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody());
 
@@ -165,7 +165,7 @@ final class ApplicationShellTest extends AppTestCase
 
     public function testUnknownRouteReturnsNotFound(): void
     {
-        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/does-not-exist');
+        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/does-not-exist');
 
         self::assertSame(404, $response->getStatusCode());
     }
@@ -180,7 +180,7 @@ final class ApplicationShellTest extends AppTestCase
 
     public function testGalleryRendersSiteTitleAsTheBrand(): void
     {
-        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/library/movies');
+        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/library/movies');
 
         self::assertSame(200, $response->getStatusCode());
         // Assert the brand link specifically: a bare substring check would also
@@ -202,7 +202,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testMenuTriggerPresentsAnOverflowGlyphRatherThanAHamburger(): void
     {
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 
@@ -241,7 +241,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testViewportLetsTheKeyboardResizeTheLayoutViewport(): void
     {
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 
@@ -259,7 +259,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testBothFootersLinkTheProductNameToTheProjectSite(): void
     {
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 
@@ -287,7 +287,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testBothFootersCreditThePosterProviders(): void
     {
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 
@@ -349,7 +349,7 @@ final class ApplicationShellTest extends AppTestCase
         // template, and the tab icon stops matching the header. Compare the
         // shape geometry of both so that drift fails here instead of shipping.
         $body = (string) $this->get(
-            $this->makeApp(['AUTH_BYPASS' => 'true']),
+            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
             '/library/movies',
         )->getBody();
 

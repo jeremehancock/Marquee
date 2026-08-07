@@ -1,68 +1,71 @@
 ## Why
 
-Getting Marquee talking to Plex currently means hunting down an `X-Plex-Token`
-through a browser dev-tools walkthrough and pasting it into a compose file — the
-first thing a new user has to do, and the thing most likely to stop them. That
-token then lives in `docker-compose.yml`, a file people commit to git and paste
-into support threads.
+Getting Marquee talking to Plex means hunting down an `X-Plex-Token` through a
+browser dev-tools walkthrough and pasting it into a compose file — the first
+thing a new user has to do, and the thing most likely to stop them. That token
+then lives in `docker-compose.yml`, a file people commit to git and paste into
+support threads.
 
-Signing in to Plex from inside the app removes the walkthrough, removes the
-credential from the compose file, and lets a user change Plex accounts without
-editing YAML and restarting a container.
+Signing in to Plex from inside the app removes the walkthrough and removes the
+credential from the compose file. Making it the *only* way in also removes a
+question a new user should never have to answer: which of two ways to connect
+they are supposed to use.
 
 ## What Changes
 
-- **Sign in to Plex from the app.** A connection panel on the Import page runs
+- **Sign in to Plex from the app.** A connection screen at `/connect` runs
   Plex's PIN flow: the user opens Plex's own sign-in page in a popup, approves,
   and Marquee stores the resulting token under `/config`.
-- **`PLEX_TOKEN` keeps working and keeps precedence.** Nothing breaks, nothing
-  needs migrating, and no one is asked to change anything. The variable stays a
-  supported option for automated and GitOps deployments — it is not deprecated.
-  This is not a breaking change.
-- **The connection is visible.** The panel names the connected server and states
-  which of the two sources is in use, so a user who has signed in while
-  `PLEX_TOKEN` is still set can see that the variable is winning.
-- **Plex status app-wide.** The footer and mobile actions tray report the
-  connected server and mode on every page, so the connection is legible from the
-  gallery where Send and Fetch happen — not only on the Import page.
-- **Plex error messages stop naming the wrong fix.** Today every Plex failure
-  advises checking `PLEX_TOKEN`, which is useless advice for a signed-in user.
-  Errors become aware of which source is in use and offer the matching remedy.
+- **BREAKING: `PLEX_TOKEN` is no longer read as a credential.** Signing in is
+  the only way to connect. An existing install that sets `PLEX_TOKEN` will be
+  disconnected on upgrade and must sign in once. Marquee is in alpha, and one
+  way to connect is worth the one-time interruption.
+- **BREAKING: Marquee is unusable until Plex is connected.** A gate stands in
+  front of the gallery, import, and orphan detection, redirecting to `/connect`
+  until a token is stored. Connecting is the first thing a new install asks for
+  rather than something to discover.
+- **Upgrading users are told what happened.** When `PLEX_TOKEN` is still set in
+  the environment, the connection screen says it is no longer used and to sign
+  in instead — so a disconnected install explains itself rather than looking
+  broken.
+- **Plex error messages stop naming a variable that no longer exists.** Every
+  Plex failure currently advises checking `PLEX_TOKEN`. They now point at
+  signing in again.
 - **The poster wall stops borrowing the Plex token as a signing key.** It gets
   its own generated secret, so signing in again no longer rotates it.
 
-Not included, deliberately: no server discovery or server picker
-(`PLEX_SERVER_URL` stays a manual setting), no automatic migration of an
-existing `PLEX_TOKEN` onto disk, and no change to Marquee's own username and
-password login.
+Deliberately excluded: no server discovery or server picker — `PLEX_SERVER_URL`
+is still set through the environment, and the connection screen says so when it
+is missing, because signing in cannot supply an address. Marquee's own username
+and password login is untouched; signing in to Plex is something an
+already-authenticated user does.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. This extends where existing configuration comes from and how it is
-presented; it does not introduce a new area of behavior.
+None. This changes where the Plex credential comes from and what the
+application requires before it will run; it does not introduce a new area of
+behavior.
 
 ### Modified Capabilities
 
-- `application-shell`: Configuration may now come from a persisted store as well
-  as the environment, with the environment taking precedence. The
-  recreatable-state invariant gains a carve-out for connection credentials.
-  Adds the Plex sign-in flow, the connection panel, and the app-wide connection
-  status readout.
+- `application-shell`: The Plex token comes from a persisted store rather than
+  the environment. The recreatable-state invariant gains a carve-out for
+  connection credentials. Adds the sign-in flow, the connection screen, and a
+  gate that makes a Plex connection a precondition for using the application.
 
 ## Impact
 
 **Code**
 
-- `src/Config/PlexConfig.php` — resolves the token from environment or store
-- `src/Plex/` — new sign-in service, PIN client, token store, server identity
+- `src/Config/PlexConfig.php` — token resolved from the store, not the environment
+- `src/Plex/Connection/` — sign-in service, PIN client, token store, connection state
 - `src/Plex/PlexException.php` — typed reasons; remedy copy moves to presentation
-- `src/Controller/` — new connection controller; `GalleryController` status data
-- `src/Routes.php`, `src/bootstrap.php` — new routes; `StreamToken` secret
-- `templates/plex.html.twig` — connection panel replaces the "not configured"
-  notice; `templates/layout.html.twig` — footer/tray status
-- `public/assets/app.js` — popup + poll, status rendering
+- `src/Auth/` — new middleware gating on the Plex connection
+- `src/Controller/PlexConnectionController.php` — the `/connect` screen and its actions
+- `src/Routes.php`, `src/bootstrap.php` — new routes, middleware, `StreamToken` secret
+- `templates/connect.html.twig`, navigation — the connection screen and its entry
 
 **Persistence**
 
@@ -72,15 +75,21 @@ presented; it does not introduce a new area of behavior.
 
 **Docs**
 
-- New `docs/plex-connection.md` comparing the two connection modes
-- `README.md` — compose example and environment table
+- `README.md` — compose example, environment table, and a connection section
+  covering signing in and the upgrade note
+
+**Tests**
+
+- The functional suite configures Plex through `PLEX_TOKEN` today. That default
+  goes away; tests that need a connected Plex write the connection store, and
+  every authenticated-route test must now satisfy the gate.
 
 **External**
 
-- New outbound dependency on `plex.tv` for the sign-in flow only. Deployments
-  that set `PLEX_TOKEN` never contact it.
+- New outbound dependency on `plex.tv`, used only while signing in.
 
 **Not affected**
 
-- Authentication, import, export, poster editing, orphan detection, and the
-  scheduled auto-import all keep their current behavior.
+- Marquee's own authentication, importing, exporting, poster editing, orphan
+  detection, and the scheduled auto-import all keep their current behavior. The
+  poster wall stays publicly reachable and ungated.

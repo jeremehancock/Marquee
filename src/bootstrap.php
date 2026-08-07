@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Auth\AuthMiddleware;
+use App\Auth\PlexConnectionMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
@@ -13,8 +14,6 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
 use App\Database\Database;
-use App\Plex\Connection\PlexConnectionState;
-use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
@@ -135,7 +134,7 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth, PlexConnectionStatus $plex): Twig {
+        Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
@@ -143,15 +142,6 @@ function buildContainer(array $overrides = []): Container
             $twig->getEnvironment()->addGlobal('app_name', AppConfig::APP_NAME);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
             $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
-
-            // The Plex connection, for the app-wide status line. A function
-            // rather than a global so only the templates that ask pay for the
-            // lookup — the poster wall never does. It reads cached data and
-            // never contacts Plex, so it cannot delay a page.
-            $twig->getEnvironment()->addFunction(new TwigFunction(
-                'plex_connection',
-                static fn (): PlexConnectionState => $plex->current(),
-            ));
 
             // Cache-busting asset URLs: append the file's mtime so a changed
             // stylesheet or script is a new URL that defeats every cache layer.
@@ -195,10 +185,19 @@ function createApp(?Container $container = null): App
     $logger = $container->get(LoggerInterface::class);
     /** @var AuthMiddleware $authMiddleware */
     $authMiddleware = $container->get(AuthMiddleware::class);
+    /** @var PlexConnectionMiddleware $plexMiddleware */
+    $plexMiddleware = $container->get(PlexConnectionMiddleware::class);
 
     // Middleware executes outermost-first (last added runs first): errors wrap
-    // routing, which wraps auth, which wraps body parsing and the handler.
+    // routing, which wraps auth, which wraps the Plex gate, which wraps body
+    // parsing and the handler.
+    //
+    // Auth outside the gate is deliberate: an anonymous visitor is sent to log
+    // in before being asked to connect Plex. The other order would expose the
+    // connection screen, and its sign-in action, to anyone who can reach the
+    // host.
     $app->addBodyParsingMiddleware();
+    $app->add($plexMiddleware);
     $app->add($authMiddleware);
     $app->addRoutingMiddleware();
     $app->addErrorMiddleware($config->displayErrors, true, true, $logger);

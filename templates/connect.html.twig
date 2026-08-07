@@ -1,0 +1,101 @@
+{% extends 'layout.html.twig' %}
+
+{# Suppresses the header's own link, which would point at this page. #}
+{% set nav_current = 'connect' %}
+
+{% block title %}Plex Connection · {{ site_title }}{% endblock %}
+
+{% block content %}
+    <h1>Plex Connection</h1>
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    {#
+        Two states — connected or not — because there is one way to connect.
+        What still has to be told apart is why it is not connected: a missing
+        credential is fixed by signing in, a missing server address is not, and
+        offering the wrong remedy leaves the user stuck behind the gate.
+    #}
+    <div class="panel plex-connection" x-data="plexConnection()">
+        {% if connection.isConnected %}
+            <p class="plex-connection__server">
+                <strong>Connected to {{ connection.serverName ?? 'Plex' }}</strong>
+            </p>
+            <p class="stats">
+                Marquee is signed in to Plex. Your poster library and imports use
+                this connection.
+            </p>
+            <form method="post" action="/plex/connection/sign-out">
+                <button type="submit" class="btn btn--danger">Sign out of Plex</button>
+            </form>
+        {% elseif connection.needsServerUrl %}
+            <p><strong>Plex is not connected.</strong></p>
+            <p class="stats">
+                Marquee needs your Plex server's address. Set
+                <code>PLEX_SERVER_URL</code> in your compose file and run
+                <code>docker compose up -d</code> — signing in cannot supply an
+                address.
+            </p>
+        {% else %}
+            <p><strong>Plex is not connected.</strong></p>
+            <p class="stats">
+                Sign in to Plex so Marquee can import your posters and send your
+                changes back. A Plex window will open for you to approve.
+            </p>
+            <button type="button" class="btn btn--accent"
+                    @click="signIn()" x-bind:disabled="busy"
+                    x-text="busy ? 'Waiting for Plex…' : 'Sign in to Plex'">Sign in to Plex</button>
+        {% endif %}
+
+        {# Shown only when the popup was blocked, so the flow still completes. #}
+        <p class="plex-connection__fallback stats" x-show="fallbackUrl" x-cloak>
+            Your browser blocked the Plex window.
+            <a x-bind:href="fallbackUrl" target="_blank" rel="noopener">Open Plex sign-in</a>
+        </p>
+
+        <p class="alert plex-connection__message" role="alert"
+           x-show="message" x-cloak x-text="message"></p>
+    </div>
+
+    {# With login disabled, this screen — and its sign-in and sign-out buttons —
+       are reachable by anyone who can reach the host. That was worth saying when
+       bypass exposed a gallery of posters; it is worth saying plainly now that
+       Marquee holds a credential that can write to the user's Plex library. #}
+    {% if auth_bypass %}
+        <div class="alert plex-connection__obsolete" role="status">
+            <p><strong>Login is disabled (<code>AUTH_BYPASS</code>).</strong>
+               Anyone who can reach Marquee can sign this install in or out of
+               Plex, and use the stored connection to change your library's
+               artwork.</p>
+            <p>Only leave it disabled on a network you fully trust.</p>
+        </div>
+    {% endif %}
+
+    {# An install upgraded from a version that read PLEX_TOKEN arrives here
+       disconnected and with no idea why. This is the sentence that explains it.
+
+       The instruction has to name recreating the container, not just editing the
+       file: the environment is read once when the container starts, so deleting
+       the variable and restarting leaves it exactly as it was — which is the
+       first thing anyone tries. #}
+    {% if connection.hasObsoleteEnvToken %}
+        <div class="alert alert--warning plex-connection__obsolete" role="status">
+            <p><strong><code>PLEX_TOKEN</code> is no longer used.</strong>
+               Marquee connects by signing in to Plex, so the token in your
+               environment is ignored.</p>
+            {% if connection.isConnected %}
+                <p>You are connected, so it is safe to remove. Delete
+                   <code>PLEX_TOKEN</code> from your compose file and run
+                   <code>docker compose up -d</code>.</p>
+            {% else %}
+                <p>Sign in above, then delete <code>PLEX_TOKEN</code> from your
+                   compose file and run <code>docker compose up -d</code>.</p>
+            {% endif %}
+            <p><strong>Recreating the container is what clears this notice</strong>
+               — <code>docker compose restart</code> is not enough, because the
+               environment is only read when the container starts.</p>
+        </div>
+    {% endif %}
+{% endblock %}

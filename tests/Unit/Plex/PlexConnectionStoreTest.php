@@ -88,6 +88,23 @@ final class PlexConnectionStoreTest extends TestCase
         self::assertSame($secret, $reloaded->signingSecret());
     }
 
+    public function testAWriteDoesNotClobberAnotherInstancesKeys(): void
+    {
+        // The web process and the scheduled import each hold their own store.
+        // A write must change one key, not replay a whole stale snapshot.
+        $first = $this->store();
+        $first->storeToken('a-token');
+
+        $second = $this->store();
+        $secret = $second->signingSecret();
+
+        // $first loaded before $second generated the secret.
+        $first->clearToken();
+
+        self::assertSame($secret, $this->store()->signingSecret());
+        self::assertNull($this->store()->token());
+    }
+
     public function testFileIsOwnerOnly(): void
     {
         $this->store()->storeToken('plex-token');

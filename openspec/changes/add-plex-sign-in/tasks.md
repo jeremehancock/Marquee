@@ -15,19 +15,21 @@
       malformed-file tolerance, and that clearing the token leaves the client
       identifier and signing secret intact
 
-## 2. Configuration resolution
+## 2. One credential source
 
-- [x] 2.1 Replace `PlexConfig::fromEnv()` with a resolver that takes the
-      environment and the store, with `PLEX_TOKEN` winning when both supply one
-- [x] 2.2 Expose the connection source on `PlexConfig` (environment, stored, or
-      none) so presentation can distinguish them without re-reading the store
-- [x] 2.3 Wire the resolver into `buildContainer()` in `src/bootstrap.php`,
-      keeping resolution to exactly once at bootstrap
-- [x] 2.4 Confirm `bin/auto-import.php` resolves a stored token through the same
+- [x] 2.1 Resolve the Plex token from the store in `PlexConfig`
+- [x] 2.2 Wire the resolver into `buildContainer()`, keeping resolution to
+      exactly once at bootstrap
+- [x] 2.3 Confirm `bin/auto-import.php` resolves a stored token through the same
       container definition with no session present
-- [x] 2.5 Unit-test resolution: environment wins over stored, stored used when
-      the variable is unset or empty, neither means not configured, and the
-      reported source matches in each case
+- [x] 2.4 Stop reading `PLEX_TOKEN` as a credential — remove the precedence
+      branch so the store is the only source
+- [x] 2.5 Collapse `PlexTokenSource` now that there is one source: keep only
+      what distinguishes connected from not connected, and delete the rest
+- [x] 2.6 Expose whether a `PLEX_TOKEN` is present in the environment, used
+      solely to drive the obsolete-variable notice — never as a credential
+- [x] 2.7 Update the resolution unit tests: the stored token is used, an
+      environment token is ignored, neither means not connected
 
 ## 3. Poster wall signing secret
 
@@ -61,102 +63,123 @@
 - [x] 5.1 Add a `PlexClient` method reading the server's `friendlyName` from
       `GET /`, returning null when it cannot be obtained
 - [x] 5.2 Cache the friendly name in SQLite via a migration in
-      `src/Database/Database.php`, refreshed when the connection panel renders
+      `src/Database/Database.php`, refreshed when the connection screen renders
 - [x] 5.3 Never read or surface `myPlexUsername`
 - [x] 5.4 Unit-test parsing a real-shaped `MediaContainer` response, a response
       without the attribute, and a failed request
 
-## 6. Routes and controller
+## 6. The connection screen
 
 - [x] 6.1 Add a connection controller with start, poll, and sign-out actions
-- [x] 6.2 Register the routes in `src/Routes.php` behind the existing
-      `AuthMiddleware`, adding no public routes
-- [x] 6.3 Return the connection state — source, server name, sign-in progress —
-      as JSON containing no token
-- [x] 6.4 Functional-test that the routes require authentication, that the
-      responses never contain a token, and that sign-out clears only the token
+- [x] 6.2 Register the routes behind the existing `AuthMiddleware`, adding no
+      public routes
+- [x] 6.3 Return the connection state as JSON containing no token
+- [x] 6.4 Move the screen to its own `GET /connect` route with its own template,
+      and give it an entry in the desktop navigation and the mobile actions menu
+- [x] 6.5 Remove the connection panel from `templates/plex.html.twig` so the
+      import page is only about importing
+- [x] 6.6 Collapse the four panel states to two — connected, and not connected
+- [x] 6.7 Show the connected server's name, falling back to reporting the
+      connection when the name cannot be read
+- [x] 6.8 When no `PLEX_SERVER_URL` is set, say the address must be set in the
+      environment and do not present signing in as the remedy
+- [x] 6.9 When a `PLEX_TOKEN` is present in the environment, state that it is no
+      longer used and that signing in replaces it
+- [x] 6.10 Drop the "What's the difference?" link — there is one way to connect
+- [x] 6.11 Point the orphans page's not-connected notice at `/connect`
+- [x] 6.12 Functional-test the screen: connected, not connected, missing address,
+      obsolete variable present, and that no response carries a token
+- [x] 6.13 Warn on the connection screen when `AUTH_BYPASS` is enabled: bypass
+      now exposes a credential that can write to the user's Plex library
 
-## 7. Connection panel
+## 7. The connection gate
 
-- [x] 7.1 Replace the "Plex is not configured yet" panel in
-      `templates/plex.html.twig` with the connection panel
-- [x] 7.2 Render all four states: stored token in use; `PLEX_TOKEN` in use;
-      stored but overridden by `PLEX_TOKEN`; not connected
-- [x] 7.3 State plainly in the overridden case that the sign-in is not in use and
-      that removing the variable and restarting activates it
-- [x] 7.4 Fall back to reporting the source alone when the server name is absent
-- [x] 7.5 Link to `docs/plex-connection.md` as "What's the difference?"
-- [x] 7.6 Turn the orphans page's "Plex must be configured" notice into a link to
-      the connection panel
-- [x] 7.7 Functional-test each of the four states end to end
+- [x] 7.1 Add middleware that redirects to `/connect` when no Plex token is
+      stored
+- [x] 7.2 Run it after authentication, so an unauthenticated visitor is sent to
+      login rather than to the connection screen
+- [x] 7.3 Exempt `/connect` and its actions, login, logout, `/health`, the
+      manifest, `/assets/`, and the Poster Wall and its endpoints
+- [x] 7.4 Register it in `createApp()` in the correct order relative to the
+      existing middleware stack
+- [x] 7.5 Functional-test the gate: the gallery redirects while disconnected,
+      connecting releases it, the wall and health stay reachable, and an
+      unauthenticated request goes to login first
 
 ## 8. Browser flow
 
 - [x] 8.1 Open the Plex window synchronously inside the click handler and set its
       location once the authorization request returns, so popup blockers do not
       fire
+- [x] 8.5 Open it as a sized, centred popup rather than a full tab, reusing one
+      named window, and close it when sign-in completes
 - [x] 8.2 Offer a visible link as a fallback when the window cannot be opened
-- [x] 8.3 Short-poll the status route on a fixed interval, following the pattern
-      in `public/assets/wall.js`; no long-polling and no SSE
+- [x] 8.3 Short-poll the status route on a fixed interval; no long-polling, no SSE
 - [x] 8.4 Stop polling on success, on expiry, and on a bounded overall timeout,
-      reporting the outcome in the panel
+      reporting the outcome in the screen
 
-## 9. App-wide connection status
+## 9. Remove the app-wide status
 
-- [x] 9.1 Render the connected server name and connection source with the
-      application's other status information in the shared layout, covering both
-      the desktop footer and the mobile actions tray
-- [x] 9.2 Source it from cached data only, contacting Plex on no page render
-- [x] 9.3 Keep it text — no coloured indicator and no claim of reachability
-- [x] 9.4 Exclude it from the poster wall template
-- [x] 9.5 Functional-test that the status appears on an authenticated page, is
-      absent from the wall, and that an unreachable Plex does not delay a render
+- [x] 9.1 Remove the `plex_connection()` Twig function and the
+      `PlexConnectionStatus` dependency from the Twig factory in `bootstrap.php`
+- [x] 9.2 Remove the status markup from `templates/layout.html.twig` and
+      `templates/partials/_menu.html.twig`
+- [x] 9.3 Remove the now-unused summary helper from the connection state
+- [x] 9.4 Delete the app-wide status functional tests
 
 ## 10. Plex failure messages
 
 - [x] 10.1 Give `PlexException` a typed reason and stop embedding remedies in its
       messages
-- [x] 10.2 Render the remedy in the presentation layer from the reason and the
-      active connection source
-- [x] 10.3 Advise signing in again on a rejected credential from a stored token,
-      and checking `PLEX_TOKEN` on a rejected environment token
-- [x] 10.4 Update every call site that surfaces a `PlexException` — import,
-      export, poster editing, orphan detection
-- [x] 10.5 Unit-test that each reason and source pair produces the matching
-      remedy, and that no message names `PLEX_TOKEN` while a stored token is in
-      use
+- [x] 10.2 Render the remedy in the presentation layer from the reason
+- [x] 10.3 Update every call site that surfaces a `PlexException` — import,
+      export, poster editing, orphan detection, and the auto-import CLI
+- [x] 10.4 Simplify the remedies now there is one source: a rejected credential
+      always advises signing in to Plex again
+- [x] 10.5 Update the unit tests so no message names `PLEX_TOKEN`
 
-## 11. Documentation
+## 11. Test suite
 
-- [x] 11.1 Write `docs/plex-connection.md` comparing the two connection sources:
-      where the token is stored, who manages it, how to change it, whether it
-      survives losing `/config`, whether it appears in `docker inspect`, which
-      suits automated deployment, and that `PLEX_TOKEN` always wins
-- [x] 11.2 Document the zero-downtime opt-in order: sign in, remove the variable,
-      restart
-- [x] 11.3 Note that the token now lives in `/config` and so enters backups of it
-- [x] 11.4 Note that `AUTH_BYPASS=true` lets anyone reaching Marquee sign in or
-      out, consistent with its trusted-network contract
-- [x] 11.5 Remove `PLEX_TOKEN` from the `docker-compose.yml` example in
-      `README.md`, keep `PLEX_SERVER_URL`, and point new users at signing in
-- [x] 11.6 Reword `PLEX_TOKEN` in the README environment table as optional,
-      overriding in-app sign-in, and suited to automated deployment — not
-      deprecated
-- [x] 11.7 Check whether `CLAUDE.md` or other `docs/` pages describe Plex
-      configuration as environment-only and correct them, or record explicitly
-      that none needed changing
+- [x] 11.1 Remove `PLEX_TOKEN` from the `AppTestCase` environment defaults
+- [x] 11.2 Give `AppTestCase` a way to start an app with Plex connected, writing
+      the connection store the way `PlexConnectionTest` already does
+- [x] 11.3 Update every functional test that relied on `PLEX_TOKEN` to configure
+      Plex, and every authenticated-route test that must now pass the gate
+- [x] 11.4 Confirm the whole suite passes with no test depending on an
+      environment token
 
-## 12. Verification
+## 12. Documentation
 
-- [x] 12.1 Check whether `public/sw.js` would serve a stale connection panel and
-      exclude it from caching if so — verified it cannot: the fetch handler
-      returns early for anything outside `/assets/`, so pages and the connection
-      JSON are never cached. No change needed.
-- [x] 12.2 Confirm an existing deployment with `PLEX_TOKEN` set behaves exactly
-      as before, including a scheduled auto-import run
-- [x] 12.3 Build the image locally and smoke-test `/health` per `docs/docker.md`
-- [x] 12.4 Verify the stored token file is `0600` and owned by `abc` in the
+- [x] 12.1 Delete `docs/plex-connection.md` — it compares two options and there
+      is one
+- [x] 12.2 Rewrite the README's Plex connection section: sign in from the app,
+      what the gate means for a new install, and that the token lives in
+      `/config` at `0600` and so enters backups of it
+- [x] 12.3 Add an upgrade note to the README: `PLEX_TOKEN` is no longer read,
+      existing installs are disconnected once and must sign in, and the variable
+      can then be deleted from the compose file
+- [x] 12.4 Remove `PLEX_TOKEN` from the README environment table and the compose
+      example, and drop the "Finding your Plex token" walkthrough
+- [x] 12.5 Update the Features list and Security considerations for one
+      connection method
+- [x] 12.9 Harden the `AUTH_BYPASS` wording in the compose example, the
+      environment table, and Security considerations — it now hands over a
+      stored Plex credential, not just a poster gallery
+- [x] 12.6 Remove the `docs/plex-connection.md` reference from the repo layout in
+      `docs/development-workflow.md`, and its `PLEX_TOKEN` from the dev compose
+      sample
+- [x] 12.7 Reconcile `CLAUDE.md` and `openspec/config.yaml`: the Plex token now
+      comes only from the store, not from the environment
+- [x] 12.8 Update `docs/testing.md` where it tells the reader to set `PLEX_TOKEN`
+      on the container
+
+## 13. Verification
+
+- [x] 13.1 Confirm the upgrade path by hand: start with `PLEX_TOKEN` set and no
+      stored token, and check the gate redirects and the screen explains itself
+- [x] 13.2 Build the image locally and smoke-test `/health` per `docs/docker.md`
+- [x] 13.3 Verify the stored token file is `0600` and owned by `abc` in the
       running container, and that cron reads it
-- [x] 12.5 Run `composer test`, `composer stan`, and `composer cs` and fix every
+- [x] 13.4 Run `composer test`, `composer stan`, and `composer cs` and fix every
       failure
-- [x] 12.6 Run `openspec validate add-plex-sign-in --strict`
+- [x] 13.5 Run `openspec validate add-plex-sign-in --strict`

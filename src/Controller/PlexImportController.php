@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Config\LibraryExclusions;
-use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Import\ImportService;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
@@ -30,7 +29,6 @@ final class PlexImportController
         private readonly Flash $flash,
         private readonly SessionInterface $session,
         private readonly LibraryExclusions $exclusions,
-        private readonly PlexConnectionStatus $connection,
         private readonly PlexFailureMessage $plexMessage,
     ) {
     }
@@ -51,9 +49,6 @@ final class PlexImportController
 
         return $this->twig->render($response, 'plex.html.twig', [
             'configured' => $configured,
-            // This is the page the connection panel lives on, so it is the one
-            // place that asks Plex its name rather than using the cached one.
-            'connection' => $this->connection->refresh(),
             'libraries' => $libraries,
             // The client has already dropped excluded libraries, so an empty
             // list here can mean either "the server has none" or "they are all

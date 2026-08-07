@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Config;
 
 use App\Config\PlexConfig;
-use App\Config\PlexTokenSource;
 use App\Plex\Connection\PlexConnectionStore;
 use PHPUnit\Framework\TestCase;
 
@@ -34,21 +33,7 @@ final class PlexConfigResolutionTest extends TestCase
         @rmdir($this->dir);
     }
 
-    public function testEnvironmentTokenWinsOverAStoredOne(): void
-    {
-        putenv('PLEX_TOKEN=from-environment');
-        $store = new PlexConnectionStore($this->dir);
-        $store->storeToken('from-sign-in');
-
-        $config = PlexConfig::resolve($store);
-
-        self::assertSame('from-environment', $config->token);
-        self::assertSame(PlexTokenSource::Environment, $config->source());
-        self::assertFalse($config->isSignedIn());
-        self::assertTrue($config->isConfigured());
-    }
-
-    public function testStoredTokenIsUsedWhenTheVariableIsUnset(): void
+    public function testTheStoredTokenIsTheCredential(): void
     {
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('from-sign-in');
@@ -56,55 +41,69 @@ final class PlexConfigResolutionTest extends TestCase
         $config = PlexConfig::resolve($store);
 
         self::assertSame('from-sign-in', $config->token);
-        self::assertSame(PlexTokenSource::Stored, $config->source());
-        self::assertTrue($config->isSignedIn());
         self::assertTrue($config->isConfigured());
     }
 
-    public function testAnEmptyVariableFallsBackToTheStoredToken(): void
+    public function testAnEnvironmentTokenIsNotACredential(): void
     {
-        putenv('PLEX_TOKEN=');
+        putenv('PLEX_TOKEN=from-environment');
+
+        $config = PlexConfig::resolve(new PlexConnectionStore($this->dir));
+
+        // Read, but never used to authenticate.
+        self::assertSame('', $config->token);
+        self::assertFalse($config->isConfigured());
+    }
+
+    public function testAnEnvironmentTokenNeverOverridesTheStoredOne(): void
+    {
+        putenv('PLEX_TOKEN=from-environment');
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('from-sign-in');
 
         self::assertSame('from-sign-in', PlexConfig::resolve($store)->token);
     }
 
-    public function testNeitherSourceMeansNotConfigured(): void
+    public function testAnEnvironmentTokenIsReportedAsObsolete(): void
+    {
+        putenv('PLEX_TOKEN=from-environment');
+
+        // This is the one thing the variable still does: drive the notice that
+        // tells an upgrading user why their install is disconnected.
+        self::assertTrue(PlexConfig::resolve(new PlexConnectionStore($this->dir))->obsoleteEnvToken);
+    }
+
+    public function testNoEnvironmentTokenIsNotReportedAsObsolete(): void
+    {
+        self::assertFalse(PlexConfig::resolve(new PlexConnectionStore($this->dir))->obsoleteEnvToken);
+    }
+
+    public function testNoStoredTokenMeansNotConfigured(): void
     {
         $config = PlexConfig::resolve(new PlexConnectionStore($this->dir));
 
         self::assertSame('', $config->token);
-        self::assertSame(PlexTokenSource::None, $config->source());
-        self::assertFalse($config->isSignedIn());
         self::assertFalse($config->isConfigured());
     }
 
-    public function testSourceIsNoneWhenNoTokenIsPresentRegardlessOfDeclaredSource(): void
-    {
-        $config = new PlexConfig('http://plex:32400', '', 10, 60);
-
-        self::assertSame(PlexTokenSource::None, $config->source());
-    }
-
-    public function testStoringATokenIsNotEnoughWithoutAServerUrl(): void
+    public function testAStoredTokenIsNotEnoughWithoutAServerAddress(): void
     {
         putenv('PLEX_SERVER_URL=');
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('from-sign-in');
 
+        // Signing in cannot supply an address; the connection screen has to say
+        // so rather than offering to sign in again.
         self::assertFalse(PlexConfig::resolve($store)->isConfigured());
     }
 
-    public function testResolutionDoesNotWriteAStoreEntryForAnEnvironmentToken(): void
+    public function testResolutionNeverWritesToTheStore(): void
     {
         putenv('PLEX_TOKEN=from-environment');
-        $store = new PlexConnectionStore($this->dir);
 
-        PlexConfig::resolve($store);
+        PlexConfig::resolve(new PlexConnectionStore($this->dir));
 
-        // Nothing may be persisted on its own: storing a credential is always
-        // the result of a deliberate sign-in.
+        // An environment token is not migrated onto disk on the user's behalf.
         self::assertNull((new PlexConnectionStore($this->dir))->token());
     }
 }

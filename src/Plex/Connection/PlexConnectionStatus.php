@@ -9,26 +9,25 @@ use App\Database\PlexServerRepository;
 use App\Plex\PlexClient;
 
 /**
- * Reports how Marquee is connected to Plex.
+ * Reports how Marquee stands with Plex.
  *
- * Two ways to ask, and the difference is the point:
+ * Two ways to ask, and the difference matters:
  *
  *   - `current()` reads only what is already known and never contacts Plex, so
- *     it is safe on every page render. An unreachable server would otherwise
- *     stall every page for the connect timeout.
+ *     it is safe anywhere — including the connection gate, which runs on every
+ *     request. An unreachable server would otherwise stall the whole app for
+ *     the connect timeout.
  *   - `refresh()` asks the server its name and caches the answer. It belongs on
- *     the connection panel, which exists to describe the connection and is the
+ *     the connection screen, which exists to describe the connection and is the
  *     page a user opens when something is wrong.
  *
- * Neither reports whether Plex is reachable. That is deliberate: a status that
- * is one page-load stale would assert something this design does not check, and
- * a failed Plex operation already says so accurately at the moment it happens.
+ * Neither reports whether Plex is reachable. A failed Plex operation says so
+ * accurately at the moment it happens; a cached status would only guess.
  */
 final class PlexConnectionStatus
 {
     public function __construct(
         private readonly PlexConfig $config,
-        private readonly PlexConnectionStore $store,
         private readonly PlexServerRepository $servers,
         private readonly PlexClient $plex,
     ) {
@@ -63,17 +62,17 @@ final class PlexConnectionStatus
         }
 
         // Unreachable right now. Keep the last known name rather than blanking
-        // the panel: the connection is still configured, it just did not answer.
+        // the screen: the connection is still configured, it just did not answer.
         return $this->state($this->servers->name());
     }
 
     private function state(?string $serverName): PlexConnectionState
     {
         return new PlexConnectionState(
-            source: $this->config->source(),
+            hasToken: $this->config->token !== '',
             serverName: $serverName,
-            hasStoredToken: $this->store->token() !== null,
             hasServerUrl: $this->config->serverUrl !== '',
+            obsoleteEnvToken: $this->config->obsoleteEnvToken,
         );
     }
 }

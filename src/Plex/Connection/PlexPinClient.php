@@ -41,6 +41,11 @@ final class PlexPinClient
      */
     public function create(): PlexPin
     {
+        // `strong=true` is required, not optional. The short code Plex returns
+        // without it belongs to the plex.tv/link flow, where the user types it
+        // in by hand; the `app.plex.tv/auth#?code=` deep link this uses needs
+        // the long form, and rejects a short one with "We were unable to
+        // complete this request."
         $payload = $this->send('POST', self::PINS_URL . '?strong=true');
 
         $id = Scalar::intOrNull($payload['id'] ?? null);

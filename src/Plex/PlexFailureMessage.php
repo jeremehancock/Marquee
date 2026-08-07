@@ -4,25 +4,19 @@ declare(strict_types=1);
 
 namespace App\Plex;
 
-use App\Config\PlexConfig;
 use Throwable;
 
 /**
- * Turns a Plex failure into the sentence a user reads, with the remedy that
- * matches how this install is actually connected.
+ * Turns a Plex failure into the sentence a user reads, remedy included.
  *
- * This is why the application needs no live connection indicator. Every place a
- * Plex operation can fail — sending a poster, fetching one, importing, orphan
- * detection — already surfaces the failure at the moment it happens, so making
- * that message source-aware puts the right advice everywhere, for free, and
- * without a status light asserting a reachability nobody checked.
+ * The remedy lives here rather than in the exception so that user-facing copy
+ * stays out of a value object, and so the scheduled auto-import's log says the
+ * same thing the interface does. With one way to connect the advice no longer
+ * varies — but it must no longer name `PLEX_TOKEN` either, which is a variable
+ * the application stopped reading.
  */
 final class PlexFailureMessage
 {
-    public function __construct(private readonly PlexConfig $config)
-    {
-    }
-
     /**
      * The full message for a failure, including its remedy where one helps.
      *
@@ -43,14 +37,12 @@ final class PlexFailureMessage
     private function remedy(PlexFailure $reason): string
     {
         return match ($reason) {
-            PlexFailure::NotConfigured => 'Connect Marquee to Plex on the Import page.',
-            PlexFailure::AuthRejected => $this->config->isSignedIn()
-                ? 'Your Plex sign-in was rejected — sign in to Plex again on the Import page.'
-                : 'Check PLEX_TOKEN.',
+            PlexFailure::NotConfigured => 'Connect Marquee to Plex to continue.',
+            PlexFailure::AuthRejected => 'Your Plex sign-in was rejected — sign in to Plex again.',
             PlexFailure::ConnectionFailed => 'Check PLEX_SERVER_URL and that the Plex server is running.',
             // These two describe a situation rather than a misconfiguration:
             // the item is gone, or the server said something unusable. Neither
-            // has an action that depends on how Marquee is connected.
+            // has an action to do with the connection.
             PlexFailure::ItemMissing, PlexFailure::UnexpectedResponse => '',
         };
     }
