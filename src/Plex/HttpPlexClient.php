@@ -200,17 +200,41 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
     /**
      * The server's friendly name, read from the root endpoint.
      *
-     * That response also carries `myPlexUsername`, which is deliberately not
-     * read: it is an email address, and the connection panel it would appear on
-     * is exactly the screen users paste into support threads. The server's name
-     * identifies the connection without disclosing anything personal, and for a
-     * poster manager it is the more useful of the two — it says which server is
-     * connected, which is what goes wrong when a URL points at the wrong host.
+     * That response also carries `myPlexUsername`, which is never *displayed*:
+     * it is an email address, and this is the screen users paste into support
+     * threads. The server's name identifies the connection without disclosing
+     * anything personal, and for a poster manager it is the more useful of the
+     * two — it says which server is connected, which is what goes wrong when a
+     * URL points at the wrong host. The owner is read separately, by
+     * {@see serverOwner()}, and used only to decide who may sign in.
      *
      * Every failure is absorbed: the name is decoration, and no page should
      * break because a server did not answer.
      */
     public function serverName(): ?string
+    {
+        return $this->rootAttr('friendlyName');
+    }
+
+    /**
+     * The account the server names as its owner.
+     *
+     * Read from the same root response as the name, and this is the one place
+     * `myPlexUsername` is used: not to show anyone, but to decide whether the
+     * account that just signed in is entitled to manage this install.
+     */
+    public function serverOwner(): ?string
+    {
+        return $this->rootAttr('myPlexUsername');
+    }
+
+    /**
+     * One attribute of the server's root response, or null when it cannot be
+     * read. Every failure is absorbed: callers decide what an unknown means,
+     * and for the two callers here it means "no name" and "refuse", neither of
+     * which should raise.
+     */
+    private function rootAttr(string $name): ?string
     {
         if (!$this->config->isConfigured()) {
             return null;
@@ -222,9 +246,9 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             return null;
         }
 
-        $name = $this->attr($xml, 'friendlyName');
+        $value = $this->attr($xml, $name);
 
-        return $name !== null && $name !== '' ? $name : null;
+        return $value !== null && $value !== '' ? $value : null;
     }
 
     /**

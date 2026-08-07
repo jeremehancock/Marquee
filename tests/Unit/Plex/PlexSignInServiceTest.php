@@ -9,8 +9,10 @@ use App\Plex\Connection\PlexPinClient;
 use App\Plex\Connection\PlexSignInException;
 use App\Plex\Connection\PlexSignInService;
 use App\Plex\Connection\PlexSignInStatus;
+use App\Plex\PlexClient;
 use App\Support\Session\ArraySession;
 use App\Support\Session\SessionInterface;
+use App\Tests\Support\FakePlexClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
@@ -50,6 +52,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('owner@example.com'),
         ], $store);
 
         $service->start();
@@ -84,6 +87,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('owner@example.com'),
         ], $store, $starter);
 
         $service->start();
@@ -94,6 +98,7 @@ final class PlexSignInServiceTest extends TestCase
             $this->pinClient([], $store),
             $store,
             new ArraySession(),
+            $this->ownedServer(),
         );
 
         self::assertSame(PlexSignInStatus::NotStarted, $other->poll());
@@ -174,6 +179,88 @@ final class PlexSignInServiceTest extends TestCase
         self::assertStringContainsString('strong=true', (string) $this->sent[0]->getUri());
     }
 
+    public function testAnAccountThatDoesNotOwnTheServerIsRefused(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('someone-else@example.com'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+        // Nothing stored: Plex would stop this account changing the library,
+        // but not deleting posters here.
+        self::assertNull($store->token());
+    }
+
+    public function testTheOwnerIsMatchedOnUsernameAsWellAsEmail(): void
+    {
+        // A Plex server reports one field for its owner and does not say which
+        // kind of identifier it holds.
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('other@example.com', 'JEREME'),
+        ], $store, null, new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', 'jereme'));
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+    }
+
+    public function testAnUnknownAccountIsRefusedRatherThanAssumedToBeTheOwner(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            // plex.tv will not say who this token belongs to.
+            new Response(500, [], '{}'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+        self::assertNull($store->token());
+    }
+
+    public function testAServerThatWillNotNameItsOwnerRefuses(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $nameless = new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', null);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('owner@example.com'),
+        ], $store, null, $nameless);
+
+        $service->start();
+
+        // Fails closed: a check that passes when it cannot run is not a check.
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+        self::assertNull($store->token());
+    }
+
+    public function testARefusedSignInLeavesAnExistingConnectionAlone(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('already-connected');
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->accountResponse('someone-else@example.com'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+        self::assertSame('already-connected', $store->token());
+    }
+
     public function testMalformedCreateResponseIsRejected(): void
     {
         $this->expectException(PlexSignInException::class);
@@ -236,6 +323,7 @@ final class PlexSignInServiceTest extends TestCase
         array $responses,
         ?PlexConnectionStore $store = null,
         ?SessionInterface $session = null,
+        ?PlexClient $plex = null,
     ): PlexSignInService {
         $store ??= new PlexConnectionStore($this->dir);
 
@@ -243,7 +331,21 @@ final class PlexSignInServiceTest extends TestCase
             $this->pinClient($responses, $store),
             $store,
             $session ?? new ArraySession(),
+            $plex ?? $this->ownedServer(),
         );
+    }
+
+    private function accountResponse(string $email, string $username = 'someone'): Response
+    {
+        return new Response(200, [], (string) json_encode(['username' => $username, 'email' => $email]));
+    }
+
+    /**
+     * A server whose owner matches the account the mocked plex.tv returns.
+     */
+    private function ownedServer(): FakePlexClient
+    {
+        return new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', 'owner@example.com');
     }
 
     /**

@@ -265,6 +265,8 @@ final class PlexConnectionTest extends AppTestCase
         $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['authToken' => 'granted-secret-token'])),
+            // Who the token belongs to — must match the server's owner.
+            new Response(200, [], (string) json_encode(['username' => 'owner', 'email' => 'owner@example.com'])),
         ]))]);
 
         $app = $this->makeApp(
@@ -300,6 +302,31 @@ final class PlexConnectionTest extends AppTestCase
         foreach ($handler->getRecords() as $record) {
             self::assertStringNotContainsString('granted-secret-token', (string) json_encode($record->toArray()));
         }
+    }
+
+    public function testASignInByANonOwnerIsRefusedAndStoresNothing(): void
+    {
+        $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['authToken' => 'a-guests-token'])),
+            new Response(200, [], (string) json_encode(['username' => 'guest', 'email' => 'guest@example.com'])),
+        ]))]);
+
+        $app = $this->makeApp(
+            $this->env(['PLEX_SERVER_URL' => 'http://plex:32400']),
+            [
+                PlexClient::class => static fn (): PlexClient => new FakePlexClient(),
+                ClientInterface::class => static fn (): ClientInterface => $plexTv,
+            ],
+        );
+
+        $this->postForm($app, '/plex/connection/sign-in', []);
+        $poll = (string) $this->get($app, '/plex/connection/status')->getBody();
+
+        self::assertStringContainsString('not_owner', $poll);
+        self::assertNull((new PlexConnectionStore($this->dataDir))->token());
+        // The refusal must not tell a stranger who the owner is.
+        self::assertStringNotContainsString('owner@example.com', $poll);
     }
 
     public function testAbandonedSignInLeavesAnExistingConnectionAlone(): void

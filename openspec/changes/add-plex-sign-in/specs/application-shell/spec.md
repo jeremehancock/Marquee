@@ -106,6 +106,14 @@ The system SHALL identify itself to Plex with a client identifier that is
 generated once and persists across restarts, so that repeated sign-ins do not
 accumulate duplicate device entries in the user's Plex account.
 
+The system SHALL accept only the Plex account that owns the configured server,
+and SHALL refuse any other, storing nothing. Plex prevents an unprivileged
+account from altering the library, but not from deleting posters here — and a
+poster that never reached Plex has no upstream copy to restore. Where ownership
+cannot be established the sign-in SHALL be refused, because a check that passes
+when it cannot run is not a check. The refusal SHALL NOT name the owner, who is
+by definition not the person reading it.
+
 The resulting token SHALL be written outside the SQLite database with
 owner-only permissions, and SHALL be readable by the scheduled auto-import
 process, which runs without a browser session.
@@ -113,6 +121,21 @@ process, which runs without a browser session.
 #### Scenario: Successful sign-in
 - **WHEN** an authenticated user starts sign-in and approves Marquee in Plex
 - **THEN** the system stores the returned token and reports Plex as connected
+
+#### Scenario: An account that does not own the server is refused
+- **WHEN** the approving Plex account does not own the configured server
+- **THEN** the system stores no token and reports that the account does not own
+  it
+- **AND** any previously stored token is left untouched
+
+#### Scenario: Ownership that cannot be established is refused
+- **WHEN** the server does not report an owner, or the account behind the token
+  cannot be identified
+- **THEN** the system refuses the sign-in rather than treating it as permitted
+
+#### Scenario: The refusal does not identify the owner
+- **WHEN** a sign-in is refused because the account does not own the server
+- **THEN** the message does not disclose the owner's account
 
 #### Scenario: Sign-in not completed
 - **WHEN** the user closes the Plex window without approving, or the

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Plex\Connection;
 
+use App\Plex\PlexClient;
 use App\Support\Scalar;
 use App\Support\Session\SessionInterface;
 
@@ -25,6 +26,7 @@ final class PlexSignInService
         private readonly PlexPinClient $client,
         private readonly PlexConnectionStore $store,
         private readonly SessionInterface $session,
+        private readonly PlexClient $plex,
     ) {
     }
 
@@ -81,6 +83,15 @@ final class PlexSignInService
             return PlexSignInStatus::Pending;
         }
 
+        if (!$this->owns($token)) {
+            // Refused before anything is written. Plex would stop this account
+            // altering the library, but not deleting posters here — and a
+            // poster that never reached Plex has no copy to restore.
+            $this->forget();
+
+            return PlexSignInStatus::NotOwner;
+        }
+
         $this->store->storeToken($token);
         $this->forget();
 
@@ -95,6 +106,24 @@ final class PlexSignInService
     {
         $this->store->clearToken();
         $this->forget();
+    }
+
+    /**
+     * Whether the account behind a token owns the configured server.
+     *
+     * Fails closed. If plex.tv will not say who the account is, or the server
+     * will not say who owns it, the answer is no — a check that passes when it
+     * cannot run is not a check, and this one is the only thing standing
+     * between a stranger's Plex account and the delete button.
+     */
+    private function owns(string $token): bool
+    {
+        $owner = $this->plex->serverOwner();
+        if ($owner === null) {
+            return false;
+        }
+
+        return $this->client->account($token)?->matches($owner) ?? false;
     }
 
     /**

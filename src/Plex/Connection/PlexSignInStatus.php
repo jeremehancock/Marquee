@@ -20,4 +20,10 @@ enum PlexSignInStatus: string
 
     /** The request aged out before it was approved. Nothing was stored. */
     case Expired = 'expired';
+
+    /**
+     * Approved, but by an account that does not own the configured server.
+     * Nothing was stored.
+     */
+    case NotOwner = 'not_owner';
 }

@@ -173,6 +173,30 @@
 - [x] 12.8 Update `docs/testing.md` where it tells the reader to set `PLEX_TOKEN`
       on the container
 
+## 14. Owner-only sign-in
+
+- [x] 14.1 Read the account behind a token from `plex.tv/api/v2/user`
+- [x] 14.2 Read the server's owner from its root response, alongside the name
+- [x] 14.3 Refuse a sign-in whose account does not own the configured server,
+      storing nothing and leaving any existing connection untouched
+- [x] 14.4 Fail closed when ownership cannot be established — an unidentifiable
+      account or a server that names no owner is a refusal, not a pass
+- [x] 14.5 Match the owner on username as well as email; the server reports one
+      field and does not say which kind it holds
+- [x] 14.6 Say the account does not own the server without naming the owner
+- [x] 14.7 Unit- and functional-test the refusal, both failure-to-verify paths,
+      and that no refusal discloses the owner
+
+## 15. Container environment
+
+- [x] 15.1 Delete the `docker-env.sh` mechanism: its grep silently dropped every
+      `PLEX_*` and `AUTO_IMPORT_*` variable, and the file it wrote was never
+      needed because crond inherits the container environment
+- [x] 15.2 Correct the comments that claimed cron runs without the container
+      environment
+- [x] 15.3 Verify in a built image that a scheduled import still reads its
+      settings and the stored token
+
 ## 13. Verification
 
 - [x] 13.1 Confirm the upgrade path by hand: start with `PLEX_TOKEN` set and no

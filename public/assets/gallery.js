@@ -682,6 +682,16 @@
                                     self._stop('The Plex sign-in expired. Try again.');
                                     return;
                                 }
+                                if (data.status === 'not_owner') {
+                                    // Deliberately does not name the owner:
+                                    // whoever is reading this is, by
+                                    // definition, not them.
+                                    self._stop(
+                                        'That Plex account does not own this server. '
+                                        + 'Sign in with the account that owns it.'
+                                    );
+                                    return;
+                                }
                                 if (data.status === 'not_started') {
                                     self._stop('Sign-in was not started.');
                                     return;

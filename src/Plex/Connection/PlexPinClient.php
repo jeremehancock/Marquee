@@ -11,8 +11,9 @@ use JsonException;
 use Throwable;
 
 /**
- * Talks to plex.tv's PIN authorization API — the only part of Marquee that
- * contacts Plex's hosted service rather than the user's own server.
+ * Talks to plex.tv — the only part of Marquee that contacts Plex's hosted
+ * service rather than the user's own server. It runs the PIN authorization
+ * flow, and afterwards asks who the resulting token belongs to.
  *
  * The flow is deliberately the polling variant rather than the redirect one.
  * A redirect back into Marquee would require knowing this install's externally
@@ -25,6 +26,7 @@ final class PlexPinClient
 {
     private const PINS_URL = 'https://plex.tv/api/v2/pins';
     private const AUTH_URL = 'https://app.plex.tv/auth';
+    private const USER_URL = 'https://plex.tv/api/v2/user';
 
     /** Fallback lifetime when Plex does not say, in seconds. */
     private const DEFAULT_LIFETIME = 900;
@@ -76,6 +78,27 @@ final class PlexPinClient
     }
 
     /**
+     * The account a token belongs to, or null when plex.tv will not say.
+     *
+     * Null is never treated as permission: the caller refuses the sign-in
+     * rather than assuming the account is allowed. An identity check that
+     * passes when it cannot run is not a check.
+     */
+    public function account(string $token): ?PlexAccount
+    {
+        try {
+            $payload = $this->send('GET', self::USER_URL, $token);
+        } catch (PlexSignInException) {
+            return null;
+        }
+
+        $username = Scalar::stringOrNull($payload['username'] ?? null) ?? '';
+        $email = Scalar::stringOrNull($payload['email'] ?? null) ?? '';
+
+        return $username === '' && $email === '' ? null : new PlexAccount($username, $email);
+    }
+
+    /**
      * The address the user's browser opens to approve the request.
      *
      * The fragment is significant: Plex's sign-in page reads these values
@@ -94,11 +117,16 @@ final class PlexPinClient
     /**
      * @return array<string, mixed>
      */
-    private function send(string $method, string $url): array
+    private function send(string $method, string $url, ?string $token = null): array
     {
+        $headers = $this->headers();
+        if ($token !== null) {
+            $headers['X-Plex-Token'] = $token;
+        }
+
         try {
             $response = $this->http->request($method, $url, [
-                'headers' => $this->headers(),
+                'headers' => $headers,
                 'connect_timeout' => 10,
                 'timeout' => 30,
                 'http_errors' => true,

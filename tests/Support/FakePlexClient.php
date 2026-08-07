@@ -29,6 +29,7 @@ final class FakePlexClient implements PlexClient
      * @param list<string>                     $failingThumbs    thumb paths whose poster fetch fails
      * @param list<string>                     $excluded         library names the real client would hide
      * @param string|null                      $serverName       the server's friendly name, null when unknown
+     * @param string|null                      $serverOwner      the account the server names as its owner
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -41,6 +42,7 @@ final class FakePlexClient implements PlexClient
         private readonly array $failingThumbs = [],
         private readonly array $excluded = [],
         private readonly ?string $serverName = 'Anansi',
+        private readonly ?string $serverOwner = 'owner@example.com',
     ) {
     }
 
@@ -118,6 +120,11 @@ final class FakePlexClient implements PlexClient
     public function serverName(): ?string
     {
         return $this->configured ? $this->serverName : null;
+    }
+
+    public function serverOwner(): ?string
+    {
+        return $this->configured ? $this->serverOwner : null;
     }
 
     private function png(): string

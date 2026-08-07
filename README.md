@@ -172,6 +172,11 @@ Until you have, every page redirects to the **Plex Connection** screen.
    Connection** any time to see which server you are connected to, or to sign
    out.
 
+**Sign in with the Plex account that owns the server.** Marquee refuses any
+other account, including one your server is shared with. A shared account cannot
+change artwork in Plex, but it could still delete posters here — and a poster
+you never sent to Plex has no copy to restore.
+
 The token is stored at `/config/data/plex-connection.json`, owner-readable only
 (`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the
 database is still a safe reset that costs only cached data. Because it lives in
