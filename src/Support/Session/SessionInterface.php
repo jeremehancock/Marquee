@@ -18,5 +18,15 @@ interface SessionInterface
 
     public function has(string $key): bool;
 
+    /**
+     * Issue a new session identifier, carrying the session's contents across
+     * and discarding the one that was in use.
+     *
+     * Belongs here rather than in the caller so that authentication can close
+     * session fixation without reaching for PHP's session functions, which is
+     * the whole reason this interface exists.
+     */
+    public function regenerate(): void;
+
     public function clear(): void;
 }

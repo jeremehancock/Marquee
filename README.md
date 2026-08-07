@@ -405,6 +405,10 @@ authentication token.
 
 - **Change the default username and password**, and pick a strong one.
 - **Use HTTPS** (behind a reverse proxy) if you expose Marquee to the internet.
+- **The session cookie is `HttpOnly` and `SameSite=Lax`**, and logging in issues
+  a fresh session identifier. It is deliberately *not* marked `Secure`: Marquee
+  is normally reached over plain HTTP on a LAN, and a `Secure` cookie is never
+  sent over HTTP, so marking it would stop those installs logging in at all.
 - **Back up your `/config` directory** regularly — an import can rebuild
   everything Plex already has, but not art you uploaded and never sent there.
   Your Plex token is in there too, so treat those backups as you would the
