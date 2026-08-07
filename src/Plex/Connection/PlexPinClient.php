@@ -78,18 +78,29 @@ final class PlexPinClient
     }
 
     /**
-     * The account a token belongs to, or null when plex.tv will not say.
+     * The account a token belongs to, or null when plex.tv answers without
+     * identifying one.
      *
      * Null is never treated as permission: the caller refuses the sign-in
      * rather than assuming the account is allowed. An identity check that
      * passes when it cannot run is not a check.
+     *
+     * A failure to reach plex.tv at all is raised rather than returned. It used
+     * to be swallowed into a null, which the caller read as "this account does
+     * not own the server" — a claim about the user's account made at the exact
+     * moment nothing whatsoever had been learned about it.
+     *
+     * @throws PlexSignInException when plex.tv cannot be reached or will not
+     *                             answer
      */
     public function account(string $token): ?PlexAccount
     {
         try {
             $payload = $this->send('GET', self::USER_URL, $token);
-        } catch (PlexSignInException) {
-            return null;
+        } catch (PlexSignInException $e) {
+            // `send()` reads a 404 as an expired authorization request, which
+            // is true of the pin endpoints and nonsense here.
+            throw $e->expired ? PlexSignInException::unavailable($e) : $e;
         }
 
         $username = Scalar::stringOrNull($payload['username'] ?? null) ?? '';

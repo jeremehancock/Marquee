@@ -82,13 +82,14 @@ final class PlexSignInService
             return PlexSignInStatus::Pending;
         }
 
-        if (!$this->owns($token)) {
+        $refusal = $this->refusal($token);
+        if ($refusal !== null) {
             // Refused before anything is written. Plex would stop this account
             // altering the library, but not deleting posters here — and a
             // poster that never reached Plex has no copy to restore.
             $this->forget();
 
-            return PlexSignInStatus::NotOwner;
+            return $refusal;
         }
 
         $this->store->storeToken($token);
@@ -108,21 +109,39 @@ final class PlexSignInService
     }
 
     /**
-     * Whether the account behind a token owns the configured server.
+     * Why this token may not be stored, or null when there is no reason.
      *
-     * Fails closed. If plex.tv will not say who the account is, or the server
-     * will not say who owns it, the answer is no — a check that passes when it
-     * cannot run is not a check, and this one is the only thing standing
-     * between a stranger's Plex account and the delete button.
+     * Fails closed, and is written so that it does so by shape: every path but
+     * one returns a refusal, and the single accepting path requires a named
+     * owner that the account behind the token matches. If the server will not
+     * say who owns it, or plex.tv will not say who the account is, the answer
+     * is a refusal — a check that passes when it cannot run is not a check, and
+     * this one is the only thing standing between a stranger's Plex account and
+     * the delete button.
+     *
+     * The refusals differ only in what they tell the user. An unreachable
+     * server is reported as such rather than as an ownership verdict, because
+     * the owner reading "your account does not own this server" is being sent
+     * to audit the one part of the system that is working.
+     *
+     * @throws PlexSignInException when plex.tv cannot say who the token belongs
+     *                             to, which is not a fact about the account
      */
-    private function owns(string $token): bool
+    private function refusal(string $token): ?PlexSignInStatus
     {
-        $owner = $this->owner->forToken($token);
-        if ($owner === null) {
-            return false;
+        $lookup = $this->owner->forToken($token);
+        if ($lookup->isUnreachable()) {
+            return PlexSignInStatus::Unreachable;
         }
 
-        return $this->client->account($token)?->matches($owner) ?? false;
+        $owner = $lookup->owner();
+        if ($owner === null) {
+            return PlexSignInStatus::NotOwner;
+        }
+
+        return $this->client->account($token)?->matches($owner) === true
+            ? null
+            : PlexSignInStatus::NotOwner;
     }
 
     /**

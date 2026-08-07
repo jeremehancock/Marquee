@@ -216,6 +216,11 @@ final class PlexSignInServiceTest extends TestCase
         self::assertSame(PlexSignInStatus::Completed, $service->poll());
     }
 
+    /**
+     * plex.tv being unreachable is not a fact about the user's account, so it
+     * is no longer reported as one. It fails closed all the same: the raised
+     * exception leaves poll() long before anything is stored.
+     */
     public function testAnUnknownAccountIsRefusedRatherThanAssumedToBeTheOwner(): void
     {
         $store = new PlexConnectionStore($this->dir);
@@ -225,6 +230,91 @@ final class PlexSignInServiceTest extends TestCase
             $this->ownerResponse(),
             // plex.tv will not say who this token belongs to.
             new Response(500, [], '{}'),
+        ], $store);
+
+        $service->start();
+
+        try {
+            $service->poll();
+            self::fail('Expected the plex.tv failure to be raised.');
+        } catch (PlexSignInException $e) {
+            self::assertStringNotContainsString('own', $e->getMessage());
+        }
+
+        self::assertNull($store->token());
+    }
+
+    public function testAPlexTvFailureLeavesAnExistingConnectionAlone(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('already-connected');
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
+            new Response(500, [], '{}'),
+        ], $store);
+
+        $service->start();
+
+        $this->expectException(PlexSignInException::class);
+
+        try {
+            $service->poll();
+        } finally {
+            self::assertSame('already-connected', $store->token());
+        }
+    }
+
+    /**
+     * The bug this change exists to remove: a server that cannot be reached
+     * told the owner that their own account did not own it, sending them to
+     * audit the one part of the system that was working.
+     */
+    public function testAnUnreachableServerIsNotReportedAsAnOwnershipFailure(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            // Nothing is listening at PLEX_SERVER_URL.
+            new ConnectException('refused', new Request('GET', 'http://plex:32400/')),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::Unreachable, $service->poll());
+        self::assertNull($store->token());
+    }
+
+    public function testAnUnreachableServerLeavesAnExistingConnectionAlone(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('already-connected');
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            new ConnectException('refused', new Request('GET', 'http://plex:32400/')),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::Unreachable, $service->poll());
+        self::assertSame('already-connected', $store->token());
+    }
+
+    /**
+     * A server that answers and declines the token has said something about the
+     * account. Reporting that as a network fault would be this change's own
+     * mistake, made in the other direction.
+     */
+    public function testAServerThatDeclinesTheTokenIsAnOwnershipFailure(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            new Response(401, [], ''),
         ], $store);
 
         $service->start();

@@ -192,7 +192,7 @@ Until you have, every page redirects to the **Plex Connection** screen.
 3. Choose **Connect to Plex**. A Plex popup opens; sign in and approve
    Marquee there.
 4. The popup closes and Marquee takes you to your gallery. Return to **Plex
-   Connection** any time to see which server you are connected to, or to sign
+   Connection** any time to see which server you are connected to, or to
    disconnect.
 
 **Sign in with the Plex account that owns the server.** Marquee refuses any
@@ -203,6 +203,10 @@ account changing your artwork — but deleting a poster in Marquee is a local
 action Plex has no say over, and a poster you never sent to Plex has no copy to
 restore. Rather than rely on Plex to limit an account it only partly limits,
 Marquee does not accept one.
+
+A refusal tells you which of the two things to fix. If signing in reports that
+Marquee could not reach your Plex server, the address is wrong rather than your
+account — check `PLEX_SERVER_URL` and that Plex is running.
 
 The token is stored at `/config/data/plex-connection.json`, owner-readable only
 (`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the

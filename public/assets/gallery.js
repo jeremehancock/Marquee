@@ -692,6 +692,18 @@
                                     );
                                     return;
                                 }
+                                if (data.status === 'unreachable') {
+                                    // The account was fine. Saying otherwise
+                                    // sends the owner to audit the one part of
+                                    // this that is working, so this names the
+                                    // address instead.
+                                    self._stop(
+                                        'Marquee could not reach your Plex server. '
+                                        + 'Check PLEX_SERVER_URL and that the Plex '
+                                        + 'server is running.'
+                                    );
+                                    return;
+                                }
                                 if (data.status === 'not_started') {
                                     self._stop('Sign-in was not started.');
                                     return;

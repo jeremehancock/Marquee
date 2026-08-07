@@ -26,4 +26,14 @@ enum PlexSignInStatus: string
      * Nothing was stored.
      */
     case NotOwner = 'not_owner';
+
+    /**
+     * Approved, but the configured Plex server could not be reached to decide
+     * ownership at all. Nothing was stored.
+     *
+     * Distinct from NotOwner because the two are identical in effect and
+     * opposite in remedy: one is fixed in the compose file, the other by
+     * signing in as somebody else.
+     */
+    case Unreachable = 'unreachable';
 }

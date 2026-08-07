@@ -11,8 +11,10 @@ use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\MakesImages;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -345,6 +347,37 @@ final class PlexConnectionTest extends AppTestCase
         self::assertNull((new PlexConnectionStore($this->dataDir))->token());
         // The refusal must not tell a stranger who the owner is.
         self::assertStringNotContainsString('owner@example.com', $poll);
+    }
+
+    /**
+     * The owner signed in correctly; PLEX_SERVER_URL points at nothing. Telling
+     * them their account does not own the server sends them to the one place
+     * that is working.
+     */
+    public function testAnUnreachableServerIsReportedAsUnreachableNotAsOwnership(): void
+    {
+        $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['authToken' => 'the-owners-token'])),
+            // Nothing is listening at the configured address.
+            new ConnectException('refused', new Request('GET', 'http://plex:32400/')),
+        ]))]);
+
+        $app = $this->makeApp(
+            $this->env(['PLEX_SERVER_URL' => 'http://plex:32400']),
+            [
+                PlexClient::class => static fn (): PlexClient => new FakePlexClient(),
+                ClientInterface::class => static fn (): ClientInterface => $plexTv,
+            ],
+        );
+
+        $this->postForm($app, '/plex/connection/sign-in', []);
+        $poll = (string) $this->get($app, '/plex/connection/status')->getBody();
+
+        self::assertStringContainsString('unreachable', $poll);
+        self::assertStringNotContainsString('not_owner', $poll);
+        // Refuses like every other failure: nothing is written.
+        self::assertNull((new PlexConnectionStore($this->dataDir))->token());
     }
 
     public function testAFirstSignInSucceedsWithNoTokenStoredYet(): void
