@@ -29,11 +29,12 @@
                 <strong>Connected to {{ connection.serverName ?? 'Plex' }}</strong>
             </p>
             <p class="stats">
-                Marquee is signed in to Plex. Your poster library and imports use
-                this connection.
+                Your poster library and imports use this connection. It is
+                separate from your Marquee login, which is what controls who can
+                open the app.
             </p>
             <form method="post" action="/plex/connection/sign-out">
-                <button type="submit" class="btn btn--danger">Sign out of Plex</button>
+                <button type="submit" class="btn btn--danger">Disconnect from Plex</button>
             </form>
         {% elseif connection.needsServerUrl %}
             <p><strong>Plex is not connected.</strong></p>
@@ -46,12 +47,13 @@
         {% else %}
             <p><strong>Plex is not connected.</strong></p>
             <p class="stats">
-                Sign in to Plex so Marquee can import your posters and send your
-                changes back. A Plex window will open for you to approve.
+                Connect Marquee to Plex so it can import your posters and send
+                your changes back. A Plex window opens for you to sign in and
+                approve it.
             </p>
             <button type="button" class="btn btn--accent"
                     @click="signIn()" x-bind:disabled="busy"
-                    x-text="busy ? 'Waiting for Plex…' : 'Sign in to Plex'">Sign in to Plex</button>
+                    x-text="busy ? 'Waiting for Plex…' : 'Connect to Plex'">Connect to Plex</button>
         {% endif %}
 
         {# Shown only when the popup was blocked, so the flow still completes. #}
@@ -93,14 +95,14 @@
     {% if connection.hasObsoleteEnvToken %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong><code>PLEX_TOKEN</code> is no longer used.</strong>
-               Marquee connects by signing in to Plex, so the token in your
-               environment is ignored.</p>
+               Marquee connects by signing in to Plex from this screen, so the
+               token in your environment is ignored.</p>
             {% if connection.isConnected %}
                 <p>You are connected, so it is safe to remove. Delete
                    <code>PLEX_TOKEN</code> from your compose file and run
                    <code>docker compose up -d</code>.</p>
             {% else %}
-                <p>Sign in above, then delete <code>PLEX_TOKEN</code> from your
+                <p>Connect above, then delete <code>PLEX_TOKEN</code> from your
                    compose file and run <code>docker compose up -d</code>.</p>
             {% endif %}
             <p><strong>Recreating the container is what clears this notice</strong>

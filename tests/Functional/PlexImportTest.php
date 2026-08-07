@@ -47,8 +47,8 @@ final class PlexImportTest extends AppTestCase
     {
         $body = (string) $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/plex')->getBody();
 
-        self::assertStringNotContainsString('Sign in to Plex', $body);
-        self::assertStringNotContainsString('Sign out of Plex', $body);
+        self::assertStringNotContainsString('Connect to Plex', $body);
+        self::assertStringNotContainsString('Disconnect from Plex', $body);
     }
 
     public function testPlexPageListsLibraries(): void

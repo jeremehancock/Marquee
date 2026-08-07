@@ -18,8 +18,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 
 ## Features
 
-- **Sign in to Plex** — connect Marquee to your server from inside the app. No
-  Plex token goes in your compose file, and there is no token to go hunting for.
+- **Connect to Plex from the app** — sign in to Plex in a popup; no token goes
+  in your compose file, and there is none to go hunting for. Only the account
+  that owns your server is accepted.
 - **Import from Plex** — pull the current poster for every Movie, TV Show, TV
   Season, and Collection. A step-by-step picker asks what you want first, then
   shows only the libraries that can provide it.
@@ -188,10 +189,11 @@ Until you have, every page redirects to the **Plex Connection** screen.
 
 1. Set `PLEX_SERVER_URL` to your server's address and start Marquee.
 2. Log in, and you will land on **Plex Connection**.
-3. Choose **Sign in to Plex**. A Plex popup opens; approve Marquee there.
+3. Choose **Connect to Plex**. A Plex popup opens; sign in and approve
+   Marquee there.
 4. The popup closes and Marquee takes you to your gallery. Return to **Plex
    Connection** any time to see which server you are connected to, or to sign
-   out.
+   disconnect.
 
 **Sign in with the Plex account that owns the server.** Marquee refuses any
 other account, including one your server is shared with.
@@ -214,8 +216,8 @@ has to route back in — this works behind a reverse proxy with no extra setup.
 credential, never an address; if the address is missing, the connection screen
 says so rather than offering a sign-in that cannot help.
 
-To disconnect, or to move Marquee to a different Plex account, use **Sign out of
-Plex** on the same screen.
+To disconnect, or to move Marquee to a different Plex account, use
+**Disconnect from Plex** on the same screen.
 
 #### Upgrading from a version that used `PLEX_TOKEN`
 

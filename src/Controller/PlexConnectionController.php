@@ -90,7 +90,7 @@ final class PlexConnectionController
             // to travel with it. Deliberately unnamed: configuration is resolved
             // once when the container is built, so this request still holds the
             // pre-sign-in view and could not name the server without lying.
-            $this->flash->add('success', 'Signed in to Plex.');
+            $this->flash->add('success', 'Connected to Plex.');
         }
 
         // Only the status, for the same reason.
@@ -105,7 +105,7 @@ final class PlexConnectionController
     public function signOut(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $this->signIn->signOut();
-        $this->flash->add('success', 'Signed out of Plex.');
+        $this->flash->add('success', 'Disconnected from Plex.');
 
         return $response->withHeader('Location', '/connect')->withStatus(302);
     }

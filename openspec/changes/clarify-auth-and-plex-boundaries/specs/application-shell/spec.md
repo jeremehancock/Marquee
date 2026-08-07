@@ -1,9 +1,41 @@
+## ADDED Requirements
+
+### Requirement: Transient confirmations clear themselves
+A flash message confirming something the user just did SHALL disappear on its
+own after a few seconds. Messages reporting a failure or a caveat SHALL remain
+until the page changes, because they carry a reason the user has to read and one
+that vanishes mid-sentence is worse than none.
+
+#### Scenario: A success message clears itself
+- **WHEN** a success flash renders
+- **THEN** it is removed from the page a few seconds later
+
+#### Scenario: A failure message stays
+- **WHEN** an error or warning flash renders
+- **THEN** it remains until the user navigates away
+
+### Requirement: The Plex connection and the login read as different things
+The interface SHALL describe joining and leaving the Plex connection as
+connecting and disconnecting, and reserve logging in and out for the
+application's own authentication. Naming both "signing in" invites the reading
+that they are one mechanism, which is the confusion this vocabulary exists to
+prevent.
+
+#### Scenario: Connection controls use connection words
+- **WHEN** the connection screen offers to join or leave the Plex connection
+- **THEN** the controls and confirmations say connect and disconnect rather than
+  sign in and sign out
+
+#### Scenario: The application's own session keeps its own words
+- **WHEN** the interface offers to end the user's Marquee session
+- **THEN** it says log out
+
 ## MODIFIED Requirements
 
 ### Requirement: Plex connection screen
 The system SHALL provide a dedicated connection screen, reachable from the
 application's navigation, that reports whether Plex is connected and offers to
-sign in or sign out. It SHALL be the only place the Plex connection is managed;
+connect or disconnect. It SHALL be the only place the Plex connection is managed;
 no other page SHALL offer to change it.
 
 When connected, the screen SHALL name the connected server using the friendly

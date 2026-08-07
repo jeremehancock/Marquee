@@ -27,9 +27,19 @@
       sample, the test script's config table, and the CI smoke test, none of
       which describe what bypass exposes
 
-## 3. Verification
+## 3. Vocabulary and transient confirmations
 
-- [x] 3.1 Confirm the warning renders correctly with bypass on and is absent
+- [x] 3.1 Rename the connection controls and confirmations to connect and
+      disconnect, leaving log in and log out to Marquee's own authentication
+- [x] 3.2 Auto-dismiss success flashes after a few seconds; leave errors and
+      warnings in place
+- [x] 3.3 Update the README's steps, feature list and connection section for the
+      renamed controls
+- [x] 3.4 Update the tests that assert the old labels
+
+## 4. Verification
+
+- [x] 4.1 Confirm the warning renders correctly with bypass on and is absent
       with it off, in a built image
-- [x] 3.2 Run `composer test`, `composer stan`, and `composer cs`
-- [x] 3.3 Run `openspec validate clarify-auth-and-plex-boundaries --strict`
+- [x] 4.2 Run `composer test`, `composer stan`, and `composer cs`
+- [x] 4.3 Run `openspec validate clarify-auth-and-plex-boundaries --strict`

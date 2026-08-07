@@ -92,7 +92,7 @@ final class PlexConnectionTest extends AppTestCase
         $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
 
         self::assertStringContainsString('Connected to Anansi', $body);
-        self::assertStringContainsString('Sign out of Plex', $body);
+        self::assertStringContainsString('Disconnect from Plex', $body);
         self::assertStringNotContainsString('Plex is not connected', $body);
     }
 
@@ -119,7 +119,7 @@ final class PlexConnectionTest extends AppTestCase
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('Plex is not connected', $body);
-        self::assertStringContainsString('Sign in to Plex', $body);
+        self::assertStringContainsString('Connect to Plex', $body);
     }
 
     public function testScreenSaysWhenTheServerAddressIsMissing(): void
@@ -130,7 +130,7 @@ final class PlexConnectionTest extends AppTestCase
 
         self::assertStringContainsString('PLEX_SERVER_URL', $body);
         self::assertStringContainsString('docker compose up -d', $body);
-        self::assertStringNotContainsString('Sign in to Plex</button>', $body);
+        self::assertStringNotContainsString('Connect to Plex</button>', $body);
     }
 
     public function testScreenExplainsAnObsoleteEnvironmentToken(): void
@@ -143,7 +143,7 @@ final class PlexConnectionTest extends AppTestCase
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('no longer used', $body);
-        self::assertStringContainsString('Sign in to Plex', $body);
+        self::assertStringContainsString('Connect to Plex', $body);
         // Editing the compose file is not enough — the environment is read once
         // at container start, so the instruction has to say recreate.
         self::assertStringContainsString('docker compose up -d', $body);
@@ -162,7 +162,7 @@ final class PlexConnectionTest extends AppTestCase
 
         // Already connected: telling them to "sign in above" would be nonsense.
         self::assertStringContainsString('safe to remove', $body);
-        self::assertStringNotContainsString('Sign in above', $body);
+        self::assertStringNotContainsString('Connect above', $body);
         self::assertStringContainsString('docker compose up -d', $body);
     }
 
@@ -219,7 +219,7 @@ final class PlexConnectionTest extends AppTestCase
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('Connected to Plex', $body);
-        self::assertStringContainsString('Sign out of Plex', $body);
+        self::assertStringContainsString('Disconnect from Plex', $body);
     }
 
     // ---- The gate ----
@@ -309,7 +309,7 @@ final class PlexConnectionTest extends AppTestCase
         // configuration resolves once per container, so within a single test app
         // the gate still holds the pre-sign-in view and would turn the gallery
         // away. A real request builds a fresh container and sees the token.
-        self::assertStringContainsString('Signed in to Plex.', (string) $this->get($app, '/connect')->getBody());
+        self::assertStringContainsString('Connected to Plex.', (string) $this->get($app, '/connect')->getBody());
 
         self::assertSame(
             'granted-secret-token',
