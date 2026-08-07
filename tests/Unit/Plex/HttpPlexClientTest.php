@@ -8,6 +8,7 @@ use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexException;
+use App\Plex\PlexFailure;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
@@ -596,5 +597,36 @@ final class HttpPlexClientTest extends TestCase
         self::assertInstanceOf(RequestInterface::class, $request);
 
         return $request;
+    }
+
+    /**
+     * An address that will not parse fails before a request is made, so Guzzle
+     * raises an InvalidArgumentException rather than a GuzzleException. Nothing
+     * on the Plex path caught that, and the connection screen — the page whose
+     * job is to explain that Plex cannot be reached — answered with a stack
+     * trace instead. Configuration now rejects such an address at bootstrap;
+     * this is the backstop underneath it.
+     */
+    public function testAnUnparseableAddressIsAConnectionFailureNotACrash(): void
+    {
+        $guzzle = new Client(['handler' => HandlerStack::create(new MockHandler([]))]);
+        $client = new HttpPlexClient(
+            $guzzle,
+            new PlexConfig('http://192.168.1.10:324000', 'token', 10, 60),
+            new LibraryExclusions([]),
+        );
+
+        // Absorbed, because the name is decoration and no page should break
+        // because an address was mistyped.
+        self::assertNull($client->serverName());
+
+        // And where it is not absorbed it arrives as a Plex failure carrying
+        // the reason, not as an uncaught InvalidArgumentException.
+        try {
+            $client->libraries();
+            self::fail('Expected a PlexException.');
+        } catch (PlexException $e) {
+            self::assertSame(PlexFailure::ConnectionFailed, $e->reason);
+        }
     }
 }

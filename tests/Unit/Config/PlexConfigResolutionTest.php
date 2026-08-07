@@ -106,4 +106,62 @@ final class PlexConfigResolutionTest extends TestCase
         // An environment token is not migrated onto disk on the user's behalf.
         self::assertNull((new PlexConnectionStore($this->dir))->token());
     }
+
+    /**
+     * A port above 65535 does not parse, and the exception Guzzle raises for it
+     * is an InvalidArgumentException rather than a GuzzleException — so nothing
+     * on the Plex path caught it and the connection screen answered with a
+     * stack trace. Typing 324000 for 32400 was enough.
+     */
+    public function testAnUnparseableServerUrlIsTreatedAsNoAddress(): void
+    {
+        foreach ([
+            'http://192.168.1.10:324000',
+            'http://192.168.1.10:abc',
+            'http://192.168.1.10:-1',
+            'http://my server:32400',
+            'http://[::1',
+        ] as $url) {
+            putenv('PLEX_SERVER_URL=' . $url);
+            $store = new PlexConnectionStore($this->dir);
+            $store->storeToken('a-token');
+
+            $config = PlexConfig::resolve($store);
+
+            self::assertSame('', $config->serverUrl, $url);
+            self::assertFalse($config->isConfigured(), $url);
+        }
+    }
+
+    /**
+     * A stray space in a compose file survives into the value and is enough to
+     * make the address unparseable, so it is trimmed before anything else.
+     */
+    public function testSurroundingWhitespaceIsTrimmed(): void
+    {
+        putenv('PLEX_SERVER_URL=  http://plex:32400/  ');
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('a-token');
+
+        $config = PlexConfig::resolve($store);
+
+        self::assertSame('http://plex:32400', $config->serverUrl);
+        self::assertTrue($config->isConfigured());
+    }
+
+    public function testAUsableAddressIsKept(): void
+    {
+        foreach ([
+            'http://plex:32400' => 'http://plex:32400',
+            'https://192.168.1.10:32400/' => 'https://192.168.1.10:32400',
+            'http://[::1]:32400' => 'http://[::1]:32400',
+            'https://plex.example.com' => 'https://plex.example.com',
+        ] as $raw => $expected) {
+            putenv('PLEX_SERVER_URL=' . $raw);
+            $store = new PlexConnectionStore($this->dir);
+            $store->storeToken('a-token');
+
+            self::assertSame($expected, PlexConfig::resolve($store)->serverUrl, $raw);
+        }
+    }
 }

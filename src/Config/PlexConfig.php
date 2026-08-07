@@ -6,6 +6,8 @@ namespace App\Config;
 
 use App\Plex\Connection\PlexConnectionStore;
 use App\Support\Env;
+use GuzzleHttp\Psr7\Uri;
+use InvalidArgumentException;
 
 /**
  * Immutable Plex connection configuration, built once at bootstrap.
@@ -43,7 +45,7 @@ final class PlexConfig
     public static function resolve(PlexConnectionStore $store): self
     {
         return new self(
-            serverUrl: rtrim(Env::str('PLEX_SERVER_URL', ''), '/'),
+            serverUrl: self::serverUrl(Env::str('PLEX_SERVER_URL', '')),
             token: $store->token() ?? '',
             connectTimeout: max(1, Env::int('PLEX_CONNECT_TIMEOUT', 10)),
             requestTimeout: max(1, Env::int('PLEX_REQUEST_TIMEOUT', 60)),
@@ -52,6 +54,40 @@ final class PlexConfig
             // upgrading user why their install is suddenly disconnected.
             obsoleteEnvToken: Env::str('PLEX_TOKEN', '') !== '',
         );
+    }
+
+    /**
+     * The configured server address, or an empty string when it cannot be used.
+     *
+     * Trimmed first, because a stray space in a compose file survives into the
+     * value and is enough to make the address unparseable.
+     *
+     * Then parsed with the same parser the HTTP client uses, so "configured"
+     * here and "usable" there cannot disagree. An address this accepted but
+     * Guzzle rejected would raise a `MalformedUriException` from inside a
+     * request — which is an `InvalidArgumentException`, not a `GuzzleException`,
+     * so nothing on the Plex path caught it. A port of `324000` instead of
+     * `32400` answered the connection screen with a stack trace.
+     *
+     * An unusable address is reported as no address at all, which is a state the
+     * connection screen already knows how to explain — and "set
+     * `PLEX_SERVER_URL`" is the right instruction for a value that cannot be
+     * used.
+     */
+    private static function serverUrl(string $raw): string
+    {
+        $url = rtrim(trim($raw), '/');
+        if ($url === '') {
+            return '';
+        }
+
+        try {
+            new Uri($url);
+        } catch (InvalidArgumentException) {
+            return '';
+        }
+
+        return $url;
     }
 
     public function isConfigured(): bool

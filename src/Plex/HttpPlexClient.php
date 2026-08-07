@@ -9,6 +9,7 @@ use App\Config\PlexConfig;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
+use InvalidArgumentException;
 use SimpleXMLElement;
 
 /**
@@ -424,6 +425,14 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             $body = (string) $response->getBody();
         } catch (GuzzleException $e) {
             throw $this->classify($e);
+        } catch (InvalidArgumentException $e) {
+            // An unparseable address fails before a request is ever made, so
+            // Guzzle raises this rather than a GuzzleException and the catch
+            // above never sees it. Configuration already rejects such an
+            // address at bootstrap; this is the backstop that stops one
+            // escaping as a 500 from the page whose job is to explain that
+            // Plex cannot be reached.
+            throw PlexException::connectionFailed($e);
         }
 
         $previous = libxml_use_internal_errors(true);
