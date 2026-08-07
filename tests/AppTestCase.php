@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
+use App\Auth\CsrfGuard;
+use App\Auth\CsrfMiddleware;
+
 use function App\buildContainer;
 use function App\createApp;
 
@@ -125,10 +128,29 @@ abstract class AppTestCase extends TestCase
     }
 
     /**
+     * Post a form the way a browser would — carrying the CSRF token that
+     * Marquee rendered into the form it came from.
+     *
      * @param App<\Psr\Container\ContainerInterface|null> $app
      * @param array<string, string>                       $data
      */
     protected function postForm(App $app, string $path, array $data): ResponseInterface
+    {
+        return $this->postFormWithoutToken(
+            $app,
+            $path,
+            $data + [CsrfMiddleware::FIELD => $this->csrfToken($app)],
+        );
+    }
+
+    /**
+     * Post with nothing but the given fields, so a missing or wrong token can be
+     * exercised deliberately.
+     *
+     * @param App<\Psr\Container\ContainerInterface|null> $app
+     * @param array<string, string>                       $data
+     */
+    protected function postFormWithoutToken(App $app, string $path, array $data): ResponseInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest('POST', $path)
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -136,5 +158,20 @@ abstract class AppTestCase extends TestCase
         $request->getBody()->rewind();
 
         return $app->handle($request);
+    }
+
+    /**
+     * The token this app's session holds, as a rendered page would carry it.
+     *
+     * @param App<\Psr\Container\ContainerInterface|null> $app
+     */
+    protected function csrfToken(App $app): string
+    {
+        $container = $app->getContainer();
+        self::assertNotNull($container);
+        /** @var CsrfGuard $guard */
+        $guard = $container->get(CsrfGuard::class);
+
+        return $guard->token();
     }
 }

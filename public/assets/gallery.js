@@ -20,6 +20,28 @@
         window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
     }
 
+    // ---- CSRF ----
+    // Every state-changing request has to prove it came from a page Marquee
+    // rendered. Forms carry the token as a hidden field, which also covers the
+    // fetches below that post `new FormData(form)`; the ones that build their
+    // own body, or send none at all, have no form to draw from and send this
+    // header instead. Read once — the token lasts as long as the session, and
+    // the meta tag is in the layout on every page.
+    var CSRF_HEADER = 'X-CSRF-Token';
+
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    // Adds the token to a fetch headers object, leaving whatever is already
+    // there alone.
+    function withCsrf(headers) {
+        var out = headers || {};
+        out[CSRF_HEADER] = csrfToken();
+        return out;
+    }
+
     // ---- Lazy-load fade-in ----
     // Poster cards ship transparent and are revealed by `is-loaded`, so this has
     // to run on every page that renders them (the gallery, the orphans page),
@@ -488,7 +510,7 @@
                     fetch(form.getAttribute('action'), {
                         method: 'POST',
                         body: new FormData(form),
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -514,7 +536,7 @@
                     this.deleting = true;
                     fetch('/orphans/delete-all', {
                         method: 'POST',
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -626,7 +648,7 @@
 
                     fetch('/plex/connection/sign-in', {
                         method: 'POST',
-                        headers: { Accept: 'application/json' },
+                        headers: withCsrf({ Accept: 'application/json' }),
                         credentials: 'same-origin'
                     })
                         .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
@@ -894,7 +916,7 @@
                     fetch('/plex/import', {
                         method: 'POST',
                         body: new FormData(form),
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -1122,7 +1144,7 @@
                     fetch('/library/' + category + '/change/' + (upload ? 'upload' : 'url'), {
                         method: 'POST',
                         body: body,
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) {
@@ -1377,7 +1399,7 @@
             fetch(action, {
                 method: 'POST',
                 body: data,
-                headers: { 'X-Requested-With': 'fetch' },
+                headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                 credentials: 'same-origin',
             })
                 .then(function (r) { return r.text(); })

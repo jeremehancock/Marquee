@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App;
 
 use App\Auth\AuthMiddleware;
+use App\Auth\CsrfGuard;
+use App\Auth\CsrfMiddleware;
 use App\Auth\PlexConnectionMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
@@ -134,7 +136,7 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
+        Twig::class => static function (AppConfig $config, AuthConfig $auth, CsrfGuard $csrf): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
@@ -154,6 +156,25 @@ function buildContainer(array $overrides = []): Container
 
                     return $mtime === false ? $path : $path . '?v=' . $mtime;
                 }
+            ));
+
+            // Functions rather than globals, deliberately. A global is
+            // evaluated when this service is constructed; the token needs the
+            // session, which AuthMiddleware starts during the request. A
+            // function is evaluated at render time, when the session is
+            // unambiguously live, so no ordering can break it.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'csrf_field',
+                static fn (): string => sprintf(
+                    '<input type="hidden" name="%s" value="%s">',
+                    CsrfMiddleware::FIELD,
+                    htmlspecialchars($csrf->token(), ENT_QUOTES, 'UTF-8'),
+                ),
+                ['is_safe' => ['html']],
+            ));
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'csrf_token',
+                static fn (): string => $csrf->token(),
             ));
 
             return $twig;
@@ -188,14 +209,23 @@ function createApp(?Container $container = null): App
     /** @var PlexConnectionMiddleware $plexMiddleware */
     $plexMiddleware = $container->get(PlexConnectionMiddleware::class);
 
+    /** @var CsrfMiddleware $csrfMiddleware */
+    $csrfMiddleware = $container->get(CsrfMiddleware::class);
+
     // Middleware executes outermost-first (last added runs first): errors wrap
     // routing, which wraps auth, which wraps the Plex gate, which wraps body
-    // parsing and the handler.
+    // parsing, which wraps the CSRF check and the handler.
     //
     // Auth outside the gate is deliberate: an anonymous visitor is sent to log
     // in before being asked to connect Plex. The other order would expose the
     // connection screen, and its sign-in action, to anyone who can reach the
     // host.
+    //
+    // The CSRF check is innermost, which is what puts it *inside* body parsing:
+    // it reads the token from the parsed body, so it cannot run before the body
+    // has been parsed. Being inside auth also guarantees the session exists,
+    // since AuthMiddleware starts it on every request.
+    $app->add($csrfMiddleware);
     $app->addBodyParsingMiddleware();
     $app->add($plexMiddleware);
     $app->add($authMiddleware);

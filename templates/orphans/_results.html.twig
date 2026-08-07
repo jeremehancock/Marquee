@@ -25,6 +25,7 @@
                             <a class="btn btn--small" href="{{ orphan_url }}" download>Download</a>
                             <form class="js-mutate" method="post" action="/orphans/delete"
                                   data-confirm="Permanently delete the orphaned poster “{{ orphan.title }}”? This cannot be undone.">
+                                {{ csrf_field() }}
                                 <input type="hidden" name="category" value="{{ orphan.category }}">
                                 <input type="hidden" name="filename" value="{{ orphan.filename }}">
                                 <button type="submit" class="btn btn--small btn--danger">Delete</button>

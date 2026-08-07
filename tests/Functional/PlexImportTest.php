@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Auth\CsrfMiddleware;
 use App\Plex\PlexClient;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
@@ -121,7 +122,14 @@ final class PlexImportTest extends AppTestCase
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/plex/import')
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded');
-        $request->getBody()->write(http_build_query(['sections' => ['1'], 'types' => ['movie']]));
+        // Built by hand rather than with postForm() because the import posts
+        // array-valued fields. The token still has to travel: this route is
+        // state-changing, and bypass does not exempt it.
+        $request->getBody()->write(http_build_query([
+            'sections' => ['1'],
+            'types' => ['movie'],
+            CsrfMiddleware::FIELD => $this->csrfToken($app),
+        ]));
         $request->getBody()->rewind();
 
         $response = $app->handle($request);

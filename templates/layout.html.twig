@@ -13,6 +13,10 @@
        bar both need. Honoured by Chrome; iOS Safari ignores it, harmlessly. #}
     <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="theme-color" content="#1c1e24">
+    {# Where the scripts read the token from. Forms carry it as a field; the
+       fetch calls that build their own body have no form to draw from, so they
+       send it as a header and take it from here. #}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     {# Both names: iOS reads only the apple- one for a standalone home-screen
        install, and Chrome logs a deprecation warning for it unless the standard
        name is present too. #}

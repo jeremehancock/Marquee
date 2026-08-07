@@ -34,6 +34,7 @@
                 open the app.
             </p>
             <form method="post" action="/plex/connection/sign-out">
+                {{ csrf_field() }}
                 <button type="submit" class="btn btn--danger">Disconnect from Plex</button>
             </form>
         {% elseif connection.needsServerUrl %}
