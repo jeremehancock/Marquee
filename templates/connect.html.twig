@@ -6,6 +6,11 @@
 {% block title %}Plex Connection · {{ site_title }}{% endblock %}
 
 {% block content %}
+    {# Only once connected. While the gate is up the gallery is unreachable, so
+       the link would bounce straight back here. #}
+    {% if connection.isConnected %}
+        <p><a class="search__clear" href="{{ back_url }}">&larr; Back to gallery</a></p>
+    {% endif %}
     <h1>Plex Connection</h1>
 
     {% if flash %}

@@ -96,6 +96,22 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringNotContainsString('Plex is not connected', $body);
     }
 
+    public function testConnectedScreenOffersAWayBackToTheGallery(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        self::assertStringContainsString('Back to gallery', $body);
+        self::assertStringContainsString('href="/library/all"', $body);
+    }
+
+    public function testDisconnectedScreenOffersNoWayBack(): void
+    {
+        // The gate would refuse it, so the link would bounce straight back here.
+        $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+
+        self::assertStringNotContainsString('Back to gallery', (string) $this->get($app, '/connect')->getBody());
+    }
+
     public function testScreenWhenNotConnected(): void
     {
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
@@ -267,6 +283,14 @@ final class PlexConnectionTest extends AppTestCase
         $poll = (string) $this->get($app, '/plex/connection/status')->getBody();
         self::assertStringContainsString('completed', $poll);
         self::assertStringNotContainsString('granted-secret-token', $poll);
+
+        // The browser leaves for the gallery next, so the confirmation has to be
+        // waiting on the next page rather than on the screen it just left.
+        // Asserted here against the connection screen rather than the gallery:
+        // configuration resolves once per container, so within a single test app
+        // the gate still holds the pre-sign-in view and would turn the gallery
+        // away. A real request builds a fresh container and sees the token.
+        self::assertStringContainsString('Signed in to Plex.', (string) $this->get($app, '/connect')->getBody());
 
         self::assertSame(
             'granted-secret-token',

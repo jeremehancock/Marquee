@@ -70,6 +70,16 @@ final class PlexSignInPopupTest extends TestCase
         self::assertStringContainsString('self._closeWindow();', $watch);
     }
 
+    public function testCompletingSignInLeavesForTheGallery(): void
+    {
+        // Not a reload: connecting is a step on the way to using Marquee, and
+        // for anyone the gate sent here it is the last thing in the way.
+        $watch = $this->between('_watch: function (deadline)', '_closeWindow: function ()');
+
+        self::assertStringContainsString("window.location.href = '/';", $watch);
+        self::assertStringNotContainsString('window.location.reload()', $watch);
+    }
+
     public function testPollingIsShortRequestResponse(): void
     {
         self::assertStringContainsString('window.setTimeout(', $this->between(

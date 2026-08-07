@@ -7,7 +7,10 @@ namespace App\Controller;
 use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexSignInException;
 use App\Plex\Connection\PlexSignInService;
+use App\Plex\Connection\PlexSignInStatus;
 use App\Support\Flash;
+use App\Support\LastCategory;
+use App\Support\Session\SessionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
@@ -33,6 +36,7 @@ final class PlexConnectionController
         private readonly PlexSignInService $signIn,
         private readonly PlexConnectionStatus $status,
         private readonly Flash $flash,
+        private readonly SessionInterface $session,
     ) {
     }
 
@@ -46,6 +50,9 @@ final class PlexConnectionController
         return $this->twig->render($response, 'connect.html.twig', [
             'connection' => $this->status->refresh(),
             'flash' => $this->flash->pull(),
+            // Only meaningful once connected — while the gate is up there is no
+            // gallery to go back to, and the template hides the link.
+            'back_url' => LastCategory::backUrl($this->session),
         ]);
     }
 
@@ -78,11 +85,15 @@ final class PlexConnectionController
             return $this->json($response->withStatus(502), ['error' => $e->getMessage()]);
         }
 
-        // Only the status. Describing the new connection here would be wrong as
-        // well as redundant: configuration is resolved once when the container
-        // is built, so this request still holds the pre-sign-in view and would
-        // report "not connected" moments after connecting. The browser reloads
-        // on success, and the fresh request reads the stored token correctly.
+        if ($status === PlexSignInStatus::Completed) {
+            // The browser leaves for the gallery next, so the confirmation has
+            // to travel with it. Deliberately unnamed: configuration is resolved
+            // once when the container is built, so this request still holds the
+            // pre-sign-in view and could not name the server without lying.
+            $this->flash->add('success', 'Signed in to Plex.');
+        }
+
+        // Only the status, for the same reason.
         return $this->json($response, ['status' => $status->value]);
     }
 

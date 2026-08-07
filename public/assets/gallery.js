@@ -669,9 +669,13 @@
                                     // page up; closing it ourselves finishes the
                                     // flow where it started.
                                     self._closeWindow();
-                                    // Re-render from the server rather than
-                                    // patching the panel here.
-                                    window.location.reload();
+                                    // Straight to the gallery, not back to this
+                                    // screen. Connecting is a step on the way to
+                                    // using Marquee, and for anyone the gate
+                                    // sent here it is the last thing between
+                                    // them and their posters. The server's flash
+                                    // confirms it on arrival.
+                                    window.location.href = '/';
                                     return;
                                 }
                                 if (data.status === 'expired') {

@@ -178,6 +178,11 @@ is concrete.
 #### Scenario: Connected
 - **WHEN** a token is stored and the server address is set
 - **THEN** the screen names the connected server and offers to sign out
+- **AND** offers a way back to the gallery
+
+#### Scenario: No way back while the gate is up
+- **WHEN** the screen renders while Plex is not connected
+- **THEN** it offers no link to the gallery, which the gate would refuse
 
 #### Scenario: Not connected
 - **WHEN** no token is stored
@@ -227,6 +232,8 @@ unattended without anyone signing in; a gate in front of it would break that.
 #### Scenario: Connecting releases the gate
 - **WHEN** a user signs in to Plex successfully
 - **THEN** the previously gated routes are served normally
+- **AND** the user is taken to the gallery with a confirmation, rather than left
+  on the connection screen
 
 #### Scenario: Authentication comes first
 - **WHEN** an unauthenticated visitor requests a gated route while Plex is not

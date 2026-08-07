@@ -167,8 +167,10 @@ Until you have, every page redirects to the **Plex Connection** screen.
 
 1. Set `PLEX_SERVER_URL` to your server's address and start Marquee.
 2. Log in, and you will land on **Plex Connection**.
-3. Choose **Sign in to Plex**. A Plex window opens; approve Marquee there.
-4. The screen names your server, and the rest of the app unlocks.
+3. Choose **Sign in to Plex**. A Plex popup opens; approve Marquee there.
+4. The popup closes and Marquee takes you to your gallery. Return to **Plex
+   Connection** any time to see which server you are connected to, or to sign
+   out.
 
 The token is stored at `/config/data/plex-connection.json`, owner-readable only
 (`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the
