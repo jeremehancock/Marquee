@@ -107,7 +107,10 @@ generated once and persists across restarts, so that repeated sign-ins do not
 accumulate duplicate device entries in the user's Plex account.
 
 The system SHALL accept only the Plex account that owns the configured server,
-and SHALL refuse any other, storing nothing. Plex prevents an unprivileged
+and SHALL refuse any other, storing nothing. Ownership SHALL be established
+using the token being offered, because the check runs at the one moment no
+token is stored — deciding it from stored configuration would refuse every
+first connection. Plex prevents an unprivileged
 account from altering the library, but not from deleting posters here — and a
 poster that never reached Plex has no upstream copy to restore. Where ownership
 cannot be established the sign-in SHALL be refused, because a check that passes
@@ -121,6 +124,11 @@ process, which runs without a browser session.
 #### Scenario: Successful sign-in
 - **WHEN** an authenticated user starts sign-in and approves Marquee in Plex
 - **THEN** the system stores the returned token and reports Plex as connected
+
+#### Scenario: The first sign-in succeeds with nothing stored
+- **WHEN** the owner signs in on an install that has no token stored yet
+- **THEN** the system establishes ownership from the token being offered, not
+  from stored configuration, and accepts the sign-in
 
 #### Scenario: An account that does not own the server is refused
 - **WHEN** the approving Plex account does not own the configured server

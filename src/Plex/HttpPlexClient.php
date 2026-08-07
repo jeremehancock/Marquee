@@ -206,7 +206,8 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
      * anything personal, and for a poster manager it is the more useful of the
      * two — it says which server is connected, which is what goes wrong when a
      * URL points at the wrong host. The owner is read separately, by
-     * {@see serverOwner()}, and used only to decide who may sign in.
+     * {@see \App\Plex\Connection\PlexServerOwner}, which cannot go through this
+     * client: it runs before any token is stored.
      *
      * Every failure is absorbed: the name is decoration, and no page should
      * break because a server did not answer.
@@ -214,18 +215,6 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
     public function serverName(): ?string
     {
         return $this->rootAttr('friendlyName');
-    }
-
-    /**
-     * The account the server names as its owner.
-     *
-     * Read from the same root response as the name, and this is the one place
-     * `myPlexUsername` is used: not to show anyone, but to decide whether the
-     * account that just signed in is entitled to manage this install.
-     */
-    public function serverOwner(): ?string
-    {
-        return $this->rootAttr('myPlexUsername');
     }
 
     /**

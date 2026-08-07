@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Plex;
 
+use App\Config\PlexConfig;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
+use App\Plex\Connection\PlexServerOwner;
 use App\Plex\Connection\PlexSignInException;
 use App\Plex\Connection\PlexSignInService;
 use App\Plex\Connection\PlexSignInStatus;
-use App\Plex\PlexClient;
 use App\Support\Session\ArraySession;
 use App\Support\Session\SessionInterface;
-use App\Tests\Support\FakePlexClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
@@ -52,6 +52,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
             $this->accountResponse('owner@example.com'),
         ], $store);
 
@@ -87,6 +88,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
             $this->accountResponse('owner@example.com'),
         ], $store, $starter);
 
@@ -98,7 +100,7 @@ final class PlexSignInServiceTest extends TestCase
             $this->pinClient([], $store),
             $store,
             new ArraySession(),
-            $this->ownedServer(),
+            new PlexServerOwner(new Client(['handler' => $this->stack([])]), new PlexConfig('http://plex:32400', '', 10, 60)),
         );
 
         self::assertSame(PlexSignInStatus::NotStarted, $other->poll());
@@ -185,6 +187,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
             $this->accountResponse('someone-else@example.com'),
         ], $store);
 
@@ -204,8 +207,9 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse('jereme'),
             $this->accountResponse('other@example.com', 'JEREME'),
-        ], $store, null, new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', 'jereme'));
+        ], $store);
 
         $service->start();
 
@@ -218,6 +222,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
             // plex.tv will not say who this token belongs to.
             new Response(500, [], '{}'),
         ], $store);
@@ -231,12 +236,13 @@ final class PlexSignInServiceTest extends TestCase
     public function testAServerThatWillNotNameItsOwnerRefuses(): void
     {
         $store = new PlexConnectionStore($this->dir);
-        $nameless = new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', null);
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            // A root response with no owner in it.
+            new Response(200, [], '<MediaContainer friendlyName="Anansi"/>'),
             $this->accountResponse('owner@example.com'),
-        ], $store, null, $nameless);
+        ], $store);
 
         $service->start();
 
@@ -252,6 +258,7 @@ final class PlexSignInServiceTest extends TestCase
         $service = $this->service([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
             $this->accountResponse('someone-else@example.com'),
         ], $store);
 
@@ -323,15 +330,20 @@ final class PlexSignInServiceTest extends TestCase
         array $responses,
         ?PlexConnectionStore $store = null,
         ?SessionInterface $session = null,
-        ?PlexClient $plex = null,
     ): PlexSignInService {
         $store ??= new PlexConnectionStore($this->dir);
+        $stack = $this->stack($responses);
 
         return new PlexSignInService(
-            $this->pinClient($responses, $store),
+            new PlexPinClient(new Client(['handler' => $stack]), $store, '1.2.3'),
             $store,
             $session ?? new ArraySession(),
-            $plex ?? $this->ownedServer(),
+            // Shares the handler stack, so responses are queued in the order the
+            // flow makes them: create, poll, the server's root, then plex.tv.
+            new PlexServerOwner(
+                new Client(['handler' => $stack]),
+                new PlexConfig('http://plex:32400', '', 10, 60),
+            ),
         );
     }
 
@@ -341,17 +353,25 @@ final class PlexSignInServiceTest extends TestCase
     }
 
     /**
-     * A server whose owner matches the account the mocked plex.tv returns.
+     * The server's root response, naming its owner.
      */
-    private function ownedServer(): FakePlexClient
+    private function ownerResponse(string $owner = 'owner@example.com'): Response
     {
-        return new FakePlexClient([], [], [], [], [], true, [], [], [], 'Anansi', 'owner@example.com');
+        return new Response(200, [], '<MediaContainer friendlyName="Anansi" myPlexUsername="' . $owner . '"/>');
     }
 
     /**
      * @param list<Response|ConnectException> $responses
      */
     private function pinClient(array $responses, PlexConnectionStore $store): PlexPinClient
+    {
+        return new PlexPinClient(new Client(['handler' => $this->stack($responses)]), $store, '1.2.3');
+    }
+
+    /**
+     * @param list<Response|ConnectException> $responses
+     */
+    private function stack(array $responses): HandlerStack
     {
         $stack = HandlerStack::create(new MockHandler($responses));
         $stack->push(function (callable $handler): callable {
@@ -362,6 +382,6 @@ final class PlexSignInServiceTest extends TestCase
             };
         });
 
-        return new PlexPinClient(new Client(['handler' => $stack]), $store, '1.2.3');
+        return $stack;
     }
 }

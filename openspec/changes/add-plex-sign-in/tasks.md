@@ -186,6 +186,9 @@
 - [x] 14.6 Say the account does not own the server without naming the owner
 - [x] 14.7 Unit- and functional-test the refusal, both failure-to-verify paths,
       and that no refusal discloses the owner
+- [x] 14.8 Establish ownership from the token being offered rather than from
+      stored configuration, which is empty on a first connection and would
+      refuse the owner along with everyone else
 
 ## 15. Container environment
 

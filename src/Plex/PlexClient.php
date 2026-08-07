@@ -75,13 +75,4 @@ interface PlexClient
      */
     public function serverName(): ?string;
 
-    /**
-     * The account the server names as its owner, or null when it cannot be
-     * obtained.
-     *
-     * This is what decides whether a Plex account signing in is allowed to
-     * manage this install. Null means "could not tell", and callers MUST treat
-     * that as a refusal rather than as permission.
-     */
-    public function serverOwner(): ?string;
 }

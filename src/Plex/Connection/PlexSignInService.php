@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Plex\Connection;
 
-use App\Plex\PlexClient;
 use App\Support\Scalar;
 use App\Support\Session\SessionInterface;
 
@@ -26,7 +25,7 @@ final class PlexSignInService
         private readonly PlexPinClient $client,
         private readonly PlexConnectionStore $store,
         private readonly SessionInterface $session,
-        private readonly PlexClient $plex,
+        private readonly PlexServerOwner $owner,
     ) {
     }
 
@@ -118,7 +117,7 @@ final class PlexSignInService
      */
     private function owns(string $token): bool
     {
-        $owner = $this->plex->serverOwner();
+        $owner = $this->owner->forToken($token);
         if ($owner === null) {
             return false;
         }

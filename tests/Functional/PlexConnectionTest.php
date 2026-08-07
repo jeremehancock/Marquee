@@ -265,7 +265,9 @@ final class PlexConnectionTest extends AppTestCase
         $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['authToken' => 'granted-secret-token'])),
-            // Who the token belongs to — must match the server's owner.
+            // The server, asked with the new token, names its owner...
+            new Response(200, [], '<MediaContainer friendlyName="Anansi" myPlexUsername="owner@example.com"/>'),
+            // ...and plex.tv says who the token belongs to.
             new Response(200, [], (string) json_encode(['username' => 'owner', 'email' => 'owner@example.com'])),
         ]))]);
 
@@ -309,6 +311,7 @@ final class PlexConnectionTest extends AppTestCase
         $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
             new Response(200, [], (string) json_encode(['authToken' => 'a-guests-token'])),
+            new Response(200, [], '<MediaContainer friendlyName="Anansi" myPlexUsername="owner@example.com"/>'),
             new Response(200, [], (string) json_encode(['username' => 'guest', 'email' => 'guest@example.com'])),
         ]))]);
 
@@ -327,6 +330,33 @@ final class PlexConnectionTest extends AppTestCase
         self::assertNull((new PlexConnectionStore($this->dataDir))->token());
         // The refusal must not tell a stranger who the owner is.
         self::assertStringNotContainsString('owner@example.com', $poll);
+    }
+
+    public function testAFirstSignInSucceedsWithNoTokenStoredYet(): void
+    {
+        // The regression that made the owner check unusable: it consulted the
+        // stored configuration, which on a first connection has no token, and
+        // the fail-closed rule turned "cannot tell" into a refusal of the owner.
+        $plexTv = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['authToken' => 'the-owners-token'])),
+            new Response(200, [], '<MediaContainer friendlyName="Anansi" myPlexUsername="owner@example.com"/>'),
+            new Response(200, [], (string) json_encode(['username' => 'owner', 'email' => 'owner@example.com'])),
+        ]))]);
+
+        $app = $this->makeApp(
+            $this->env(['PLEX_SERVER_URL' => 'http://plex:32400']),
+            [
+                PlexClient::class => static fn (): PlexClient => new FakePlexClient(),
+                ClientInterface::class => static fn (): ClientInterface => $plexTv,
+            ],
+        );
+
+        $this->postForm($app, '/plex/connection/sign-in', []);
+        $poll = (string) $this->get($app, '/plex/connection/status')->getBody();
+
+        self::assertStringContainsString('completed', $poll);
+        self::assertSame('the-owners-token', (new PlexConnectionStore($this->dataDir))->token());
     }
 
     public function testAbandonedSignInLeavesAnExistingConnectionAlone(): void
