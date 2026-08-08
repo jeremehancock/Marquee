@@ -21,8 +21,8 @@
         <div class="sheet__body menu__body" @click="menuOpen = false">
             {{ nav.secondary_links(nav_current|default('')) }}
             {% if signed_in() %}
-                {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
                 {{ nav.logout_link() }}
+                {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
             {% endif %}
         </div>
         {# Sits outside .sheet__body, so it closes the tray itself — matching how

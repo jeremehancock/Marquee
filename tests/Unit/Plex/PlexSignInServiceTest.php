@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Plex;
 use App\Auth\SessionAuthenticator;
 use App\Config\AuthConfig;
 use App\Config\PlexConfig;
+use App\Database\Database;
+use App\Database\PlexServerRepository;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
 use App\Plex\Connection\PlexServerOwner;
@@ -31,10 +33,14 @@ final class PlexSignInServiceTest extends TestCase
     /** @var list<RequestInterface> */
     private array $sent = [];
 
+    /** Shared across a test so an assertion can read what the sign-in cached. */
+    private ?PlexServerRepository $servers = null;
+
     protected function setUp(): void
     {
         $this->dir = sys_get_temp_dir() . '/marquee-signin-' . bin2hex(random_bytes(6));
         $this->sent = [];
+        $this->servers = null;
     }
 
     protected function tearDown(): void
@@ -105,6 +111,7 @@ final class PlexSignInServiceTest extends TestCase
             $otherSession,
             new PlexServerOwner(new Client(['handler' => $this->stack([])]), new PlexConfig('http://plex:32400', '', 10, 60)),
             new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $otherSession),
+            new PlexServerRepository(new Database(':memory:')),
         );
 
         self::assertSame(PlexSignInStatus::NotStarted, $other->poll());
@@ -455,6 +462,29 @@ final class PlexSignInServiceTest extends TestCase
 
     // ---- The recorded owner ----
 
+    /**
+     * The server names itself in the same response the ownership check reads, so
+     * the connection has a name from the moment it exists. Without this nothing
+     * caches it until somebody opens the connection screen — the only other
+     * place that asks — and the header reported a nameless connection until they
+     * did.
+     */
+    public function testAFirstSignInRecordsWhatTheServerCallsItself(): void
+    {
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
+            $this->accountResponse('owner@example.com'),
+        ]);
+
+        $service->start();
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+
+        self::assertNotNull($this->servers);
+        self::assertSame('Anansi', $this->servers->name());
+    }
+
     public function testAFirstSignInRecordsTheOwnerItVerified(): void
     {
         $store = new PlexConnectionStore($this->dir);
@@ -615,6 +645,7 @@ final class PlexSignInServiceTest extends TestCase
                     new PlexConfig('http://plex:32400', '', 10, 60),
                 ),
                 new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session),
+                new PlexServerRepository(new Database(':memory:')),
             );
         };
 
@@ -649,6 +680,7 @@ final class PlexSignInServiceTest extends TestCase
                 new PlexConfig('http://plex:32400', '', 10, 60),
             ),
             new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session),
+            $this->servers ??= new PlexServerRepository(new Database(':memory:')),
         );
     }
 

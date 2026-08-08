@@ -97,9 +97,24 @@ Reporting the status SHALL NOT contact Plex. It renders on every page, and a
 reachability probe there would stall the whole application whenever the server
 was down — the same reason the connection gate reads configuration only.
 
+The name it reports SHALL therefore be recorded when the connection is
+established, not looked up when it is displayed. The server names itself in the
+response the ownership check already reads, so a sign-in learns it at no extra
+cost. Where no name has been recorded the status SHALL report the connection as
+connected rather than naming anything.
+
 #### Scenario: Connected names the server
 - **WHEN** a signed-in user views any page with navigation while Plex is connected
 - **THEN** the navigation shows the connected server's name
+
+#### Scenario: The server is named without opening the connection screen
+- **WHEN** a user signs in and goes straight to the gallery
+- **THEN** the navigation already names the connected server
+
+#### Scenario: An unnamed connection still reports itself as connected
+- **WHEN** the status renders while Plex is connected but no server name has been
+  recorded
+- **THEN** it reports the connection as connected rather than naming anything
 
 #### Scenario: Disconnected is reported as such
 - **WHEN** a signed-in user views a page with navigation while Plex is not

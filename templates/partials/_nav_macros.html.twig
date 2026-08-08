@@ -68,7 +68,11 @@
    sighted user is scanning for. #}
 {% macro connection_status(connection, current = '') %}
     {% set connected = connection.isConnected %}
-    {% set name = connected ? (connection.serverName ?? 'Plex') : 'Not connected' %}
+    {# "Connected", not "Plex", when the server has not told us what it calls
+       itself: naming the product where a server name belongs reads as the name
+       of something. It is cached at sign-in, so this is the rare case of a
+       deleted database, not the ordinary one. #}
+    {% set name = connected ? (connection.serverName ?? 'Connected') : 'Not connected' %}
     {% set label = 'Plex connection: ' ~ (connected ? 'connected to ' ~ name : 'not connected') %}
     {# A lit dot and a name, deliberately not the icon-and-label shape the items
        above use. Carrying no glyph is what separates a reading from an action:

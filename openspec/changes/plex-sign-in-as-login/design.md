@@ -310,6 +310,19 @@ configuration and never contacts Plex — it renders on every page, and a probe
 there would put the connect timeout in front of the whole application whenever
 the server was down.
 
+That constraint left a hole worth naming: the cache was only ever written by the
+connection screen, so a fresh install showed a nameless connection until the user
+happened to open it. The fix is not to look the name up at render time but to
+record it earlier — the server states its friendly name in the same response the
+ownership check reads, so a sign-in already has it and simply threw it away.
+Where no name has been recorded at all the status says "Connected" rather than
+naming the product, which would read as the name of a server.
+
+It sits after Log out rather than between Support and Log out. In the middle it
+split the five actions into two groups and made a reading look like part of the
+run; trailing the row, past the hairline, it reads as something appended to the
+menu rather than a member of it.
+
 ## Risks / Trade-offs
 
 **A fresh install with a wrong `PLEX_SERVER_URL` cannot log in** → This is the

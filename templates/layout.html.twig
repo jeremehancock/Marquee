@@ -64,8 +64,8 @@
                 <div class="topnav__desktop">
                     {{ nav.secondary_links(nav_current|default('')) }}
                     {% if signed_in() %}
-                        {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
                         {{ nav.logout_link() }}
+                        {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
                     {% endif %}
                 </div>
                 {# An overflow ("more") glyph rather than a hamburger: nothing behind

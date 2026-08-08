@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Plex\Connection;
 
 use App\Auth\SessionAuthenticator;
+use App\Database\PlexServerRepository;
 use App\Support\Scalar;
 use App\Support\Session\SessionInterface;
 
@@ -33,6 +34,7 @@ final class PlexSignInService
         private readonly SessionInterface $session,
         private readonly PlexServerOwner $owner,
         private readonly SessionAuthenticator $auth,
+        private readonly PlexServerRepository $servers,
     ) {
     }
 
@@ -191,6 +193,15 @@ final class PlexSignInService
         }
 
         $this->store->storeOwner($owner);
+
+        // The server named itself while answering the ownership question, so
+        // cache it here. Without this the connection has no name until somebody
+        // opens the connection screen — which is the only other place that asks
+        // — and the header would report a nameless connection until they did.
+        $name = $lookup->serverName();
+        if ($name !== null) {
+            $this->servers->remember($name);
+        }
 
         return null;
     }
