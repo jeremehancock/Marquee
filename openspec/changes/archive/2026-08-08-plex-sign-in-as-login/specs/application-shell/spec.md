@@ -162,164 +162,7 @@ again is never refused.
 - **WHEN** requests to start a sign-in exceed the configured rate
 - **THEN** the excess is refused without reaching the application
 
-## MODIFIED Requirements
-
-### Requirement: Sign in to Plex from the application
-The system SHALL let a visitor sign in to Plex from within the application using
-Plex's PIN authorization flow, and SHALL treat that sign-in as the way to log in
-to Marquee. This is the only way to supply a Plex credential and the only way to
-obtain a session. It SHALL be reachable without an existing session.
-
-The flow SHALL open Plex's own sign-in page in a separate browser window and
-poll for completion, rather than relying on a redirect back to Marquee. Marquee
-therefore never needs to know its own externally reachable URL, and the flow
-works unchanged behind a reverse proxy.
-
-Closing that window SHALL end the wait. Nothing in the authorization request's
-own state records that the user walked away — it stays pending at Plex until it
-expires — so a flow that watched only the request would leave the control
-reporting that it was waiting for Plex until the request's full lifetime elapsed.
-The interface SHALL notice the window has gone and say so instead.
-
-It SHALL still let the poll answer first, because Plex invites the user to close
-the window once they have approved, so a close can arrive moments after a
-successful approval. An approved sign-in SHALL therefore complete normally even
-if the window is closed while it is being confirmed.
-
-The system SHALL identify itself to Plex with a client identifier that is
-generated once and persists across restarts, so that repeated sign-ins do not
-accumulate duplicate device entries in the user's Plex account.
-
-The system SHALL accept only the Plex account that owns the configured server,
-and SHALL refuse any other, storing nothing and creating no session. Ownership
-SHALL be established using the token being offered when nothing has been
-recorded yet, because the check runs at the one moment no token is stored —
-deciding it from stored configuration would refuse every first connection. Plex
-prevents an unprivileged account from altering the library, but not from
-deleting posters here — and a poster that never reached Plex has no upstream copy
-to restore. Where ownership cannot be established the sign-in SHALL be refused,
-because a check that passes when it cannot run is not a check. The refusal SHALL
-NOT name the owner, who is by definition not the person reading it.
-
-A successful sign-in SHALL store the token it was verified with and create a
-session, whether or not a token was already stored. Signing in again is how a
-user replaces a token they revoked in their Plex account; keeping the stored one
-would leave that install unable to reach Plex with no action left to take. Only
-a refusal leaves an existing connection untouched.
-
-A refusal SHALL identify which of the two things went wrong: reaching the Plex
-server, or the account that was used. Both refuse and store nothing, so they are
-identical in effect and opposite in remedy — one is fixed in the compose file,
-the other by signing in as somebody else. Reporting an unreachable server as an
-ownership verdict tells the owner their own account is not theirs, and sends
-them to the one place that is working.
-
-This distinction is load-bearing now that signing in is also how Marquee is
-entered. An install whose configured address is wrong cannot establish ownership,
-and the screen that explains the address is the screen the visitor is already
-looking at. A refusal that does not name the address setting leaves no way to
-learn what is wrong.
-
-The distinction SHALL follow what the server did, not why Marquee wanted to ask.
-A server that answers and refuses the token has given an ownership answer: the
-account has no access to it. A server that does not answer at all has given
-none, and SHALL be reported as unreachable, naming the server address and the
-server itself as what to check.
-
-Where the ownership check fails because plex.tv cannot be reached, the system
-SHALL report Plex as unavailable rather than as an ownership verdict. Nothing
-about the account has been learned, so nothing about the account may be claimed.
-
-#### Scenario: Successful sign-in on a connected install
-- **WHEN** the owner completes a sign-in on an install that already has a token
-- **THEN** the system creates an authenticated session and takes the user into
-  the application
-- **AND** the token it was verified with replaces the stored one
-
-#### Scenario: Signing in again replaces a revoked token
-- **WHEN** the owner signs in on an install whose stored token has been revoked
-  in their Plex account
-- **THEN** the newly approved token replaces the stored one
-
-#### Scenario: The first sign-in succeeds with nothing stored
-- **WHEN** the owner signs in on an install that has no token stored yet
-- **THEN** the system establishes ownership from the token being offered, not
-  from stored configuration
-- **AND** stores the token and creates an authenticated session
-
-#### Scenario: An account that does not own the server is refused
-- **WHEN** the approving Plex account does not own the configured server
-- **THEN** the system stores no token, creates no session, and reports that the
-  account does not own it
-- **AND** any previously stored token is left untouched
-
-#### Scenario: Ownership that cannot be established is refused
-- **WHEN** the server does not report an owner, or the account behind the token
-  cannot be identified
-- **THEN** the system refuses the sign-in rather than treating it as permitted
-
-#### Scenario: An unreachable server is not reported as an ownership failure
-- **WHEN** the configured server address is wrong, the Plex server is not
-  running, or the network between them refuses the connection
-- **THEN** the system reports that it could not reach the Plex server
-- **AND** it does not report that the account does not own the server
-- **AND** the message names the server address setting and the server itself as
-  what to check
-- **AND** no token is stored and no session is created
-
-#### Scenario: A mistyped address explains itself on the login screen
-- **WHEN** a first sign-in is attempted on an install whose configured server
-  address cannot be reached
-- **THEN** the screen the visitor is on names `PLEX_SERVER_URL` as what to check
-
-#### Scenario: A server that refuses the token is an ownership answer
-- **WHEN** the configured server answers the ownership request by rejecting the
-  token as unauthorised
-- **THEN** the system reports that the account does not own the server, rather
-  than reporting the server as unreachable
-
-#### Scenario: plex.tv being unavailable is not an ownership verdict
-- **WHEN** the account behind the token cannot be identified because plex.tv
-  cannot be reached
-- **THEN** the system reports that Plex is unavailable
-- **AND** it does not report that the account does not own the server
-- **AND** no token is stored
-
-#### Scenario: The refusal does not identify the owner
-- **WHEN** a sign-in is refused because the account does not own the server
-- **THEN** the message does not disclose the owner's account
-
-#### Scenario: Sign-in not completed
-- **WHEN** the user closes the Plex window without approving, or the
-  authorization request expires
-- **THEN** the system stores no token, creates no session, and reports that
-  sign-in did not complete
-- **AND** any previously stored token is left untouched
-
-#### Scenario: Closing the window ends the wait promptly
-- **WHEN** the user closes the Plex window without approving
-- **THEN** the interface stops reporting that it is waiting for Plex, rather than
-  waiting for the authorization request to expire
-
-#### Scenario: Closing the window just after approving still completes
-- **WHEN** the user approves the request and closes the Plex window before the
-  approval has been confirmed
-- **THEN** the sign-in completes normally
-
-#### Scenario: A blocked popup is not treated as abandonment
-- **WHEN** the browser blocks the Plex window and the user follows the offered
-  link instead
-- **THEN** the interface keeps waiting for the approval
-
-#### Scenario: Scheduled import uses the stored token
-- **WHEN** a token was obtained by signing in
-- **THEN** the scheduled auto-import authenticates to Plex with the stored token
-
-#### Scenario: Disconnecting
-- **WHEN** an authenticated user disconnects from Plex
-- **THEN** the system removes the stored token and reports Plex as not connected
-
-### Requirement: Plex connection screen
+### Requirement: Sign-in and connection screen
 The system SHALL provide one screen that is both where a visitor logs in and
 where the Plex connection is managed. It SHALL be the only place the Plex
 connection is managed; no other page SHALL offer to change it.
@@ -432,6 +275,163 @@ it as a fault.
 - **THEN** the screen states that it no longer disables the login and that
   signing in to Plex is now required
 
+## MODIFIED Requirements
+
+### Requirement: Sign in to Plex from the application
+The system SHALL let a visitor sign in to Plex from within the application using
+Plex's PIN authorization flow, and SHALL treat that sign-in as the way to log in
+to Marquee. This is the only way to supply a Plex credential and the only way to
+obtain a session. It SHALL be reachable without an existing session.
+
+The flow SHALL open Plex's own sign-in page in a separate browser window and
+poll for completion, rather than relying on a redirect back to Marquee. Marquee
+therefore never needs to know its own externally reachable URL, and the flow
+works unchanged behind a reverse proxy.
+
+Closing that window SHALL end the wait. Nothing in the authorization request's
+own state records that the user walked away — it stays pending at Plex until it
+expires — so a flow that watched only the request would leave the control
+reporting that it was waiting for Plex until the request's full lifetime elapsed.
+The interface SHALL notice the window has gone and say so instead.
+
+It SHALL still let the poll answer first, because Plex invites the user to close
+the window once they have approved, so a close can arrive moments after a
+successful approval. An approved sign-in SHALL therefore complete normally even
+if the window is closed while it is being confirmed.
+
+The system SHALL identify itself to Plex with a client identifier that is
+generated once and persists across restarts, so that repeated sign-ins do not
+accumulate duplicate device entries in the user's Plex account.
+
+The system SHALL accept only the Plex account that owns the configured server,
+and SHALL refuse any other, storing nothing and creating no session. Ownership
+SHALL be established using the token being offered when nothing has been
+recorded yet, because the check runs at the one moment no token is stored —
+deciding it from stored configuration would refuse every first connection. Plex
+prevents an unprivileged account from altering the library, but not from
+deleting posters here — and a poster that never reached Plex has no upstream copy
+to restore. Where ownership cannot be established the sign-in SHALL be refused,
+because a check that passes when it cannot run is not a check. The refusal SHALL
+NOT name the owner, who is by definition not the person reading it.
+
+A successful sign-in SHALL store the token it was verified with and create a
+session, whether or not a token was already stored. Signing in again is how a
+user replaces a token they revoked in their Plex account; keeping the stored one
+would leave that install unable to reach Plex with no action left to take. Only
+a refusal leaves an existing connection untouched.
+
+A refusal SHALL identify which of the two things went wrong: reaching the Plex
+server, or the account that was used. Both refuse and store nothing, so they are
+identical in effect and opposite in remedy — one is fixed in the compose file,
+the other by signing in as somebody else. Reporting an unreachable server as an
+ownership verdict tells the owner their own account is not theirs, and sends
+them to the one place that is working.
+
+This distinction is load-bearing now that signing in is also how Marquee is
+entered. An install whose configured address is wrong cannot establish ownership,
+and the screen that explains the address is the screen the visitor is already
+looking at. A refusal that does not name the address setting leaves no way to
+learn what is wrong.
+
+The distinction SHALL follow what the server did, not why Marquee wanted to ask.
+A server that answers and refuses the token has given an ownership answer: the
+account has no access to it. A server that does not answer at all has given
+none, and SHALL be reported as unreachable, naming the server address and the
+server itself as what to check.
+
+Where the ownership check fails because plex.tv cannot be reached, the system
+SHALL report Plex as unavailable rather than as an ownership verdict. Nothing
+about the account has been learned, so nothing about the account may be claimed.
+
+#### Scenario: Successful sign-in
+- **WHEN** the owner completes a sign-in on an install that already has a token
+- **THEN** the system creates an authenticated session and takes the user into
+  the application
+- **AND** the token it was verified with replaces the stored one
+
+#### Scenario: Signing in again replaces a revoked token
+- **WHEN** the owner signs in on an install whose stored token has been revoked
+  in their Plex account
+- **THEN** the newly approved token replaces the stored one
+
+#### Scenario: The first sign-in succeeds with nothing stored
+- **WHEN** the owner signs in on an install that has no token stored yet
+- **THEN** the system establishes ownership from the token being offered, not
+  from stored configuration
+- **AND** stores the token and creates an authenticated session
+
+#### Scenario: An account that does not own the server is refused
+- **WHEN** the approving Plex account does not own the configured server
+- **THEN** the system stores no token, creates no session, and reports that the
+  account does not own it
+- **AND** any previously stored token is left untouched
+
+#### Scenario: Ownership that cannot be established is refused
+- **WHEN** the server does not report an owner, or the account behind the token
+  cannot be identified
+- **THEN** the system refuses the sign-in rather than treating it as permitted
+
+#### Scenario: An unreachable server is not reported as an ownership failure
+- **WHEN** the configured server address is wrong, the Plex server is not
+  running, or the network between them refuses the connection
+- **THEN** the system reports that it could not reach the Plex server
+- **AND** it does not report that the account does not own the server
+- **AND** the message names the server address setting and the server itself as
+  what to check
+- **AND** no token is stored and no session is created
+
+#### Scenario: A mistyped address explains itself on the login screen
+- **WHEN** a first sign-in is attempted on an install whose configured server
+  address cannot be reached
+- **THEN** the screen the visitor is on names `PLEX_SERVER_URL` as what to check
+
+#### Scenario: A server that refuses the token is an ownership answer
+- **WHEN** the configured server answers the ownership request by rejecting the
+  token as unauthorised
+- **THEN** the system reports that the account does not own the server, rather
+  than reporting the server as unreachable
+
+#### Scenario: plex.tv being unavailable is not an ownership verdict
+- **WHEN** the account behind the token cannot be identified because plex.tv
+  cannot be reached
+- **THEN** the system reports that Plex is unavailable
+- **AND** it does not report that the account does not own the server
+- **AND** no token is stored
+
+#### Scenario: The refusal does not identify the owner
+- **WHEN** a sign-in is refused because the account does not own the server
+- **THEN** the message does not disclose the owner's account
+
+#### Scenario: Sign-in not completed
+- **WHEN** the user closes the Plex window without approving, or the
+  authorization request expires
+- **THEN** the system stores no token, creates no session, and reports that
+  sign-in did not complete
+- **AND** any previously stored token is left untouched
+
+#### Scenario: Closing the window ends the wait promptly
+- **WHEN** the user closes the Plex window without approving
+- **THEN** the interface stops reporting that it is waiting for Plex, rather than
+  waiting for the authorization request to expire
+
+#### Scenario: Closing the window just after approving still completes
+- **WHEN** the user approves the request and closes the Plex window before the
+  approval has been confirmed
+- **THEN** the sign-in completes normally
+
+#### Scenario: A blocked popup is not treated as abandonment
+- **WHEN** the browser blocks the Plex window and the user follows the offered
+  link instead
+- **THEN** the interface keeps waiting for the approval
+
+#### Scenario: Scheduled import uses the stored token
+- **WHEN** a token was obtained by signing in
+- **THEN** the scheduled auto-import authenticates to Plex with the stored token
+
+#### Scenario: Signing out
+- **WHEN** an authenticated user disconnects from Plex
+- **THEN** the system removes the stored token and reports Plex as not connected
+
 ### Requirement: A Plex connection is required to use the application
 The system SHALL require a connected Plex server before any route that depends
 on one may be used, redirecting to the connection screen until Plex is
@@ -453,12 +453,18 @@ gate in front of it would break that.
   connected
 - **THEN** the system redirects to the connection screen
 
-#### Scenario: One sign-in clears both gates
+#### Scenario: Connecting releases the gate
 - **WHEN** a visitor with no session signs in to Plex on an install with no
   stored token
 - **THEN** the previously gated routes are served normally
 - **AND** the user is taken to the gallery with a confirmation, rather than left
   on the connection screen
+
+#### Scenario: Authentication comes first
+- **WHEN** an unauthenticated visitor requests a gated route while Plex is not
+  connected
+- **THEN** the system sends them to the sign-in path rather than the connection
+  path
 
 #### Scenario: Each gate uses the path that names what is missing
 - **WHEN** an unauthenticated visitor requests a gated route, connected or not
@@ -504,6 +510,14 @@ so that unattended imports keep working.
   Plex
 - **THEN** it describes it as signing in to Plex
 
+#### Scenario: Connection controls use connection words
+- **WHEN** the interface offers to leave the Plex connection
+- **THEN** the control says disconnect rather than sign out
+
+#### Scenario: The application's own session keeps its own words
+- **WHEN** the interface offers to end the user's Marquee session
+- **THEN** it says log out
+
 #### Scenario: The two exits keep their own words
 - **WHEN** the interface offers to end the user's Marquee session and to forget
   the Plex connection
@@ -522,3 +536,17 @@ so that unattended imports keep working.
 - **WHEN** logging out is offered or confirmed
 - **THEN** the interface does not claim that it disconnects Plex or revokes
   Marquee's access to it
+
+## REMOVED Requirements
+
+### Requirement: Plex connection screen
+**Reason**: Replaced by `Sign-in and connection screen`. The screen is no longer
+only where the Plex connection is managed — it is also where a visitor signs in,
+so it answers to two paths and renders two states. Three of its scenarios
+specified an `AUTH_BYPASS` warning and its exact wording; bypass no longer
+exists, so there is nothing left for them to describe. Renaming rather than
+modifying keeps that deletion visible instead of letting the scenarios vanish
+inside an edit.
+
+**Migration**: None for users. The screen is still reached from the same place,
+and the warning it no longer carries described a setting that has been removed.

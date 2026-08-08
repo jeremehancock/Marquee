@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Session-based login
+### Requirement: Signing in to Plex is the login
 The system SHALL establish an authenticated server-side session only by a
 successful Plex sign-in, and SHALL accept no other credential. There is no
 username, no password, and no way to authenticate without Plex.
@@ -36,61 +36,7 @@ operation goes to that server directly.
   reached
 - **THEN** the request is served normally
 
-### Requirement: Protected routes require authentication
-The system SHALL require a valid authenticated session for all routes except the
-login route, the routes that start and poll a Plex sign-in, the logout route, the
-health endpoint, the web app manifest, and static assets.
-
-The routes that start and poll a sign-in are reachable without a session because
-they are how a session is obtained. They SHALL NOT disclose anything about the
-install to an unauthenticated caller beyond whether an authorization request has
-completed.
-
-#### Scenario: Unauthenticated access is redirected
-- **WHEN** an unauthenticated user requests a protected route
-- **THEN** the system redirects to the login page
-
-#### Scenario: Health and assets remain public
-- **WHEN** an unauthenticated user requests `/health` or a static asset
-- **THEN** the system serves the response without requiring authentication
-
-#### Scenario: Signing in is reachable without a session
-- **WHEN** an unauthenticated visitor starts or polls a Plex sign-in
-- **THEN** the system serves the request rather than redirecting to login
-
-#### Scenario: Polling discloses nothing but the outcome
-- **WHEN** an unauthenticated visitor polls a sign-in
-- **THEN** the response reports only the status of that authorization request
-
-### Requirement: Session expiry
-The system SHALL expire an authenticated session after the number of seconds
-configured by `SESSION_DURATION`, after which access is treated as
-unauthenticated. `SESSION_DURATION` SHALL default to 30 days.
-
-The window SHALL be renewed by use rather than fixed at login: each request from
-an authenticated session extends its expiry by the configured duration. An
-absolute deadline stamped at login would eject a user in the middle of using
-Marquee, which is the opposite of trusting the application's own session.
-
-The default is long because it is the only tolerance left. With no second
-credential, the time between logins is the entire window in which a plex.tv
-outage cannot affect the user.
-
-#### Scenario: An idle session expires
-- **WHEN** the time since a session's last request exceeds `SESSION_DURATION`
-- **THEN** the next request to a protected route is treated as unauthenticated
-  and redirected to login
-
-#### Scenario: Use renews the window
-- **WHEN** an authenticated session makes a request before its window elapses
-- **THEN** its expiry is extended by `SESSION_DURATION` from that request
-
-#### Scenario: A session outlives its login by more than the configured duration
-- **WHEN** a session is used regularly for longer than `SESSION_DURATION` since
-  it was created
-- **THEN** it remains authenticated
-
-### Requirement: Logout
+### Requirement: Logging out
 The system SHALL provide a logout action that destroys the current session and
 returns the user to the login screen. A logout control SHALL be shown to every
 authenticated user.
@@ -121,43 +67,7 @@ that forgets the token.
 - **WHEN** a scheduled auto-import runs after the user has logged out
 - **THEN** it authenticates to Plex with the stored token and completes normally
 
-### Requirement: Logging in issues a new session identifier
-The system SHALL replace the session identifier when a login succeeds, carrying
-the session's contents across, and SHALL discard the identifier that was in use
-before. It SHALL also refuse to adopt a session identifier it did not itself
-issue.
-
-Together these close session fixation. Regeneration means an identifier known to
-somebody else before the user logged in is worthless afterwards; refusing an
-unissued identifier means one cannot be planted to begin with. Either alone
-leaves a gap, so both are required.
-
-A refused sign-in SHALL NOT regenerate the identifier: nothing has been granted,
-so there is nothing to protect, and rotating on refusal would let an
-unauthenticated caller churn session identifiers at will.
-
-#### Scenario: A successful login replaces the identifier
-- **WHEN** a Plex sign-in by the server's owner completes
-- **THEN** the session identifier in use afterwards differs from the one the
-  request arrived with
-- **AND** the session is authenticated
-
-#### Scenario: Session contents survive the replacement
-- **WHEN** the session identifier is replaced on login
-- **THEN** values stored in the session before the login are still readable
-  afterwards
-
-#### Scenario: A refused sign-in does not replace the identifier
-- **WHEN** a sign-in is refused because the account does not own the server
-- **THEN** the session identifier is unchanged
-- **AND** no authenticated session is created
-
-#### Scenario: An identifier the system did not issue is refused
-- **WHEN** a request arrives carrying a session identifier that the system never
-  issued
-- **THEN** the system does not adopt it as a valid session
-
-### Requirement: State-changing requests must originate from Marquee
+### Requirement: State-changing requests must prove they came from Marquee
 The system SHALL refuse any state-changing request that does not carry a secret
 token bound to the requesting session, and SHALL do so before the request
 reaches the handler that would act on it. A refused request SHALL change
@@ -219,7 +129,125 @@ parse. The request is still refused and still authenticates nobody.
 - **WHEN** a `GET` request is made to any route
 - **THEN** no token is required
 
+## MODIFIED Requirements
+
+### Requirement: Protected routes require authentication
+The system SHALL require a valid authenticated session for all routes except the
+login route, the routes that start and poll a Plex sign-in, the logout route, the
+health endpoint, the web app manifest, and static assets.
+
+The routes that start and poll a sign-in are reachable without a session because
+they are how a session is obtained. They SHALL NOT disclose anything about the
+install to an unauthenticated caller beyond whether an authorization request has
+completed.
+
+#### Scenario: Unauthenticated access is redirected
+- **WHEN** an unauthenticated user requests a protected route
+- **THEN** the system redirects to the login page
+
+#### Scenario: Health and assets remain public
+- **WHEN** an unauthenticated user requests `/health` or a static asset
+- **THEN** the system serves the response without requiring authentication
+
+#### Scenario: Signing in is reachable without a session
+- **WHEN** an unauthenticated visitor starts or polls a Plex sign-in
+- **THEN** the system serves the request rather than redirecting to login
+
+#### Scenario: Polling discloses nothing but the outcome
+- **WHEN** an unauthenticated visitor polls a sign-in
+- **THEN** the response reports only the status of that authorization request
+
+### Requirement: Session expiry
+The system SHALL expire an authenticated session after the number of seconds
+configured by `SESSION_DURATION`, after which access is treated as
+unauthenticated. `SESSION_DURATION` SHALL default to 30 days.
+
+The window SHALL be renewed by use rather than fixed at login: each request from
+an authenticated session extends its expiry by the configured duration. An
+absolute deadline stamped at login would eject a user in the middle of using
+Marquee, which is the opposite of trusting the application's own session.
+
+The default is long because it is the only tolerance left. With no second
+credential, the time between logins is the entire window in which a plex.tv
+outage cannot affect the user.
+
+#### Scenario: Expired session is rejected
+- **WHEN** the time since a session's last request exceeds `SESSION_DURATION`
+- **THEN** the next request to a protected route is treated as unauthenticated
+  and redirected to login
+
+#### Scenario: Use renews the window
+- **WHEN** an authenticated session makes a request before its window elapses
+- **THEN** its expiry is extended by `SESSION_DURATION` from that request
+
+#### Scenario: A session outlives its login by more than the configured duration
+- **WHEN** a session is used regularly for longer than `SESSION_DURATION` since
+  it was created
+- **THEN** it remains authenticated
+
+### Requirement: Logging in issues a new session identifier
+The system SHALL replace the session identifier when a login succeeds, carrying
+the session's contents across, and SHALL discard the identifier that was in use
+before. It SHALL also refuse to adopt a session identifier it did not itself
+issue.
+
+Together these close session fixation. Regeneration means an identifier known to
+somebody else before the user logged in is worthless afterwards; refusing an
+unissued identifier means one cannot be planted to begin with. Either alone
+leaves a gap, so both are required.
+
+A refused sign-in SHALL NOT regenerate the identifier: nothing has been granted,
+so there is nothing to protect, and rotating on refusal would let an
+unauthenticated caller churn session identifiers at will.
+
+#### Scenario: A successful login replaces the identifier
+- **WHEN** a Plex sign-in by the server's owner completes
+- **THEN** the session identifier in use afterwards differs from the one the
+  request arrived with
+- **AND** the session is authenticated
+
+#### Scenario: Session contents survive the replacement
+- **WHEN** the session identifier is replaced on login
+- **THEN** values stored in the session before the login are still readable
+  afterwards
+
+#### Scenario: A failed login does not replace the identifier
+- **WHEN** a sign-in is refused because the account does not own the server
+- **THEN** the session identifier is unchanged
+- **AND** no authenticated session is created
+
+#### Scenario: An identifier the system did not issue is refused
+- **WHEN** a request arrives carrying a session identifier that the system never
+  issued
+- **THEN** the system does not adopt it as a valid session
+
 ## REMOVED Requirements
+
+### Requirement: Session-based login
+**Reason**: Replaced by `Signing in to Plex is the login`. Its two scenarios
+specified submitting a username and password; there is no credential to submit,
+so neither describes anything the system can still do.
+
+**Migration**: Sign in to Plex as the account that owns the configured server.
+See the removal of `Authentication bypass` below for the environment variables.
+
+### Requirement: Logout
+**Reason**: Replaced by `Logging out`. One scenario specified that the logout
+control is hidden while authentication is bypassed, and bypass no longer exists.
+The replacement also states what logging out must leave alone, which is the
+stored Plex connection.
+
+**Migration**: None. Logging out behaves as it did, and now guarantees the
+scheduled auto-import keeps running afterwards.
+
+### Requirement: State-changing requests must originate from Marquee
+**Reason**: Replaced by `State-changing requests must prove they came from
+Marquee`. One scenario specified that the check still applies while
+authentication is bypassed. The rule it protected survives — the check applies to
+the unauthenticated sign-in route — but the scenario names a setting that is
+gone.
+
+**Migration**: None. The protection is unchanged.
 
 ### Requirement: Authentication bypass
 **Reason**: With the environment credential gone, `AUTH_BYPASS` would be the only

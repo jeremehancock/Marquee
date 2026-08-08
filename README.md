@@ -431,6 +431,11 @@ token.
   self-hosted box: `SameSite=Lax` stops another *site* driving your session, but
   "site" ignores the port, so every other container on the same address counts
   as the same site. The token is what stops one of them acting as you.
+- **The Poster Wall needs no sign-in, by design** — it is meant for a spare
+  monitor nobody logs in to. That means anyone who can reach `/wall` can see your
+  Movie and TV Show poster art and what is currently playing. Season and
+  Collection art is not served there, and nothing on the wall can change
+  anything. If that is more than you want on your network, do not expose `/wall`.
 - **Back up your `/config` directory** regularly — an import can rebuild
   everything Plex already has, but not art you uploaded and never sent there.
   Your Plex token is in there too, so treat those backups as you would the
