@@ -83,6 +83,12 @@ The status SHALL link to the connection screen, because that screen is the only
 place disconnecting is offered and removing the link would leave the action
 reachable only by typing a URL.
 
+It SHALL be presented differently from the navigation actions rather than as one
+more of them. Every action in that bar is a labelled control carrying a glyph, so
+a status wearing the same shape reads as another place to go — which is the thing
+this replaced. The state indicator SHALL be what identifies it, and it SHALL NOT
+carry an icon of its own.
+
 The state SHALL NOT be conveyed by colour alone: the status SHALL carry a text
 description of the condition for assistive technology and where labels are
 hidden.
@@ -107,6 +113,11 @@ was down — the same reason the connection gate reads configuration only.
 #### Scenario: The connection is not listed among the poster actions
 - **WHEN** the navigation renders
 - **THEN** it offers no ordinary navigation item for the connection screen
+
+#### Scenario: The status is not shaped like a navigation action
+- **WHEN** the status renders
+- **THEN** it carries no icon
+- **AND** it does not take the presentation the navigation actions use
 
 #### Scenario: The condition is available as text
 - **WHEN** the status renders in either state

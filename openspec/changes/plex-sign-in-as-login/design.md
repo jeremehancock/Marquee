@@ -278,8 +278,17 @@ a user visits once — you connect, and then you are done — among the actions 
 use constantly, and presented it as a place to go rather than something to know.
 
 It is replaced by a status: the connected server's name, or "Not connected", with
-a dot for at-a-glance state. What is worth carrying on every page is whether
+a lit dot for at-a-glance state. What is worth carrying on every page is whether
 Marquee can still reach Plex, which the old item did not say at all.
+
+Presentation is load-bearing here, and the first attempt got it wrong. Built from
+the same icon-and-label button as the items beside it, it still read as a sixth
+place to go — the shape was doing more talking than the content. It carries no
+glyph and none of the button chrome: a dot, a name a size down, and a hairline
+holding it apart from the actions. Every control in that bar wears an icon, so
+wearing none is what marks this as a reading rather than an action. The dot is
+the whole indicator, which is also what lets it stand alone in the narrow band
+where labels drop out.
 
 It stays a link. Disconnecting is offered on that screen and nowhere else, so
 removing the item outright would have left the action reachable only by typing a

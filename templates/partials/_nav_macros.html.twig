@@ -67,21 +67,22 @@
    control is for. The visible label is the server name, which is the part a
    sighted user is scanning for. #}
 {% macro connection_status(connection, current = '') %}
-    {% import 'partials/_icons.html.twig' as icons %}
     {% set connected = connection.isConnected %}
     {% set name = connected ? (connection.serverName ?? 'Plex') : 'Not connected' %}
     {% set label = 'Plex connection: ' ~ (connected ? 'connected to ' ~ name : 'not connected') %}
+    {# A lit dot and a name, deliberately not the icon-and-label shape the items
+       above use. Carrying no glyph is what separates a reading from an action:
+       every control in this bar wears one, so wearing one made this look like a
+       sixth place to go. The dot is the whole indicator. #}
     {% set body %}
-        <span class="nav-ico" aria-hidden="true">{{ icons.icon('connect', 20) }}</span>
         <span class="conn-dot conn-dot--{{ connected ? 'ok' : 'off' }}" aria-hidden="true"></span>
-        <span class="nav-label" aria-hidden="true">{{ name }}</span>
-        <span class="nav-label nav-label--short" aria-hidden="true">{{ name }}</span>
+        <span class="conn-status__name" aria-hidden="true">{{ name }}</span>
     {% endset %}
     {% if current == 'connect' %}
-        <span class="btn nav-item nav-item--conn nav-item--current" aria-current="page"
+        <span class="conn-status conn-status--current" aria-current="page"
               aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</span>
     {% else %}
-        <a class="btn nav-item nav-item--conn" href="/connect"
+        <a class="conn-status" href="/connect"
            aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</a>
     {% endif %}
 {% endmacro %}

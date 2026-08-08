@@ -167,6 +167,28 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * A reading, not an action. Every control beside it is a ghost button with a
+     * glyph, and wearing that shape is what made this look like a sixth place to
+     * go — so it carries neither: the dot is the whole indicator.
+     */
+    public function testTheConnectionStatusIsNotShapedLikeANavItem(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        $matched = preg_match('#<a class="conn-status".*?</a>#s', $header, $m);
+        self::assertSame(1, $matched, 'The header must render the connection status.');
+
+        // No glyph, and none of the button chrome the actions beside it wear.
+        self::assertStringNotContainsString('nav-ico', $m[0]);
+        self::assertStringNotContainsString('<svg', $m[0]);
+        self::assertStringNotContainsString('nav-item', $m[0]);
+        self::assertStringNotContainsString('btn', $m[0]);
+    }
+
+    /**
      * It stays a link because it is the only way to reach Disconnect. Dropping
      * the item outright would have left that action reachable only by typing a
      * URL.

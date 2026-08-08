@@ -62,7 +62,7 @@
 - [x] 9.2 Point `AuthMiddleware` at `/login` and `PlexConnectionMiddleware` at `/connect`, and open both paths on the connection gate.
 - [x] 9.3 Replace the "Plex Connection" nav item with a connection status in the header and tray: server name or "Not connected", a state dot, linking to `/connect`.
 - [x] 9.4 Add the `plex_connection()` Twig function, reading cached configuration only so no page render can contact Plex.
-- [x] 9.5 Style the status: hairline separator from the poster actions, green/amber dot.
+- [x] 9.5 Style the status as a reading rather than an action: no glyph, no button chrome, a size down, hairline separator, green/amber dot with a halo.
 - [x] 9.6 Update tests for the two paths, and cover the status indicator, its link, and its text description of the state.
 - [x] 9.7 Update `README.md` for `/login`, the status indicator, and the two exits.
 
