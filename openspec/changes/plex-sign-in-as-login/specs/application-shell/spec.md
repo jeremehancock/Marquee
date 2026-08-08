@@ -175,6 +175,17 @@ poll for completion, rather than relying on a redirect back to Marquee. Marquee
 therefore never needs to know its own externally reachable URL, and the flow
 works unchanged behind a reverse proxy.
 
+Closing that window SHALL end the wait. Nothing in the authorization request's
+own state records that the user walked away — it stays pending at Plex until it
+expires — so a flow that watched only the request would leave the control
+reporting that it was waiting for Plex until the request's full lifetime elapsed.
+The interface SHALL notice the window has gone and say so instead.
+
+It SHALL still let the poll answer first, because Plex invites the user to close
+the window once they have approved, so a close can arrive moments after a
+successful approval. An approved sign-in SHALL therefore complete normally even
+if the window is closed while it is being confirmed.
+
 The system SHALL identify itself to Plex with a client identifier that is
 generated once and persists across restarts, so that repeated sign-ins do not
 accumulate duplicate device entries in the user's Plex account.
@@ -284,6 +295,21 @@ about the account has been learned, so nothing about the account may be claimed.
 - **THEN** the system stores no token, creates no session, and reports that
   sign-in did not complete
 - **AND** any previously stored token is left untouched
+
+#### Scenario: Closing the window ends the wait promptly
+- **WHEN** the user closes the Plex window without approving
+- **THEN** the interface stops reporting that it is waiting for Plex, rather than
+  waiting for the authorization request to expire
+
+#### Scenario: Closing the window just after approving still completes
+- **WHEN** the user approves the request and closes the Plex window before the
+  approval has been confirmed
+- **THEN** the sign-in completes normally
+
+#### Scenario: A blocked popup is not treated as abandonment
+- **WHEN** the browser blocks the Plex window and the user follows the offered
+  link instead
+- **THEN** the interface keeps waiting for the approval
 
 #### Scenario: Scheduled import uses the stored token
 - **WHEN** a token was obtained by signing in

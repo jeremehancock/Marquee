@@ -66,6 +66,13 @@
 - [x] 9.6 Update tests for the two paths, and cover the status indicator, its link, and its text description of the state.
 - [x] 9.7 Update `README.md` for `/login`, the status indicator, and the two exits.
 
+## 10. Reported defects
+
+- [x] 10.1 Cache the server's friendly name at sign-in, taken from the response the ownership check already reads, so the status names the connection without the connection screen having been opened.
+- [x] 10.2 Move the connection status after Log out, so it stops splitting the action group.
+- [x] 10.3 Cut the signed-out screen's copy to one sentence.
+- [x] 10.4 Stop the sign-in control reporting "Waiting for Plex…" after the user closes the Plex window; read the window's state before each poll and act on it only once the poll has answered, so an approval confirmed after the close still completes.
+
 ## 8. Gates
 
 - [x] 8.1 `composer test` — PHPUnit passes.
