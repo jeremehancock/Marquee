@@ -126,10 +126,23 @@ final class PlexConnectionTest extends AppTestCase
     public function testTheScreenSaysWhatEachExitLeavesBehind(): void
     {
         $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+        // Collapsed, so an assertion about prose does not depend on where the
+        // template happens to wrap the line.
+        $prose = (string) preg_replace('/\s+/', ' ', $body);
 
-        self::assertStringContainsString('Disconnecting stops Marquee working', $body);
-        self::assertStringContainsString('scheduled auto-imports stop', $body);
-        self::assertStringContainsString('Logging out does neither', $body);
+        // Named subjects, not a pronoun pointing back at two consequences.
+        self::assertStringContainsString('<strong>Disconnecting</strong>', $prose);
+        self::assertStringContainsString('<strong>Logging out</strong>', $prose);
+
+        // Disconnecting: everything it takes with it, including the half of the
+        // wall someone may be watching across the room.
+        self::assertStringContainsString('stops working until someone signs in to Plex again', $prose);
+        self::assertStringContainsString('scheduled auto-imports stop', $prose);
+        self::assertStringContainsString('stops showing what is playing', $prose);
+
+        // Logging out: what survives it.
+        self::assertStringContainsString('only ends your session in this browser', $prose);
+        self::assertStringContainsString('carry on', $prose);
     }
 
     public function testConnectedScreenOffersAWayBackToTheGallery(): void

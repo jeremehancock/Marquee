@@ -37,7 +37,7 @@ final class PlexFailureMessage
     private function remedy(PlexFailure $reason): string
     {
         return match ($reason) {
-            PlexFailure::NotConfigured => 'Connect Marquee to Plex to continue.',
+            PlexFailure::NotConfigured => 'Sign in to Plex to continue.',
             PlexFailure::AuthRejected => 'Your Plex sign-in was rejected — sign in to Plex again.',
             PlexFailure::ConnectionFailed => 'Check PLEX_SERVER_URL and that the Plex server is running.',
             // These two describe a situation rather than a misconfiguration:

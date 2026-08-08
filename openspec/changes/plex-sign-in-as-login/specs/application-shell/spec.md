@@ -346,9 +346,16 @@ Plex account identifier, which is an email address. Where the name cannot be
 obtained the screen SHALL still report that Plex is connected.
 
 The screen SHALL offer disconnecting only to a signed-in user, and SHALL state
-what disconnecting costs — that Marquee stops working until someone signs in
-again, and that scheduled imports stop with it. Naming the action alone does not
-tell a user that.
+what disconnecting costs: that Marquee stops working until someone signs in
+again, that scheduled imports stop, and that the Poster Wall keeps the posters
+already imported but stops reporting what is playing. Naming the action alone
+tells a user none of that, and the wall is the part they are least likely to
+predict — it is specified to run unattended, so nobody is watching the screen
+where the consequence appears.
+
+The two exits SHALL be contrasted by naming each of them, rather than describing
+one and referring to the other. A reader should not have to hold two consequences
+in mind and map a pronoun back onto them to learn which action does what.
 
 Because a Plex address cannot be supplied by signing in, the screen SHALL
 distinguish a missing server address from a missing credential and say that the
@@ -393,8 +400,13 @@ it as a fault.
 
 #### Scenario: Disconnecting states its cost
 - **WHEN** the screen offers to disconnect
-- **THEN** it states that Marquee stops working until someone signs in again and
-  that scheduled imports stop
+- **THEN** it states that Marquee stops working until someone signs in again,
+  that scheduled imports stop, and that the Poster Wall stops reporting what is
+  playing
+
+#### Scenario: Both exits are named rather than one implied
+- **WHEN** the screen describes what disconnecting and logging out leave behind
+- **THEN** each is named as the subject of its own statement
 
 #### Scenario: Server name unavailable
 - **WHEN** the connected server's name cannot be read

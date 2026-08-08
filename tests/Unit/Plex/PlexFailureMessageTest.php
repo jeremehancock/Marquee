@@ -28,7 +28,7 @@ final class PlexFailureMessageTest extends TestCase
     public function testNotConnectedPointsAtConnecting(): void
     {
         self::assertStringContainsString(
-            'Connect Marquee to Plex',
+            'Sign in to Plex',
             $this->message->for(PlexException::notConfigured()),
         );
     }

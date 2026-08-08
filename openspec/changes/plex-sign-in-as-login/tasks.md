@@ -73,6 +73,9 @@
 - [x] 10.3 Cut the signed-out screen's copy to one sentence.
 - [x] 10.4 Stop the sign-in control reporting "Waiting for Plex…" after the user closes the Plex window; read the window's state before each poll and act on it only once the poll has answered, so an approval confirmed after the close still completes.
 
+- [x] 10.5 Sweep the remaining connect-era vocabulary: the signed-in-but-disconnected copy, the `PLEX_TOKEN` notice, and the `NotConfigured` Plex failure remedy.
+- [x] 10.6 Name both exits on the connection screen instead of describing one and referring to the other, and say that disconnecting also stops the Poster Wall reporting what is playing.
+
 ## 8. Gates
 
 - [x] 8.1 `composer test` — PHPUnit passes.

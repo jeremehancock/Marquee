@@ -43,17 +43,30 @@
                 <strong>Connected to {{ connection.serverName ?? 'Plex' }}</strong>
             </p>
             <p class="stats">
-                Your poster library, imports, and scheduled auto-imports all use
-                this connection.
+                Your poster library, imports, and the Poster Wall all use this
+                connection.
             </p>
 
-            {# Naming the action is not enough. Disconnecting looks like the
-               tidy way to leave, and nothing about the word says it also stops
-               the imports running on a schedule that nobody is watching. #}
+            {# The two exits, named and contrasted rather than one described and
+               the other waved at. This said "Logging out does neither", which
+               asked the reader to hold two consequences in mind and map a
+               pronoun back onto them; naming each subject is what makes the
+               difference legible at a glance.
+
+               Naming the action is not enough either. Disconnecting looks like
+               the tidy way to leave, and nothing about the word says it stops
+               imports running on a schedule nobody is watching, or takes the
+               live half of a wall someone may be looking at across the room. #}
             <p class="stats">
-                <strong>Disconnecting stops Marquee working</strong> until
-                someone signs in to Plex again, and scheduled auto-imports stop
-                with it. Logging out does neither.
+                <strong>Disconnecting</strong> forgets this connection. Marquee
+                stops working until someone signs in to Plex again, scheduled
+                auto-imports stop, and the Poster Wall keeps the posters you
+                have already imported but stops showing what is playing.
+            </p>
+            <p class="stats">
+                <strong>Logging out</strong> only ends your session in this
+                browser. The connection stays, so scheduled auto-imports and the
+                Poster Wall carry on.
             </p>
             <form method="post" action="/plex/connection/sign-out">
                 {{ csrf_field() }}
@@ -63,9 +76,8 @@
             {% if signed_in %}
                 <p><strong>Plex is not connected.</strong></p>
                 <p class="stats">
-                    Connect Marquee to Plex so it can import your posters and
-                    send your changes back. A Plex window opens for you to sign
-                    in and approve it.
+                    Sign in with the Plex account that owns this server, so
+                    Marquee can import your posters and send your changes back.
                 </p>
             {% else %}
                 <p class="stats">
@@ -97,8 +109,8 @@
     {% if connection.hasObsoleteEnvToken %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong><code>PLEX_TOKEN</code> is no longer used.</strong>
-               Marquee connects by signing in to Plex from this screen, so the
-               token in your environment is ignored.</p>
+               Marquee gets its credential from signing in to Plex on this
+               screen, so the token in your environment is ignored.</p>
             {% if connection.isConnected %}
                 <p>You are connected, so it is safe to remove. Delete
                    <code>PLEX_TOKEN</code> from your compose file and run
