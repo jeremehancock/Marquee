@@ -34,7 +34,7 @@
 ## 5. Container and web server
 
 - [x] 5.1 Add a coarse `limit_req` for the sign-in start route to `docker/root/defaults/nginx/site-confs/default.conf.sample`, generous enough that a user signing in, failing, and retrying is never refused.
-- [ ] 5.2 Build the image locally and smoke-test `/health` plus a full sign-in against a real Plex server, per `docs/docker.md`. CI only exercises the image after a push.
+- [x] 5.2 Build the image locally and smoke-test `/health` plus a full sign-in against a real Plex server, per `docs/docker.md`. CI only exercises the image after a push.
 
 ## 6. Tests
 
