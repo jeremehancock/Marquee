@@ -619,9 +619,22 @@ cannot be established the sign-in SHALL be refused, because a check that passes
 when it cannot run is not a check. The refusal SHALL NOT name the owner, who is
 by definition not the person reading it.
 
-The resulting token SHALL be written outside the SQLite database with
-owner-only permissions, and SHALL be readable by the scheduled auto-import
-process, which runs without a browser session.
+A refusal SHALL identify which of the two things went wrong: reaching the Plex
+server, or the account that was used. Both refuse and store nothing, so they are
+identical in effect and opposite in remedy — one is fixed in the compose file,
+the other by signing in as somebody else. Reporting an unreachable server as an
+ownership verdict tells the owner their own account is not theirs, and sends
+them to the one place that is working.
+
+The distinction SHALL follow what the server did, not why Marquee wanted to ask.
+A server that answers and refuses the token has given an ownership answer: the
+account has no access to it. A server that does not answer at all has given
+none, and SHALL be reported as unreachable, naming the server address and the
+server itself as what to check.
+
+Where the ownership check fails because plex.tv cannot be reached, the system
+SHALL report Plex as unavailable rather than as an ownership verdict. Nothing
+about the account has been learned, so nothing about the account may be claimed.
 
 #### Scenario: Successful sign-in
 - **WHEN** an authenticated user starts sign-in and approves Marquee in Plex
@@ -642,6 +655,28 @@ process, which runs without a browser session.
 - **WHEN** the server does not report an owner, or the account behind the token
   cannot be identified
 - **THEN** the system refuses the sign-in rather than treating it as permitted
+
+#### Scenario: An unreachable server is not reported as an ownership failure
+- **WHEN** the configured server address is wrong, the Plex server is not
+  running, or the network between them refuses the connection
+- **THEN** the system reports that it could not reach the Plex server
+- **AND** it does not report that the account does not own the server
+- **AND** the message names the server address setting and the server itself as
+  what to check
+- **AND** no token is stored
+
+#### Scenario: A server that refuses the token is an ownership answer
+- **WHEN** the configured server answers the ownership request by rejecting the
+  token as unauthorised
+- **THEN** the system reports that the account does not own the server, rather
+  than reporting the server as unreachable
+
+#### Scenario: plex.tv being unavailable is not an ownership verdict
+- **WHEN** the account behind the token cannot be identified because plex.tv
+  cannot be reached
+- **THEN** the system reports that Plex is unavailable
+- **AND** it does not report that the account does not own the server
+- **AND** no token is stored
 
 #### Scenario: The refusal does not identify the owner
 - **WHEN** a sign-in is refused because the account does not own the server
@@ -686,7 +721,7 @@ another.
 ### Requirement: Plex connection screen
 The system SHALL provide a dedicated connection screen, reachable from the
 application's navigation, that reports whether Plex is connected and offers to
-sign in or sign out. It SHALL be the only place the Plex connection is managed;
+connect or disconnect. It SHALL be the only place the Plex connection is managed;
 no other page SHALL offer to change it.
 
 When connected, the screen SHALL name the connected server using the friendly
@@ -703,10 +738,12 @@ state that it is no longer used and that signing in replaces it, so that an
 install disconnected by upgrading explains itself.
 
 When authentication is bypassed, the screen SHALL warn that anyone who can reach
-Marquee can change the Plex connection. Bypass now exposes a stored credential
-that can write to the user's Plex library, not merely a gallery of posters, and
-the screen carrying the sign-in and sign-out actions is where that consequence
-is concrete.
+Marquee acts with the stored Plex connection — able to change and delete
+posters, send artwork to the user's Plex library, and disconnect the install. It
+SHALL NOT describe the risk as the ability to connect Marquee to Plex, which
+only the server's owner can do. The distinction is the point: restricting who
+may connect does not restrict what a visitor may do with a connection that
+already exists, and the opposite reading is the one a user arrives at unaided.
 
 #### Scenario: Connected
 - **WHEN** a token is stored and the server address is set
@@ -737,8 +774,13 @@ is concrete.
 
 #### Scenario: Bypassed authentication is called out
 - **WHEN** authentication is bypassed and the connection screen renders
-- **THEN** the screen warns that anyone who can reach Marquee can change the
-  Plex connection
+- **THEN** the screen warns that anyone who can reach Marquee acts with the
+  stored Plex connection
+
+#### Scenario: The warning describes use, not connection
+- **WHEN** the bypass warning renders
+- **THEN** it names changing or deleting posters and altering the Plex library
+- **AND** does not claim that a visitor could connect Marquee to Plex
 
 #### Scenario: No warning when authentication is enforced
 - **WHEN** authentication is enforced and the connection screen renders
@@ -802,4 +844,34 @@ auto-import.
 #### Scenario: Server unreachable
 - **WHEN** the Plex server cannot be reached
 - **THEN** the message names the server address as the thing to check
+
+### Requirement: Transient confirmations clear themselves
+A flash message confirming something the user just did SHALL disappear on its
+own after a few seconds. Messages reporting a failure or a caveat SHALL remain
+until the page changes, because they carry a reason the user has to read and one
+that vanishes mid-sentence is worse than none.
+
+#### Scenario: A success message clears itself
+- **WHEN** a success flash renders
+- **THEN** it is removed from the page a few seconds later
+
+#### Scenario: A failure message stays
+- **WHEN** an error or warning flash renders
+- **THEN** it remains until the user navigates away
+
+### Requirement: The Plex connection and the login read as different things
+The interface SHALL describe joining and leaving the Plex connection as
+connecting and disconnecting, and reserve logging in and out for the
+application's own authentication. Naming both "signing in" invites the reading
+that they are one mechanism, which is the confusion this vocabulary exists to
+prevent.
+
+#### Scenario: Connection controls use connection words
+- **WHEN** the connection screen offers to join or leave the Plex connection
+- **THEN** the controls and confirmations say connect and disconnect rather than
+  sign in and sign out
+
+#### Scenario: The application's own session keeps its own words
+- **WHEN** the interface offers to end the user's Marquee session
+- **THEN** it says log out
 

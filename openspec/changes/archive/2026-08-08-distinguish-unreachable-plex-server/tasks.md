@@ -55,6 +55,6 @@
 
 - [x] 5.1 Run `composer test`, `composer stan`, and `composer cs`
 - [x] 5.2 Run `openspec validate distinguish-unreachable-plex-server --strict`
-- [ ] 5.3 In a built image, point `PLEX_SERVER_URL` at an address with nothing
+- [x] 5.3 In a built image, point `PLEX_SERVER_URL` at an address with nothing
       listening and confirm signing in reports the server as unreachable rather
       than as an ownership failure
