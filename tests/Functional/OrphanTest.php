@@ -52,7 +52,7 @@ final class OrphanTest extends AppTestCase
         $stillThere = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
         $fake = new FakePlexClient([$library], ['1' => [$stillThere]]);
 
-        return $this->makeApp(
+        return $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -122,14 +122,16 @@ final class OrphanTest extends AppTestCase
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
         $unconfigured = new FakePlexClient([$library], [], [], [], [], false);
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => $unconfigured],
         );
 
         $body = (string) $this->get($app, '/orphans')->getBody();
 
-        self::assertStringContainsString('Plex must be configured', $body);
+        self::assertStringContainsString('must be connected to Plex', $body);
+        // The message points at the connection panel rather than dead-ending.
+        self::assertStringContainsString('href="/plex"', $body);
         self::assertStringContainsString('orphansPage(false)', $body);
         self::assertStringNotContainsString('Checking Plex for orphans', $body);
     }

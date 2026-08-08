@@ -11,6 +11,24 @@
 
     // The version note appears both in the desktop footer and in the mobile menu
     // tray (only one is visible per breakpoint), so update every instance.
+    // Success flashes are confirmations of something the user just did, so they
+    // clear themselves. Errors and warnings stay: they carry a reason the user
+    // has to read, and one that vanishes mid-sentence is worse than none.
+    (function () {
+        var HOLD_MS = 6000;
+        Array.prototype.forEach.call(document.querySelectorAll('.alert--success'), function (alert) {
+            window.setTimeout(function () {
+                alert.classList.add('alert--fading');
+                // Remove after the transition so it stops taking up layout,
+                // with a timer rather than transitionend, which never fires if
+                // the element is hidden or the user prefers reduced motion.
+                window.setTimeout(function () {
+                    if (alert.parentNode) { alert.parentNode.removeChild(alert); }
+                }, 600);
+            }, HOLD_MS);
+        });
+    })();
+
     var notes = document.querySelectorAll('.js-update-note');
     if (!notes.length) {
         return;

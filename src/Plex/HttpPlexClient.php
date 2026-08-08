@@ -9,6 +9,7 @@ use App\Config\PlexConfig;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
+use InvalidArgumentException;
 use SimpleXMLElement;
 
 /**
@@ -198,6 +199,49 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
     }
 
     /**
+     * The server's friendly name, read from the root endpoint.
+     *
+     * That response also carries `myPlexUsername`, which is never *displayed*:
+     * it is an email address, and this is the screen users paste into support
+     * threads. The server's name identifies the connection without disclosing
+     * anything personal, and for a poster manager it is the more useful of the
+     * two — it says which server is connected, which is what goes wrong when a
+     * URL points at the wrong host. The owner is read separately, by
+     * {@see \App\Plex\Connection\PlexServerOwner}, which cannot go through this
+     * client: it runs before any token is stored.
+     *
+     * Every failure is absorbed: the name is decoration, and no page should
+     * break because a server did not answer.
+     */
+    public function serverName(): ?string
+    {
+        return $this->rootAttr('friendlyName');
+    }
+
+    /**
+     * One attribute of the server's root response, or null when it cannot be
+     * read. Every failure is absorbed: callers decide what an unknown means,
+     * and for the two callers here it means "no name" and "refuse", neither of
+     * which should raise.
+     */
+    private function rootAttr(string $name): ?string
+    {
+        if (!$this->config->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $xml = $this->get('/');
+        } catch (PlexException) {
+            return null;
+        }
+
+        $value = $this->attr($xml, $name);
+
+        return $value !== null && $value !== '' ? $value : null;
+    }
+
+    /**
      * Map one `/status/sessions` child element to a session, or null when the
      * element carries no usable type. Music and unrecognised types are still
      * returned (typed accordingly) so the caller decides what to drop.
@@ -381,6 +425,14 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             $body = (string) $response->getBody();
         } catch (GuzzleException $e) {
             throw $this->classify($e);
+        } catch (InvalidArgumentException $e) {
+            // An unparseable address fails before a request is ever made, so
+            // Guzzle raises this rather than a GuzzleException and the catch
+            // above never sees it. Configuration already rejects such an
+            // address at bootstrap; this is the backstop that stops one
+            // escaping as a 500 from the page whose job is to explain that
+            // Plex cannot be reached.
+            throw PlexException::connectionFailed($e);
         }
 
         $previous = libxml_use_internal_errors(true);

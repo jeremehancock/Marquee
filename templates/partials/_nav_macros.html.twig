@@ -47,6 +47,10 @@
     {{ _self.item('wall', '/wall', 'Poster Wall', 'Wall', current, true) }}
     {{ _self.item('import', '/plex', 'Import from Plex', 'Import', current) }}
     {{ _self.item('orphans', '/orphans', 'Orphans', 'Orphans', current) }}
+    {# The Plex connection is managed here and nowhere else. It navigates on a
+       phone rather than opening as a tray: the connection gate can redirect to
+       it, and a destination you can be sent to has to be a real page. #}
+    {{ _self.item('connect', '/connect', 'Plex Connection', 'Plex', current) }}
     {# Not part of the poster workflow, so it sits last in the group. Opens the
        project's support page in a new tab, like Poster Wall. #}
     {{ _self.item('support', 'https://getmarquee.now/#support', 'Support Development', 'Support', current, true) }}

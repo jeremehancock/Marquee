@@ -20,6 +20,28 @@
         window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
     }
 
+    // ---- CSRF ----
+    // Every state-changing request has to prove it came from a page Marquee
+    // rendered. Forms carry the token as a hidden field, which also covers the
+    // fetches below that post `new FormData(form)`; the ones that build their
+    // own body, or send none at all, have no form to draw from and send this
+    // header instead. Read once — the token lasts as long as the session, and
+    // the meta tag is in the layout on every page.
+    var CSRF_HEADER = 'X-CSRF-Token';
+
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    // Adds the token to a fetch headers object, leaving whatever is already
+    // there alone.
+    function withCsrf(headers) {
+        var out = headers || {};
+        out[CSRF_HEADER] = csrfToken();
+        return out;
+    }
+
     // ---- Lazy-load fade-in ----
     // Poster cards ship transparent and are revealed by `is-loaded`, so this has
     // to run on every page that renders them (the gallery, the orphans page),
@@ -488,7 +510,7 @@
                     fetch(form.getAttribute('action'), {
                         method: 'POST',
                         body: new FormData(form),
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -514,7 +536,7 @@
                     this.deleting = true;
                     fetch('/orphans/delete-all', {
                         method: 'POST',
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -564,6 +586,181 @@
 
     // ---- Alpine component: the overlays ----
     document.addEventListener('alpine:init', function () {
+        // ---- Alpine component: the Plex connection panel ----
+        // Signing in runs Plex's PIN flow: the user approves Marquee in a Plex
+        // window, and this polls our own origin until the token lands.
+        //
+        // Two details are load-bearing. The window is opened synchronously in
+        // the click handler and its location set afterwards, because opening it
+        // once the request resolves is what popup blockers stop. And polling is
+        // ordinary short requests rather than a held-open connection, which a
+        // reverse proxy or CDN in front of Marquee would buffer or cut.
+        window.Alpine.data('plexConnection', function () {
+            var POLL_MS = 2000;
+            var GIVE_UP_MS = 15 * 60 * 1000;
+            // Outside the returned object on purpose — see signIn().
+            var plexWindowRef = null;
+
+            return {
+                busy: false,
+                message: '',
+                fallbackUrl: '',
+                _timer: null,
+
+                // A sized popup rather than a bare _blank, which browsers open
+                // as a full tab. Plex's sign-in page is a small form, and a
+                // popup keeps Marquee visible behind it — the sign-in reads as
+                // a step in the page you are on rather than a trip somewhere
+                // else. Naming the window means a second click reuses it
+                // instead of stacking another.
+                _open: function () {
+                    var w = 620;
+                    var h = 720;
+                    var baseLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+                    var baseTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+                    // Centre on the window Marquee is in, not the primary
+                    // display, so it lands on the right monitor.
+                    var left = Math.round(baseLeft + Math.max(0, (window.outerWidth - w) / 2));
+                    var top = Math.round(baseTop + Math.max(0, (window.outerHeight - h) / 2));
+
+                    return window.open(
+                        '',
+                        'marquee-plex-signin',
+                        'popup=yes,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top
+                    );
+                },
+
+                signIn: function () {
+                    if (this.busy) { return; }
+                    this.busy = true;
+                    this.message = '';
+                    this.fallbackUrl = '';
+
+                    // Must happen now, inside the gesture, not in the .then().
+                    //
+                    // Held in a closure, deliberately not on the component:
+                    // Alpine makes component state deeply reactive, and wrapping
+                    // a cross-origin Window in a proxy is what stops us being
+                    // able to close it again.
+                    var plexWindow = this._open();
+                    plexWindowRef = plexWindow;
+                    var self = this;
+
+                    fetch('/plex/connection/sign-in', {
+                        method: 'POST',
+                        headers: withCsrf({ Accept: 'application/json' }),
+                        credentials: 'same-origin'
+                    })
+                        .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+                        .then(function (result) {
+                            if (!result.ok || !result.data || !result.data.authUrl) {
+                                if (plexWindow) { plexWindow.close(); }
+                                throw new Error((result.data && result.data.error) || 'Could not start sign-in.');
+                            }
+                            if (plexWindow) {
+                                plexWindow.location = result.data.authUrl;
+                            } else {
+                                // Blocked. Offer the link so the flow still completes.
+                                self.fallbackUrl = result.data.authUrl;
+                            }
+                            self._watch(Date.now() + GIVE_UP_MS);
+                        })
+                        .catch(function (e) {
+                            self.busy = false;
+                            self.message = e.message || 'Could not start sign-in.';
+                        });
+                },
+
+                _watch: function (deadline) {
+                    var self = this;
+                    this._timer = window.setTimeout(function () {
+                        if (Date.now() > deadline) {
+                            self._stop('Sign-in timed out. Try again.');
+                            return;
+                        }
+
+                        fetch('/plex/connection/status', {
+                            headers: { Accept: 'application/json' },
+                            credentials: 'same-origin'
+                        })
+                            .then(function (res) { return res.json(); })
+                            .then(function (data) {
+                                if (!data) { throw new Error('Sign-in failed.'); }
+                                if (data.status === 'completed') {
+                                    // Plex leaves its own "you can close this"
+                                    // page up; closing it ourselves finishes the
+                                    // flow where it started.
+                                    self._closeWindow();
+                                    // Straight to the gallery, not back to this
+                                    // screen. Connecting is a step on the way to
+                                    // using Marquee, and for anyone the gate
+                                    // sent here it is the last thing between
+                                    // them and their posters. The server's flash
+                                    // confirms it on arrival.
+                                    window.location.href = '/';
+                                    return;
+                                }
+                                if (data.status === 'expired') {
+                                    self._stop('The Plex sign-in expired. Try again.');
+                                    return;
+                                }
+                                if (data.status === 'not_owner') {
+                                    // Deliberately does not name the owner:
+                                    // whoever is reading this is, by
+                                    // definition, not them.
+                                    self._stop(
+                                        'That Plex account does not own this server. '
+                                        + 'Sign in with the account that owns it.'
+                                    );
+                                    return;
+                                }
+                                if (data.status === 'unreachable') {
+                                    // The account was fine. Saying otherwise
+                                    // sends the owner to audit the one part of
+                                    // this that is working, so this names the
+                                    // address instead.
+                                    self._stop(
+                                        'Marquee could not reach your Plex server. '
+                                        + 'Check PLEX_SERVER_URL and that the Plex '
+                                        + 'server is running.'
+                                    );
+                                    return;
+                                }
+                                if (data.status === 'not_started') {
+                                    self._stop('Sign-in was not started.');
+                                    return;
+                                }
+                                if (data.error) { throw new Error(data.error); }
+                                // A sign-in that never completes is otherwise
+                                // silent for fifteen minutes; this is what makes
+                                // a stalled approval reportable.
+                                if (window.console) {
+                                    window.console.debug('[marquee] plex sign-in:', data.status);
+                                }
+                                self._watch(deadline);
+                            })
+                            .catch(function (e) { self._stop(e.message || 'Sign-in failed.'); });
+                    }, POLL_MS);
+                },
+
+                _closeWindow: function () {
+                    // Only ours, and only if it is still open.
+                    try {
+                        if (plexWindowRef && !plexWindowRef.closed) { plexWindowRef.close(); }
+                    } catch (e) { /* already gone; nothing to do */ }
+                    plexWindowRef = null;
+                },
+
+                _stop: function (message) {
+                    if (this._timer) { window.clearTimeout(this._timer); this._timer = null; }
+                    this._closeWindow();
+                    this.busy = false;
+                    this.fallbackUrl = '';
+                    this.message = message;
+                }
+            };
+        });
+
         window.Alpine.data('galleryUI', function () {
             return Object.assign(overlayComponent(), {
                 change: { open: false, tab: 'upload', filename: '', title: '', category: '' },
@@ -719,7 +916,7 @@
                     fetch('/plex/import', {
                         method: 'POST',
                         body: new FormData(form),
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) { return r.text(); })
@@ -947,7 +1144,7 @@
                     fetch('/library/' + category + '/change/' + (upload ? 'upload' : 'url'), {
                         method: 'POST',
                         body: body,
-                        headers: { 'X-Requested-With': 'fetch' },
+                        headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                         credentials: 'same-origin',
                     })
                         .then(function (r) {
@@ -1202,7 +1399,7 @@
             fetch(action, {
                 method: 'POST',
                 body: data,
-                headers: { 'X-Requested-With': 'fetch' },
+                headers: withCsrf({ 'X-Requested-With': 'fetch' }),
                 credentials: 'same-origin',
             })
                 .then(function (r) { return r.text(); })

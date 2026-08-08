@@ -8,6 +8,7 @@ use App\Config\LibraryExclusions;
 use App\Plex\Import\ImportService;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
+use App\Plex\PlexFailureMessage;
 use App\Plex\PlexMediaType;
 use App\Support\Flash;
 use App\Support\LastCategory;
@@ -28,6 +29,7 @@ final class PlexImportController
         private readonly Flash $flash,
         private readonly SessionInterface $session,
         private readonly LibraryExclusions $exclusions,
+        private readonly PlexFailureMessage $plexMessage,
     ) {
     }
 
@@ -41,7 +43,7 @@ final class PlexImportController
             try {
                 $libraries = $this->plex->libraries();
             } catch (PlexException $e) {
-                $error = $e->getMessage();
+                $error = $this->plexMessage->for($e);
             }
         }
 
@@ -89,7 +91,7 @@ final class PlexImportController
             $succeeded = $result->imported() > 0 || $result->skipped() > 0;
             $this->flash->add($succeeded ? 'success' : 'error', $result->summary());
         } catch (PlexException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         }
 
         return $this->backToPlex($response);

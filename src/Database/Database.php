@@ -74,6 +74,18 @@ final class Database
             )'
         );
 
+        // The connected server's own name, cached so every page can report the
+        // Plex connection without a request to Plex on render. It is Plex's own
+        // data, so caching it keeps the database a cache of things Plex holds.
+        // One row, hence the CHECK: there is exactly one connected server.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS plex_server (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                friendly_name TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )'
+        );
+
         // Added after the initial release; safe to run every boot.
         $this->ensureColumn($pdo, 'plex_items', 'section_key', "TEXT NOT NULL DEFAULT ''");
         // Plex's poster path carries a version token; storing it lets an import

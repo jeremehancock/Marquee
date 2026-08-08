@@ -12,12 +12,13 @@ mkdir -p \
 
 lsiown -R abc:abc /config
 
-# Persist the environment so cron jobs (which run without the container env) can
-# reach Plex and read the auto-import settings.
-env | grep -E '^(PLEX_|AUTO_IMPORT_|EXCLUDED_LIBRARIES|SITE_TITLE|DATA_DIR|POSTERS_DIR)=' \
-    > /app/docker-env.sh
-sed -i 's/^/export /' /app/docker-env.sh
-lsiown abc:abc /app/docker-env.sh
+# Cron jobs DO get the container environment: the cron service runs under
+# with-contenv, so crond inherits it and passes it to everything it spawns.
+# There used to be a docker-env.sh written here to "fix" that; it fixed nothing,
+# and its own grep silently dropped every PLEX_* and AUTO_IMPORT_* variable
+# because `^(PLEX_|...)=` matches a variable named literally "PLEX_". Removed
+# rather than corrected — the file it wrote was never needed.
+rm -f /app/docker-env.sh
 chmod +x /app/auto-import.sh
 
 # Schedule auto-import from AUTO_IMPORT_SCHEDULE when it is enabled.

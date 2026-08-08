@@ -34,7 +34,7 @@ final class GalleryTest extends AppTestCase
      */
     private function app(): App
     {
-        return $this->makeApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        return $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
     }
 
     private function writePoster(string $filename): void
@@ -213,7 +213,7 @@ final class GalleryTest extends AppTestCase
 
     public function testRemembersAllViewForOrphansBackLink(): void
     {
-        $app = $this->makeApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        $app = $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
 
         $this->get($app, '/library/all');
         $body = (string) $this->get($app, '/orphans')->getBody();
@@ -387,7 +387,7 @@ final class GalleryTest extends AppTestCase
     {
         $this->writePoster('Alpha.png');
         $this->writePoster('Beta.png');
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'AUTH_BYPASS' => 'true',
             'IMAGES_PER_PAGE' => '1',
@@ -523,12 +523,10 @@ final class GalleryTest extends AppTestCase
             time(),
         ));
 
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
             'AUTH_BYPASS' => 'true',
-            'PLEX_SERVER_URL' => 'http://plex:32400',
-            'PLEX_TOKEN' => 'token',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
         $actions = $this->cardActions($body);
@@ -646,12 +644,10 @@ final class GalleryTest extends AppTestCase
             time(),
         ));
 
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
             'AUTH_BYPASS' => 'true',
-            'PLEX_SERVER_URL' => 'http://plex:32400',
-            'PLEX_TOKEN' => 'token',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
@@ -696,12 +692,10 @@ final class GalleryTest extends AppTestCase
         $this->writePoster('Solaris.png');
         $this->mapPoster($dataDir, 'Solaris.png', 'Solaris', 1972);
 
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
             'AUTH_BYPASS' => 'true',
-            'PLEX_SERVER_URL' => 'http://plex:32400',
-            'PLEX_TOKEN' => 'token',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
@@ -774,7 +768,7 @@ final class GalleryTest extends AppTestCase
         $dataDir = $this->makeTempDir();
         $this->writePoster('Solaris.png');
 
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
             'AUTH_BYPASS' => 'true',
@@ -1068,7 +1062,7 @@ final class GalleryTest extends AppTestCase
         // caption and the two kinds of tooltip can be compared in one document.
         $this->writePoster('Alpha.png');
         $this->writePoster('Beta.png');
-        $app = $this->makeApp([
+        $app = $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'AUTH_BYPASS' => 'true',
             'IMAGES_PER_PAGE' => '1',
@@ -1141,7 +1135,7 @@ final class GalleryTest extends AppTestCase
      */
     private function appWithData(string $dataDir): App
     {
-        return $this->makeApp([
+        return $this->makeConnectedApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
             'AUTH_BYPASS' => 'true',
@@ -1176,7 +1170,7 @@ final class GalleryTest extends AppTestCase
     public function testRemembersSectionForOrphansBackLink(): void
     {
         // One app instance so the in-memory session persists across requests.
-        $app = $this->makeApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        $app = $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
 
         $this->get($app, '/library/tv-shows');
         $body = (string) $this->get($app, '/orphans')->getBody();

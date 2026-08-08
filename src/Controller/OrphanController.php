@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Plex\Orphan\OrphanService;
 use App\Plex\PlexClient;
 use App\Plex\PlexException;
+use App\Plex\PlexFailureMessage;
 use App\Poster\PosterCategory;
 use App\Support\Flash;
 use App\Support\LastCategory;
@@ -27,6 +28,7 @@ final class OrphanController
         private readonly OrphanService $orphans,
         private readonly Flash $flash,
         private readonly SessionInterface $session,
+        private readonly PlexFailureMessage $plexMessage,
     ) {
     }
 
@@ -54,7 +56,7 @@ final class OrphanController
         try {
             $orphans = $this->orphans->findOrphans();
         } catch (PlexException $e) {
-            $error = $e->getMessage();
+            $error = $this->plexMessage->for($e);
         }
 
         return $this->twig->render($response, 'orphans/_results.html.twig', [
@@ -69,7 +71,7 @@ final class OrphanController
             $count = $this->orphans->deleteAll();
             $this->flash->add('success', sprintf('Removed %d orphaned poster%s.', $count, $count === 1 ? '' : 's'));
         } catch (PlexException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         }
 
         return $response->withHeader('Location', '/orphans')->withStatus(302);
@@ -96,7 +98,7 @@ final class OrphanController
                 $this->flash->add('error', 'That orphan could not be deleted.');
             }
         } catch (PlexException $e) {
-            $this->flash->add('error', $e->getMessage());
+            $this->flash->add('error', $this->plexMessage->for($e));
         }
 
         return $response->withHeader('Location', '/orphans')->withStatus(302);

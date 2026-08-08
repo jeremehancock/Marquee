@@ -88,7 +88,7 @@ final class PosterWallTest extends AppTestCase
      */
     private function appWithSessions(array $sessions): App
     {
-        return $this->makeApp(
+        return $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(sessions: $sessions)],
         );
@@ -164,7 +164,7 @@ final class PosterWallTest extends AppTestCase
      */
     public function testPlaceholderForAFailedPlexFetchExpiresQuickly(): void
     {
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'PLEX_TOKEN' => 'plex-secret'],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(failingThumbs: ['/t/1'])],
         );

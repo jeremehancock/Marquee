@@ -48,8 +48,17 @@ final class SessionAuthenticator
         $userOk = hash_equals($this->config->username, $username);
         $passOk = hash_equals($this->config->password, $password);
         if (!$userOk || !$passOk) {
+            // Deliberately does not regenerate. Nothing has been granted, so
+            // there is nothing to protect, and rotating on failure would let an
+            // unauthenticated caller churn identifiers at will.
             return false;
         }
+
+        // Before the session is marked authenticated, not after: an identifier
+        // known to somebody else before the user logged in must be worthless
+        // afterwards, and the pre-login identifier should never hold the
+        // authenticated flag at any instant. Contents carry across.
+        $this->session->regenerate();
 
         $this->session->set(self::KEY_AUTHENTICATED, true);
         $this->session->set(self::KEY_EXPIRES_AT, time() + $this->config->sessionDuration);

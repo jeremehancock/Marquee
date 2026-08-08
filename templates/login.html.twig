@@ -11,6 +11,7 @@
             <p class="alert" role="alert">{{ error }}</p>
         {% endif %}
         <form method="post" action="/login" class="form">
+            {{ csrf_field() }}
             <label for="username">Username</label>
             <input id="username" name="username" type="text" autocomplete="username" required autofocus>
 

@@ -311,6 +311,13 @@ h1 {
     border-radius: 8px;
 }
 
+/* Success flashes fade themselves out (see app.js). The transition is on the
+   alert itself rather than a wrapper so the space it occupied collapses with it. */
+.alert--fading {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
 .alert--success {
     background: rgba(111, 191, 127, 0.15);
     border-color: rgba(111, 191, 127, 0.4);
@@ -325,6 +332,37 @@ h1 {
     background: rgba(228, 181, 95, 0.15);
     border-color: rgba(228, 181, 95, 0.4);
     color: #e4b55f;
+}
+
+/* The Plex connection screen. A single panel with one action, so the spacing is
+   set here rather than inherited from the form-heavy layouts elsewhere: a bare
+   button sitting directly under a paragraph reads as an afterthought without it.
+   The obsolete-PLEX_TOKEN notice is a multi-paragraph alert, which the compact
+   single-line padding on .alert is not built for. */
+.plex-connection > :first-child {
+    margin-top: 0;
+}
+
+.plex-connection form,
+.plex-connection > .btn {
+    margin-top: 20px;
+}
+
+.plex-connection__obsolete {
+    margin-top: 20px;
+    padding: 16px 18px;
+}
+
+.plex-connection__obsolete p {
+    margin: 0 0 10px;
+}
+
+.plex-connection__obsolete p:last-child {
+    margin-bottom: 0;
+}
+
+.plex-connection__obsolete code {
+    color: inherit;
 }
 
 [x-cloak] {

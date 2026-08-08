@@ -27,7 +27,10 @@ context: |
     - Thin controllers -> service classes -> value objects. No business logic
       in templates or the front controller.
     - All configuration comes from environment variables, read once into typed
-      config objects at bootstrap. Never call getenv() deep in the code.
+      config objects at bootstrap. Never call getenv() deep in the code. The
+      Plex token alone comes from the connection store written by signing in to
+      Plex, never from the environment; PLEX_TOKEN is read only to report that
+      it is obsolete. Resolution still happens once at bootstrap.
     - Every capability is defined by an OpenSpec spec before it is built.
     - PHPStan max level and PHPUnit must pass in CI on every push.
 

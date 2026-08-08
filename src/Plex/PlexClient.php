@@ -62,4 +62,17 @@ interface PlexClient
      * produced; callers never pass an untrusted path directly.
      */
     public function sessionPoster(string $thumb): string;
+
+    /**
+     * The server's own friendly name, or null when it cannot be obtained.
+     *
+     * This names the connection for the user. It is read from the server rather
+     * than from plex.tv so that one code path serves both connection sources
+     * and nothing has to reach the internet to describe a local connection.
+     *
+     * Null is an ordinary result — an unreachable or unconfigured server — and
+     * callers report the connection without a name rather than failing.
+     */
+    public function serverName(): ?string;
+
 }

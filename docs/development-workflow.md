@@ -57,7 +57,8 @@ services:
       TZ: "Etc/UTC"
       AUTH_BYPASS: "true"          # convenient on a trusted LAN for testing
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      PLEX_TOKEN: "your-plex-token"
+      # No token: sign in to Plex from the app. Worth exercising the sign-in
+      # itself on :dev before every release — it is the one path tests mock.
     volumes:
       - ./marquee-dev/config:/config
     restart: unless-stopped

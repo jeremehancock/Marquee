@@ -83,7 +83,11 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
 - Thin controllers → service classes → value objects. No business logic in
   Twig templates or the front controller.
 - All configuration comes from environment variables, read once into typed
-  config objects at bootstrap. Never call `getenv()` deep in the code.
+  config objects at bootstrap. Never call `getenv()` deep in the code. The one
+  exception is the Plex token, which comes from the connection store written by
+  signing in to Plex and is **never** read from the environment — `PLEX_TOKEN`
+  is read only to tell the user it is obsolete. Resolution still happens once at
+  bootstrap.
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).

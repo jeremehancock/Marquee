@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App;
 
 use App\Auth\AuthMiddleware;
+use App\Auth\CsrfGuard;
+use App\Auth\CsrfMiddleware;
+use App\Auth\PlexConnectionMiddleware;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
@@ -13,6 +16,8 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
 use App\Database\Database;
+use App\Plex\Connection\PlexConnectionStore;
+use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
@@ -65,7 +70,11 @@ function buildContainer(array $overrides = []): Container
         AppConfig::class => static fn (): AppConfig => AppConfig::fromEnv(),
         AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
         PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
-        PlexConfig::class => static fn (): PlexConfig => PlexConfig::fromEnv(),
+        PlexConnectionStore::class => static fn (AppConfig $app): PlexConnectionStore
+            => new PlexConnectionStore($app->dataDir),
+        PlexPinClient::class => static fn (ClientInterface $http, PlexConnectionStore $store): PlexPinClient
+            => new PlexPinClient($http, $store, readVersion()),
+        PlexConfig::class => static fn (PlexConnectionStore $store): PlexConfig => PlexConfig::resolve($store),
         AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
         LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
         SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
@@ -87,10 +96,15 @@ function buildContainer(array $overrides = []): Container
         ): HttpPlexClient => new HttpPlexClient($http, $plex, $exclusions),
         PlexClient::class => \DI\get(HttpPlexClient::class),
         PlexPosterWriter::class => \DI\get(HttpPlexClient::class),
-        // The wall's now-playing poster tokens are signed with the Plex token:
-        // a secret the server already holds, stable across requests, and empty
-        // only when Plex is unconfigured (when the wall never leaves random mode).
-        StreamToken::class => static fn (PlexConfig $plex): StreamToken => new StreamToken($plex->token),
+        // The wall's now-playing poster tokens are signed with a secret of the
+        // application's own, generated once and kept in the connection store.
+        // It deliberately does not reuse the Plex token: that token can now be
+        // replaced by signing in again, which would rotate the secret and
+        // invalidate every token already rendered onto a running wall, and it
+        // is empty until Plex is connected, which would make signatures
+        // computable by anyone.
+        StreamToken::class => static fn (PlexConnectionStore $store): StreamToken
+            => new StreamToken($store->signingSecret()),
         PosterWallController::class => static fn (
             Twig $twig,
             PosterWallService $wall,
@@ -122,7 +136,7 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth): Twig {
+        Twig::class => static function (AppConfig $config, AuthConfig $auth, CsrfGuard $csrf): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
@@ -142,6 +156,25 @@ function buildContainer(array $overrides = []): Container
 
                     return $mtime === false ? $path : $path . '?v=' . $mtime;
                 }
+            ));
+
+            // Functions rather than globals, deliberately. A global is
+            // evaluated when this service is constructed; the token needs the
+            // session, which AuthMiddleware starts during the request. A
+            // function is evaluated at render time, when the session is
+            // unambiguously live, so no ordering can break it.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'csrf_field',
+                static fn (): string => sprintf(
+                    '<input type="hidden" name="%s" value="%s">',
+                    CsrfMiddleware::FIELD,
+                    htmlspecialchars($csrf->token(), ENT_QUOTES, 'UTF-8'),
+                ),
+                ['is_safe' => ['html']],
+            ));
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'csrf_token',
+                static fn (): string => $csrf->token(),
             ));
 
             return $twig;
@@ -173,10 +206,28 @@ function createApp(?Container $container = null): App
     $logger = $container->get(LoggerInterface::class);
     /** @var AuthMiddleware $authMiddleware */
     $authMiddleware = $container->get(AuthMiddleware::class);
+    /** @var PlexConnectionMiddleware $plexMiddleware */
+    $plexMiddleware = $container->get(PlexConnectionMiddleware::class);
+
+    /** @var CsrfMiddleware $csrfMiddleware */
+    $csrfMiddleware = $container->get(CsrfMiddleware::class);
 
     // Middleware executes outermost-first (last added runs first): errors wrap
-    // routing, which wraps auth, which wraps body parsing and the handler.
+    // routing, which wraps auth, which wraps the Plex gate, which wraps body
+    // parsing, which wraps the CSRF check and the handler.
+    //
+    // Auth outside the gate is deliberate: an anonymous visitor is sent to log
+    // in before being asked to connect Plex. The other order would expose the
+    // connection screen, and its sign-in action, to anyone who can reach the
+    // host.
+    //
+    // The CSRF check is innermost, which is what puts it *inside* body parsing:
+    // it reads the token from the parsed body, so it cannot run before the body
+    // has been parsed. Being inside auth also guarantees the session exists,
+    // since AuthMiddleware starts it on every request.
+    $app->add($csrfMiddleware);
     $app->addBodyParsingMiddleware();
+    $app->add($plexMiddleware);
     $app->add($authMiddleware);
     $app->addRoutingMiddleware();
     $app->addErrorMiddleware($config->displayErrors, true, true, $logger);

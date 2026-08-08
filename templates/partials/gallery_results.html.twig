@@ -85,6 +85,7 @@
                                   data-confirm-title="Send to Plex?"
                                   data-confirm-label="Send to Plex"
                                   data-confirm-tone="accent">
+                                {{ csrf_field() }}
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">{{ _self.action_body('send', 'Send to Plex') }}</button>
                             </form>
@@ -94,6 +95,7 @@
                                   data-confirm-title="Fetch from Plex?"
                                   data-confirm-label="Fetch from Plex"
                                   data-confirm-tone="accent">
+                                {{ csrf_field() }}
                                 <input type="hidden" name="filename" value="{{ poster.filename }}">
                                 <button type="submit" class="btn btn--small">{{ _self.action_body('fetch', 'Fetch from Plex') }}</button>
                             </form>
@@ -103,6 +105,7 @@
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">
+                            {{ csrf_field() }}
                             <input type="hidden" name="filename" value="{{ poster.filename }}">
                             <button type="submit" class="btn btn--small btn--danger">{{ _self.action_body('delete', 'Delete') }}</button>
                         </form>

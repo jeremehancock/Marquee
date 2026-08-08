@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Auth\CsrfMiddleware;
 use App\Plex\PlexClient;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
@@ -33,12 +34,22 @@ final class PlexImportTest extends AppTestCase
         $this->removeDir($this->dataDir);
     }
 
-    public function testPlexPageShowsNotConfiguredMessage(): void
+    public function testImportPageIsUnreachableUntilPlexIsConnected(): void
     {
+        // The import page no longer explains how to connect — it cannot be
+        // reached at all until you have.
         $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/plex');
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('not configured', (string) $response->getBody());
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/connect', $response->getHeaderLine('Location'));
+    }
+
+    public function testImportPageOffersNoConnectionManagement(): void
+    {
+        $body = (string) $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/plex')->getBody();
+
+        self::assertStringNotContainsString('Connect to Plex', $body);
+        self::assertStringNotContainsString('Disconnect from Plex', $body);
     }
 
     public function testPlexPageListsLibraries(): void
@@ -48,7 +59,7 @@ final class PlexImportTest extends AppTestCase
             new PlexLibrary('2', 'TV', 'show'),
         ]);
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -67,7 +78,7 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Kids'],
         );
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Kids'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -85,7 +96,7 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Movies', 'TV'],
         );
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Movies,TV'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -103,7 +114,7 @@ final class PlexImportTest extends AppTestCase
         $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
         $fake = new FakePlexClient([$library], ['1' => [$movie]]);
 
-        $app = $this->makeApp(
+        $app = $this->makeConnectedApp(
             ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
@@ -111,7 +122,14 @@ final class PlexImportTest extends AppTestCase
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/plex/import')
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded');
-        $request->getBody()->write(http_build_query(['sections' => ['1'], 'types' => ['movie']]));
+        // Built by hand rather than with postForm() because the import posts
+        // array-valued fields. The token still has to travel: this route is
+        // state-changing, and bypass does not exempt it.
+        $request->getBody()->write(http_build_query([
+            'sections' => ['1'],
+            'types' => ['movie'],
+            CsrfMiddleware::FIELD => $this->csrfToken($app),
+        ]));
         $request->getBody()->rewind();
 
         $response = $app->handle($request);

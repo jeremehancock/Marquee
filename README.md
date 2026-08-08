@@ -18,6 +18,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 
 ## Features
 
+- **Connect to Plex from the app** — sign in to Plex in a popup; no token goes
+  in your compose file, and there is none to go hunting for. Only the account
+  that owns your server is accepted.
 - **Import from Plex** — pull the current poster for every Movie, TV Show, TV
   Season, and Collection. A step-by-step picker asks what you want first, then
   shows only the libraries that can provide it.
@@ -78,11 +81,12 @@ services:
       # --- Authentication (CHANGE THESE) ---
       AUTH_USERNAME: "admin"
       AUTH_PASSWORD: "change-me"
-      # AUTH_BYPASS: "false"          # "true" disables login — trusted LAN only
+      # AUTH_BYPASS: "false"          # "true" disables the login entirely.
+      # Anyone reaching Marquee then acts with your stored Plex connection.
 
       # --- Plex (required for import / send / fetch / orphans) ---
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      PLEX_TOKEN: "your-plex-token"
+      # No token here — sign in to Plex from the app on first start.
       # PLEX_REMOVE_OVERLAY_LABEL: "false"   # "true" if you use Kometa overlays
 
       # --- Auto-import (optional) ---
@@ -113,7 +117,8 @@ Then start it:
 docker compose up -d
 ```
 
-Open `http://<host>:1818`, log in with the credentials you set, and go to
+Open `http://<host>:1818` and log in with the credentials you set. Marquee will
+ask you to connect to Plex before anything else — sign in there, then go to
 **Import from Plex** to pull in your posters.
 
 The `/config` volume holds everything Marquee needs to persist:
@@ -136,10 +141,9 @@ server.
 | `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `AUTH_USERNAME` | Login username | `admin` |
 | `AUTH_PASSWORD` | Login password | `changeme` |
-| `AUTH_BYPASS` | Disable authentication entirely (trusted LAN only) | `false` |
+| `AUTH_BYPASS` | Disable the login entirely. Anyone who can reach Marquee then acts with your stored Plex connection: changing and deleting posters, sending artwork to your Plex library, and disconnecting the install. Trusted networks only. | `false` |
 | `SESSION_DURATION` | Login session lifetime, in seconds | `3600` |
 | `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
-| `PLEX_TOKEN` | Plex authentication token (`X-Plex-Token`) | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
 | `PLEX_CONNECT_TIMEOUT` | Plex connect timeout, in seconds | `10` |
 | `PLEX_REQUEST_TIMEOUT` | Plex request timeout, in seconds | `60` |
@@ -157,13 +161,84 @@ server.
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
 
-### Finding your Plex token
+### Two separate things: the login and the Plex connection
 
-1. Log in to your Plex Web App.
-2. Browse to any media item.
-3. Click the **⋯** menu and choose **Get Info**.
-4. In the info dialog, click **View XML**.
-5. In the URL of the new tab, copy the value of the `X-Plex-Token=` parameter.
+Marquee protects itself with a login, and separately holds a connection to your
+Plex server. They do different jobs, and it is worth knowing which is which.
+
+| | Controls | Set by |
+| --- | --- | --- |
+| **Marquee login** | who may open the app at all | `AUTH_USERNAME` / `AUTH_PASSWORD`, or disabled with `AUTH_BYPASS` |
+| **Plex connection** | which server Marquee talks to, and whose Plex account it acts as | signing in to Plex, in the app |
+
+**The Plex connection does not restrict people — it decides which credential
+Marquee holds.** Every Plex action runs on that credential, and no page asks who
+you are. So anyone who gets past the login acts with it.
+
+Marquee accepts only the Plex account that owns your server, which is what keeps
+someone else's account from becoming the credential. It is not a limit on who
+may use the app once connected — the login is the only thing doing that job.
+
+There are no user accounts or roles inside Marquee, by design: it is a
+single-user tool for managing your own posters.
+
+### Connecting to Plex
+
+Marquee does nothing without Plex, so connecting is the first thing it asks for.
+Until you have, every page redirects to the **Plex Connection** screen.
+
+1. Set `PLEX_SERVER_URL` to your server's address and start Marquee.
+2. Log in, and you will land on **Plex Connection**.
+3. Choose **Connect to Plex**. A Plex popup opens; sign in and approve
+   Marquee there.
+4. The popup closes and Marquee takes you to your gallery. Return to **Plex
+   Connection** any time to see which server you are connected to, or to
+   disconnect.
+
+**Sign in with the Plex account that owns the server.** Marquee refuses any
+other account, including one your server is shared with.
+
+That is stricter than Plex itself would be, on purpose. Plex would stop a shared
+account changing your artwork — but deleting a poster in Marquee is a local
+action Plex has no say over, and a poster you never sent to Plex has no copy to
+restore. Rather than rely on Plex to limit an account it only partly limits,
+Marquee does not accept one.
+
+A refusal tells you which of the two things to fix. If signing in reports that
+Marquee could not reach your Plex server, the address is wrong rather than your
+account — check `PLEX_SERVER_URL` and that Plex is running.
+
+The token is stored at `/config/data/plex-connection.json`, owner-readable only
+(`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the
+database is still a safe reset that costs only cached data. Because it lives in
+`/config`, treat backups of that directory as you would the token itself.
+
+Your browser talks to Plex directly and Marquee polls for the result, so nothing
+has to route back in — this works behind a reverse proxy with no extra setup.
+
+`PLEX_SERVER_URL` stays an environment variable. Signing in supplies a
+credential, never an address; if the address is missing, the connection screen
+says so rather than offering a sign-in that cannot help.
+
+To disconnect, or to move Marquee to a different Plex account, use
+**Disconnect from Plex** on the same screen.
+
+#### Upgrading from a version that used `PLEX_TOKEN`
+
+**`PLEX_TOKEN` is no longer read.** Marquee is in alpha and this is a breaking
+change: one way to connect replaced two.
+
+On first start after upgrading you will be redirected to the Plex Connection
+screen, which will tell you the variable is no longer used. Sign in there, then
+delete `PLEX_TOKEN` from your `docker-compose.yml` and run
+`docker compose up -d`.
+
+**Recreating the container is what clears the notice** — `docker compose restart`
+is not enough, because the environment is only read when the container starts.
+Leaving the variable set changes nothing else: it is never used to reach Plex.
+
+Nothing else is affected: your posters, your Plex item mappings, and your
+scheduled auto-import all carry on once you have signed in.
 
 ## Usage
 
@@ -330,11 +405,27 @@ authentication token.
 
 - **Change the default username and password**, and pick a strong one.
 - **Use HTTPS** (behind a reverse proxy) if you expose Marquee to the internet.
+- **The session cookie is `HttpOnly` and `SameSite=Lax`**, and logging in issues
+  a fresh session identifier. It is deliberately *not* marked `Secure`: Marquee
+  is normally reached over plain HTTP on a LAN, and a `Secure` cookie is never
+  sent over HTTP, so marking it would stop those installs logging in at all.
+- **Every action that changes something carries a token** proving the request
+  came from a page Marquee rendered. This matters more than it sounds on a
+  self-hosted box: `SameSite=Lax` stops another *site* driving your session, but
+  "site" ignores the port, so every other container on the same address counts
+  as the same site. The token is what stops one of them acting as you.
 - **Back up your `/config` directory** regularly — an import can rebuild
   everything Plex already has, but not art you uploaded and never sent there.
+  Your Plex token is in there too, so treat those backups as you would the
+  token itself.
 
-Only enable `AUTH_BYPASS` on a network you fully trust — it disables login
-entirely.
+Only enable `AUTH_BYPASS` on a network you fully trust — it disables the login
+entirely. Marquee performs every Plex action with the credential it stores, and
+no page asks who you are, so anyone who can reach it then acts with your Plex
+connection: overwriting artwork in your library, deleting posters, and
+disconnecting the install. Restricting sign-in to your own Plex account does not
+change that — it only guarantees the stored credential is yours. The Plex
+Connection screen says so while bypass is on.
 
 If you want to reach Marquee from outside your network, prefer a VPN over
 opening a port to the internet. <a href="https://www.tailscale.com/" target="_blank" rel="noopener">Tailscale™</a>
