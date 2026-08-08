@@ -30,7 +30,7 @@ final class AuthenticationTest extends AppTestCase
         $response = $this->get($this->makeConnectedApp(), '/library/movies');
 
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/connect', $response->getHeaderLine('Location'));
+        self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
     /**
@@ -41,7 +41,7 @@ final class AuthenticationTest extends AppTestCase
     {
         $app = $this->makeConnectedApp();
 
-        $response = $this->postForm($app, '/connect', ['username' => 'admin', 'password' => 'changeme']);
+        $response = $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'changeme']);
 
         // No such route at all — the screen offers one action, and it is not this.
         self::assertSame(405, $response->getStatusCode());
@@ -56,7 +56,7 @@ final class AuthenticationTest extends AppTestCase
         $logout = $this->get($app, '/logout');
 
         self::assertSame(302, $logout->getStatusCode());
-        self::assertSame('/connect', $logout->getHeaderLine('Location'));
+        self::assertSame('/login', $logout->getHeaderLine('Location'));
         self::assertSame(302, $this->get($app, '/')->getStatusCode());
     }
 

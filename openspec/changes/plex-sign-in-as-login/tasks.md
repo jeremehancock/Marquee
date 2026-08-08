@@ -56,6 +56,16 @@
 - [x] 7.4 Document the nginx rate-limit gap — existing installs already have their own copy of the site config and must add the directive by hand to pick it up.
 - [x] 7.5 Check `docs/` and `CLAUDE.md` for staleness against this change and fix it in the same commit; if nothing else is stale, say so explicitly.
 
+## 9. Sign-in at `/login`, and the connection as a status
+
+- [x] 9.1 Split the merged screen across two paths: `/login` (public, redirects a signed-in visitor to `/connect`) and `/connect` (requires a session, reached via the authentication gate otherwise). One controller, one template.
+- [x] 9.2 Point `AuthMiddleware` at `/login` and `PlexConnectionMiddleware` at `/connect`, and open both paths on the connection gate.
+- [x] 9.3 Replace the "Plex Connection" nav item with a connection status in the header and tray: server name or "Not connected", a state dot, linking to `/connect`.
+- [x] 9.4 Add the `plex_connection()` Twig function, reading cached configuration only so no page render can contact Plex.
+- [x] 9.5 Style the status: hairline separator from the poster actions, green/amber dot.
+- [x] 9.6 Update tests for the two paths, and cover the status indicator, its link, and its text description of the state.
+- [x] 9.7 Update `README.md` for `/login`, the status indicator, and the two exits.
+
 ## 8. Gates
 
 - [x] 8.1 `composer test` — PHPUnit passes.

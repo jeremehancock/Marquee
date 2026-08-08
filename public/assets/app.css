@@ -125,6 +125,39 @@ body {
     flex: 0 0 auto;
 }
 
+/* The Plex connection, carried in the header as a state rather than a
+   destination. A hairline separates it from the poster actions beside it: those
+   are places to go, this is something to know, and running them together reads
+   as one undifferentiated row. */
+.nav-item--conn {
+    gap: 6px;
+    margin-left: 4px;
+    padding-left: 14px;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+}
+
+/* The dot carries the state, so it has to survive the narrow band where the
+   labels drop out — it sits beside the icon rather than replacing any part of
+   it. Colour is not the only signal: the accessible name says "connected" or
+   "not connected" outright, and the tooltip repeats it. */
+.conn-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.conn-dot--ok {
+    background: #3fb950;
+}
+
+/* Amber rather than red: disconnected is a state to resolve, not a failure that
+   has just happened, and the gate is already redirecting the user here. */
+.conn-dot--off {
+    background: #d29922;
+}
+
 /* Two labels are rendered for every nav item; which one shows depends on where
    it is. The header is a single row sharing its width with a brand of unbounded
    length (SITE_TITLE is user-configurable), so it takes the short form; the tray

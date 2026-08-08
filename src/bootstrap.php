@@ -17,6 +17,8 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
 use App\Database\Database;
+use App\Plex\Connection\PlexConnectionState;
+use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
@@ -137,7 +139,12 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, CsrfGuard $csrf, SessionAuthenticator $auth): Twig {
+        Twig::class => static function (
+            AppConfig $config,
+            CsrfGuard $csrf,
+            SessionAuthenticator $auth,
+            PlexConnectionStatus $connection,
+        ): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
@@ -171,6 +178,19 @@ function buildContainer(array $overrides = []): Container
             $twig->getEnvironment()->addFunction(new TwigFunction(
                 'signed_in',
                 static fn (): bool => $auth->isAuthenticated(),
+            ));
+
+            // The header's connection status. Deliberately `current()`, never
+            // `refresh()`: this renders on every page, and asking Plex its name
+            // each time would put a ten-second connect timeout in front of the
+            // whole application whenever the server was down — the same reason
+            // the connection gate reads configuration only.
+            //
+            // Templates call it only inside `signed_in()`, so an anonymous
+            // request never reaches it.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'plex_connection',
+                static fn (): PlexConnectionState => $connection->current(),
             ));
             $twig->getEnvironment()->addFunction(new TwigFunction(
                 'csrf_field',

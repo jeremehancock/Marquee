@@ -31,6 +31,12 @@ function registerRoutes(App $app): void
 
     $app->get('/logout', [AuthController::class, 'logout']);
 
+    // Signing in and the Plex connection are one screen rendered two ways, but
+    // each state gets the URL that names it: nobody managing a connection should
+    // be sitting on a page called /login. Each redirects to the other when the
+    // visitor is in the wrong state, so neither can be reached misnamed.
+    $app->get('/login', [PlexConnectionController::class, 'login']);
+
     $app->get('/', [GalleryController::class, 'home']);
     $app->get('/library/{category}', [GalleryController::class, 'show']);
 
@@ -43,8 +49,6 @@ function registerRoutes(App $app): void
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 
-    // One screen for signing in and for the Plex connection: it is where both
-    // gates send a visitor, and where a connected user goes to disconnect.
     $app->get('/connect', [PlexConnectionController::class, 'show']);
 
     $app->get('/plex', [PlexImportController::class, 'show']);

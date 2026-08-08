@@ -21,10 +21,11 @@ use Slim\Psr7\Response;
  * precondition once, and connecting becomes the first thing a new install asks
  * for rather than something to discover.
  *
- * This gate and the authentication gate now send a visitor to the same screen,
+ * This gate and the authentication gate send a visitor to the same screen,
  * because one sign-in satisfies both. A new install is therefore asked for one
- * thing rather than two in sequence, and the two gates cannot disagree about
- * where to send somebody who has neither a session nor a connection.
+ * thing rather than two in sequence. They differ only in which URL they use for
+ * it: authentication sends you to `/login`, and this one — which only ever sees
+ * a visitor who already has a session — sends you to `/connect`.
  *
  * It turns on the whole connection, not just the token: a stored credential
  * with no server address cannot reach Plex either, and the connection screen is
@@ -37,6 +38,13 @@ use Slim\Psr7\Response;
 final class PlexConnectionMiddleware implements MiddlewareInterface
 {
     /**
+     * The connection view. This gate runs inside the authentication one, so
+     * anyone it turns away already has a session — which is why they are sent
+     * here rather than to the sign-in URL.
+     */
+    public const CONNECTION_PATH = '/connect';
+
+    /**
      * Reachable while Plex is not connected.
      *
      * The connection screen and its actions, for the obvious reason. The public
@@ -48,6 +56,7 @@ final class PlexConnectionMiddleware implements MiddlewareInterface
      */
     private array $openPaths = [
         AuthMiddleware::SIGN_IN_PATH,
+        self::CONNECTION_PATH,
         '/health',
         '/logout',
         '/manifest.webmanifest',
@@ -76,7 +85,7 @@ final class PlexConnectionMiddleware implements MiddlewareInterface
         }
 
         return (new Response())
-            ->withHeader('Location', AuthMiddleware::SIGN_IN_PATH)
+            ->withHeader('Location', self::CONNECTION_PATH)
             ->withStatus(302);
     }
 

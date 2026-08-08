@@ -50,7 +50,7 @@ final class PlexConnectionTest extends AppTestCase
     {
         $app = $this->makeApp($this->env());
 
-        self::assertSame(200, $this->get($app, '/connect')->getStatusCode());
+        self::assertSame(200, $this->get($app, '/login')->getStatusCode());
         self::assertSame(200, $this->get($app, '/plex/connection/status')->getStatusCode());
     }
 
@@ -64,7 +64,7 @@ final class PlexConnectionTest extends AppTestCase
 
         $response = $this->postForm($app, '/plex/connection/sign-out', []);
 
-        self::assertSame('/connect', $response->getHeaderLine('Location'));
+        self::assertSame('/login', $response->getHeaderLine('Location'));
         self::assertNotNull((new PlexConnectionStore($this->dataDir))->token());
     }
 
@@ -131,7 +131,7 @@ final class PlexConnectionTest extends AppTestCase
         // The gate would refuse it, so the link would bounce straight back here.
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
 
-        self::assertStringNotContainsString('Back to gallery', (string) $this->get($app, '/connect')->getBody());
+        self::assertStringNotContainsString('Back to gallery', (string) $this->get($app, '/login')->getBody());
     }
 
     public function testScreenWhenSignedInButNotConnected(): void
@@ -154,7 +154,7 @@ final class PlexConnectionTest extends AppTestCase
     {
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
 
-        $body = (string) $this->get($app, '/connect')->getBody();
+        $body = (string) $this->get($app, '/login')->getBody();
 
         self::assertStringContainsString('Sign in with Plex', $body);
         self::assertStringContainsString('owns this server', $body);
@@ -167,7 +167,7 @@ final class PlexConnectionTest extends AppTestCase
     {
         // No PLEX_SERVER_URL. Signing in cannot supply an address, so offering
         // it as the remedy would strand the user behind the gate.
-        $body = (string) $this->get($this->makeApp($this->env()), '/connect')->getBody();
+        $body = (string) $this->get($this->makeApp($this->env()), '/login')->getBody();
 
         self::assertStringContainsString('PLEX_SERVER_URL', $body);
         self::assertStringContainsString('docker compose up -d', $body);
@@ -181,7 +181,7 @@ final class PlexConnectionTest extends AppTestCase
             'PLEX_TOKEN' => 'left-over-from-an-older-version',
         ]));
 
-        $body = (string) $this->get($app, '/connect')->getBody();
+        $body = (string) $this->get($app, '/login')->getBody();
 
         self::assertStringContainsString('no longer used', $body);
         self::assertStringContainsString('Sign in with Plex', $body);
@@ -294,7 +294,10 @@ final class PlexConnectionTest extends AppTestCase
 
     public function testGalleryIsUnreachableUntilPlexIsConnected(): void
     {
+        // Signed in, so the connection gate is what turns the request away
+        // rather than authentication — and it sends you to the connection view.
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        $this->signIn($app);
 
         foreach (['/library/all', '/plex', '/orphans'] as $path) {
             $response = $this->get($app, $path);
@@ -308,20 +311,36 @@ final class PlexConnectionTest extends AppTestCase
         self::assertSame(200, $this->get($this->connectedApp(), '/library/all')->getStatusCode());
     }
 
-    public function testBothGatesSendAVisitorToTheSameScreen(): void
+    /**
+     * One sign-in satisfies both gates, so a new install is asked for one thing
+     * rather than two in sequence. Each gate uses the URL that names the state
+     * it found: no session sends you to sign in, no connection sends you to the
+     * connection view.
+     */
+    public function testEachGateUsesTheUrlThatNamesWhatIsMissing(): void
     {
-        // Neither a session nor a connection. One sign-in satisfies both, so a
-        // new install is asked for one thing rather than two in sequence — and
-        // the gates cannot disagree about where to send somebody.
-        $anonymousAndDisconnected = $this->makeApp($this->env());
-        $anonymousButConnected = $this->makeConnectedApp($this->env());
-
-        foreach ([$anonymousAndDisconnected, $anonymousButConnected] as $app) {
-            $response = $this->get($app, '/library/all');
-
-            self::assertSame(302, $response->getStatusCode());
-            self::assertSame('/connect', $response->getHeaderLine('Location'));
+        // No session, connected or not — authentication runs first either way.
+        foreach ([$this->makeApp($this->env()), $this->makeConnectedApp($this->env())] as $app) {
+            self::assertSame('/login', $this->get($app, '/library/all')->getHeaderLine('Location'));
         }
+
+        // A session but no connection.
+        $signedIn = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        $this->signIn($signedIn);
+        self::assertSame('/connect', $this->get($signedIn, '/library/all')->getHeaderLine('Location'));
+    }
+
+    /**
+     * And each redirects to the other when the visitor is in the wrong state, so
+     * neither URL can be reached misnaming what it shows.
+     */
+    public function testTheTwoUrlsRedirectToEachOtherByState(): void
+    {
+        $anonymous = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        self::assertSame('/login', $this->get($anonymous, '/connect')->getHeaderLine('Location'));
+
+        $signedIn = $this->connectedApp();
+        self::assertSame('/connect', $this->get($signedIn, '/login')->getHeaderLine('Location'));
     }
 
     public function testTheWallRunsWithoutAPlexConnection(): void

@@ -47,13 +47,43 @@
     {{ _self.item('wall', '/wall', 'Poster Wall', 'Wall', current, true) }}
     {{ _self.item('import', '/plex', 'Import from Plex', 'Import', current) }}
     {{ _self.item('orphans', '/orphans', 'Orphans', 'Orphans', current) }}
-    {# The Plex connection is managed here and nowhere else. It navigates on a
-       phone rather than opening as a tray: the connection gate can redirect to
-       it, and a destination you can be sent to has to be a real page. #}
-    {{ _self.item('connect', '/connect', 'Plex Connection', 'Plex', current) }}
     {# Not part of the poster workflow, so it sits last in the group. Opens the
        project's support page in a new tab, like Poster Wall. #}
     {{ _self.item('support', 'https://getmarquee.now/#support', 'Support Development', 'Support', current, true) }}
+{% endmacro %}
+
+{# The Plex connection, as a status rather than a destination.
+
+   It replaced a plain "Plex Connection" nav item sitting among the poster
+   actions, which read as somewhere to go rather than something to know. There is
+   nothing to do on that screen day to day — you connect once — so what is worth
+   carrying in the header is whether Marquee can still reach Plex, not a door.
+
+   It stays a link because it is the only way to reach Disconnect. Removing the
+   item entirely would have left that action reachable by typing a URL.
+
+   Naming: the accessible name says "Plex connection" and then the state, because
+   a server name alone ("Anansi") tells a screen reader nothing about what the
+   control is for. The visible label is the server name, which is the part a
+   sighted user is scanning for. #}
+{% macro connection_status(connection, current = '') %}
+    {% import 'partials/_icons.html.twig' as icons %}
+    {% set connected = connection.isConnected %}
+    {% set name = connected ? (connection.serverName ?? 'Plex') : 'Not connected' %}
+    {% set label = 'Plex connection: ' ~ (connected ? 'connected to ' ~ name : 'not connected') %}
+    {% set body %}
+        <span class="nav-ico" aria-hidden="true">{{ icons.icon('connect', 20) }}</span>
+        <span class="conn-dot conn-dot--{{ connected ? 'ok' : 'off' }}" aria-hidden="true"></span>
+        <span class="nav-label" aria-hidden="true">{{ name }}</span>
+        <span class="nav-label nav-label--short" aria-hidden="true">{{ name }}</span>
+    {% endset %}
+    {% if current == 'connect' %}
+        <span class="btn nav-item nav-item--conn nav-item--current" aria-current="page"
+              aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</span>
+    {% else %}
+        <a class="btn nav-item nav-item--conn" href="/connect"
+           aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</a>
+    {% endif %}
 {% endmacro %}
 
 {# Log out. Presented exactly like the links above rather than as a plain text

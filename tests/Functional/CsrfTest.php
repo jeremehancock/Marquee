@@ -121,7 +121,7 @@ final class CsrfTest extends AppTestCase
 
         self::assertStringContainsString(
             'name="csrf-token" content="' . $this->csrfToken($app) . '"',
-            (string) $this->get($app, '/connect')->getBody(),
+            (string) $this->get($app, '/login')->getBody(),
         );
     }
 
@@ -189,7 +189,7 @@ final class CsrfTest extends AppTestCase
         // ...and nobody is signed in.
         $response = $this->get($app, '/');
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/connect', $response->getHeaderLine('Location'));
+        self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
     /**

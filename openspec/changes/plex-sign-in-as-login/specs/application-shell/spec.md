@@ -69,6 +69,49 @@ window the user is looking at is no longer the one being polled.
 - **WHEN** two different sessions each start a sign-in
 - **THEN** each holds its own authorization request
 
+### Requirement: The Plex connection is shown as a status, not a destination
+The interface SHALL carry the state of the Plex connection in its navigation for
+a signed-in user, naming the connected server or reporting that Plex is not
+connected. It SHALL NOT present the connection screen as an ordinary destination
+alongside the poster actions.
+
+The connection screen is somewhere a user goes once. Listing it beside Import and
+Orphans presented it as a place to go, when what is worth carrying on every page
+is whether Marquee can still reach Plex.
+
+The status SHALL link to the connection screen, because that screen is the only
+place disconnecting is offered and removing the link would leave the action
+reachable only by typing a URL.
+
+The state SHALL NOT be conveyed by colour alone: the status SHALL carry a text
+description of the condition for assistive technology and where labels are
+hidden.
+
+Reporting the status SHALL NOT contact Plex. It renders on every page, and a
+reachability probe there would stall the whole application whenever the server
+was down — the same reason the connection gate reads configuration only.
+
+#### Scenario: Connected names the server
+- **WHEN** a signed-in user views any page with navigation while Plex is connected
+- **THEN** the navigation shows the connected server's name
+
+#### Scenario: Disconnected is reported as such
+- **WHEN** a signed-in user views a page with navigation while Plex is not
+  connected
+- **THEN** the navigation reports that Plex is not connected
+
+#### Scenario: The status is the way to the connection screen
+- **WHEN** the status renders
+- **THEN** it links to the connection screen
+
+#### Scenario: The connection is not listed among the poster actions
+- **WHEN** the navigation renders
+- **THEN** it offers no ordinary navigation item for the connection screen
+
+#### Scenario: The condition is available as text
+- **WHEN** the status renders in either state
+- **THEN** its accessible name states whether Plex is connected
+
 ### Requirement: Starting a sign-in is rate limited by the web server
 The image SHALL ship a web server configuration that limits how often the route
 that starts a sign-in may be requested. The limit SHALL be enforced before the
@@ -226,10 +269,19 @@ about the account has been learned, so nothing about the account may be claimed.
 
 ### Requirement: Plex connection screen
 The system SHALL provide one screen that is both where a visitor logs in and
-where the Plex connection is managed. It SHALL be reachable without a session,
-SHALL be where both the authentication gate and the connection gate send a
-visitor, and SHALL be the only place the Plex connection is managed; no other
-page SHALL offer to change it.
+where the Plex connection is managed. It SHALL be the only place the Plex
+connection is managed; no other page SHALL offer to change it.
+
+The screen SHALL be addressed by two paths: one that names signing in, reachable
+without a session, and one that names the connection, requiring one. Each SHALL
+redirect to the other when the visitor is in the wrong state, so that neither can
+be reached showing something its path does not name. A URL that misdescribes what
+it is showing reads as a fault, and "log in" is what a visitor without a session
+needs to see.
+
+The authentication gate SHALL send a visitor to the sign-in path and the
+connection gate to the connection path. The connection gate runs inside the
+authentication one, so anyone it turns away already has a session.
 
 The screen SHALL offer a single action to a visitor who is not signed in:
 signing in to Plex. Because that action is both the login and the connection,
@@ -270,6 +322,18 @@ it as a fault.
 #### Scenario: One action when signed out
 - **WHEN** the screen renders for a visitor with no session
 - **THEN** it offers signing in to Plex and no other action
+
+#### Scenario: The sign-in path is reachable without a session
+- **WHEN** a visitor with no session requests the sign-in path
+- **THEN** the system serves the screen
+
+#### Scenario: A signed-in visitor is sent from the sign-in path to the connection path
+- **WHEN** a visitor with a session requests the sign-in path
+- **THEN** the system redirects them to the connection path
+
+#### Scenario: A signed-out visitor is sent from the connection path to the sign-in path
+- **WHEN** a visitor with no session requests the connection path
+- **THEN** the system redirects them to the sign-in path
 
 #### Scenario: No way back while the gate is up
 - **WHEN** the screen renders while Plex is not connected
@@ -314,9 +378,9 @@ installation asks for one thing rather than two in sequence. Where a visitor has
 neither a session nor a connection, both gates send them to the same screen, and
 one sign-in clears both.
 
-The connection screen itself, the routes that start and poll a sign-in, the
-logout route, the health endpoint, the web app manifest, static assets, and the
-Poster Wall SHALL remain reachable while Plex is not connected. The wall is
+Both paths to the connection screen, the routes that start and poll a sign-in,
+the logout route, the health endpoint, the web app manifest, static assets, and
+the Poster Wall SHALL remain reachable while Plex is not connected. The wall is
 exempt because it is specified to run unattended without anyone signing in; a
 gate in front of it would break that.
 
@@ -332,10 +396,14 @@ gate in front of it would break that.
 - **AND** the user is taken to the gallery with a confirmation, rather than left
   on the connection screen
 
-#### Scenario: Both gates send a visitor to the same screen
-- **WHEN** an unauthenticated visitor requests a gated route while Plex is not
+#### Scenario: Each gate uses the path that names what is missing
+- **WHEN** an unauthenticated visitor requests a gated route, connected or not
+- **THEN** the system sends them to the sign-in path
+
+#### Scenario: A signed-in visitor with no connection is sent to the connection path
+- **WHEN** an authenticated visitor requests a gated route while Plex is not
   connected
-- **THEN** the system sends them to the screen that offers signing in to Plex
+- **THEN** the system sends them to the connection path
 
 #### Scenario: The wall runs without a Plex connection
 - **WHEN** the poster wall is requested while Plex is not connected

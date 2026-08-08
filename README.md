@@ -169,6 +169,10 @@ its own session, so a plex.tv outage cannot lock you out of an install you are
 already signed in to — everything you do afterwards talks to your own Plex
 server directly.
 
+The header carries a **connection status** — the name of your Plex server with a
+green dot, or "Not connected" with an amber one. It is also the way to the Plex
+Connection screen, where disconnecting lives.
+
 **Two ways out, and they are not the same:**
 
 | | What it does | Scheduled imports |
@@ -201,9 +205,9 @@ Until you have, every page redirects to the **Plex Connection** screen.
    screen.
 3. Choose **Sign in with Plex**. A Plex popup opens; sign in and approve
    Marquee there.
-4. The popup closes and Marquee takes you to your gallery. Return to **Plex
-   Connection** any time to see which server you are connected to, or to
-   disconnect.
+4. The popup closes and Marquee takes you to your gallery. The connection
+   status in the header names your server from then on; select it any time to
+   see the connection or to disconnect.
 
 If Marquee cannot reach the address you set, the sign-in is refused and the
 screen says so, naming `PLEX_SERVER_URL` — ownership is checked against your

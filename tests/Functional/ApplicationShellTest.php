@@ -136,7 +136,7 @@ final class ApplicationShellTest extends AppTestCase
     {
         // With an address configured, so the screen offers the sign-in action
         // rather than the "set PLEX_SERVER_URL" branch.
-        $response = $this->get($this->makeApp(['PLEX_SERVER_URL' => 'http://plex:32400']), '/connect');
+        $response = $this->get($this->makeApp(['PLEX_SERVER_URL' => 'http://plex:32400']), '/login');
         $body = (string) $response->getBody();
 
         // The screen itself, not a 404 that would satisfy every assertion below.
@@ -146,6 +146,56 @@ final class ApplicationShellTest extends AppTestCase
         self::assertStringNotContainsString('topnav__desktop', $body);
         self::assertStringNotContainsString('aria-label="Import from Plex"', $body);
         self::assertStringNotContainsString('menu-btn', $body);
+    }
+
+    /**
+     * The Plex connection is a state, not a destination among the poster
+     * actions. There is nothing to do on that screen day to day — you connect
+     * once — so what the header carries is whether Marquee can still reach Plex.
+     */
+    public function testHeaderCarriesTheConnectionStatusRatherThanAPlexLink(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        self::assertStringContainsString('conn-dot--ok', $header);
+        self::assertStringContainsString('aria-label="Plex connection: connected', $header);
+        // The nav item it replaced is gone.
+        self::assertStringNotContainsString('aria-label="Plex Connection"', $header);
+    }
+
+    /**
+     * It stays a link because it is the only way to reach Disconnect. Dropping
+     * the item outright would have left that action reachable only by typing a
+     * URL.
+     */
+    public function testTheConnectionStatusIsTheWayToReachTheConnectionScreen(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        self::assertStringContainsString('href="/connect"', $header);
+    }
+
+    /**
+     * Colour is not the only signal: the accessible name states the condition
+     * outright, so the status is not carried by a green dot alone.
+     */
+    public function testADisconnectedInstallSaysSoInTheStatus(): void
+    {
+        $app = $this->makeApp(['PLEX_SERVER_URL' => 'http://plex:32400']);
+        $this->signIn($app);
+
+        // The gate sends a signed-in but disconnected visitor here, and the
+        // screen still draws the header.
+        $header = $this->header((string) $this->get($app, '/connect')->getBody());
+
+        self::assertStringContainsString('conn-dot--off', $header);
+        self::assertStringContainsString('aria-label="Plex connection: not connected"', $header);
     }
 
     public function testHeaderCarriesLogOutWhenSignedIn(): void
@@ -181,7 +231,7 @@ final class ApplicationShellTest extends AppTestCase
         $response = $this->get($this->makeApp(), '/');
 
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/connect', $response->getHeaderLine('Location'));
+        self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
     public function testGalleryRendersSiteTitleAsTheBrand(): void

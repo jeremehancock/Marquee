@@ -59,9 +59,18 @@ authentication. Once signing in to Plex *is* logging in, both render the same
 single action, and keeping two screens would mean two pages with one button
 each, differing only in which one the middleware happened to redirect to.
 
-They collapse. The merged screen is public and is where both middlewares send an
-unauthenticated or unconnected visitor. What it does afterwards depends on state
-rather than on which URL was requested:
+They collapse into one controller and one template. Two URLs survive over it —
+`/login` and `/connect` — because the states they describe are genuinely
+different and a URL that misnames what it is showing reads as a fault: nobody
+managing a Plex connection should be sitting on a page called `/login`, and
+nobody who needs to sign in should be sent to `/connect`. Each redirects to the
+other when the visitor is in the wrong state, so neither can be reached
+misnamed. The authentication gate sends you to `/login`; the connection gate,
+which only ever sees a visitor who already has a session, sends you to
+`/connect`.
+
+What the screen does on a completed sign-in depends on state rather than on which
+URL was requested:
 
 | Stored token | Approved account | Result |
 | --- | --- | --- |
@@ -72,9 +81,15 @@ rather than on which URL was requested:
 The third row preserves existing behaviour: a refused sign-in must leave an
 already-connected install exactly as it was.
 
-**Alternative considered — keep two screens, make `/login` redirect to
-`/connect`.** Rejected: the redirect is invisible to the user and leaves two
-route families, two templates, and two sets of tests describing one interaction.
+**Alternative considered — one URL for both states.** Rejected: whichever name
+won would misdescribe the other state. `/connect` would greet a stranger with a
+word for something they cannot do yet; `/login` would sit above a signed-in
+user's server name and disconnect button. Two paths over one screen costs one
+redirect each way and keeps both honest.
+
+**Alternative considered — two screens, as before.** Rejected: two templates and
+two sets of tests describing one interaction, which is what made the merge worth
+doing. The split here is at the route, not the screen.
 
 ### 2. The vocabulary rule narrows to the exits, and is not abandoned
 
@@ -255,6 +270,29 @@ The window is renewed on use. 30 days matches Overseerr's session cookie
 `SESSION_DURATION` survives as the knob; only its default and its semantics
 change. With no fallback credential, session length is now the entire tolerance
 for a plex.tv outage, which is why the default has to move.
+
+### 10. The connection is navigation *state*, not a navigation *destination*
+
+The header listed "Plex Connection" beside Import and Orphans. That put a screen
+a user visits once — you connect, and then you are done — among the actions they
+use constantly, and presented it as a place to go rather than something to know.
+
+It is replaced by a status: the connected server's name, or "Not connected", with
+a dot for at-a-glance state. What is worth carrying on every page is whether
+Marquee can still reach Plex, which the old item did not say at all.
+
+It stays a link. Disconnecting is offered on that screen and nowhere else, so
+removing the item outright would have left the action reachable only by typing a
+URL. **Alternative considered — an indicator that is not a link, or nothing at
+all.** Both were rejected for exactly that: they trade a small amount of header
+tidiness for an action with no route to it.
+
+Colour does not carry the state on its own. The accessible name says "Plex
+connection: connected to <server>" or "not connected", so the dot is
+reinforcement rather than the signal. The status is read from cached
+configuration and never contacts Plex — it renders on every page, and a probe
+there would put the connect timeout in front of the whole application whenever
+the server was down.
 
 ## Risks / Trade-offs
 

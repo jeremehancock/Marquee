@@ -21,6 +21,11 @@ use Slim\Psr7\Response;
  * deliberately not among them — it destroys the connection, which is something
  * only a signed-in user may do.
  *
+ * `/connect` is deliberately not public either, even though it renders the same
+ * screen. It is the connection view, and a visitor with no session has no
+ * connection to look at; this gate turning them away is what sends them to the
+ * URL that names what they actually need.
+ *
  * The Poster Wall is intentionally public: it is meant for an unattended
  * display (a spare monitor or TV) that should show posters and now-playing
  * without anyone signing in on the device. Its endpoints expose only poster
@@ -29,7 +34,7 @@ use Slim\Psr7\Response;
 final class AuthMiddleware implements MiddlewareInterface
 {
     /** Where an unauthenticated visitor is sent: the screen that offers sign-in. */
-    public const SIGN_IN_PATH = '/connect';
+    public const SIGN_IN_PATH = '/login';
 
     /** @var list<string> */
     private array $publicPaths = [
