@@ -6,6 +6,7 @@ namespace App\Tests;
 
 use App\Auth\CsrfGuard;
 use App\Auth\CsrfMiddleware;
+use App\Auth\SessionAuthenticator;
 
 use function App\buildContainer;
 use function App\createApp;
@@ -36,9 +37,12 @@ abstract class AppTestCase extends TestCase
     {
         $defaults = [
             'SITE_TITLE' => 'Marquee',
-            'AUTH_USERNAME' => 'admin',
-            'AUTH_PASSWORD' => 'secret',
-            'AUTH_BYPASS' => 'false',
+            // Cleared rather than set. These are no longer credentials; leaving
+            // any of them set would raise the "no longer used" notice on every
+            // render of the sign-in screen.
+            'AUTH_USERNAME' => '',
+            'AUTH_PASSWORD' => '',
+            'AUTH_BYPASS' => '',
             'SESSION_DURATION' => '3600',
             'DATA_DIR' => sys_get_temp_dir() . '/marquee-test-data',
             'DISPLAY_ERRORS' => 'false',
@@ -99,6 +103,44 @@ abstract class AppTestCase extends TestCase
         $this->connectNext = true;
 
         return $this->makeApp(array_merge(['PLEX_SERVER_URL' => 'http://plex:32400'], $env), $overrides);
+    }
+
+    /**
+     * Build an app with Plex connected and a session already signed in.
+     *
+     * What most functional tests want: nearly every route is behind both gates,
+     * and the tests that exercise them are not about how a session is obtained.
+     * Use makeConnectedApp() instead where being anonymous is the point.
+     *
+     * @param array<string, string> $env
+     * @param array<string, mixed>  $overrides
+     *
+     * @return App<\Psr\Container\ContainerInterface|null>
+     */
+    protected function makeSignedInApp(array $env = [], array $overrides = []): App
+    {
+        $app = $this->makeConnectedApp($env, $overrides);
+        $this->signIn($app);
+
+        return $app;
+    }
+
+    /**
+     * Mark this app's session authenticated, as a verified Plex sign-in does.
+     *
+     * Goes through SessionAuthenticator rather than writing session keys
+     * directly, so the tests establish a session exactly the way the application
+     * does — identifier regeneration included — and cannot drift from it.
+     *
+     * @param App<\Psr\Container\ContainerInterface|null> $app
+     */
+    protected function signIn(App $app): void
+    {
+        $container = $app->getContainer();
+        self::assertNotNull($container);
+        /** @var SessionAuthenticator $authenticator */
+        $authenticator = $container->get(SessionAuthenticator::class);
+        $authenticator->establish();
     }
 
     /**

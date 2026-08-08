@@ -1,3 +1,19 @@
+# Rate limit for starting a Plex sign-in — the only unauthenticated route that
+# makes an outbound call to plex.tv, holding a PHP-FPM worker for the round trip.
+# Enforced here rather than in PHP because what it protects (the worker pool, the
+# session store) is consumed by the request arriving at all.
+#
+# Deliberately coarse. Behind a reverse proxy every request shares one address,
+# so this degrades to a single allowance — which is acceptable because a 30-day
+# sliding session makes this route one a real user reaches roughly never. Making
+# it accurate would mean trusting a forwarded-address header, which an attacker
+# can set. If you ever want per-client limits, add `set_real_ip_from` for your
+# proxy; it does not belong in the application.
+#
+# This zone lives at http level, outside the server block, because that is the
+# only context nginx accepts it in.
+limit_req_zone $binary_remote_addr zone=marquee_signin:1m rate=30r/m;
+
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -11,6 +27,15 @@ server {
     # Serve real files/directories; route everything else to the front controller.
     location / {
         try_files $uri $uri/ /index.php$is_args$args;
+    }
+
+    # Starting a Plex sign-in, rate limited. `burst` is what keeps an ordinary
+    # user out of it: signing in, giving up, and trying again is a handful of
+    # requests in a row, and only a flood exhausts the allowance.
+    location = /plex/connection/sign-in {
+        limit_req zone=marquee_signin burst=10 nodelay;
+        limit_req_status 429;
+        try_files $uri /index.php$is_args$args;
     }
 
     # Only the front controller may execute PHP.

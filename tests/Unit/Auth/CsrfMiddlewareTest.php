@@ -15,12 +15,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Exception\HttpForbiddenException;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
-use Slim\Views\Twig;
 
 /**
- * The gate itself. The `/login` carve-out renders a template and so is covered
- * functionally, where the Twig environment is the real one; everything here is
- * the part that decides pass or refuse.
+ * The gate itself. The sign-in carve-out answers with JSON and so is covered
+ * functionally, alongside the screen that shows it; everything here is the part
+ * that decides pass or refuse.
  */
 final class CsrfMiddlewareTest extends TestCase
 {
@@ -142,11 +141,7 @@ final class CsrfMiddlewareTest extends TestCase
 
     private function pass(ServerRequestInterface $request, ?ArraySession $session = null): ResponseInterface
     {
-        $middleware = new CsrfMiddleware(
-            new CsrfGuard($session ?? new ArraySession()),
-            // Never rendered on any path this class exercises.
-            Twig::create(dirname(__DIR__, 3) . '/templates', ['cache' => false]),
-        );
+        $middleware = new CsrfMiddleware(new CsrfGuard($session ?? new ArraySession()));
 
         return $middleware->process($request, $this->handler());
     }

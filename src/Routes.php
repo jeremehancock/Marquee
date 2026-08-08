@@ -29,8 +29,6 @@ function registerRoutes(App $app): void
     $app->get('/manifest.webmanifest', ManifestController::class);
     $app->get('/version', VersionController::class);
 
-    $app->get('/login', [AuthController::class, 'showLogin']);
-    $app->post('/login', [AuthController::class, 'login']);
     $app->get('/logout', [AuthController::class, 'logout']);
 
     $app->get('/', [GalleryController::class, 'home']);
@@ -45,16 +43,16 @@ function registerRoutes(App $app): void
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 
-    // The Plex connection lives on its own page: it is where the connection
-    // gate sends anyone who has not connected, and where a connected user goes
-    // to sign out.
+    // One screen for signing in and for the Plex connection: it is where both
+    // gates send a visitor, and where a connected user goes to disconnect.
     $app->get('/connect', [PlexConnectionController::class, 'show']);
 
     $app->get('/plex', [PlexImportController::class, 'show']);
     $app->post('/plex/import', [PlexImportController::class, 'run']);
 
-    // Signing in to Plex. Authenticated like everything else: these connect
-    // Marquee to Plex, they are not a way of signing in to Marquee.
+    // Signing in to Plex, which is how Marquee is entered. The first two are
+    // reachable without a session because they are how one is obtained;
+    // disconnecting is not, because it destroys the connection.
     $app->post('/plex/connection/sign-in', [PlexConnectionController::class, 'start']);
     $app->get('/plex/connection/status', [PlexConnectionController::class, 'poll']);
     $app->post('/plex/connection/sign-out', [PlexConnectionController::class, 'signOut']);

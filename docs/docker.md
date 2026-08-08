@@ -50,7 +50,7 @@ Replicate that job locally:
 
 ```bash
 docker build -t marquee:ci-test .
-docker run -d --name marquee-test -p 8099:80 -e AUTH_BYPASS=true marquee:ci-test
+docker run -d --name marquee-test -p 8099:80 marquee:ci-test
 
 # poll until ready, then:
 curl -fsS http://127.0.0.1:8099/health     # expect {"status":"ok","app":"marquee"}

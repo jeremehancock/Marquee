@@ -21,6 +21,11 @@ use Slim\Psr7\Response;
  * precondition once, and connecting becomes the first thing a new install asks
  * for rather than something to discover.
  *
+ * This gate and the authentication gate now send a visitor to the same screen,
+ * because one sign-in satisfies both. A new install is therefore asked for one
+ * thing rather than two in sequence, and the two gates cannot disagree about
+ * where to send somebody who has neither a session nor a connection.
+ *
  * It turns on the whole connection, not just the token: a stored credential
  * with no server address cannot reach Plex either, and the connection screen is
  * where that difference gets explained.
@@ -42,9 +47,8 @@ final class PlexConnectionMiddleware implements MiddlewareInterface
      * @var list<string>
      */
     private array $openPaths = [
-        '/connect',
+        AuthMiddleware::SIGN_IN_PATH,
         '/health',
-        '/login',
         '/logout',
         '/manifest.webmanifest',
         '/wall',
@@ -72,7 +76,7 @@ final class PlexConnectionMiddleware implements MiddlewareInterface
         }
 
         return (new Response())
-            ->withHeader('Location', '/connect')
+            ->withHeader('Location', AuthMiddleware::SIGN_IN_PATH)
             ->withStatus(302);
     }
 

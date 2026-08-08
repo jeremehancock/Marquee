@@ -38,7 +38,7 @@ final class PosterWallTest extends AppTestCase
      */
     private function app(): App
     {
-        return $this->makeApp(['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir]);
+        return $this->makeApp(['POSTERS_DIR' => $this->postersDir]);
     }
 
     public function testWallPageRenders(): void
@@ -74,7 +74,7 @@ final class PosterWallTest extends AppTestCase
 
     public function testWallIsPublic(): void
     {
-        // No AUTH_BYPASS: the wall must still render for an unattended display.
+        // Not signed in: the wall must still render for an unattended display.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall');
 
         self::assertSame(200, $response->getStatusCode());
@@ -89,7 +89,7 @@ final class PosterWallTest extends AppTestCase
     private function appWithSessions(array $sessions): App
     {
         return $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir],
+            ['POSTERS_DIR' => $this->postersDir],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(sessions: $sessions)],
         );
     }
@@ -165,7 +165,7 @@ final class PosterWallTest extends AppTestCase
     public function testPlaceholderForAFailedPlexFetchExpiresQuickly(): void
     {
         $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'PLEX_TOKEN' => 'plex-secret'],
+            ['POSTERS_DIR' => $this->postersDir, 'PLEX_TOKEN' => 'plex-secret'],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(failingThumbs: ['/t/1'])],
         );
         $token = (new StreamToken('plex-secret'))->forThumb('/t/1');
@@ -201,8 +201,7 @@ final class PosterWallTest extends AppTestCase
         // Tokens are signed with the Plex token, so the test must sign with the
         // same secret for the signature to verify and the path check to be what
         // actually rejects the token.
-        $app = $this->makeApp([
-            'AUTH_BYPASS' => 'true',
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'PLEX_TOKEN' => 'plex-secret',
         ]);
@@ -218,7 +217,7 @@ final class PosterWallTest extends AppTestCase
 
     public function testStreamsArePublic(): void
     {
-        // No AUTH_BYPASS: the now-playing endpoint must be reachable too.
+        // Not signed in: the now-playing endpoint must be reachable too.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall/streams');
 
         self::assertSame(200, $response->getStatusCode());

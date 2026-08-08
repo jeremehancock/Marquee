@@ -10,7 +10,7 @@ final class PwaTest extends AppTestCase
 {
     public function testManifestIsPublicAndNamedAfterProductNotSiteTitle(): void
     {
-        // No AUTH_BYPASS: the manifest must be reachable without a session.
+        // Not signed in: the manifest must be reachable without a session.
         $response = $this->get($this->makeConnectedApp(['SITE_TITLE' => 'My Wall']), '/manifest.webmanifest');
 
         self::assertSame(200, $response->getStatusCode());
@@ -27,7 +27,7 @@ final class PwaTest extends AppTestCase
 
     public function testManifestDeclaresDistinctAnyAndMaskableIcons(): void
     {
-        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/manifest.webmanifest');
+        $response = $this->get($this->makeSignedInApp(), '/manifest.webmanifest');
 
         self::assertSame(200, $response->getStatusCode());
 
@@ -55,7 +55,7 @@ final class PwaTest extends AppTestCase
 
     public function testVersionEndpointReportsCurrentVersion(): void
     {
-        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/version');
+        $response = $this->get($this->makeSignedInApp(), '/version');
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
@@ -69,7 +69,7 @@ final class PwaTest extends AppTestCase
 
     public function testFooterShowsVersion(): void
     {
-        $body = (string) $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/library/movies')->getBody();
+        $body = (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody();
 
         self::assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $body);
     }
@@ -77,7 +77,7 @@ final class PwaTest extends AppTestCase
     public function testFooterAndHomeScreenLabelNameTheProductNotTheSiteTitle(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']),
+            $this->makeSignedInApp(['SITE_TITLE' => 'My Wall']),
             '/library/movies',
         )->getBody();
 
@@ -103,7 +103,7 @@ final class PwaTest extends AppTestCase
     public function testWebAppCapabilityIsDeclaredUnderBothNames(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 

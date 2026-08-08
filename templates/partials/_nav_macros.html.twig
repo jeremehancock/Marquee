@@ -58,7 +58,12 @@
 
 {# Log out. Presented exactly like the links above rather than as a plain text
    link, so the header reads as one set of actions instead of a group plus a
-   stray. Callers gate it on auth_bypass. #}
+   stray. Callers gate it on signed_in().
+
+   The title says what logging out leaves behind. Once Marquee is entered by
+   signing in to Plex, "log out" invites the reading that it undoes that — and it
+   does not: the connection survives so that scheduled imports keep running.
+   Disconnecting is the action that ends them. #}
 {% macro logout_link() %}
-    {{ _self.item('logout', '/logout', 'Log out', 'Log out', '') }}
+    {{ _self.item('logout', '/logout', 'Log out of Marquee. Plex stays connected and scheduled imports keep running.', 'Log out', '') }}
 {% endmacro %}

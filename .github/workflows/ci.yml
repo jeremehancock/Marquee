@@ -56,7 +56,9 @@ jobs:
 
       - name: Run container and probe health
         run: |
-          docker run -d --name marquee -p 8080:80 -e AUTH_BYPASS=true marquee:ci
+          # No credentials: the health endpoint is public, and Marquee is
+          # entered by signing in to Plex, which this probe cannot do.
+          docker run -d --name marquee -p 8080:80 marquee:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
               echo "Health check passed"; exit 0

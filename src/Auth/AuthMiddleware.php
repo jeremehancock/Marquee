@@ -12,8 +12,14 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Psr7\Response;
 
 /**
- * Guards every route except the public ones (health, login/logout, assets),
- * redirecting unauthenticated visitors to the login page.
+ * Guards every route except the public ones, sending an unauthenticated visitor
+ * to the screen where signing in to Plex is offered.
+ *
+ * That screen is public because signing in to Plex is how a session is
+ * obtained. So are the two routes behind it: one starts an authorization
+ * request, the other reports whether it has been approved. Disconnecting is
+ * deliberately not among them — it destroys the connection, which is something
+ * only a signed-in user may do.
  *
  * The Poster Wall is intentionally public: it is meant for an unattended
  * display (a spare monitor or TV) that should show posters and now-playing
@@ -22,8 +28,19 @@ use Slim\Psr7\Response;
  */
 final class AuthMiddleware implements MiddlewareInterface
 {
+    /** Where an unauthenticated visitor is sent: the screen that offers sign-in. */
+    public const SIGN_IN_PATH = '/connect';
+
     /** @var list<string> */
-    private array $publicPaths = ['/health', '/login', '/logout', '/manifest.webmanifest', '/wall'];
+    private array $publicPaths = [
+        '/health',
+        self::SIGN_IN_PATH,
+        '/logout',
+        '/manifest.webmanifest',
+        '/plex/connection/sign-in',
+        '/plex/connection/status',
+        '/wall',
+    ];
 
     /** @var list<string> */
     private array $publicPrefixes = ['/assets/', '/wall/'];
@@ -44,7 +61,7 @@ final class AuthMiddleware implements MiddlewareInterface
         }
 
         return (new Response())
-            ->withHeader('Location', '/login')
+            ->withHeader('Location', self::SIGN_IN_PATH)
             ->withStatus(302);
     }
 

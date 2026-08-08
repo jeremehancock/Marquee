@@ -20,7 +20,7 @@
            dismissed for same-page and new-tab (Poster Wall) destinations alike. #}
         <div class="sheet__body menu__body" @click="menuOpen = false">
             {{ nav.secondary_links(nav_current|default('')) }}
-            {% if not auth_bypass %}
+            {% if signed_in() %}
                 {{ nav.logout_link() }}
             {% endif %}
         </div>

@@ -22,8 +22,8 @@ something in Plex, then check Marquee) — see the final sections.
 ## Automated: `scripts/marquee-plex-test.py`
 
 A self-contained tester (Python 3.8+, **standard library only** — no
-`pip install`). It logs into Marquee, triggers **Send to Plex** for one poster,
-then verifies the result directly in Plex.
+`pip install`). It borrows a signed-in Marquee session, triggers **Send to Plex**
+for one poster, then verifies the result directly in Plex.
 
 ### 1. Pick a test item and gather its identifiers
 
@@ -42,7 +42,7 @@ values):
 | Variable | Meaning |
 | --- | --- |
 | `MARQUEE_URL` | e.g. `http://localhost:1818` (or your `:dev` instance) |
-| `MARQUEE_USER` / `MARQUEE_PASS` | login; leave `MARQUEE_USER` empty if `AUTH_BYPASS=true` |
+| `MARQUEE_SESSION` | the `PHPSESSID` cookie from a browser already signed in to Marquee (DevTools → Application → Cookies). Signing in is a Plex browser flow the script cannot drive, so it borrows a session rather than making one. |
 | `PLEX_URL` / `PLEX_TOKEN` | your Plex server + token |
 | `CATEGORY` / `FILENAME` / `RATING_KEY` | the test item (above) |
 | `RUN_LOCK_TEST` / `RUN_KOMETA_TEST` | `true`/`false` to toggle each test |
@@ -58,7 +58,7 @@ python3 scripts/marquee-plex-test.py
 # or without editing the file (env overrides CONFIG):
 RATING_KEY=45678 CATEGORY=movies FILENAME="Dune (2021) [Movies].jpg" \
   PLEX_URL=http://10.0.0.5:32400 PLEX_TOKEN=xxxx \
-  MARQUEE_URL=http://localhost:1818 MARQUEE_USER=admin MARQUEE_PASS=secret \
+  MARQUEE_URL=http://localhost:1818 MARQUEE_SESSION=abc123sessionid \
   python3 scripts/marquee-plex-test.py
 ```
 
@@ -68,7 +68,7 @@ scripts or a cron sanity check).
 ### What it does, step by step
 
 - **Preflight** — confirms Plex is reachable, the token is valid, the item
-  exists, and it can authenticate to Marquee.
+  exists, and the borrowed Marquee session is still live.
 - **Lock test** — records the current lock state, calls Marquee's
   `POST /library/<category>/send-to-plex`, then asserts the item's `thumb` field
   is locked in Plex.

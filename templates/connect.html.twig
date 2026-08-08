@@ -3,58 +3,80 @@
 {# Suppresses the header's own link, which would point at this page. #}
 {% set nav_current = 'connect' %}
 
-{% block title %}Plex Connection · {{ site_title }}{% endblock %}
+{% block title %}{{ signed_in ? 'Plex Connection' : 'Sign in' }} · {{ site_title }}{% endblock %}
+
+{# No navigation for a visitor who has not signed in: there is nothing behind it
+   they may reach, and a header full of dead links is the first thing they would
+   see of Marquee. #}
+{% block nav %}{% if signed_in %}{{ parent() }}{% endif %}{% endblock %}
 
 {% block content %}
-    {# Only once connected. While the gate is up the gallery is unreachable, so
-       the link would bounce straight back here. #}
-    {% if connection.isConnected %}
+    {# Only once connected, and only for someone who may use the gallery. While
+       the gate is up the link would bounce straight back here. #}
+    {% if signed_in and connection.isConnected %}
         <p><a class="search__clear" href="{{ back_url }}">&larr; Back to gallery</a></p>
     {% endif %}
-    <h1>Plex Connection</h1>
+
+    <h1>{{ signed_in ? 'Plex Connection' : 'Sign in to Marquee' }}</h1>
 
     {% if flash %}
         <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
     {% endif %}
 
     {#
-        Two states — connected or not — because there is one way to connect.
-        What still has to be told apart is why it is not connected: a missing
-        credential is fixed by signing in, a missing server address is not, and
-        offering the wrong remedy leaves the user stuck behind the gate.
+        One way in, so one action. What still has to be told apart is why Marquee
+        cannot be used: a missing credential is fixed by signing in, a missing
+        server address is not, and offering the wrong remedy leaves the user
+        stuck in front of a button that cannot help them.
     #}
     <div class="panel plex-connection" x-data="plexConnection()">
-        {% if connection.isConnected %}
+        {% if connection.needsServerUrl %}
+            <p><strong>Marquee needs your Plex server's address.</strong></p>
+            <p class="stats">
+                Set <code>PLEX_SERVER_URL</code> in your compose file and run
+                <code>docker compose up -d</code>. Signing in cannot supply an
+                address, so this has to be fixed before Marquee can check who
+                owns your server.
+            </p>
+        {% elseif signed_in and connection.isConnected %}
             <p class="plex-connection__server">
                 <strong>Connected to {{ connection.serverName ?? 'Plex' }}</strong>
             </p>
             <p class="stats">
-                Your poster library and imports use this connection. It is
-                separate from your Marquee login, which is what controls who can
-                open the app.
+                Your poster library, imports, and scheduled auto-imports all use
+                this connection.
+            </p>
+
+            {# Naming the action is not enough. Disconnecting looks like the
+               tidy way to leave, and nothing about the word says it also stops
+               the imports running on a schedule that nobody is watching. #}
+            <p class="stats">
+                <strong>Disconnecting stops Marquee working</strong> until
+                someone signs in to Plex again, and scheduled auto-imports stop
+                with it. Logging out does neither.
             </p>
             <form method="post" action="/plex/connection/sign-out">
                 {{ csrf_field() }}
                 <button type="submit" class="btn btn--danger">Disconnect from Plex</button>
             </form>
-        {% elseif connection.needsServerUrl %}
-            <p><strong>Plex is not connected.</strong></p>
-            <p class="stats">
-                Marquee needs your Plex server's address. Set
-                <code>PLEX_SERVER_URL</code> in your compose file and run
-                <code>docker compose up -d</code> — signing in cannot supply an
-                address.
-            </p>
         {% else %}
-            <p><strong>Plex is not connected.</strong></p>
-            <p class="stats">
-                Connect Marquee to Plex so it can import your posters and send
-                your changes back. A Plex window opens for you to sign in and
-                approve it.
-            </p>
+            {% if signed_in %}
+                <p><strong>Plex is not connected.</strong></p>
+                <p class="stats">
+                    Connect Marquee to Plex so it can import your posters and
+                    send your changes back. A Plex window opens for you to sign
+                    in and approve it.
+                </p>
+            {% else %}
+                <p class="stats">
+                    Marquee is opened by signing in to Plex. A Plex window opens
+                    for you to sign in and approve it. Only the Plex account that
+                    owns this server can open Marquee.
+                </p>
+            {% endif %}
             <button type="button" class="btn btn--accent"
                     @click="signIn()" x-bind:disabled="busy"
-                    x-text="busy ? 'Waiting for Plex…' : 'Connect to Plex'">Connect to Plex</button>
+                    x-text="busy ? 'Waiting for Plex…' : 'Sign in with Plex'">Sign in with Plex</button>
         {% endif %}
 
         {# Shown only when the popup was blocked, so the flow still completes. #}
@@ -66,25 +88,6 @@
         <p class="alert plex-connection__message" role="alert"
            x-show="message" x-cloak x-text="message"></p>
     </div>
-
-    {# Restricting sign-in to the server's owner reads like a limit on people.
-       It is not — it decides which credential Marquee holds. Every Plex action
-       runs on that credential and no route asks who the visitor is, so with the
-       login off, whoever reaches Marquee acts as the owner. Saying only that a
-       stranger "could change the connection" invites exactly the wrong
-       inference, so the risk is named as use of the connection, and the
-       owner-only rule is stated and then closed off. #}
-    {% if auth_bypass %}
-        <div class="alert plex-connection__obsolete" role="status">
-            <p><strong>Login is disabled (<code>AUTH_BYPASS</code>).</strong>
-               Anyone who can reach Marquee acts with your stored Plex
-               connection — they can change and delete posters, send artwork to
-               your Plex library, and disconnect this install.</p>
-            <p>Only your own Plex account can connect Marquee, but that does not
-               limit what someone can do once it is connected. Leave the login
-               disabled only on a network you fully trust.</p>
-        </div>
-    {% endif %}
 
     {# An install upgraded from a version that read PLEX_TOKEN arrives here
        disconnected and with no idea why. This is the sentence that explains it.
@@ -103,12 +106,38 @@
                    <code>PLEX_TOKEN</code> from your compose file and run
                    <code>docker compose up -d</code>.</p>
             {% else %}
-                <p>Connect above, then delete <code>PLEX_TOKEN</code> from your
+                <p>Sign in above, then delete <code>PLEX_TOKEN</code> from your
                    compose file and run <code>docker compose up -d</code>.</p>
             {% endif %}
             <p><strong>Recreating the container is what clears this notice</strong>
                — <code>docker compose restart</code> is not enough, because the
                environment is only read when the container starts.</p>
+        </div>
+    {% endif %}
+
+    {# Same job as the notice above, for the credentials this screen replaced.
+       An install upgraded from a version with its own login arrives at a screen
+       that no longer asks for the password in its compose file. #}
+    {% if obsolete_bypass %}
+        <div class="alert alert--warning plex-connection__obsolete" role="status">
+            <p><strong><code>AUTH_BYPASS</code> no longer disables the login.</strong>
+               Marquee is now opened by signing in to Plex, and only the account
+               that owns your Plex server can do it. There is no way to turn the
+               login off.</p>
+            <p>Delete <code>AUTH_BYPASS</code> from your compose file and run
+               <code>docker compose up -d</code>. The Poster Wall is unaffected —
+               it still runs on an unattended display without anyone signing in.</p>
+        </div>
+    {% endif %}
+
+    {% if obsolete_credentials %}
+        <div class="alert alert--warning plex-connection__obsolete" role="status">
+            <p><strong><code>AUTH_USERNAME</code> and <code>AUTH_PASSWORD</code>
+               are no longer used.</strong> Marquee is opened by signing in to
+               Plex as the account that owns your server, so the credentials in
+               your environment are ignored.</p>
+            <p>Delete them from your compose file and run
+               <code>docker compose up -d</code>.</p>
         </div>
     {% endif %}
 {% endblock %}

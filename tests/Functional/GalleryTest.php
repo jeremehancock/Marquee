@@ -34,7 +34,7 @@ final class GalleryTest extends AppTestCase
      */
     private function app(): App
     {
-        return $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        return $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir]);
     }
 
     private function writePoster(string $filename): void
@@ -213,7 +213,7 @@ final class GalleryTest extends AppTestCase
 
     public function testRemembersAllViewForOrphansBackLink(): void
     {
-        $app = $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir]);
 
         $this->get($app, '/library/all');
         $body = (string) $this->get($app, '/orphans')->getBody();
@@ -387,9 +387,8 @@ final class GalleryTest extends AppTestCase
     {
         $this->writePoster('Alpha.png');
         $this->writePoster('Beta.png');
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
-            'AUTH_BYPASS' => 'true',
             'IMAGES_PER_PAGE' => '1',
         ]);
 
@@ -523,10 +522,9 @@ final class GalleryTest extends AppTestCase
             time(),
         ));
 
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
-            'AUTH_BYPASS' => 'true',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
         $actions = $this->cardActions($body);
@@ -644,10 +642,9 @@ final class GalleryTest extends AppTestCase
             time(),
         ));
 
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
-            'AUTH_BYPASS' => 'true',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
@@ -692,10 +689,9 @@ final class GalleryTest extends AppTestCase
         $this->writePoster('Solaris.png');
         $this->mapPoster($dataDir, 'Solaris.png', 'Solaris', 1972);
 
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
-            'AUTH_BYPASS' => 'true',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
@@ -768,10 +764,9 @@ final class GalleryTest extends AppTestCase
         $dataDir = $this->makeTempDir();
         $this->writePoster('Solaris.png');
 
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
-            'AUTH_BYPASS' => 'true',
         ]);
         $body = (string) $this->get($app, '/library/movies')->getBody();
 
@@ -1062,9 +1057,8 @@ final class GalleryTest extends AppTestCase
         // caption and the two kinds of tooltip can be compared in one document.
         $this->writePoster('Alpha.png');
         $this->writePoster('Beta.png');
-        $app = $this->makeConnectedApp([
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
-            'AUTH_BYPASS' => 'true',
             'IMAGES_PER_PAGE' => '1',
         ]);
 
@@ -1135,42 +1129,40 @@ final class GalleryTest extends AppTestCase
      */
     private function appWithData(string $dataDir): App
     {
-        return $this->makeConnectedApp([
+        return $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'DATA_DIR' => $dataDir,
-            'AUTH_BYPASS' => 'true',
         ]);
     }
 
-    public function testLogoutHiddenWhenAuthBypassed(): void
+    public function testLogoutShownWhenSignedIn(): void
     {
         $this->writePoster('Solaris.png');
 
         $body = (string) $this->get($this->app(), '/library/movies')->getBody();
 
-        // AUTH_BYPASS is true in app(); the logout link should not render.
-        self::assertStringNotContainsString('/logout', $body);
+        self::assertStringContainsString('/logout', $body);
     }
 
-    public function testLogoutShownWhenAuthEnabled(): void
+    /**
+     * Once Marquee is entered by signing in to Plex, "log out" invites the
+     * reading that it undoes that. It does not — the connection survives so the
+     * scheduled import keeps running — so the control has to say so.
+     */
+    public function testLogoutSaysWhatItLeavesBehind(): void
     {
-        // Build a container with auth enabled and render the shared layout: the
-        // logout link should be present when auth is not bypassed.
-        putenv('AUTH_BYPASS=false');
-        putenv('DATA_DIR=' . sys_get_temp_dir() . '/marquee-test-data');
-        $twig = \App\buildContainer()->get(\Slim\Views\Twig::class);
-        self::assertInstanceOf(\Slim\Views\Twig::class, $twig);
+        $this->writePoster('Solaris.png');
 
-        $html = $twig->fetch('layout.html.twig', ['app_version' => '0.0.0']);
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
 
-        self::assertStringContainsString('/logout', $html);
-        putenv('AUTH_BYPASS');
+        self::assertStringContainsString('Plex stays connected', $body);
+        self::assertStringContainsString('scheduled imports keep running', $body);
     }
 
     public function testRemembersSectionForOrphansBackLink(): void
     {
         // One app instance so the in-memory session persists across requests.
-        $app = $this->makeConnectedApp(['POSTERS_DIR' => $this->postersDir, 'AUTH_BYPASS' => 'true']);
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir]);
 
         $this->get($app, '/library/tv-shows');
         $body = (string) $this->get($app, '/orphans')->getBody();

@@ -46,9 +46,9 @@
         </a>
         {% block nav %}
             {# The mobile menu (hamburger + tray) is always available so the
-               secondary navigation stays reachable on a phone even when auth is
-               bypassed; only the Log out link is gated on auth_bypass. Pages with
-               no navigation (login) override this block to empty. #}
+               secondary navigation stays reachable on a phone; only the Log out
+               link is gated on being signed in. The sign-in screen overrides this
+               block to empty, because nothing behind it is reachable yet. #}
             <div class="topnav" x-data="{ menuOpen: false }">
                 {# The secondary actions live here rather than in any one page's
                    content, so they are reachable from every page that draws
@@ -63,7 +63,7 @@
                    suppresses the link that would point at the current page. #}
                 <div class="topnav__desktop">
                     {{ nav.secondary_links(nav_current|default('')) }}
-                    {% if not auth_bypass %}
+                    {% if signed_in() %}
                         {{ nav.logout_link() }}
                     {% endif %}
                 </div>

@@ -8,6 +8,7 @@ use App\Auth\AuthMiddleware;
 use App\Auth\CsrfGuard;
 use App\Auth\CsrfMiddleware;
 use App\Auth\PlexConnectionMiddleware;
+use App\Auth\SessionAuthenticator;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
@@ -136,14 +137,13 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth, CsrfGuard $csrf): Twig {
+        Twig::class => static function (AppConfig $config, CsrfGuard $csrf, SessionAuthenticator $auth): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
             $twig->getEnvironment()->addGlobal('app_name', AppConfig::APP_NAME);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
-            $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
 
             // Cache-busting asset URLs: append the file's mtime so a changed
             // stylesheet or script is a new URL that defeats every cache layer.
@@ -163,6 +163,15 @@ function buildContainer(array $overrides = []): Container
             // session, which AuthMiddleware starts during the request. A
             // function is evaluated at render time, when the session is
             // unambiguously live, so no ordering can break it.
+            //
+            // Whether the visitor is signed in is read the same way and for the
+            // same reason. It decides only whether the Log out control is drawn;
+            // it grants nothing, and every route that matters is gated by
+            // middleware long before a template runs.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'signed_in',
+                static fn (): bool => $auth->isAuthenticated(),
+            ));
             $twig->getEnvironment()->addFunction(new TwigFunction(
                 'csrf_field',
                 static fn (): string => sprintf(

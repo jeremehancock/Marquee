@@ -93,22 +93,9 @@ final class CsrfTest extends AppTestCase
         self::assertNotSame(403, $response->getStatusCode());
     }
 
-    /**
-     * Bypass removes the login, which makes a forged request worth more rather
-     * than less. The check stays on.
-     */
-    public function testBypassDoesNotDisableTheCheck(): void
-    {
-        $app = $this->connectedApp(['AUTH_BYPASS' => 'true']);
-
-        $response = $this->postFormWithoutToken($app, '/orphans/delete-all', []);
-
-        self::assertSame(403, $response->getStatusCode());
-    }
-
     public function testReadingNeedsNoToken(): void
     {
-        $app = $this->connectedApp(['AUTH_BYPASS' => 'true']);
+        $app = $this->connectedApp();
 
         self::assertSame(200, $this->get($app, '/orphans')->getStatusCode());
         self::assertSame(200, $this->get($app, '/health')->getStatusCode());
@@ -116,20 +103,25 @@ final class CsrfTest extends AppTestCase
 
     public function testARenderedFormCarriesTheToken(): void
     {
-        $app = $this->connectedApp(['AUTH_BYPASS' => 'true']);
+        $app = $this->connectedApp();
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('name="' . CsrfMiddleware::FIELD . '"', $body);
         self::assertStringContainsString($this->csrfToken($app), $body);
     }
 
-    public function testTheLoginFormCarriesTheToken(): void
+    /**
+     * The sign-in screen is reached with no session, and its one action is a
+     * scripted request — so the token has to be on the page for the script to
+     * find, not in a form.
+     */
+    public function testTheSignInScreenCarriesTheToken(): void
     {
         $app = $this->makeApp();
 
         self::assertStringContainsString(
-            'name="' . CsrfMiddleware::FIELD . '"',
-            (string) $this->get($app, '/login')->getBody(),
+            'name="csrf-token" content="' . $this->csrfToken($app) . '"',
+            (string) $this->get($app, '/connect')->getBody(),
         );
     }
 
@@ -139,7 +131,7 @@ final class CsrfTest extends AppTestCase
      */
     public function testTheTokenIsNotPlacedInAUrl(): void
     {
-        $app = $this->connectedApp(['AUTH_BYPASS' => 'true']);
+        $app = $this->connectedApp();
         $token = $this->csrfToken($app);
 
         foreach (['/connect', '/orphans', '/'] as $path) {
@@ -152,52 +144,52 @@ final class CsrfTest extends AppTestCase
 
     /**
      * The one refusal that is explained rather than raised. Recreating the
-     * container discards every session, and login is the only state-changing
-     * route a user reaches with no session behind it — an error page there reads
-     * as a broken install rather than as a page to submit again.
+     * container discards every session, and starting a sign-in is the only
+     * state-changing route a user reaches with no session behind it — and the
+     * one they cannot get past it on, because it is the way in.
+     *
+     * The explanation is JSON because the caller is a `fetch` that reads `error`
+     * out of the body. An HTML error page would fail to parse and surface as a
+     * generic failure, telling the user nothing they can act on.
      */
-    public function testALoginWithAStaleTokenIsExplainedRatherThanErrored(): void
+    public function testASignInWithAStaleTokenIsExplainedRatherThanErrored(): void
     {
         $app = $this->makeApp();
 
-        $response = $this->postFormWithoutToken($app, '/login', [
-            'username' => 'admin',
-            'password' => 'secret',
+        $response = $this->postFormWithoutToken($app, '/plex/connection/sign-in', [
             CsrfMiddleware::FIELD => str_repeat('a', 64),
         ]);
         $body = (string) $response->getBody();
 
-        self::assertSame(401, $response->getStatusCode());
-        self::assertStringContainsString('expired', $body);
-        // The login form, not an error page.
-        self::assertStringContainsString('name="password"', $body);
+        self::assertSame(403, $response->getStatusCode());
+        self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
+
+        $decoded = json_decode($body, true);
+        self::assertIsArray($decoded);
+        self::assertArrayHasKey('error', $decoded);
+        self::assertIsString($decoded['error']);
+        self::assertStringContainsString('expired', $decoded['error']);
         self::assertStringNotContainsString('could not be verified', $body);
     }
 
-    public function testALoginWithAStaleTokenAuthenticatesNobody(): void
+    public function testASignInWithAStaleTokenStartsNothingAndAuthenticatesNobody(): void
     {
         $app = $this->makeApp();
 
-        $this->postFormWithoutToken($app, '/login', [
-            'username' => 'admin',
-            'password' => 'secret',
+        $this->postFormWithoutToken($app, '/plex/connection/sign-in', [
             CsrfMiddleware::FIELD => 'stale',
         ]);
 
-        // Still gated: the credentials were never looked at.
+        // No authorization request was started, so there is nothing to poll...
+        self::assertStringContainsString(
+            'not_started',
+            (string) $this->get($app, '/plex/connection/status')->getBody(),
+        );
+
+        // ...and nobody is signed in.
         $response = $this->get($app, '/');
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/login', $response->getHeaderLine('Location'));
-    }
-
-    public function testACorrectTokenLetsTheLoginThrough(): void
-    {
-        $app = $this->makeApp();
-
-        $response = $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
-
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/', $response->getHeaderLine('Location'));
+        self::assertSame('/connect', $response->getHeaderLine('Location'));
     }
 
     /**
@@ -207,8 +199,8 @@ final class CsrfTest extends AppTestCase
      */
     private function connectedApp(array $env = []): App
     {
-        return $this->makeConnectedApp(
-            $env + ['AUTH_BYPASS' => 'true'],
+        return $this->makeSignedInApp(
+            $env,
             [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
         );
     }
