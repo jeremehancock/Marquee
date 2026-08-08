@@ -1145,18 +1145,19 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * Once Marquee is entered by signing in to Plex, "log out" invites the
-     * reading that it undoes that. It does not — the connection survives so the
-     * scheduled import keeps running — so the control has to say so.
+     * The control is two words. It carried a sentence about the Plex connection
+     * surviving, which the tray renders as visible text, making the most-reached
+     * control the largest thing in the menu. Where the two exits are weighed
+     * against each other is the connection screen — see PlexConnectionTest.
      */
-    public function testLogoutSaysWhatItLeavesBehind(): void
+    public function testLogoutIsJustTheAction(): void
     {
         $this->writePoster('Solaris.png');
 
         $body = (string) $this->get($this->app(), '/library/movies')->getBody();
 
-        self::assertStringContainsString('Plex stays connected', $body);
-        self::assertStringContainsString('scheduled imports keep running', $body);
+        self::assertStringContainsString('>Log out</span>', $body);
+        self::assertStringNotContainsString('scheduled imports keep running', $body);
     }
 
     public function testRemembersSectionForOrphansBackLink(): void

@@ -91,10 +91,12 @@
    link, so the header reads as one set of actions instead of a group plus a
    stray. Callers gate it on signed_in().
 
-   The title says what logging out leaves behind. Once Marquee is entered by
-   signing in to Plex, "log out" invites the reading that it undoes that — and it
-   does not: the connection survives so that scheduled imports keep running.
-   Disconnecting is the action that ends them. #}
+   Just the two words. It carried a sentence about the Plex connection surviving,
+   which the tray renders as visible text — so the one control a user reaches for
+   most became the largest thing in the menu, to explain something they were not
+   asking about yet. That belongs where the two exits are weighed against each
+   other, which is the connection screen: it offers Disconnect, states what
+   Disconnect costs, and says logging out does neither. #}
 {% macro logout_link() %}
-    {{ _self.item('logout', '/logout', 'Log out of Marquee. Plex stays connected and scheduled imports keep running.', 'Log out', '') }}
+    {{ _self.item('logout', '/logout', 'Log out', 'Log out', '') }}
 {% endmacro %}

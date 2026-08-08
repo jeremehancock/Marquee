@@ -118,6 +118,20 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringNotContainsString('Plex is not connected', $body);
     }
 
+    /**
+     * The two exits are genuinely different and this is the one screen offering
+     * both, so it is where the difference has to be stated. Naming Disconnect is
+     * not enough — nothing in the word says scheduled imports stop with it.
+     */
+    public function testTheScreenSaysWhatEachExitLeavesBehind(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+
+        self::assertStringContainsString('Disconnecting stops Marquee working', $body);
+        self::assertStringContainsString('scheduled auto-imports stop', $body);
+        self::assertStringContainsString('Logging out does neither', $body);
+    }
+
     public function testConnectedScreenOffersAWayBackToTheGallery(): void
     {
         $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();

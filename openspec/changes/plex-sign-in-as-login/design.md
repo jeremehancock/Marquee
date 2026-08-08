@@ -117,6 +117,13 @@ OUT   Log out       →  ends this browser session
 The screen must state the consequence of Disconnect, not merely name it.
 "Disconnect" alone does not tell a user that scheduled imports stop.
 
+That statement belongs on the connection screen and nowhere else. Putting it on
+the Log out control instead was tried and removed: the tray renders a control's
+label as visible text, so the action reached from every page became the largest
+thing in the menu in order to explain something the user was not asking about.
+The screen that offers both exits is where the difference between them is worth
+the words.
+
 ### 3. The remembered owner
 
 `PlexServerOwner` establishes ownership by asking the *user's Plex server* who

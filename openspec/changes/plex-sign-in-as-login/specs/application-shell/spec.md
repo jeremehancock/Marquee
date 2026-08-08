@@ -432,8 +432,14 @@ something.
 
 The interface SHALL describe ending the user's Marquee session as logging out,
 and forgetting the Plex connection as disconnecting, and SHALL NOT use one set of
-words for the other. Each SHALL say what it leaves behind: logging out leaves
-Plex connected and scheduled imports running; disconnecting stops both.
+words for the other.
+
+What each leaves behind SHALL be stated where both are offered together — the
+connection screen — rather than on the controls themselves. Logging out is
+reached from every page and is two words; loading it with an explanation of
+something the user is not asking about makes the most-used control the largest
+one on screen. The screen where the two are weighed against each other is where
+the difference is worth spelling out.
 
 The interface SHALL NOT present logging out as revoking Marquee's access to Plex.
 Once the way in is called signing in to Plex, that is the reading a user arrives
@@ -450,10 +456,14 @@ so that unattended imports keep working.
   the Plex connection
 - **THEN** the first says log out and the second says disconnect
 
-#### Scenario: Each exit says what it leaves behind
-- **WHEN** either exit is offered
-- **THEN** the interface states whether the Plex connection and scheduled imports
-  survive it
+#### Scenario: The screen offering both says what each leaves behind
+- **WHEN** the connection screen offers disconnecting
+- **THEN** it states that scheduled imports stop with it
+- **AND** it states that logging out does neither
+
+#### Scenario: The log out control is just the action
+- **WHEN** the log out control renders in the navigation
+- **THEN** it names the action and does not explain what survives it
 
 #### Scenario: Logging out is not described as revoking Plex access
 - **WHEN** logging out is offered or confirmed
