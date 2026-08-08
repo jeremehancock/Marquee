@@ -8,6 +8,7 @@ use App\Auth\AuthMiddleware;
 use App\Auth\CsrfGuard;
 use App\Auth\CsrfMiddleware;
 use App\Auth\PlexConnectionMiddleware;
+use App\Auth\SessionAuthenticator;
 use App\Config\AppConfig;
 use App\Config\AuthConfig;
 use App\Config\AutoImportConfig;
@@ -16,6 +17,8 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Controller\PosterWallController;
 use App\Database\Database;
+use App\Plex\Connection\PlexConnectionState;
+use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
@@ -136,14 +139,18 @@ function buildContainer(array $overrides = []): Container
 
             return $logger;
         },
-        Twig::class => static function (AppConfig $config, AuthConfig $auth, CsrfGuard $csrf): Twig {
+        Twig::class => static function (
+            AppConfig $config,
+            CsrfGuard $csrf,
+            SessionAuthenticator $auth,
+            PlexConnectionStatus $connection,
+        ): Twig {
             $twig = Twig::create(dirname(__DIR__) . '/templates', ['cache' => false]);
             // `site_title` names this install and is user-configurable;
             // `app_name` names the product and is not.
             $twig->getEnvironment()->addGlobal('site_title', $config->siteTitle);
             $twig->getEnvironment()->addGlobal('app_name', AppConfig::APP_NAME);
             $twig->getEnvironment()->addGlobal('app_version', readVersion());
-            $twig->getEnvironment()->addGlobal('auth_bypass', $auth->bypass);
 
             // Cache-busting asset URLs: append the file's mtime so a changed
             // stylesheet or script is a new URL that defeats every cache layer.
@@ -163,6 +170,28 @@ function buildContainer(array $overrides = []): Container
             // session, which AuthMiddleware starts during the request. A
             // function is evaluated at render time, when the session is
             // unambiguously live, so no ordering can break it.
+            //
+            // Whether the visitor is signed in is read the same way and for the
+            // same reason. It decides only whether the Log out control is drawn;
+            // it grants nothing, and every route that matters is gated by
+            // middleware long before a template runs.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'signed_in',
+                static fn (): bool => $auth->isAuthenticated(),
+            ));
+
+            // The header's connection status. Deliberately `current()`, never
+            // `refresh()`: this renders on every page, and asking Plex its name
+            // each time would put a ten-second connect timeout in front of the
+            // whole application whenever the server was down — the same reason
+            // the connection gate reads configuration only.
+            //
+            // Templates call it only inside `signed_in()`, so an anonymous
+            // request never reaches it.
+            $twig->getEnvironment()->addFunction(new TwigFunction(
+                'plex_connection',
+                static fn (): PlexConnectionState => $connection->current(),
+            ));
             $twig->getEnvironment()->addFunction(new TwigFunction(
                 'csrf_field',
                 static fn (): string => sprintf(

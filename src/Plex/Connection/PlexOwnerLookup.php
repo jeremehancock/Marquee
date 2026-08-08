@@ -23,15 +23,20 @@ final class PlexOwnerLookup
     private function __construct(
         private readonly bool $reachable,
         private readonly ?string $owner,
+        private readonly ?string $serverName = null,
     ) {
     }
 
     /**
      * The server answered and named its owner.
+     *
+     * It also names itself in the same response, so the friendly name comes back
+     * with the verdict rather than costing a second round trip. Only this path
+     * carries it: it is the only one that ends in anything being stored.
      */
-    public static function named(string $owner): self
+    public static function named(string $owner, ?string $serverName = null): self
     {
-        return new self(true, $owner);
+        return new self(true, $owner, $serverName);
     }
 
     /**
@@ -65,5 +70,13 @@ final class PlexOwnerLookup
     public function owner(): ?string
     {
         return $this->owner;
+    }
+
+    /**
+     * What the server calls itself, when it said so.
+     */
+    public function serverName(): ?string
+    {
+        return $this->serverName;
     }
 }

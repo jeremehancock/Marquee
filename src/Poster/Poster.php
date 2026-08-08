@@ -90,7 +90,25 @@ final class Poster
      */
     public function url(): string
     {
-        $path = '/posters/' . $this->category->value . '/' . rawurlencode($this->filename);
+        return $this->addressedAs('/posters/');
+    }
+
+    /**
+     * The same image, addressed by the route the Poster Wall serves it from.
+     *
+     * The wall runs on an unattended display with no session, so it cannot use
+     * the address above: that one is behind the login, and every poster on the
+     * wall would fail to load. This route is public and serves only the
+     * categories the wall draws, which is why the two are not one.
+     */
+    public function wallUrl(): string
+    {
+        return $this->addressedAs('/wall/poster/');
+    }
+
+    private function addressedAs(string $prefix): string
+    {
+        $path = $prefix . $this->category->value . '/' . rawurlencode($this->filename);
 
         // filemtime() failures surface as 0; a constant would bust nothing, so
         // leave the parameter off rather than imply a version we do not have.

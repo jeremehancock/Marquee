@@ -60,8 +60,11 @@ final class PosterWallController
 
     public function posters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        // The wall's own addresses, not the gallery's: this page runs with no
+        // session, and the gallery's poster route is behind the login — every
+        // frame would fail to load and the wall would sit blank.
         $urls = array_map(
-            static fn (Poster $poster): string => $poster->url(),
+            static fn (Poster $poster): string => $poster->wallUrl(),
             $this->wall->randomPosters(self::BATCH_SIZE),
         );
 

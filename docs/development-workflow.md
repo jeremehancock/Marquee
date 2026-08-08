@@ -55,10 +55,10 @@ services:
       PUID: "1000"
       PGID: "1000"
       TZ: "Etc/UTC"
-      AUTH_BYPASS: "true"          # convenient on a trusted LAN for testing
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      # No token: sign in to Plex from the app. Worth exercising the sign-in
-      # itself on :dev before every release — it is the one path tests mock.
+      # No credentials and no token: signing in to Plex is how you open
+      # Marquee. Worth exercising that sign-in on :dev before every release —
+      # it is the one path tests mock.
     volumes:
       - ./marquee-dev/config:/config
     restart: unless-stopped

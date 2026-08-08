@@ -44,7 +44,7 @@ context: |
   MUST target one of these rather than inventing a capability named after the
   change itself:
     - application-shell   (bootstrap, routing, config, error handling, health)
-    - authentication      (env credentials, sessions, auth-bypass)
+    - authentication      (Plex sign-in as the login, owner-only, sessions)
     - poster-library      (categories, listing, pagination, presentation,
                            pointer/touch actions, responsive layout, delete)
     - search              (specific, article-aware, live search)

@@ -125,6 +125,91 @@ body {
     flex: 0 0 auto;
 }
 
+/* The Plex connection, carried in the header as a state rather than a
+   destination.
+
+   Deliberately not a .nav-item. Everything beside it is a ghost button with a
+   glyph, and wearing that shape made a reading look like a sixth place to go —
+   which is the whole thing this replaced. So: no button chrome, no glyph, no
+   border, a size down, and a hairline holding it apart from the actions. It is
+   still a link, because disconnecting lives behind it and nothing else points
+   there, but it should read as a label that happens to be clickable rather than
+   a control competing with the four beside it. */
+.conn-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    margin-left: 6px;
+    padding: 0 2px 0 14px;
+    border-left: 1px solid var(--border);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+/* .topbar a is (0,1,1) and would otherwise beat this, so the resting and hover
+   colours are stated at matching weight — the same reason .nav-item does. */
+.topbar .conn-status {
+    color: var(--muted);
+}
+
+.topbar a.conn-status:hover .conn-status__name,
+.topbar a.conn-status:focus-visible .conn-status__name {
+    color: var(--ink);
+}
+
+/* Already on that screen: nothing to travel to, so it only has to look settled.
+   No accent — this is a status, and tinting it would read as an alert. */
+.conn-status--current {
+    cursor: default;
+}
+
+/* The indicator itself. The halo is what makes it a status light rather than a
+   bullet, and it is what survives the narrow band once the name drops out.
+   Colour is never the only signal: the accessible name says "connected" or "not
+   connected" outright, and the tooltip repeats it. */
+.conn-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.conn-dot--ok {
+    background: #3fb950;
+    box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.18);
+}
+
+/* Amber rather than red: disconnected is a state to resolve, not a failure that
+   has just happened, and the gate is already sending the user to fix it. */
+.conn-dot--off {
+    background: #d29922;
+    box-shadow: 0 0 0 3px rgba(210, 153, 34, 0.18);
+}
+
+/* The tray is a vertical list, so the hairline turns to sit above it — a left
+   border on a full-width row would point at nothing. */
+.menu__body .conn-status {
+    margin: 6px 0 0;
+    padding: 12px 0 2px;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+}
+
+/* In the narrow band the name goes with the nav labels and the dot stands alone,
+   which is the reason the dot carries the halo. The tooltip and the accessible
+   name still say which state it is in. */
+@media (min-width: 641px) and (max-width: 900px) {
+    .topnav__desktop .conn-status__name {
+        display: none;
+    }
+
+    .topnav__desktop .conn-status {
+        padding-right: 0;
+        gap: 0;
+    }
+}
+
 /* Two labels are rendered for every nav item; which one shows depends on where
    it is. The header is a single row sharing its width with a brand of unbounded
    length (SITE_TITLE is user-configurable), so it takes the short form; the tray

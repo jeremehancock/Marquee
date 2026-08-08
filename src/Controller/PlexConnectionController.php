@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Auth\PlexConnectionMiddleware;
+use App\Auth\SessionAuthenticator;
+use App\Config\AuthConfig;
+use App\Plex\Connection\PlexConnectionState;
 use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexSignInException;
 use App\Plex\Connection\PlexSignInService;
@@ -16,15 +20,19 @@ use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
 
 /**
- * The Plex connection screen, and signing in to and out of Plex.
+ * The one screen a visitor meets before Marquee will do anything: where you sign
+ * in, and where the Plex connection is managed.
  *
- * This is the only place the Plex connection is managed. It is also where the
- * connection gate sends anyone who has not connected yet, so it must stay
- * reachable while the rest of the application is not.
+ * These were two screens with two templates. They collapsed because signing in
+ * to Plex is now how Marquee is entered, so both rendered the same single action.
+ * What survives is two URLs over one screen — `/login` and `/connect` — because
+ * the states they describe are genuinely different, and a URL that misnames what
+ * you are looking at reads as a fault. Each redirects to the other rather than
+ * rendering the wrong one.
  *
- * These routes sit behind the application's own authentication like every other
- * route; connecting Marquee to Plex is an action an already-signed-in user
- * takes, not a way of signing in to Marquee.
+ * Starting and polling a sign-in are reachable without a session — they are how
+ * a session is obtained. Disconnecting is not: it destroys the connection, which
+ * only a signed-in user may do.
  *
  * No response from here ever carries a Plex token. The connection is described
  * by the server's name — never by the credential.
@@ -35,24 +43,69 @@ final class PlexConnectionController
         private readonly Twig $twig,
         private readonly PlexSignInService $signIn,
         private readonly PlexConnectionStatus $status,
+        private readonly SessionAuthenticator $authenticator,
+        private readonly AuthConfig $auth,
         private readonly Flash $flash,
         private readonly SessionInterface $session,
     ) {
     }
 
     /**
-     * The connection screen. This is the one page that asks Plex its name
-     * rather than using the cached one — it exists to describe the connection,
-     * and it is where a user lands when something is wrong.
+     * Signing in. Public, because this is how a session is obtained.
+     *
+     * Someone who already has one is sent to the connection view instead. The
+     * screen would render for them, but leaving them on a URL called `/login`
+     * while it describes their Plex connection reads as a bug.
+     *
+     * The connection is described from cached information only. This page is
+     * reachable by anyone, and asking Plex its name here would turn a request
+     * anyone can make into an outbound call anyone can cause — for a name a
+     * signed-out visitor is not shown anyway.
+     */
+    public function login(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if ($this->authenticator->isAuthenticated()) {
+            return $response
+                ->withHeader('Location', PlexConnectionMiddleware::CONNECTION_PATH)
+                ->withStatus(302);
+        }
+
+        return $this->screen($response, signedIn: false, connection: $this->status->current());
+    }
+
+    /**
+     * The Plex connection.
+     *
+     * Only ever reached with a session: the authentication gate turns anyone
+     * else away, which is what sends a signed-out visitor to `/login` rather
+     * than leaving them here.
+     *
+     * This one asks Plex its name rather than using the cached one — it exists
+     * to describe the connection, and it is where a user lands when something is
+     * wrong.
      */
     public function show(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        return $this->screen($response, signedIn: true, connection: $this->status->refresh());
+    }
+
+    /**
+     * The one screen both routes render, told which state it is in.
+     */
+    private function screen(
+        ResponseInterface $response,
+        bool $signedIn,
+        PlexConnectionState $connection,
+    ): ResponseInterface {
         return $this->twig->render($response, 'connect.html.twig', [
-            'connection' => $this->status->refresh(),
+            'signed_in' => $signedIn,
+            'connection' => $connection,
             'flash' => $this->flash->pull(),
             // Only meaningful once connected — while the gate is up there is no
             // gallery to go back to, and the template hides the link.
             'back_url' => LastCategory::backUrl($this->session),
+            'obsolete_credentials' => $this->auth->obsoleteEnvCredentials,
+            'obsolete_bypass' => $this->auth->obsoleteEnvBypass,
         ]);
     }
 
@@ -90,7 +143,7 @@ final class PlexConnectionController
             // to travel with it. Deliberately unnamed: configuration is resolved
             // once when the container is built, so this request still holds the
             // pre-sign-in view and could not name the server without lying.
-            $this->flash->add('success', 'Connected to Plex.');
+            $this->flash->add('success', 'Signed in to Plex.');
         }
 
         // Only the status, for the same reason.
@@ -101,13 +154,17 @@ final class PlexConnectionController
      * Forget the stored token. The client identifier and the poster wall's
      * signing secret survive, so a later sign-in is the same device and tokens
      * already on a running wall keep working.
+     *
+     * The session is left alone. Disconnecting and logging out are different
+     * actions, and collapsing them here would take away the screen that is about
+     * to explain what just happened.
      */
     public function signOut(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $this->signIn->signOut();
-        $this->flash->add('success', 'Disconnected from Plex.');
+        $this->flash->add('success', 'Disconnected from Plex. Scheduled imports have stopped.');
 
-        return $response->withHeader('Location', '/connect')->withStatus(302);
+        return $response->withHeader('Location', PlexConnectionMiddleware::CONNECTION_PATH)->withStatus(302);
     }
 
     /**

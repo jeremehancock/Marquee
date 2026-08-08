@@ -39,6 +39,19 @@ final class PosterWallService
     }
 
     /**
+     * Whether the wall draws from this category.
+     *
+     * Public because the route that serves the wall's posters without a session
+     * has to refuse everything the wall does not show. Asking here keeps that
+     * refusal and the rotation reading from one list, so a category cannot
+     * become publicly readable without also appearing on the wall.
+     */
+    public function shows(PosterCategory $category): bool
+    {
+        return in_array($category, self::WORK_CATEGORIES, true);
+    }
+
+    /**
      * @return list<Poster>
      */
     public function randomPosters(int $count): array

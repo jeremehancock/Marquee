@@ -38,7 +38,7 @@ final class PosterWallTest extends AppTestCase
      */
     private function app(): App
     {
-        return $this->makeApp(['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir]);
+        return $this->makeApp(['POSTERS_DIR' => $this->postersDir]);
     }
 
     public function testWallPageRenders(): void
@@ -57,7 +57,9 @@ final class PosterWallTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
-        self::assertStringContainsString('/posters/movies/Solaris.png', (string) $response->getBody());
+        // The wall's own address, not the gallery's: the gallery's is behind the
+        // login, and the wall runs with no session.
+        self::assertStringContainsString('/wall/poster/movies/Solaris.png', (string) $response->getBody());
     }
 
     /**
@@ -74,11 +76,71 @@ final class PosterWallTest extends AppTestCase
 
     public function testWallIsPublic(): void
     {
-        // No AUTH_BYPASS: the wall must still render for an unattended display.
+        // Not signed in: the wall must still render for an unattended display.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall');
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('wall__layer', (string) $response->getBody());
+    }
+
+    /**
+     * The defect this route exists for. The wall is specified to run on an
+     * unattended display with no session, and it advertised poster addresses
+     * behind the login — so every frame of the rotation failed to load and the
+     * wall sat blank. It was invisible while anything was streaming, because
+     * now-playing art comes from a route that was already public: the wall went
+     * dark exactly when it fell back to the rotation.
+     */
+    public function testTheWallCanFetchItsOwnPostersWithoutASession(): void
+    {
+        $app = $this->makeApp(['POSTERS_DIR' => $this->postersDir]);
+
+        $batch = (string) $this->get($app, '/wall/posters')->getBody();
+        $decoded = json_decode($batch, true);
+        self::assertIsArray($decoded);
+        self::assertArrayHasKey('posters', $decoded);
+        self::assertIsArray($decoded['posters']);
+        self::assertNotEmpty($decoded['posters']);
+
+        // Every address the wall hands itself must be fetchable by the display
+        // that was handed it.
+        foreach ($decoded['posters'] as $url) {
+            self::assertIsString($url);
+            $response = $this->get($app, (string) parse_url($url, PHP_URL_PATH));
+
+            self::assertSame(200, $response->getStatusCode(), $url);
+            self::assertStringStartsWith('image/', $response->getHeaderLine('Content-Type'), $url);
+        }
+    }
+
+    /**
+     * Making the rotation work must not publish the rest of the library. A
+     * season poster exists on disk and the gallery would serve it; the wall's
+     * route refuses it, because the wall does not show it.
+     */
+    public function testTheWallRouteRefusesCategoriesTheWallDoesNotShow(): void
+    {
+        $response = $this->get(
+            $this->makeApp(['POSTERS_DIR' => $this->postersDir]),
+            '/wall/poster/tv-seasons/Severance_-_Season_1.png',
+        );
+
+        self::assertSame(404, $response->getStatusCode());
+    }
+
+    /**
+     * And the gallery's own poster route stays behind the login, so this did not
+     * widen into a way to read the library without signing in.
+     */
+    public function testTheGalleryPosterRouteIsStillGated(): void
+    {
+        $response = $this->get(
+            $this->makeApp(['POSTERS_DIR' => $this->postersDir]),
+            '/posters/movies/Solaris.png',
+        );
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/login', $response->getHeaderLine('Location'));
     }
 
     /**
@@ -89,7 +151,7 @@ final class PosterWallTest extends AppTestCase
     private function appWithSessions(array $sessions): App
     {
         return $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir],
+            ['POSTERS_DIR' => $this->postersDir],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(sessions: $sessions)],
         );
     }
@@ -165,7 +227,7 @@ final class PosterWallTest extends AppTestCase
     public function testPlaceholderForAFailedPlexFetchExpiresQuickly(): void
     {
         $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'PLEX_TOKEN' => 'plex-secret'],
+            ['POSTERS_DIR' => $this->postersDir, 'PLEX_TOKEN' => 'plex-secret'],
             [PlexClient::class => static fn (): FakePlexClient => new FakePlexClient(failingThumbs: ['/t/1'])],
         );
         $token = (new StreamToken('plex-secret'))->forThumb('/t/1');
@@ -201,8 +263,7 @@ final class PosterWallTest extends AppTestCase
         // Tokens are signed with the Plex token, so the test must sign with the
         // same secret for the signature to verify and the path check to be what
         // actually rejects the token.
-        $app = $this->makeApp([
-            'AUTH_BYPASS' => 'true',
+        $app = $this->makeSignedInApp([
             'POSTERS_DIR' => $this->postersDir,
             'PLEX_TOKEN' => 'plex-secret',
         ]);
@@ -218,7 +279,7 @@ final class PosterWallTest extends AppTestCase
 
     public function testStreamsArePublic(): void
     {
-        // No AUTH_BYPASS: the now-playing endpoint must be reachable too.
+        // Not signed in: the now-playing endpoint must be reachable too.
         $response = $this->get($this->makeApp(['POSTERS_DIR' => $this->postersDir]), '/wall/streams');
 
         self::assertSame(200, $response->getStatusCode());

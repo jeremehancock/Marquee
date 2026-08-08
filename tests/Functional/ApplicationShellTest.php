@@ -46,9 +46,8 @@ final class ApplicationShellTest extends AppTestCase
      */
     public function testSecondaryActionsRenderInTheHeaderOnEveryPageWithNavigation(): void
     {
-        // Authenticated rather than bypassed, so Log out is part of the group.
-        $app = $this->makeConnectedApp(['AUTH_BYPASS' => 'false']);
-        $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
+        // Signed in, so Log out is part of the group.
+        $app = $this->makeSignedInApp();
 
         foreach (['/library/movies', '/plex', '/orphans'] as $path) {
             $header = $this->header((string) $this->get($app, $path)->getBody());
@@ -78,7 +77,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testHeaderActionsCarryFullNamesRegardlessOfTheVisibleLabel(): void
     {
         $header = $this->header((string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody());
 
@@ -97,7 +96,7 @@ final class ApplicationShellTest extends AppTestCase
      */
     public function testTheCurrentDestinationIsMarkedAndNotLinked(): void
     {
-        $app = $this->makeConnectedApp(['AUTH_BYPASS' => 'true']);
+        $app = $this->makeSignedInApp();
 
         $plex = $this->header((string) $this->get($app, '/plex')->getBody());
         self::assertMatchesRegularExpression(
@@ -122,7 +121,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testTrayKeepsTheFullNamesTheHeaderShortens(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 
@@ -133,23 +132,102 @@ final class ApplicationShellTest extends AppTestCase
         self::assertStringContainsString('>Support Development</span>', $m[0]);
     }
 
-    public function testLoginPageRendersNoSecondaryNavigation(): void
+    public function testSignInScreenRendersNoSecondaryNavigation(): void
     {
-        $body = (string) $this->get($this->makeApp(), '/login')->getBody();
+        // With an address configured, so the screen offers the sign-in action
+        // rather than the "set PLEX_SERVER_URL" branch.
+        $response = $this->get($this->makeApp(['PLEX_SERVER_URL' => 'http://plex:32400']), '/login');
+        $body = (string) $response->getBody();
+
+        // The screen itself, not a 404 that would satisfy every assertion below.
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Sign in with Plex', $body);
 
         self::assertStringNotContainsString('topnav__desktop', $body);
         self::assertStringNotContainsString('aria-label="Import from Plex"', $body);
         self::assertStringNotContainsString('menu-btn', $body);
     }
 
-    public function testHeaderOmitsLogOutWhenAuthenticationIsBypassed(): void
+    /**
+     * The Plex connection is a state, not a destination among the poster
+     * actions. There is nothing to do on that screen day to day — you connect
+     * once — so what the header carries is whether Marquee can still reach Plex.
+     */
+    public function testHeaderCarriesTheConnectionStatusRatherThanAPlexLink(): void
     {
         $header = $this->header((string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody());
 
-        self::assertStringNotContainsString('href="/logout"', $header);
+        self::assertStringContainsString('conn-dot--ok', $header);
+        self::assertStringContainsString('aria-label="Plex connection: connected', $header);
+        // The nav item it replaced is gone.
+        self::assertStringNotContainsString('aria-label="Plex Connection"', $header);
+    }
+
+    /**
+     * A reading, not an action. Every control beside it is a ghost button with a
+     * glyph, and wearing that shape is what made this look like a sixth place to
+     * go — so it carries neither: the dot is the whole indicator.
+     */
+    public function testTheConnectionStatusIsNotShapedLikeANavItem(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        $matched = preg_match('#<a class="conn-status".*?</a>#s', $header, $m);
+        self::assertSame(1, $matched, 'The header must render the connection status.');
+
+        // No glyph, and none of the button chrome the actions beside it wear.
+        self::assertStringNotContainsString('nav-ico', $m[0]);
+        self::assertStringNotContainsString('<svg', $m[0]);
+        self::assertStringNotContainsString('nav-item', $m[0]);
+        self::assertStringNotContainsString('btn', $m[0]);
+    }
+
+    /**
+     * It stays a link because it is the only way to reach Disconnect. Dropping
+     * the item outright would have left that action reachable only by typing a
+     * URL.
+     */
+    public function testTheConnectionStatusIsTheWayToReachTheConnectionScreen(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        self::assertStringContainsString('href="/connect"', $header);
+    }
+
+    /**
+     * Colour is not the only signal: the accessible name states the condition
+     * outright, so the status is not carried by a green dot alone.
+     */
+    public function testADisconnectedInstallSaysSoInTheStatus(): void
+    {
+        $app = $this->makeApp(['PLEX_SERVER_URL' => 'http://plex:32400']);
+        $this->signIn($app);
+
+        // The gate sends a signed-in but disconnected visitor here, and the
+        // screen still draws the header.
+        $header = $this->header((string) $this->get($app, '/connect')->getBody());
+
+        self::assertStringContainsString('conn-dot--off', $header);
+        self::assertStringContainsString('aria-label="Plex connection: not connected"', $header);
+    }
+
+    public function testHeaderCarriesLogOutWhenSignedIn(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        self::assertStringContainsString('href="/logout"', $header);
         // The rest of the group is unaffected.
         self::assertStringContainsString('aria-label="Support Development"', $header);
     }
@@ -165,12 +243,12 @@ final class ApplicationShellTest extends AppTestCase
 
     public function testUnknownRouteReturnsNotFound(): void
     {
-        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/does-not-exist');
+        $response = $this->get($this->makeSignedInApp(), '/does-not-exist');
 
         self::assertSame(404, $response->getStatusCode());
     }
 
-    public function testProtectedRouteRedirectsToLoginWhenUnauthenticated(): void
+    public function testProtectedRouteRedirectsToSignInWhenUnauthenticated(): void
     {
         $response = $this->get($this->makeApp(), '/');
 
@@ -180,7 +258,7 @@ final class ApplicationShellTest extends AppTestCase
 
     public function testGalleryRendersSiteTitleAsTheBrand(): void
     {
-        $response = $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true', 'SITE_TITLE' => 'My Wall']), '/library/movies');
+        $response = $this->get($this->makeSignedInApp(['SITE_TITLE' => 'My Wall']), '/library/movies');
 
         self::assertSame(200, $response->getStatusCode());
         // Assert the brand link specifically: a bare substring check would also
@@ -202,7 +280,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testMenuTriggerPresentsAnOverflowGlyphRatherThanAHamburger(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 
@@ -241,7 +319,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testViewportLetsTheKeyboardResizeTheLayoutViewport(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 
@@ -259,7 +337,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testBothFootersLinkTheProductNameToTheProjectSite(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 
@@ -287,7 +365,7 @@ final class ApplicationShellTest extends AppTestCase
     public function testBothFootersCreditThePosterProviders(): void
     {
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 
@@ -349,7 +427,7 @@ final class ApplicationShellTest extends AppTestCase
         // template, and the tab icon stops matching the header. Compare the
         // shape geometry of both so that drift fails here instead of shipping.
         $body = (string) $this->get(
-            $this->makeConnectedApp(['AUTH_BYPASS' => 'true']),
+            $this->makeSignedInApp(),
             '/library/movies',
         )->getBody();
 

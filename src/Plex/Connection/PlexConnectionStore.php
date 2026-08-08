@@ -33,6 +33,7 @@ final class PlexConnectionStore
     private const FILENAME = 'plex-connection.json';
 
     private const KEY_TOKEN = 'token';
+    private const KEY_OWNER = 'owner';
     private const KEY_CLIENT_ID = 'client_identifier';
     private const KEY_SIGNING_SECRET = 'signing_secret';
 
@@ -66,23 +67,62 @@ final class PlexConnectionStore
     }
 
     /**
-     * Forget the stored token. The client identifier and signing secret are
-     * deliberately kept: signing out must not make Plex treat the next sign-in
-     * as a new device, and must not invalidate poster-wall tokens already in
-     * flight.
+     * The Plex account this install verified as its server's owner, or null
+     * when no sign-in has recorded one.
+     *
+     * Kept so that later logins can be decided without asking the Plex server
+     * who owns it. That question is right for a first connection, when the
+     * candidate token is the only one there is, but as a check on every login it
+     * would make signing in to Marquee depend on the user's own Plex server
+     * being reachable — a server reboot would lock the owner out.
+     *
+     * This is an identifier, not a secret. It lives here rather than in the
+     * database because the database is specified as a cache of Plex data that is
+     * safe to delete, and losing this should cost one server round trip on the
+     * next login rather than being silently repopulated as something else.
+     */
+    public function owner(): ?string
+    {
+        return $this->load()[self::KEY_OWNER] ?? null;
+    }
+
+    public function storeOwner(string $owner): void
+    {
+        if ($owner === '') {
+            return;
+        }
+
+        $this->put(self::KEY_OWNER, $owner);
+    }
+
+    /**
+     * Forget the stored token and the owner it was verified against.
+     *
+     * The owner goes with the token deliberately. Disconnecting returns the
+     * install to its first-connection state, and the next sign-in must therefore
+     * establish ownership against the server again. Keeping it would let
+     * whoever owned the server when it was last connected sign back in on a
+     * remembered name, which is the opposite of what disconnecting is for.
+     *
+     * The client identifier and signing secret are just as deliberately kept:
+     * disconnecting must not make Plex treat the next sign-in as a new device,
+     * and must not invalidate poster-wall tokens already in flight.
      */
     public function clearToken(): void
     {
         $data = $this->read();
-        if (!isset($data[self::KEY_TOKEN])) {
+
+        $remaining = $data;
+        unset($remaining[self::KEY_TOKEN], $remaining[self::KEY_OWNER]);
+
+        if ($remaining === $data) {
             $this->data = $data;
 
             return;
         }
 
-        unset($data[self::KEY_TOKEN]);
-        $this->data = $data;
-        $this->write($data);
+        $this->data = $remaining;
+        $this->write($remaining);
     }
 
     /**

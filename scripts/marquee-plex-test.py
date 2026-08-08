@@ -48,8 +48,10 @@ import xml.etree.ElementTree as ET
 CONFIG = {
     # Marquee
     "MARQUEE_URL":  "http://localhost:1818",
-    "MARQUEE_USER": "admin",          # leave "" if AUTH_BYPASS=true in Marquee
-    "MARQUEE_PASS": "change-me",
+    # Marquee is opened by signing in to Plex, which needs a browser, so this
+    # script borrows a session you already have. In Marquee: DevTools ->
+    # Application -> Cookies -> copy the value of PHPSESSID.
+    "MARQUEE_SESSION": "",
 
     # Plex
     "PLEX_URL":     "http://192.168.1.10:32400",
@@ -187,26 +189,31 @@ def plex_set_label(item, tag, add=True):
 
 # -- Marquee -------------------------------------------------------------------
 def marquee_login():
-    """Return a urllib opener with a live session (logs in unless bypassed)."""
+    """Return a urllib opener carrying a Marquee session.
+
+    Marquee is entered by signing in to Plex, which is a browser flow this
+    script cannot drive. So it borrows a session instead of making one: paste
+    the PHPSESSID cookie from a browser that is already signed in.
+    """
+    session = cfg("MARQUEE_SESSION")
+    if not session:
+        die("Set MARQUEE_SESSION to the PHPSESSID cookie from a signed-in browser.")
+
     handlers = [urllib.request.HTTPCookieProcessor(CookieJar())]
     if ssl_ctx() is not None:
         handlers.append(urllib.request.HTTPSHandler(context=ssl_ctx()))
     opener = urllib.request.build_opener(*handlers)
+    opener.addheaders = [("Cookie", "PHPSESSID=" + session)]
 
-    base = cfg("MARQUEE_URL").rstrip("/")
-    if cfg("MARQUEE_USER"):
-        data = urllib.parse.urlencode(
-            {"username": cfg("MARQUEE_USER"), "password": cfg("MARQUEE_PASS")}
-        ).encode()
-        resp = open_url(base + "/login", method="POST", data=data, opener=opener)
-        if "/login" in resp.geturl():
-            die("Marquee login failed - check MARQUEE_USER / MARQUEE_PASS.")
-
-    # Confirm we can reach a protected page (catches wrong creds / bad URL).
-    resp = open_url(base + "/library/" + cfg("CATEGORY"), opener=opener)
-    if "/login" in resp.geturl():
-        die("Marquee is asking for login. Set MARQUEE_USER/PASS (or enable AUTH_BYPASS).")
+    # Confirm the session is live (catches an expired cookie or a bad URL).
+    resp = open_url(base_url() + "/library/" + cfg("CATEGORY"), opener=opener)
+    if "/connect" in resp.geturl():
+        die("Marquee is asking you to sign in. MARQUEE_SESSION is missing or expired.")
     return opener
+
+
+def base_url():
+    return cfg("MARQUEE_URL").rstrip("/")
 
 
 def marquee_send_to_plex(opener):

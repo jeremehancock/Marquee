@@ -104,8 +104,16 @@ final class PlexServerOwner
 
         $owner = isset($xml['myPlexUsername']) ? trim((string) $xml['myPlexUsername']) : '';
 
+        // The server names itself in the same response. Taken here so a sign-in
+        // knows what to call the connection without a second round trip — the
+        // status in the header would otherwise have nothing to show until
+        // somebody opened the connection screen.
+        $name = isset($xml['friendlyName']) ? trim((string) $xml['friendlyName']) : '';
+
         // A Plex server that names no owner has answered without saying
         // anything Marquee can compare against. Fails closed, as before.
-        return $owner !== '' ? PlexOwnerLookup::named($owner) : PlexOwnerLookup::anonymous();
+        return $owner !== ''
+            ? PlexOwnerLookup::named($owner, $name !== '' ? $name : null)
+            : PlexOwnerLookup::anonymous();
     }
 }

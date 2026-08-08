@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Plex;
 
+use App\Auth\SessionAuthenticator;
+use App\Config\AuthConfig;
 use App\Config\PlexConfig;
+use App\Database\Database;
+use App\Database\PlexServerRepository;
 use App\Plex\Connection\PlexConnectionStore;
 use App\Plex\Connection\PlexPinClient;
 use App\Plex\Connection\PlexServerOwner;
@@ -29,10 +33,14 @@ final class PlexSignInServiceTest extends TestCase
     /** @var list<RequestInterface> */
     private array $sent = [];
 
+    /** Shared across a test so an assertion can read what the sign-in cached. */
+    private ?PlexServerRepository $servers = null;
+
     protected function setUp(): void
     {
         $this->dir = sys_get_temp_dir() . '/marquee-signin-' . bin2hex(random_bytes(6));
         $this->sent = [];
+        $this->servers = null;
     }
 
     protected function tearDown(): void
@@ -96,11 +104,14 @@ final class PlexSignInServiceTest extends TestCase
 
         // A different browser session shares the store but not the session, so
         // it has no outstanding request and nothing it can supply to claim one.
+        $otherSession = new ArraySession();
         $other = new PlexSignInService(
             $this->pinClient([], $store),
             $store,
-            new ArraySession(),
+            $otherSession,
             new PlexServerOwner(new Client(['handler' => $this->stack([])]), new PlexConfig('http://plex:32400', '', 10, 60)),
+            new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $otherSession),
+            new PlexServerRepository(new Database(':memory:')),
         );
 
         self::assertSame(PlexSignInStatus::NotStarted, $other->poll());
@@ -413,6 +424,238 @@ final class PlexSignInServiceTest extends TestCase
 
     }
 
+    // ---- Signing in establishes the session ----
+
+    public function testACompletedSignInEstablishesASession(): void
+    {
+        $session = new ArraySession();
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
+            $this->accountResponse('owner@example.com'),
+        ], null, $session);
+
+        $service->start();
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+
+        $auth = new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session);
+        self::assertTrue($auth->isAuthenticated());
+    }
+
+    public function testARefusedSignInEstablishesNothing(): void
+    {
+        $session = new ArraySession();
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'a-guests-token'])),
+            $this->ownerResponse(),
+            $this->accountResponse('guest@example.com'),
+        ], null, $session);
+
+        $service->start();
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+
+        $auth = new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session);
+        self::assertFalse($auth->isAuthenticated());
+    }
+
+    // ---- The recorded owner ----
+
+    /**
+     * The server names itself in the same response the ownership check reads, so
+     * the connection has a name from the moment it exists. Without this nothing
+     * caches it until somebody opens the connection screen — the only other
+     * place that asks — and the header reported a nameless connection until they
+     * did.
+     */
+    public function testAFirstSignInRecordsWhatTheServerCallsItself(): void
+    {
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
+            $this->accountResponse('owner@example.com'),
+        ]);
+
+        $service->start();
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+
+        self::assertNotNull($this->servers);
+        self::assertSame('Anansi', $this->servers->name());
+    }
+
+    public function testAFirstSignInRecordsTheOwnerItVerified(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            $this->ownerResponse(),
+            $this->accountResponse('owner@example.com'),
+        ], $store);
+
+        $service->start();
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+
+        self::assertSame('owner@example.com', $store->owner());
+    }
+
+    /**
+     * The reboot lockout this exists to prevent. Asking the Plex server who owns
+     * it is right for a first connection; as a check on every login it would
+     * make entering Marquee depend on the user's own hardware answering.
+     *
+     * The queue holds no response for the server, so a request to it would fail
+     * the test rather than pass it quietly.
+     */
+    public function testALaterSignInDoesNotAskThePlexServer(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeOwner('owner@example.com');
+
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'granted-token'])),
+            // Straight to plex.tv: the server is never consulted.
+            $this->accountResponse('owner@example.com'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+        self::assertSame('granted-token', $store->token());
+    }
+
+    public function testANonOwnerIsStillRefusedAgainstTheRecordedOwner(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeOwner('owner@example.com');
+
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'a-guests-token'])),
+            $this->accountResponse('guest@example.com'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::NotOwner, $service->poll());
+        self::assertNull($store->token());
+    }
+
+    /**
+     * Disconnecting returns the install to its first-connection state, so the
+     * next sign-in must establish ownership against the server again rather than
+     * on a name remembered from whoever owned it last.
+     */
+    public function testDisconnectingForgetsTheRecordedOwner(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('a-token');
+        $store->storeOwner('owner@example.com');
+        $clientId = $store->clientIdentifier();
+
+        $this->service([], $store)->signOut();
+
+        $after = new PlexConnectionStore($this->dir);
+        self::assertNull($after->token());
+        self::assertNull($after->owner());
+        // The device identity survives, as it always did.
+        self::assertSame($clientId, $after->clientIdentifier());
+    }
+
+    /**
+     * Signing in again is how a user replaces a token they revoked in their Plex
+     * account. Keeping the stored one would leave the install unable to reach
+     * Plex with no action left to take.
+     */
+    public function testSigningInAgainReplacesTheStoredToken(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $store->storeToken('a-revoked-token');
+        $store->storeOwner('owner@example.com');
+
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 42, 'authToken' => 'a-fresh-token'])),
+            $this->accountResponse('owner@example.com'),
+        ], $store);
+
+        $service->start();
+
+        self::assertSame(PlexSignInStatus::Completed, $service->poll());
+        self::assertSame('a-fresh-token', $store->token());
+    }
+
+    // ---- One outstanding request per session ----
+
+    /**
+     * Starting a sign-in is unauthenticated and calls plex.tv, holding a worker
+     * for the round trip. Minting a request per call would turn every repeated
+     * attempt into another call and another parked worker — and, in ordinary
+     * use, would leave the Plex window the user is looking at unpolled.
+     *
+     * Only one create response is queued: a second call to Plex would throw.
+     */
+    public function testRepeatedStartsReuseTheOutstandingRequest(): void
+    {
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+        ]);
+
+        $first = $service->start();
+        $second = $service->start();
+
+        self::assertSame($first, $second);
+        self::assertCount(1, $this->sent);
+    }
+
+    public function testAnExpiredRequestIsReplaced(): void
+    {
+        $session = new ArraySession();
+        $service = $this->service([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 43, 'code' => 'WXYZ', 'expiresIn' => 900])),
+        ], null, $session);
+
+        $first = $service->start();
+        $session->set('plex_pin_expires_at', time() - 1);
+        $second = $service->start();
+
+        self::assertNotSame($first, $second);
+        self::assertCount(2, $this->sent);
+    }
+
+    public function testSeparateSessionsGetSeparateRequests(): void
+    {
+        $store = new PlexConnectionStore($this->dir);
+        $stack = $this->stack([
+            new Response(200, [], (string) json_encode(['id' => 42, 'code' => 'ABCD', 'expiresIn' => 900])),
+            new Response(200, [], (string) json_encode(['id' => 43, 'code' => 'WXYZ', 'expiresIn' => 900])),
+        ]);
+
+        $make = function (SessionInterface $session) use ($store, $stack): PlexSignInService {
+            return new PlexSignInService(
+                new PlexPinClient(new Client(['handler' => $stack]), $store, '1.2.3'),
+                $store,
+                $session,
+                new PlexServerOwner(
+                    new Client(['handler' => $stack]),
+                    new PlexConfig('http://plex:32400', '', 10, 60),
+                ),
+                new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session),
+                new PlexServerRepository(new Database(':memory:')),
+            );
+        };
+
+        $mine = $make(new ArraySession())->start();
+        $theirs = $make(new ArraySession())->start();
+
+        self::assertNotSame($mine, $theirs);
+        self::assertCount(2, $this->sent);
+    }
+
     /**
      * @param list<Response|ConnectException> $responses
      */
@@ -424,16 +667,20 @@ final class PlexSignInServiceTest extends TestCase
         $store ??= new PlexConnectionStore($this->dir);
         $stack = $this->stack($responses);
 
+        $session ??= new ArraySession();
+
         return new PlexSignInService(
             new PlexPinClient(new Client(['handler' => $stack]), $store, '1.2.3'),
             $store,
-            $session ?? new ArraySession(),
+            $session,
             // Shares the handler stack, so responses are queued in the order the
             // flow makes them: create, poll, the server's root, then plex.tv.
             new PlexServerOwner(
                 new Client(['handler' => $stack]),
                 new PlexConfig('http://plex:32400', '', 10, 60),
             ),
+            new SessionAuthenticator(new AuthConfig(sessionDuration: 3600), $session),
+            $this->servers ??= new PlexServerRepository(new Database(':memory:')),
         );
     }
 

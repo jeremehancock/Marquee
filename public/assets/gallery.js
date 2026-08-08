@@ -679,6 +679,22 @@
                             return;
                         }
 
+                        // Read before the poll, acted on after it. Closing the
+                        // Plex window is how a user abandons a sign-in, and
+                        // without noticing it the button sat on "Waiting for
+                        // Plex…" for the full fifteen minutes — the request is
+                        // still pending at Plex, so nothing in the status ever
+                        // says the user walked away.
+                        //
+                        // The ordering is what makes it safe. Plex's own page
+                        // invites you to close the window once you have
+                        // approved, so a close can arrive a moment *after* a
+                        // successful approval; taking the reading first and
+                        // still letting the poll answer means an approved
+                        // sign-in completes normally and only a genuinely
+                        // abandoned one stops here.
+                        var abandoned = self._windowGone();
+
                         fetch('/plex/connection/status', {
                             headers: { Accept: 'application/json' },
                             credentials: 'same-origin'
@@ -731,6 +747,13 @@
                                     return;
                                 }
                                 if (data.error) { throw new Error(data.error); }
+                                // Still pending, and the window the user was
+                                // approving in has gone. Nothing further can
+                                // happen, so say so instead of waiting it out.
+                                if (abandoned) {
+                                    self._stop('Sign-in was cancelled. Try again.');
+                                    return;
+                                }
                                 // A sign-in that never completes is otherwise
                                 // silent for fifteen minutes; this is what makes
                                 // a stalled approval reportable.
@@ -741,6 +764,24 @@
                             })
                             .catch(function (e) { self._stop(e.message || 'Sign-in failed.'); });
                     }, POLL_MS);
+                },
+
+                // Whether the Plex window we opened has since been closed.
+                //
+                // `closed` is one of the few things readable on a cross-origin
+                // window, which is what makes this possible at all — nothing
+                // else about app.plex.tv is legible from here.
+                //
+                // False when there is no reference to begin with. A blocked
+                // popup leaves the user following the fallback link in a tab we
+                // never opened and cannot see, and treating that as abandonment
+                // would cancel the sign-in they are in the middle of.
+                _windowGone: function () {
+                    try {
+                        return plexWindowRef !== null && plexWindowRef.closed;
+                    } catch (e) {
+                        return false;
+                    }
                 },
 
                 _closeWindow: function () {

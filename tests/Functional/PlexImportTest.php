@@ -37,8 +37,12 @@ final class PlexImportTest extends AppTestCase
     public function testImportPageIsUnreachableUntilPlexIsConnected(): void
     {
         // The import page no longer explains how to connect — it cannot be
-        // reached at all until you have.
-        $response = $this->get($this->makeApp(['AUTH_BYPASS' => 'true']), '/plex');
+        // reached at all until you have. Signed in, so the connection gate is
+        // what turns the request away rather than authentication.
+        $app = $this->makeApp();
+        $this->signIn($app);
+
+        $response = $this->get($app, '/plex');
 
         self::assertSame(302, $response->getStatusCode());
         self::assertSame('/connect', $response->getHeaderLine('Location'));
@@ -46,7 +50,7 @@ final class PlexImportTest extends AppTestCase
 
     public function testImportPageOffersNoConnectionManagement(): void
     {
-        $body = (string) $this->get($this->makeConnectedApp(['AUTH_BYPASS' => 'true']), '/plex')->getBody();
+        $body = (string) $this->get($this->makeSignedInApp(), '/plex')->getBody();
 
         self::assertStringNotContainsString('Connect to Plex', $body);
         self::assertStringNotContainsString('Disconnect from Plex', $body);
@@ -59,8 +63,8 @@ final class PlexImportTest extends AppTestCase
             new PlexLibrary('2', 'TV', 'show'),
         ]);
 
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true'],
+        $app = $this->makeSignedInApp(
+            [],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
 
@@ -78,8 +82,8 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Kids'],
         );
 
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Kids'],
+        $app = $this->makeSignedInApp(
+            ['EXCLUDED_LIBRARIES' => 'Kids'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
 
@@ -96,8 +100,8 @@ final class PlexImportTest extends AppTestCase
             excluded: ['Movies', 'TV'],
         );
 
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'EXCLUDED_LIBRARIES' => 'Movies,TV'],
+        $app = $this->makeSignedInApp(
+            ['EXCLUDED_LIBRARIES' => 'Movies,TV'],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
 
@@ -114,8 +118,8 @@ final class PlexImportTest extends AppTestCase
         $movie = new PlexItem('10', PlexMediaType::Movie, 'Solaris', 1972, '/t/10', 'Movies');
         $fake = new FakePlexClient([$library], ['1' => [$movie]]);
 
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
+        $app = $this->makeSignedInApp(
+            ['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => $fake],
         );
 

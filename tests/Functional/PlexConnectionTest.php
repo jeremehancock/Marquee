@@ -42,21 +42,41 @@ final class PlexConnectionTest extends AppTestCase
 
     // ---- Routes are protected and disclose nothing ----
 
-    public function testConnectionRoutesRequireAuthentication(): void
+    /**
+     * Signing in is how a session is obtained, so the screen and the two routes
+     * behind it have to be reachable without one.
+     */
+    public function testSigningInIsReachableWithoutASession(): void
     {
-        $app = $this->makeApp($this->env(['AUTH_BYPASS' => 'false']));
+        $app = $this->makeApp($this->env());
 
-        foreach ([['GET', '/connect'], ['GET', '/plex/connection/status']] as [, $path]) {
-            $response = $this->get($app, $path);
-            self::assertSame(302, $response->getStatusCode(), $path);
-            self::assertSame('/login', $response->getHeaderLine('Location'), $path);
-        }
+        self::assertSame(200, $this->get($app, '/login')->getStatusCode());
+        self::assertSame(200, $this->get($app, '/plex/connection/status')->getStatusCode());
+    }
 
-        $signIn = $this->postForm($app, '/plex/connection/sign-in', []);
-        self::assertSame('/login', $signIn->getHeaderLine('Location'));
+    /**
+     * Disconnecting is not among them. It destroys the connection, which is
+     * something only a signed-in user may do.
+     */
+    public function testDisconnectingStillRequiresASession(): void
+    {
+        $app = $this->makeConnectedApp($this->env());
 
-        $signOut = $this->postForm($app, '/plex/connection/sign-out', []);
-        self::assertSame('/login', $signOut->getHeaderLine('Location'));
+        $response = $this->postForm($app, '/plex/connection/sign-out', []);
+
+        self::assertSame('/login', $response->getHeaderLine('Location'));
+        self::assertNotNull((new PlexConnectionStore($this->dataDir))->token());
+    }
+
+    /**
+     * Polling is public, so it must give an anonymous caller nothing but the
+     * outcome of the request they started.
+     */
+    public function testPollingDisclosesNothingButTheOutcome(): void
+    {
+        $body = (string) $this->get($this->makeApp($this->env()), '/plex/connection/status')->getBody();
+
+        self::assertSame('{"status":"not_started"}', $body);
     }
 
     public function testNoResponseEverCarriesTheToken(): void
@@ -98,6 +118,33 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringNotContainsString('Plex is not connected', $body);
     }
 
+    /**
+     * The two exits are genuinely different and this is the one screen offering
+     * both, so it is where the difference has to be stated. Naming Disconnect is
+     * not enough — nothing in the word says scheduled imports stop with it.
+     */
+    public function testTheScreenSaysWhatEachExitLeavesBehind(): void
+    {
+        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+        // Collapsed, so an assertion about prose does not depend on where the
+        // template happens to wrap the line.
+        $prose = (string) preg_replace('/\s+/', ' ', $body);
+
+        // Named subjects, not a pronoun pointing back at two consequences.
+        self::assertStringContainsString('<strong>Disconnecting</strong>', $prose);
+        self::assertStringContainsString('<strong>Logging out</strong>', $prose);
+
+        // Disconnecting: everything it takes with it, including the half of the
+        // wall someone may be watching across the room.
+        self::assertStringContainsString('stops working until someone signs in to Plex again', $prose);
+        self::assertStringContainsString('scheduled auto-imports stop', $prose);
+        self::assertStringContainsString('stops showing what is playing', $prose);
+
+        // Logging out: what survives it.
+        self::assertStringContainsString('only ends your session in this browser', $prose);
+        self::assertStringContainsString('carry on', $prose);
+    }
+
     public function testConnectedScreenOffersAWayBackToTheGallery(): void
     {
         $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
@@ -111,24 +158,43 @@ final class PlexConnectionTest extends AppTestCase
         // The gate would refuse it, so the link would bounce straight back here.
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
 
-        self::assertStringNotContainsString('Back to gallery', (string) $this->get($app, '/connect')->getBody());
+        self::assertStringNotContainsString('Back to gallery', (string) $this->get($app, '/login')->getBody());
     }
 
-    public function testScreenWhenNotConnected(): void
+    public function testScreenWhenSignedInButNotConnected(): void
     {
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        $this->signIn($app);
 
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('Plex is not connected', $body);
-        self::assertStringContainsString('Connect to Plex', $body);
+        self::assertStringContainsString('Sign in with Plex', $body);
+    }
+
+    /**
+     * The screen a visitor with no session meets. One action, because signing in
+     * to Plex is both the login and the connection — offering them as two
+     * choices would ask the user to pick between two names for one thing.
+     */
+    public function testScreenOffersOneActionWhenSignedOut(): void
+    {
+        $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+
+        $body = (string) $this->get($app, '/login')->getBody();
+
+        self::assertStringContainsString('Sign in with Plex', $body);
+        self::assertStringContainsString('owns this server', $body);
+        // Nothing to disconnect from, and no navigation behind the gate.
+        self::assertStringNotContainsString('Disconnect from Plex', $body);
+        self::assertStringNotContainsString('/logout', $body);
     }
 
     public function testScreenSaysWhenTheServerAddressIsMissing(): void
     {
         // No PLEX_SERVER_URL. Signing in cannot supply an address, so offering
         // it as the remedy would strand the user behind the gate.
-        $body = (string) $this->get($this->makeApp($this->env()), '/connect')->getBody();
+        $body = (string) $this->get($this->makeApp($this->env()), '/login')->getBody();
 
         self::assertStringContainsString('PLEX_SERVER_URL', $body);
         self::assertStringContainsString('docker compose up -d', $body);
@@ -142,10 +208,10 @@ final class PlexConnectionTest extends AppTestCase
             'PLEX_TOKEN' => 'left-over-from-an-older-version',
         ]));
 
-        $body = (string) $this->get($app, '/connect')->getBody();
+        $body = (string) $this->get($app, '/login')->getBody();
 
         self::assertStringContainsString('no longer used', $body);
-        self::assertStringContainsString('Connect to Plex', $body);
+        self::assertStringContainsString('Sign in with Plex', $body);
         // Editing the compose file is not enough — the environment is read once
         // at container start, so the instruction has to say recreate.
         self::assertStringContainsString('docker compose up -d', $body);
@@ -155,7 +221,7 @@ final class PlexConnectionTest extends AppTestCase
 
     public function testTheObsoleteNoticeAdaptsOnceConnected(): void
     {
-        $app = $this->makeConnectedApp(
+        $app = $this->makeSignedInApp(
             $this->env(['PLEX_TOKEN' => 'left-over']),
             [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
         );
@@ -168,43 +234,70 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringContainsString('docker compose up -d', $body);
     }
 
-    public function testScreenWarnsWhenLoginIsDisabled(): void
+    /**
+     * An install running unattended on bypass has no login at all today and
+     * will start demanding one. Meeting that as a fault rather than as an
+     * explained change is the worst version of this upgrade.
+     */
+    public function testScreenSaysBypassNoLongerDisablesTheLogin(): void
     {
-        // Bypass exposes a credential that can write to the user's library, not
-        // just a gallery — so the screen carrying the sign-out button says so.
-        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
+        $app = $this->makeSignedInApp(
+            $this->env(['AUTH_BYPASS' => 'true']),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+
+        $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('AUTH_BYPASS', $body);
-        self::assertStringContainsString('Login is disabled', $body);
+        self::assertStringContainsString('no longer disables the login', $body);
+        // The wall is the one thing that did run unattended and still does.
+        self::assertStringContainsString('Poster Wall is unaffected', $body);
     }
 
-    public function testTheBypassWarningDescribesUseNotConnecting(): void
+    /**
+     * Presence, not truth: `AUTH_BYPASS=false` is just as obsolete, and the
+     * remedy — delete the line — is the same.
+     */
+    public function testTheBypassNoticeIsRaisedByPresenceNotByValue(): void
     {
-        $body = (string) $this->get($this->connectedApp(), '/connect')->getBody();
-
-        // The risk is what a visitor does with the connection Marquee already
-        // holds. Only the owner can establish one, and saying a stranger could
-        // "change the connection" teaches the opposite of the useful lesson.
-        self::assertStringContainsString('acts with your stored Plex', $body);
-        self::assertStringContainsString('delete posters', $body);
-        self::assertStringNotContainsString('can sign this install in', $body);
-        // The owner-only rule is stated, then explicitly closed off.
-        self::assertStringContainsString('does not', $body);
-        self::assertStringContainsString('once it is connected', $body);
-    }
-
-    public function testScreenIsQuietWhenAuthenticationIsEnforced(): void
-    {
-        $app = $this->makeConnectedApp(
+        $app = $this->makeSignedInApp(
             $this->env(['AUTH_BYPASS' => 'false']),
             [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
         );
 
-        $this->postForm($app, '/login', ['username' => 'admin', 'password' => 'secret']);
+        self::assertStringContainsString(
+            'no longer disables the login',
+            (string) $this->get($app, '/connect')->getBody(),
+        );
+    }
+
+    public function testScreenSaysTheEnvironmentCredentialsAreNoLongerUsed(): void
+    {
+        $app = $this->makeSignedInApp(
+            $this->env(['AUTH_USERNAME' => 'admin', 'AUTH_PASSWORD' => 'hunter2']),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('AUTH_USERNAME', $body);
+        self::assertStringContainsString('no longer used', $body);
+        // Never echoed back, obsolete or not.
+        self::assertStringNotContainsString('hunter2', $body);
+    }
+
+    public function testScreenIsQuietWhenNoObsoleteVariablesAreSet(): void
+    {
+        $app = $this->makeSignedInApp(
+            $this->env(),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+
         $body = (string) $this->get($app, '/connect')->getBody();
 
         self::assertStringContainsString('Connected to Anansi', $body);
-        self::assertStringNotContainsString('Login is disabled', $body);
+        self::assertStringNotContainsString('AUTH_BYPASS', $body);
+        self::assertStringNotContainsString('AUTH_USERNAME', $body);
     }
 
     public function testScreenSaysNothingAboutTheVariableWhenItIsAbsent(): void
@@ -228,7 +321,10 @@ final class PlexConnectionTest extends AppTestCase
 
     public function testGalleryIsUnreachableUntilPlexIsConnected(): void
     {
+        // Signed in, so the connection gate is what turns the request away
+        // rather than authentication — and it sends you to the connection view.
         $app = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        $this->signIn($app);
 
         foreach (['/library/all', '/plex', '/orphans'] as $path) {
             $response = $this->get($app, $path);
@@ -242,15 +338,36 @@ final class PlexConnectionTest extends AppTestCase
         self::assertSame(200, $this->get($this->connectedApp(), '/library/all')->getStatusCode());
     }
 
-    public function testAuthenticationComesBeforeTheGate(): void
+    /**
+     * One sign-in satisfies both gates, so a new install is asked for one thing
+     * rather than two in sequence. Each gate uses the URL that names the state
+     * it found: no session sends you to sign in, no connection sends you to the
+     * connection view.
+     */
+    public function testEachGateUsesTheUrlThatNamesWhatIsMissing(): void
     {
-        // Not logged in and not connected: login wins, or the connection screen
-        // and its sign-in action would be exposed to anyone reaching the host.
-        $app = $this->makeApp($this->env(['AUTH_BYPASS' => 'false']));
+        // No session, connected or not — authentication runs first either way.
+        foreach ([$this->makeApp($this->env()), $this->makeConnectedApp($this->env())] as $app) {
+            self::assertSame('/login', $this->get($app, '/library/all')->getHeaderLine('Location'));
+        }
 
-        $response = $this->get($app, '/library/all');
+        // A session but no connection.
+        $signedIn = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        $this->signIn($signedIn);
+        self::assertSame('/connect', $this->get($signedIn, '/library/all')->getHeaderLine('Location'));
+    }
 
-        self::assertSame('/login', $response->getHeaderLine('Location'));
+    /**
+     * And each redirects to the other when the visitor is in the wrong state, so
+     * neither URL can be reached misnaming what it shows.
+     */
+    public function testTheTwoUrlsRedirectToEachOtherByState(): void
+    {
+        $anonymous = $this->makeApp($this->env(['PLEX_SERVER_URL' => 'http://plex:32400']));
+        self::assertSame('/login', $this->get($anonymous, '/connect')->getHeaderLine('Location'));
+
+        $signedIn = $this->connectedApp();
+        self::assertSame('/connect', $this->get($signedIn, '/login')->getHeaderLine('Location'));
     }
 
     public function testTheWallRunsWithoutAPlexConnection(): void
@@ -311,7 +428,7 @@ final class PlexConnectionTest extends AppTestCase
         // configuration resolves once per container, so within a single test app
         // the gate still holds the pre-sign-in view and would turn the gallery
         // away. A real request builds a fresh container and sees the token.
-        self::assertStringContainsString('Connected to Plex.', (string) $this->get($app, '/connect')->getBody());
+        self::assertStringContainsString('Signed in to Plex.', (string) $this->get($app, '/connect')->getBody());
 
         self::assertSame(
             'granted-secret-token',
@@ -447,7 +564,6 @@ final class PlexConnectionTest extends AppTestCase
     private function env(array $extra = []): array
     {
         return array_merge([
-            'AUTH_BYPASS' => 'true',
             'DATA_DIR' => $this->dataDir,
             'POSTERS_DIR' => $this->postersDir,
         ], $extra);
@@ -460,7 +576,7 @@ final class PlexConnectionTest extends AppTestCase
     {
         $client ??= new FakePlexClient();
 
-        return $this->makeConnectedApp(
+        return $this->makeSignedInApp(
             $this->env(),
             [PlexClient::class => static fn (): PlexClient => $client],
         );

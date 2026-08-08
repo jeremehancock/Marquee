@@ -10,7 +10,6 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Exception\HttpForbiddenException;
 use Slim\Psr7\Response;
-use Slim\Views\Twig;
 
 /**
  * Refuses a state-changing request that does not prove it came from a page
@@ -28,9 +27,6 @@ use Slim\Views\Twig;
  * which also serves the scripted requests that build their body from a form;
  * the requests that build a synthetic body or send none have no form to draw
  * from, and use the header. Neither carrier alone covers every call site.
- *
- * This runs while `AUTH_BYPASS` is enabled too. Bypass removes the login, which
- * makes a forged request worth more rather than less.
  */
 final class CsrfMiddleware implements MiddlewareInterface
 {
@@ -44,10 +40,8 @@ final class CsrfMiddleware implements MiddlewareInterface
      */
     private const SAFE = ['GET', 'HEAD', 'OPTIONS'];
 
-    public function __construct(
-        private readonly CsrfGuard $guard,
-        private readonly Twig $twig,
-    ) {
+    public function __construct(private readonly CsrfGuard $guard)
+    {
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -60,26 +54,33 @@ final class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        // Logging in is the one refusal that gets explained rather than raised.
-        // PHP sessions live in the container's /tmp, so recreating the container
-        // discards them all. Everywhere else that is invisible: a stale page
-        // posting afterwards is unauthenticated, and AuthMiddleware redirects it
-        // to the login page long before this check. Login is the only
+        // Starting a sign-in is the one refusal that gets explained rather than
+        // raised. PHP sessions live in the container's /tmp, so recreating the
+        // container discards them all. Everywhere else that is invisible: a
+        // stale page posting afterwards is unauthenticated, and AuthMiddleware
+        // redirects it long before this check. Starting a sign-in is the only
         // state-changing route reachable with no session behind it, so it is the
-        // only place a user meets a dead token — and an error page there reads
-        // as a broken install rather than as a page to submit again. The gap is
-        // widest with AUTH_BYPASS on, where no auth redirect absorbs it first.
+        // only place a user meets a dead token — and it is the one route they
+        // cannot get past it on, because it is the way in.
         //
-        // It refuses exactly as hard: the handler is never reached, so nobody is
-        // authenticated. Only the rendering differs.
-        if ($request->getUri()->getPath() === '/login') {
-            // 401, matching the response a wrong password already produces:
-            // both mean "you are not signed in, submit the form again".
-            return $this->twig->render(
-                (new Response())->withStatus(401),
-                'login.html.twig',
-                ['error' => 'This page expired before it was submitted. Try signing in again.'],
-            );
+        // The explanation is JSON because the caller is a `fetch` that reads
+        // `error` out of the body and shows it. An HTML error page here would
+        // fail to parse and surface as "Could not start sign-in", which tells
+        // the user nothing they can act on.
+        //
+        // It refuses exactly as hard: the handler is never reached, so no
+        // authorization request is started and nobody is authenticated. Only the
+        // rendering differs.
+        if ($request->getUri()->getPath() === '/plex/connection/sign-in') {
+            $response = (new Response())
+                ->withStatus(403)
+                ->withHeader('Content-Type', 'application/json');
+            $response->getBody()->write(json_encode(
+                ['error' => 'This page expired before you signed in. Reload the page and try again.'],
+                JSON_THROW_ON_ERROR,
+            ));
+
+            return $response;
         }
 
         throw new HttpForbiddenException(

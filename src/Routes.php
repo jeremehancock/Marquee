@@ -29,9 +29,13 @@ function registerRoutes(App $app): void
     $app->get('/manifest.webmanifest', ManifestController::class);
     $app->get('/version', VersionController::class);
 
-    $app->get('/login', [AuthController::class, 'showLogin']);
-    $app->post('/login', [AuthController::class, 'login']);
     $app->get('/logout', [AuthController::class, 'logout']);
+
+    // Signing in and the Plex connection are one screen rendered two ways, but
+    // each state gets the URL that names it: nobody managing a connection should
+    // be sitting on a page called /login. Each redirects to the other when the
+    // visitor is in the wrong state, so neither can be reached misnamed.
+    $app->get('/login', [PlexConnectionController::class, 'login']);
 
     $app->get('/', [GalleryController::class, 'home']);
     $app->get('/library/{category}', [GalleryController::class, 'show']);
@@ -45,16 +49,14 @@ function registerRoutes(App $app): void
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 
-    // The Plex connection lives on its own page: it is where the connection
-    // gate sends anyone who has not connected, and where a connected user goes
-    // to sign out.
     $app->get('/connect', [PlexConnectionController::class, 'show']);
 
     $app->get('/plex', [PlexImportController::class, 'show']);
     $app->post('/plex/import', [PlexImportController::class, 'run']);
 
-    // Signing in to Plex. Authenticated like everything else: these connect
-    // Marquee to Plex, they are not a way of signing in to Marquee.
+    // Signing in to Plex, which is how Marquee is entered. The first two are
+    // reachable without a session because they are how one is obtained;
+    // disconnecting is not, because it destroys the connection.
     $app->post('/plex/connection/sign-in', [PlexConnectionController::class, 'start']);
     $app->get('/plex/connection/status', [PlexConnectionController::class, 'poll']);
     $app->post('/plex/connection/sign-out', [PlexConnectionController::class, 'signOut']);
@@ -67,5 +69,9 @@ function registerRoutes(App $app): void
     $app->get('/wall', [PosterWallController::class, 'show']);
     $app->get('/wall/posters', [PosterWallController::class, 'posters']);
     $app->get('/wall/streams', [PosterWallController::class, 'streams']);
+    // The wall's own posters, reachable without a session because the wall is.
+    // Restricted to the categories the wall draws; /posters stays behind the
+    // login for everything else.
+    $app->get('/wall/poster/{category}/{filename}', [PosterImageController::class, 'wall']);
     $app->get('/wall/stream-poster/{id}', [PosterWallController::class, 'streamPoster']);
 }

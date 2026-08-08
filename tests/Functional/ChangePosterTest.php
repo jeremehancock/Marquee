@@ -64,9 +64,8 @@ final class ChangePosterTest extends AppTestCase
         $http = $this->createMock(ClientInterface::class);
         $http->method('request')->willReturn(new Response(200, [], $this->pngBytes(2, 3)));
 
-        $app = $this->makeConnectedApp(
+        $app = $this->makeSignedInApp(
             [
-                'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
             ],
@@ -115,9 +114,8 @@ final class ChangePosterTest extends AppTestCase
         $http = $this->createMock(ClientInterface::class);
         $http->method('request')->willReturn(new Response(200, [], $this->pngBytes(2, 3)));
 
-        $app = $this->makeConnectedApp(
+        $app = $this->makeSignedInApp(
             [
-                'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
             ],
@@ -156,8 +154,8 @@ final class ChangePosterTest extends AppTestCase
      */
     private function findPosters(FakePosterSource $source): array
     {
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
+        $app = $this->makeSignedInApp(
+            ['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PosterSource::class => static fn (): PosterSource => $source],
         );
 
@@ -474,8 +472,8 @@ final class ChangePosterTest extends AppTestCase
     {
         $source = $this->fakeSource(PosterSearchResult::found([new PosterCandidate('https://img/a.jpg')]));
 
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
+        $app = $this->makeSignedInApp(
+            ['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PosterSource::class => static fn (): PosterSource => $source],
         );
 
@@ -492,9 +490,8 @@ final class ChangePosterTest extends AppTestCase
     {
         $writer = new FakePlexPosterWriter();
 
-        $app = $this->makeConnectedApp(
+        $app = $this->makeSignedInApp(
             [
-                'AUTH_BYPASS' => 'true',
                 'POSTERS_DIR' => $this->postersDir,
                 'DATA_DIR' => $this->dataDir,
             ],
@@ -510,8 +507,8 @@ final class ChangePosterTest extends AppTestCase
 
     public function testFetchFromPlexReplacesLocal(): void
     {
-        $app = $this->makeConnectedApp(
-            ['AUTH_BYPASS' => 'true', 'POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
+        $app = $this->makeSignedInApp(
+            ['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $this->dataDir],
             [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
         );
 
