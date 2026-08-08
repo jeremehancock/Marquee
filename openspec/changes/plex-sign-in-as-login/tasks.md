@@ -76,6 +76,8 @@
 - [x] 10.5 Sweep the remaining connect-era vocabulary: the signed-in-but-disconnected copy, the `PLEX_TOKEN` notice, and the `NotConfigured` Plex failure remedy.
 - [x] 10.6 Name both exits on the connection screen instead of describing one and referring to the other, and say that disconnecting also stops the Poster Wall reporting what is playing.
 
+- [x] 10.7 Serve the wall's posters from a public, wall-scoped route so an unattended display can load its rotation; keep the gallery's poster route behind the login and refuse categories the wall does not draw.
+
 ## 8. Gates
 
 - [x] 8.1 `composer test` — PHPUnit passes.

@@ -69,5 +69,9 @@ function registerRoutes(App $app): void
     $app->get('/wall', [PosterWallController::class, 'show']);
     $app->get('/wall/posters', [PosterWallController::class, 'posters']);
     $app->get('/wall/streams', [PosterWallController::class, 'streams']);
+    // The wall's own posters, reachable without a session because the wall is.
+    // Restricted to the categories the wall draws; /posters stays behind the
+    // login for everything else.
+    $app->get('/wall/poster/{category}/{filename}', [PosterImageController::class, 'wall']);
     $app->get('/wall/stream-poster/{id}', [PosterWallController::class, 'streamPoster']);
 }

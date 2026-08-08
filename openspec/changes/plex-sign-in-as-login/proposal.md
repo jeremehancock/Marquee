@@ -51,6 +51,10 @@ None. Both affected capabilities already exist.
   ordering relative to authentication collapses; the vocabulary rule separating
   connection from login is narrowed to the two exit actions; the obsolete
   environment notice covers the removed authentication variables.
+- `poster-wall`: the posters the wall lists must be fetchable by a display with
+  no session. The wall was specified to run unattended but pointed at the
+  gallery's poster route, which is behind the login, so its rotation never
+  loaded — visible only once a stream ended.
 
 ## Impact
 
@@ -59,10 +63,12 @@ the `AUTH_BYPASS` branch in `SessionAuthenticator::isAuthenticated()`; the
 bypass warning block in `connect.html.twig`; the login form.
 
 **Changed**: `AuthConfig` keeps only the session duration; `PlexSignInService`
-mints a session on success and reuses an outstanding request; `PlexConnectionStore`
-gains the remembered owner; `AuthMiddleware` and `PlexConnectionMiddleware`
-public-path lists; `Routes.php`; `CsrfMiddleware` documentation; the nginx site
-template.
+mints a session on success, reuses an outstanding request, and records the
+server's name; `PlexConnectionStore` gains the remembered owner; `AuthMiddleware`
+and `PlexConnectionMiddleware` public-path lists; `Routes.php`; `CsrfMiddleware`
+documentation; the nginx site template; the navigation carries a connection
+status in place of a link; `PosterImageController` gains a wall-scoped, public
+entry point.
 
 **Tests**: 63 `AUTH_BYPASS` usages across 11 test files, plus the container smoke
 test in CI, all need a helper that seeds an authenticated session instead.
