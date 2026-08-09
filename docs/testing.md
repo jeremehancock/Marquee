@@ -183,10 +183,11 @@ picked, and the `thumb` field is still `locked="1"` (check it the same way as
 
 **Fail:** the count grew by one — applying uploaded instead of selecting.
 
-This holds for the **Uploaded to Plex** and **Stored by Plex** groups, whose
-images are already on the server. **Offered by Plex** is artwork Plex has not
+This holds for anything Plex already has the image for: the whole **Uploaded to
+Plex** group, and the candidates at the *start* of **Offered by Plex** (held
+ones are ordered first). Further down that group are posters Plex has not
 downloaded — applying one of those *does* upload, and the count *should* grow by
-one. Test it against the first two groups.
+one. Test against **Uploaded to Plex** for an unambiguous result.
 
 ---
 

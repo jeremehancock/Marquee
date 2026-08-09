@@ -397,23 +397,16 @@ again. The tab lists your uploads first, and marks the one Plex is using now.
 Pick one and Marquee stores it, points Plex at it, and locks it — without
 uploading a duplicate, since Plex already has the image.
 
-Below your uploads sit two more groups, split by whether Plex has the image or
-would have to go and get it. **Stored by Plex** is artwork already on your
-server — what its metadata agent downloaded, a `poster.jpg` sitting beside the
-media, or an image pulled out of the video; usually this is what the item looked
-like before you touched it. **Offered by Plex** is artwork Plex knows about but
-hasn't downloaded.
+Below your uploads sits **Offered by Plex** — everything else Plex has for that
+item. Some of it is already on your server (what its metadata agent downloaded,
+a `poster.jpg` beside the media, an image pulled from the video), and some Plex
+would fetch on demand. Marquee only uploads when it has to: if Plex already has
+the image, it just points Plex at it.
 
-The two mostly come from the *same* places — much of what Plex has stored was
-fetched from TMDB, which is also where much of what it offers would come from.
-Only the last group overlaps Find Posters, and not entirely: Plex also offers
-IMDb and Gracenote artwork, which the poster search doesn't carry, and
-everything Plex lists is tied to that exact item with no title matching
+This group overlaps Find Posters but doesn't replace it — and vice versa. Plex
+also offers IMDb and Gracenote artwork, which the poster search doesn't carry,
+and everything Plex lists is tied to that exact item with no title matching
 involved.
-
-Applying from the first two groups adds nothing to Plex — the image is already
-there, so Marquee just points Plex at it. Applying from **Offered by Plex**
-uploads, because Plex doesn't have that image yet.
 
 **"Find Posters" isn't returning many results for my library**
 Find Posters is most accurate when Plex has matched an item to a known title,

@@ -6,15 +6,16 @@
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
 {# One group of Plex poster candidates. `source` is an Alpine expression naming
-   the array, so all three groups render from one piece of markup. The whole
-   group is dropped when it is empty rather than left as a heading over nothing —
-   an item with no uploads must not show an "Uploaded to Plex" label with a gap
-   under it.
+   the array, so both groups render from one piece of markup. The whole group is
+   dropped when it is empty rather than left as a heading over nothing — an item
+   with no uploads must not show an "Uploaded to Plex" label with a gap under it.
 
-   `offered` switches the two things that differ for artwork Plex has not
-   downloaded: the image is a provider URL loaded directly rather than one
-   proxied off the Plex server, and applying it takes the pasted-URL route. #}
-{% macro plex_group(label, source, offered = false) %}
+   A tile is identical whether or not Plex already holds the image: `thumb` is
+   already the right address for either, and openPlexPreview() reads the
+   candidate's own `held` flag to decide how applying it will reach Plex. That
+   difference is real but it is not something a user is choosing between, so it
+   does not show up here. #}
+{% macro plex_group(label, source) %}
     <template x-if="{{ source }}.length">
         <div class="plex-group">
             <p class="plex-group__heading">
@@ -22,7 +23,7 @@
                 <span class="plex-group__count" x-text="{{ source }}.length"></span>
             </p>
             <div class="find-grid">
-                <template x-for="poster in {{ source }}" :key="{{ offered ? 'poster.url' : 'poster.token' }}">
+                <template x-for="poster in {{ source }}" :key="poster.ref">
                     {# Per-cell loaded flag, as in the Find Posters grid: Alpine builds
                        and tears these down long after initImages() has run, and `@error`
                        must resolve the cell too so a candidate whose image fails stops
@@ -35,7 +36,7 @@
                             <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
                                  :class="loaded ? 'is-loaded' : ''"
                                  @load="loaded = true" @error="loaded = true"
-                                 @click="{{ offered ? 'openOfferedPreview(poster)' : 'openPlexPreview(poster)' }}"
+                                 @click="openPlexPreview(poster)"
                                  :data-tooltip="poster.selected ? 'The poster Plex is using now — click to preview' : 'Click to preview'">
                         </div>
                     </figure>
@@ -184,13 +185,12 @@
                 <div x-show="change.tab === 'plex'">
                     <p class="stats" x-show="plexPosters.loading">Reading posters from Plex…</p>
                     <p class="alert" x-show="plexPosters.error && !plexPosters.loading" x-text="plexPosters.error"></p>
-                    <p class="stats" x-show="!plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.server.length)">
+                    <p class="stats" x-show="!plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.available.length)">
                         Tap a poster to preview it.
                     </p>
                     <div class="plex-groups" x-show="!plexPosters.loading && !plexPosters.error">
                         {{ _self.plex_group('Uploaded to Plex', 'plexPosters.uploaded') }}
-                        {{ _self.plex_group('Stored by Plex', 'plexPosters.server') }}
-                        {{ _self.plex_group('Offered by Plex', 'plexPosters.offered', true) }}
+                        {{ _self.plex_group('Offered by Plex', 'plexPosters.available') }}
                     </div>
                 </div>
 

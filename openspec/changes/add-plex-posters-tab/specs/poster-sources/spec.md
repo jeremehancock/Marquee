@@ -81,33 +81,28 @@ reports SHALL be dropped rather than placed in the page as an image source.
 - **WHEN** Plex reports a poster whose address uses neither `http` nor `https`
 - **THEN** it is not listed, and nothing puts that address into the page
 
-### Requirement: Plex poster candidates are grouped by where they came from
-The Plex Posters tab SHALL present its candidates in three labelled groups, in
-this order: posters **uploaded** to the item; the other posters **held** on the
-server; then artwork Plex **offers** but has not downloaded. Plex marks an
-uploaded poster distinctly, and the system SHALL use that marking rather than
-inferring it from the image itself.
+### Requirement: Plex poster candidates are grouped by whether the user put them there
+The Plex Posters tab SHALL present its candidates in two labelled groups:
+posters **uploaded** to the item, then everything else Plex reports for it. Plex
+marks an uploaded poster distinctly, and the system SHALL use that marking
+rather than inferring it from the image itself.
 
-The order is not cosmetic, and it runs from most to least specific to the user.
-Plex never removes a poster from an item, so the list only grows. The uploaded
-group is the user's own history — every poster they ever applied to that item,
-including ones no longer stored in Marquee and ones no poster search will
-surface again. That group is the reason this tab exists, so it SHALL come first,
-and the offered group SHALL come last: it is the largest and the least particular
-to this user, and placing it above the others would bury them.
+The uploaded group SHALL come first. Plex never removes a poster from an item,
+so the list only grows, and this group is the user's own history — every poster
+they ever applied to that item, including ones no longer stored in Marquee and
+ones no poster search will surface again. That is the reason this tab exists, so
+it must not be buried under the much larger second group.
 
-The second and third groups SHALL be labelled by **whether Plex holds the
-image**, and SHALL NOT be labelled in terms that imply they come from different
-sources. They largely do not: most of what Plex has downloaded for an item came
-from the same providers it would otherwise offer, so a label suggesting separate
-origins misdescribes both groups. The distinction that exists, and the only one
-worth naming, is that Plex has one and would have to fetch the other.
+Whether Plex already holds a poster or would have to fetch it SHALL NOT be
+surfaced as a grouping. It decides how applying works and nothing else; a user is
+choosing a poster, not a mechanism, and splitting the list on it asks them to
+care about a distinction that changes nothing they are deciding. The two are
+also not distinguishable by source — most of what Plex has downloaded for an
+item came from the same providers it would otherwise offer — so a split would
+suggest a difference in origin that does not exist.
 
-The second group SHALL NOT be described as coming from a metadata agent either.
-It holds posters of several kinds — artwork an agent downloaded, a poster file
-taken from alongside the media, an image extracted from the media itself — and
-naming one of them would misdescribe the others. What is true of all three is
-that the poster sits in Plex's own storage.
+Within the second group, candidates Plex already holds SHALL be ordered before
+those it does not, so the posters that need no upload are reached first.
 
 Each group's heading SHALL be presented as a section label rather than as
 body text, and SHALL carry the number of candidates in it, so a user can see how
@@ -141,10 +136,21 @@ that answer away exactly when the list is long enough to need it.
 Each group SHALL be shown only when it has candidates, so an item with no
 uploads does not display an empty heading.
 
-#### Scenario: Uploaded posters come first and offered artwork last
+#### Scenario: Uploaded posters come first
 - **WHEN** the Plex Posters tab lists an item that has uploaded posters, other
   held posters, and offered artwork
-- **THEN** they appear in that order, each under its own heading
+- **THEN** the uploads appear first under their own heading, and the rest follow
+  in a single group under one heading
+
+#### Scenario: Held and offered artwork are not split apart
+- **WHEN** a user views a result containing both posters Plex holds and artwork
+  it only offers
+- **THEN** they appear together in one group, with nothing marking which is
+  which
+
+#### Scenario: Held candidates lead the combined group
+- **WHEN** the combined group contains both kinds
+- **THEN** the ones Plex already holds are ordered first
 
 #### Scenario: Groups are labelled
 - **WHEN** a user views the Plex Posters results

@@ -85,7 +85,7 @@ final class PlexPostersTabTest extends AppTestCase
     /**
      * @param App<\Psr\Container\ContainerInterface|null> $app
      *
-     * @return array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, offered: list<array{url: string, thumb: string, selected: bool}>, error: string|null}
+     * @return array{uploaded: list<array{ref: string, thumb: string, selected: bool, held: bool}>, available: list<array{ref: string, thumb: string, selected: bool, held: bool}>, error: string|null}
      */
     private function listFor(App $app, string $filename = 'Solaris.jpg'): array
     {
@@ -95,17 +95,28 @@ final class PlexPostersTabTest extends AppTestCase
         $payload = json_decode((string) $response->getBody(), true);
         self::assertIsArray($payload);
 
-        /** @var array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, offered: list<array{url: string, thumb: string, selected: bool}>, error: string|null} $payload */
+        /** @var array{uploaded: list<array{ref: string, thumb: string, selected: bool, held: bool}>, available: list<array{ref: string, thumb: string, selected: bool, held: bool}>, error: string|null} $payload */
         return $payload;
     }
 
-    public function testListsServerHeldPostersInTwoGroups(): void
+    public function testListsUploadsSeparatelyFromEverythingElse(): void
     {
         $payload = $this->listFor($this->app());
 
         self::assertNull($payload['error']);
         self::assertCount(2, $payload['uploaded']);
-        self::assertCount(1, $payload['server']);
+        // One Plex holds and one it only offers, in a single list: the user is
+        // choosing a poster, not a mechanism.
+        self::assertCount(2, $payload['available']);
+    }
+
+    /**
+     * Held candidates come before offered ones, so the posters that need no
+     * upload are the ones reached first.
+     */
+    public function testHeldCandidatesLeadTheCombinedList(): void
+    {
+        self::assertSame([true, false], array_column($this->listFor($this->app())['available'], 'held'));
     }
 
     /**
@@ -116,16 +127,19 @@ final class PlexPostersTabTest extends AppTestCase
     public function testHeldPostersAreProxiedAndOfferedOnesAreNot(): void
     {
         $payload = $this->listFor($this->app());
+        [$held, $offered] = $payload['available'];
 
-        foreach (array_merge($payload['uploaded'], $payload['server']) as $candidate) {
+        foreach (array_merge($payload['uploaded'], [$held]) as $candidate) {
+            self::assertTrue($candidate['held']);
             self::assertStringStartsWith('/plex-poster-image/', $candidate['thumb']);
-            self::assertArrayHasKey('token', $candidate);
+            self::assertNotSame('', $candidate['ref']);
         }
 
-        self::assertCount(1, $payload['offered']);
-        self::assertSame('https://image.tmdb.org/t/p/original/remote.jpg', $payload['offered'][0]['url']);
-        self::assertSame('https://images.plex.tv/photo?url=remote', $payload['offered'][0]['thumb']);
-        self::assertArrayNotHasKey('token', $payload['offered'][0]);
+        self::assertFalse($offered['held']);
+        // An offered candidate's ref is the provider URL itself, which is what
+        // the pasted-URL apply path takes.
+        self::assertSame('https://image.tmdb.org/t/p/original/remote.jpg', $offered['ref']);
+        self::assertSame('https://images.plex.tv/photo?url=remote', $offered['thumb']);
     }
 
     public function testTheSelectedPosterIsFlagged(): void
@@ -133,7 +147,7 @@ final class PlexPostersTabTest extends AppTestCase
         $payload = $this->listFor($this->app());
 
         self::assertSame([false, true], array_column($payload['uploaded'], 'selected'));
-        self::assertSame([false], array_column($payload['server'], 'selected'));
+        self::assertSame([false, false], array_column($payload['available'], 'selected'));
     }
 
     /**
@@ -155,7 +169,7 @@ final class PlexPostersTabTest extends AppTestCase
 
         self::assertSame('This poster is not linked to a Plex item.', $payload['error']);
         self::assertSame([], $payload['uploaded']);
-        self::assertSame([], $payload['server']);
+        self::assertSame([], $payload['available']);
     }
 
     public function testAnItemWithNoServerHeldPostersIsReportedDistinctly(): void
@@ -191,7 +205,7 @@ final class PlexPostersTabTest extends AppTestCase
         $writer = new FakePlexPosterWriter();
         $app = $this->app([PlexPosterWriter::class => static fn (): PlexPosterWriter => $writer]);
 
-        $token = $this->listFor($app)['uploaded'][0]['token'];
+        $token = $this->listFor($app)['uploaded'][0]['ref'];
 
         $response = $this->postForm($app, '/library/movies/change/plex-poster', [
             'filename' => 'Solaris.jpg',
@@ -223,7 +237,7 @@ final class PlexPostersTabTest extends AppTestCase
 
         $this->postForm($app, '/library/movies/change/plex-poster', [
             'filename' => 'Solaris.jpg',
-            'token' => $inUse['token'],
+            'token' => $inUse['ref'],
         ]);
 
         self::assertSame([], $writer->uploaded);
@@ -238,7 +252,7 @@ final class PlexPostersTabTest extends AppTestCase
     {
         $writer = new FakePlexPosterWriter();
         $app = $this->app([PlexPosterWriter::class => static fn (): PlexPosterWriter => $writer]);
-        $token = $this->listFor($app)['uploaded'][0]['token'];
+        $token = $this->listFor($app)['uploaded'][0]['ref'];
 
         // Same app, but Plex has since dropped every poster for the item.
         $gone = $this->makeSignedInApp(

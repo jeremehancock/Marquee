@@ -212,7 +212,7 @@ Separate state, not a shared "current source", because the two tabs must be able
 to hold results simultaneously: a user comparing what Plex has against what a
 search found should not lose one by looking at the other.
 
-### 6. Everything Plex reports is listed, in three groups
+### 6. Everything Plex reports is listed, in two groups
 
 **Revised during implementation.** The first version excluded the twenty-six
 remote provider URLs as duplicating Find Posters. Two of the three reasons given
@@ -235,10 +235,20 @@ uploads is exactly the failure the grouping was meant to prevent. That is an
 argument about *order*, not about inclusion — so offered artwork is listed last.
 
 ```
-  Uploaded to Plex   9   ← the user's own history        held → proxy → select
-  Stored by Plex     5   ← Plex downloaded/ingested it    held → proxy → select
-  Offered by Plex   26   ← what Plex could fetch         URL → direct → upload
+  Uploaded to Plex   9   the user's own history      held → proxy → select
+  ─────────────────────────────────────────────────────────────────────────
+  Offered by Plex   31   everything else Plex has    held → proxy → select
+                         for the item                 URL → direct → upload
 ```
+
+**Two groups, not three.** Held and offered were split apart at first, on the
+grounds that they behave differently when applied. They do — but that is a
+difference in *mechanism*, and the user is choosing a poster. Splitting on it
+asks them to care about something that changes nothing they are deciding, and it
+implies the two have different sources, which they largely do not: most of what
+Plex has downloaded came from the providers it would otherwise offer. Held
+candidates are merely ordered first inside the combined group, so the ones
+needing no upload come up first.
 
 The classifier is `key` starts with `/`. That is the same property the proxy's
 guard enforces, so a candidate classified as held is by construction one the

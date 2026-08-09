@@ -15,10 +15,10 @@ walk back through.
 - The change-poster dialog gains a fourth tab, **Plex Posters**, listing every
   poster Plex reports for the linked item. Tab order becomes
   Upload | From URL | **Plex Posters** | Find Posters.
-- Candidates are split into three labelled groups, most to least particular to
-  the user: **Uploaded to Plex** (their own history) first, then **Found by
-  Plex** (what the server already holds otherwise), then **Offered by Plex**
-  (artwork Plex knows of but has not downloaded). Plex reports which is which.
+- Candidates are split into two labelled groups: **Uploaded to Plex** — the
+  user's own history — and **Offered by Plex**, everything else Plex reports for
+  the item. Whether Plex already holds a given image decides how applying works,
+  but it is not surfaced: a user is choosing a poster, not a mechanism.
 - The poster Plex currently has selected is marked in the grid.
 - Choosing a candidate uses the existing preview → "Use this poster" → confirm
   flow unchanged, then stores the poster, makes it the item's poster in Plex,

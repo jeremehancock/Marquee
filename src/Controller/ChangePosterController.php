@@ -149,8 +149,14 @@ final class ChangePosterController
 
         return $this->json($response, [
             'uploaded' => $this->candidates($listing->uploaded()),
-            'server' => $this->candidates($listing->server()),
-            'offered' => $this->offered($listing->offered()),
+            // One list, deliberately. Whether Plex already has the bytes decides
+            // how applying works, but it is not a distinction a user is choosing
+            // between — they are picking a poster. The two are still ordered
+            // held-first, so the ones that need no upload come up first.
+            'available' => array_merge(
+                $this->candidates($listing->server()),
+                $this->offered($listing->offered()),
+            ),
             'error' => $this->plexPosterMessageFor($listing->outcome),
         ]);
     }
@@ -188,22 +194,26 @@ final class ChangePosterController
     }
 
     /**
-     * A candidate as the grid needs it: an opaque, signed address for the image
-     * and nothing that discloses where on Plex it lives.
+     * A candidate Plex holds, as the grid needs it: an opaque, signed address
+     * for the image and nothing that discloses where on Plex it lives.
+     *
+     * `ref` is the signed token standing for the full-resolution path, so
+     * applying sends back the same opaque value the grid was given.
      *
      * @param list<PlexPosterCandidate> $candidates
      *
-     * @return list<array<string, string|bool>>
+     * @return list<array{ref: string, thumb: string, selected: bool, held: bool}>
      */
     private function candidates(array $candidates): array
     {
         return array_map(
             fn (PlexPosterCandidate $c): array => [
-                // The token stands in for the full-resolution path, so applying
-                // sends back the same opaque value the grid was given.
-                'token' => $this->signedPaths->sign($c->path),
+                'ref' => $this->signedPaths->sign($c->path),
                 'thumb' => '/plex-poster-image/' . $this->signedPaths->sign($c->thumbPath),
                 'selected' => $c->selected,
+                // Says which of the two ways this candidate is applied, since
+                // the grid mixes both. Never shown to the user.
+                'held' => true,
             ],
             $candidates,
         );
@@ -216,17 +226,21 @@ final class ChangePosterController
      * no Plex credential involved, so these behave exactly like an address a
      * user pasted into the From URL tab — which is also how applying one works.
      *
+     * `ref` is the provider URL itself — the same field a held candidate carries
+     * a token in, so one grid renders both and one handler applies either.
+     *
      * @param list<PlexPosterCandidate> $candidates
      *
-     * @return list<array<string, string|bool>>
+     * @return list<array{ref: string, thumb: string, selected: bool, held: bool}>
      */
     private function offered(array $candidates): array
     {
         return array_map(
             static fn (PlexPosterCandidate $c): array => [
-                'url' => $c->path,
+                'ref' => $c->path,
                 'thumb' => $c->thumbPath,
                 'selected' => $c->selected,
+                'held' => false,
             ],
             $candidates,
         );
