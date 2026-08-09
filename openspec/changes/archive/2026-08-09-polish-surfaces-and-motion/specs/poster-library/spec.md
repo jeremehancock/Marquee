@@ -94,12 +94,12 @@ coordinate space the pinned toolbar and the fixed bottom tab bar resolve against
 - **AND** the search field, the inline sort control, and every category tab remain
   usable without scrolling back to the top
 
-#### Scenario: Pinned toolbar subdues the posters passing under it
+#### Scenario: Pinned toolbar hides the posters passing under it
 - **WHEN** the gallery is scrolled on a narrow screen with the toolbar pinned
-- **THEN** posters scrolling past are blurred and dimmed behind the toolbar rather
-  than appearing at full strength, including at the left and right edges of the
-  viewport
-- **AND** the search field and the sort trigger remain fully legible over them
+- **THEN** no poster passing behind the toolbar is individually recognisable, at
+  any point across the full width of the viewport including its left and right
+  edges
+- **AND** the search field and the sort trigger remain fully legible over it
 
 #### Scenario: Pinned desktop controls hide the posters passing under them
 - **WHEN** the gallery is scrolled on a pointer/desktop-width screen

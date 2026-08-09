@@ -58,11 +58,11 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Fast, modern UI** — search as you type, background updates without full page
   reloads, and a mobile experience built around trays: an actions menu and a
   full-size poster action sheet keep the phone view focused on your posters,
-  with search and sort pinned to the top as you scroll. The header, the pinned
-  controls, and the phone tab bar are translucent, so your posters stay visible
-  passing behind them, and dialogs, trays, buttons, and cards all animate rather
-  than snap. If your system asks for reduced motion, Marquee drops the movement
-  and keeps the progress indicators.
+  with search and sort pinned to the top as you scroll. On a phone the header,
+  the toolbar, and the tab bar are translucent, so your posters stay visible
+  passing behind them; dialogs, trays, buttons, and poster cards all animate
+  rather than snap. If your system asks for reduced motion, Marquee drops the
+  movement and keeps the progress indicators.
 - **Installable PWA** — add it to your phone or desktop home screen.
 
 ## Quick start (Docker Compose)
