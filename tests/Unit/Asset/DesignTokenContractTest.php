@@ -121,6 +121,19 @@ final class DesignTokenContractTest extends TestCase
                 continue;
             }
 
+            // `none` is not a shadow written by hand — it is a shadow taken away,
+            // and taking one away is never the mistake this test looks for. A rule
+            // that flattens a surface for one context (a panel inside a tray, where
+            // the tray's own surface shows through) has to remove the elevation
+            // that traced its edge, or the shadow outlines a rectangle that is no
+            // longer painted. Requiring a token here would ask for depth on a
+            // surface that has been told not to have any, and the allowlists below
+            // would have to call the removal a glow or an upward cast, which it is
+            // not.
+            if (trim($value) === 'none') {
+                continue;
+            }
+
             // Two kinds of exception, each for a reason the scale cannot express.
             //
             // A status light is a spread-only ring at zero offset — a glow, not

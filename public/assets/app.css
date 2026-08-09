@@ -855,6 +855,43 @@ h1 {
     margin-bottom: 8px;
 }
 
+/* The orphan count and its Delete all button. Laid out like .toolbar above and
+   deliberately not sharing its class, because what this bar needs is everything
+   .toolbar does at phone width and none of what it becomes there.
+   TraySurfaceTest guards the absences, which are the whole point of the rule:
+
+   No `position` or `z-index`. This markup is rendered into the orphans tray as
+   well as onto /orphans, and a tray is not a page. Pinned, it inherited
+   `z-index: 30` — above `.sheet .overlay`'s 5, which is itself deliberately low
+   so a progress overlay covers the tray rather than the screen. The bar was
+   therefore painted *over* the "Checking Plex for orphans…" spinner, and a
+   backdrop filter samples only what is behind it, so the overlay's dim and blur
+   never reached the one element sitting on top of it. Only a reopen showed it:
+   the first open scans an empty body, a reopen leaves the previous result
+   standing while it rescans. Declaring no stacking order dissolves that rather
+   than re-tuning it — there is no number left to get wrong.
+
+   No `background`. --chrome-tint is the page's colour; over a tray it painted a
+   band of page behind the count and the button instead of letting --surface
+   through.
+
+   No negative margin. The bleed .toolbar carries is solved against .container's
+   14px gutter, and .sheet__body pads 16px — close enough to look intentional and
+   wrong enough to leave a 2px channel of tray surface down each edge. With no
+   bleed the bar simply sits inside whichever padding it finds.
+
+   Not pinned anywhere, including on /orphans where it used to be by accident.
+   The list has no search or sort to keep in reach, and Delete all orphans is not
+   a destructive control to hold permanently under the thumb. */
+.orphans__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
 .search {
     display: flex;
     align-items: center;
@@ -2499,9 +2536,21 @@ h1 {
        choices become selectable pills and the libraries become tappable rows,
        instead of bare radio buttons and checkboxes. Scoped to a tray body so the
        desktop /plex page keeps its own form styling. */
+
+    /* The reset has to be complete, and `box-shadow` is the line that looks
+       removable. A panel is a surface — background, border, radius and the
+       --elev-2 that traces its edge — and this rule flattens it so the tray's own
+       surface shows through instead. Leave the shadow behind and it goes on
+       drawing the outline of a rectangle that is no longer painted: a halo around
+       nothing, which reads as a rendering fault rather than as depth. The import
+       form and the orphans empty state are both hit, and the empty state shows it
+       worst — one line of text and a button, with daylight between the halo and
+       any real edge. See visual-design: elevation is drawn only where a surface
+       is drawn. */
     .sheet__body .panel {
         background: none;
         border: none;
+        box-shadow: none;
         padding: 0;
     }
 
