@@ -20,10 +20,24 @@
 
     /* Elevation. Five tiers, keyed to the z-index ladder documented in the Modal
        section (pinned controls 30, tab bar 40, trays 50, dialogs 55, viewer 60,
-       toast 80, tooltip 100). A surface's tier MUST agree with where it sits on
-       that ladder, or depth and stacking tell the reader different stories —
-       ElevationLadderTest asserts the agreement, because picking a shadow by eye
-       is exactly how they drift apart.
+       toast 80, tooltip 100, and the progress overlay at 100 — except inside a
+       tray, where it is deliberately demoted to 5 so it covers the tray rather
+       than the screen). A surface's tier MUST agree with where it sits on that
+       ladder, or depth and stacking tell the reader different stories.
+
+       DesignTokenContractTest::testElevationAgreesWithTheStackingLadder asserts
+       it, because picking a shadow by eye is exactly how the two drift apart.
+
+       Know what that test does and does not cover before trusting it. It pins the
+       tiers in order against each other — a dialog above a panel, a tooltip above
+       a dialog, the progress box level with a dialog — but it never reads a
+       z-index out of this file; the ladder above is transcribed into the test's
+       own assertions rather than derived from it. Change a z-index without
+       changing a shadow and nothing fails. That is a deliberate limit, not an
+       oversight: a shadow and the z-index it should agree with almost never sit
+       on the same element (.modal stacks, .modal__panel casts), so the pairs
+       would have to be hand-written anyway, and only four surfaces carry both.
+       Moving something on the ladder means re-reading the tiers by hand.
 
        Two layers each: a tight contact shadow that reads as the edge lifting off
        the page, and a wide ambient one that reads as the distance. A single
