@@ -8,7 +8,7 @@
         <button type="button" class="btn" data-action="recheck">Re-check for orphans</button>
     </div>
 {% else %}
-    <div class="toolbar" data-count="{{ orphans|length }}">
+    <div class="orphans__bar" data-count="{{ orphans|length }}">
         <p class="stats">{{ orphans|length }} orphaned poster{{ orphans|length == 1 ? '' : 's' }}.</p>
         <button type="button" class="btn btn--danger" data-action="delete-all">Delete all orphans</button>
     </div>

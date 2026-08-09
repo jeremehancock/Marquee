@@ -454,8 +454,8 @@
                         .then(function (html) {
                             target.innerHTML = html;
                             initImages(target);
-                            var toolbar = target.querySelector('.toolbar');
-                            self.count = toolbar ? (parseInt(toolbar.getAttribute('data-count'), 10) || 0) : 0;
+                            var bar = target.querySelector('.orphans__bar');
+                            self.count = bar ? (parseInt(bar.getAttribute('data-count'), 10) || 0) : 0;
                             var del = target.querySelector('[data-action="delete-all"]');
                             if (del) { del.addEventListener('click', function () { self.confirmOpen = true; }); }
                         });
@@ -596,10 +596,10 @@
                     if (card) { card.remove(); }
 
                     this.count = Math.max(0, this.count - 1);
-                    var toolbar = target.querySelector('.toolbar');
-                    if (toolbar) {
-                        toolbar.setAttribute('data-count', String(this.count));
-                        var stats = toolbar.querySelector('.stats');
+                    var bar = target.querySelector('.orphans__bar');
+                    if (bar) {
+                        bar.setAttribute('data-count', String(this.count));
+                        var stats = bar.querySelector('.stats');
                         if (stats) {
                             stats.textContent = this.count + ' orphaned poster' + (this.count === 1 ? '' : 's') + '.';
                         }
