@@ -17,10 +17,9 @@ final class PlexPosterListing
 
     /**
      * A list that came back empty is {@see PlexPosterOutcome::None}, not an
-     * empty success. An item can hold nothing of its own while Plex still
-     * offers remote provider artwork for it, and the two read identically to a
-     * user staring at a grid with no posters in it — so the distinction is
-     * made here rather than left to the template.
+     * empty success — the two read identically to a user staring at a grid with
+     * no posters in it, so the distinction is made here rather than left to the
+     * template.
      */
     public static function of(PlexPosterList $posters): self
     {
@@ -48,5 +47,13 @@ final class PlexPosterListing
     public function server(): array
     {
         return $this->posters?->server() ?? [];
+    }
+
+    /**
+     * @return list<PlexPosterCandidate>
+     */
+    public function offered(): array
+    {
+        return $this->posters?->offered() ?? [];
     }
 }

@@ -183,9 +183,10 @@ picked, and the `thumb` field is still `locked="1"` (check it the same way as
 
 **Fail:** the count grew by one — applying uploaded instead of selecting.
 
-Only posters held on the server are listed. Plex also offers remote artwork
-straight from TMDB, fanart.tv, and TheTVDB for most items; that is Find Posters'
-territory and is filtered out here.
+This holds for the **Uploaded to Plex** and **Found by Plex** groups, whose
+images are already on the server. **Offered by Plex** is artwork Plex has not
+downloaded — applying one of those *does* upload, and the count *should* grow by
+one. Test it against the first two groups.
 
 ---
 

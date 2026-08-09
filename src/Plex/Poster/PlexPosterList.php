@@ -27,15 +27,19 @@ final class PlexPosterList
      * Read Plex's `/library/metadata/{id}/posters` answer.
      *
      * Plex mixes two unlike things in it: images stored on the server, given a
-     * server-relative path, and remote provider artwork it is merely offering,
-     * given an absolute URL to another host. Only the first kind is kept.
+     * server-relative path, and remote provider artwork it is only offering,
+     * given an absolute URL to another host. Both are kept, classified by which
+     * they are, because that decides everything downstream — how the image is
+     * shown, and how applying it reaches Plex.
      *
-     * The test is that the path is rooted at `/`, which is the same property
-     * the image proxy enforces on a signed token. Sharing one rule means a
-     * candidate that survives this filter is by construction one the proxy can
-     * serve, and the two cannot drift apart. Excluding the rest also keeps this
-     * tab from restating Find Posters, which already aggregates and *ranks* the
-     * same providers.
+     * A server-relative path is exactly what the image proxy will accept, so a
+     * candidate classified as held is by construction one the proxy can serve;
+     * the classification and the proxy's guard are the same rule and cannot
+     * drift apart.
+     *
+     * An offered candidate must be an ordinary web URL, since it goes into the
+     * page as an image address and is applied as one. Anything else Plex might
+     * report is dropped rather than trusted.
      */
     public static function fromXml(SimpleXMLElement $xml): self
     {
@@ -43,7 +47,9 @@ final class PlexPosterList
 
         foreach ($xml->Photo as $photo) {
             $path = (string) $photo['key'];
-            if (!str_starts_with($path, '/')) {
+            $held = str_starts_with($path, '/');
+
+            if (!$held && !self::isWebUrl($path)) {
                 continue;
             }
 
@@ -52,14 +58,17 @@ final class PlexPosterList
 
             $candidates[] = new PlexPosterCandidate(
                 path: $path,
-                // A server-held poster normally reports the same path twice.
-                // Falling back keeps a candidate usable if Plex omits `thumb`
-                // rather than dropping it from a list it belongs in.
-                thumbPath: str_starts_with($thumb, '/') ? $thumb : $path,
+                // A held poster normally reports the same path twice, and an
+                // offered one usually reports a smaller preview. Either way a
+                // thumb that is not usable falls back to the full image rather
+                // than dropping a candidate from a list it belongs in.
+                thumbPath: self::usableThumb($thumb, $held) ? $thumb : $path,
                 posterKey: $posterKey,
-                origin: str_starts_with($posterKey, 'upload://')
-                    ? PlexPosterOrigin::Uploaded
-                    : PlexPosterOrigin::Server,
+                origin: match (true) {
+                    !$held => PlexPosterOrigin::Offered,
+                    str_starts_with($posterKey, 'upload://') => PlexPosterOrigin::Uploaded,
+                    default => PlexPosterOrigin::Server,
+                },
                 // Exactly one entry carries "1"; an item whose poster was never
                 // explicitly chosen simply has none, which reads as no marker.
                 selected: (string) $photo['selected'] === '1',
@@ -67,6 +76,21 @@ final class PlexPosterList
         }
 
         return new self($candidates);
+    }
+
+    /**
+     * A held poster's thumb must stay on the server, because it is served
+     * through the proxy. An offered one's must be a web URL, because it is put
+     * straight into the page.
+     */
+    private static function usableThumb(string $thumb, bool $held): bool
+    {
+        return $held ? str_starts_with($thumb, '/') : self::isWebUrl($thumb);
+    }
+
+    private static function isWebUrl(string $value): bool
+    {
+        return str_starts_with($value, 'https://') || str_starts_with($value, 'http://');
     }
 
     public function isEmpty(): bool
@@ -86,7 +110,7 @@ final class PlexPosterList
     public function withPath(string $path): ?PlexPosterCandidate
     {
         foreach ($this->candidates as $candidate) {
-            if ($candidate->path === $path) {
+            if ($candidate->origin->isHeldOnServer() && $candidate->path === $path) {
                 return $candidate;
             }
         }
@@ -112,6 +136,16 @@ final class PlexPosterList
     public function server(): array
     {
         return $this->ofOrigin(PlexPosterOrigin::Server);
+    }
+
+    /**
+     * Artwork Plex knows about but has not downloaded.
+     *
+     * @return list<PlexPosterCandidate>
+     */
+    public function offered(): array
+    {
+        return $this->ofOrigin(PlexPosterOrigin::Offered);
     }
 
     /**

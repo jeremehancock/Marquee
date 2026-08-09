@@ -65,31 +65,64 @@ final class PlexPosterListTest extends TestCase
             XML);
     }
 
-    public function testKeepsOnlyServerHeldPosters(): void
+    public function testClassifiesEveryPosterPlexReports(): void
     {
-        // Eight in, three remote dropped.
-        self::assertCount(5, $this->realResponse()->candidates);
+        $list = $this->realResponse();
+
+        self::assertCount(8, $list->candidates);
+        self::assertCount(2, $list->uploaded());
+        self::assertCount(3, $list->server());
+        self::assertCount(3, $list->offered());
     }
 
-    public function testDropsRemoteProviderArtwork(): void
+    /**
+     * The property that classifies a poster as held is the same one the image
+     * proxy enforces, so a held candidate is by construction one the proxy can
+     * serve — and an offered one is by construction one it would refuse.
+     */
+    public function testHeldCandidatesAreProxyableAndOfferedOnesAreNot(): void
     {
-        foreach ($this->realResponse()->candidates as $candidate) {
+        $signer = new \App\Plex\SignedImagePath('secret');
+        $list = $this->realResponse();
+
+        foreach (array_merge($list->uploaded(), $list->server()) as $candidate) {
             self::assertStringStartsWith('/', $candidate->path);
             self::assertStringStartsWith('/', $candidate->thumbPath);
+            self::assertSame($candidate->path, $signer->pathFor($signer->sign($candidate->path)));
+        }
+
+        foreach ($list->offered() as $candidate) {
+            self::assertStringStartsWith('https://', $candidate->path);
+            self::assertNull($signer->pathFor($signer->sign($candidate->path)));
         }
     }
 
     /**
-     * The property the filter tests is the same one the image proxy enforces, so
-     * a candidate that survives here is by construction one the proxy can serve.
+     * An offered candidate goes into the page as an image address and is applied
+     * as one, so anything that is not an ordinary web URL is dropped rather than
+     * trusted.
      */
-    public function testEveryKeptCandidateIsProxyable(): void
+    public function testDropsAnOfferedCandidateThatIsNotAWebUrl(): void
     {
-        $signer = new \App\Plex\SignedImagePath('secret');
+        $list = $this->list(
+            '<Photo key="javascript:alert(1)" ratingKey="javascript:alert(1)"'
+            . ' thumb="javascript:alert(1)" selected="0" />'
+            . '<Photo key="ftp://host/p.jpg" ratingKey="ftp://host/p.jpg" thumb="ftp://host/p.jpg" selected="0" />'
+        );
 
-        foreach ($this->realResponse()->candidates as $candidate) {
-            self::assertSame($candidate->path, $signer->pathFor($signer->sign($candidate->path)));
-        }
+        self::assertTrue($list->isEmpty());
+    }
+
+    /**
+     * Offered artwork keeps its smaller preview — fanart.tv and TheTVDB supply
+     * real ones, and Plex proxies TMDB's through its own resizer.
+     */
+    public function testOfferedCandidatesKeepTheirRemotePreview(): void
+    {
+        $offered = $this->realResponse()->offered();
+
+        self::assertSame('https://assets.fanart.tv/preview/the-burbs-521caeee.jpg', $offered[1]->thumbPath);
+        self::assertSame('https://assets.fanart.tv/fanart/the-burbs-521caeee.jpg', $offered[1]->path);
     }
 
     public function testUploadsAreRecognisedByTheirRatingKey(): void
@@ -104,12 +137,27 @@ final class PlexPosterListTest extends TestCase
 
     /**
      * The second group holds three unlike things — an agent download, a local
-     * poster file, and an image embedded in the media. All are "on the server
-     * but not uploaded", which is the only distinction the tab draws.
+     * poster file, and an image embedded in the media. All are "held but not
+     * uploaded", which is the only distinction that group draws.
      */
     public function testEverythingElseServerHeldGoesInTheSecondGroup(): void
     {
-        self::assertCount(3, $this->realResponse()->server());
+        foreach ($this->realResponse()->server() as $candidate) {
+            self::assertSame(PlexPosterOrigin::Server, $candidate->origin);
+            self::assertTrue($candidate->origin->isHeldOnServer());
+        }
+    }
+
+    /**
+     * Applying resolves a signed path back to a candidate, and only a held one
+     * can be selected — an offered poster is not on the server to select.
+     */
+    public function testOnlyHeldCandidatesResolveByPath(): void
+    {
+        $list = $this->realResponse();
+
+        self::assertNotNull($list->withPath($list->uploaded()[0]->path));
+        self::assertNull($list->withPath($list->offered()[0]->path));
     }
 
     public function testTheSelectedPosterIsMarked(): void
@@ -135,14 +183,17 @@ final class PlexPosterListTest extends TestCase
         }
     }
 
-    public function testAnItemOfferingOnlyRemoteArtworkReadsAsEmpty(): void
+    public function testAnItemHoldingNothingStillOffersArtwork(): void
     {
         $list = $this->list(
             '<Photo key="https://image.tmdb.org/x.jpg" ratingKey="https://image.tmdb.org/x.jpg"'
             . ' thumb="https://images.plex.tv/photo?url=x" selected="0" provider="tmdb" />'
         );
 
-        self::assertTrue($list->isEmpty());
+        self::assertFalse($list->isEmpty());
+        self::assertSame([], $list->uploaded());
+        self::assertSame([], $list->server());
+        self::assertCount(1, $list->offered());
     }
 
     public function testAnEmptyContainerIsEmpty(): void

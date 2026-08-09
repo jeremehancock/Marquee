@@ -397,9 +397,16 @@ again. The tab lists your uploads first, and marks the one Plex is using now.
 Pick one and Marquee stores it, points Plex at it, and locks it — without
 uploading a duplicate, since Plex already has the image.
 
-Only posters held on your server are listed. Plex also offers artwork straight
-from TMDB, fanart.tv, and TheTVDB for most items, but that is what Find Posters
-already searches — and it ranks it better.
+Below your uploads sit two more groups: **Found by Plex** — artwork already on
+your server, usually what the item looked like before you touched it — and
+**Offered by Plex**, artwork Plex knows about but hasn't downloaded. That last
+group overlaps Find Posters, though not entirely: Plex also offers IMDb and
+Gracenote artwork, which the poster search doesn't carry, and everything Plex
+lists is tied to that exact item with no title matching involved.
+
+Applying from the first two groups adds nothing to Plex — the image is already
+there, so Marquee just points Plex at it. Applying from **Offered by Plex**
+uploads, because Plex doesn't have that image yet.
 
 **"Find Posters" isn't returning many results for my library**
 Find Posters is most accurate when Plex has matched an item to a known title,

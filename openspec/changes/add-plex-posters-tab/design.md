@@ -212,28 +212,45 @@ Separate state, not a shared "current source", because the two tabs must be able
 to hold results simultaneously: a user comparing what Plex has against what a
 search found should not lose one by looking at the other.
 
-### 6. Only server-held posters are listed
+### 6. Everything Plex reports is listed, in three groups
 
-The twenty-six remote provider URLs are excluded. Three reasons, in order of
-weight:
+**Revised during implementation.** The first version excluded the twenty-six
+remote provider URLs as duplicating Find Posters. Two of the three reasons given
+for that were weaker than they looked:
 
-- **They duplicate Find Posters.** They are TMDB, fanart.tv, and TheTVDB
-  artwork — the providers posteria.app already aggregates *and ranks*. Listing
-  them here offers the same images with less ordering information.
-- **They bury the reason the tab exists.** Twenty-six stock posters above nine
-  uploads is the exact failure the grouping was meant to prevent.
-- **They would need a second apply path and a second image path.** Remote
-  candidates cannot go through the proxy — `SignedImagePath` refuses any path
-  not starting with `/`, deliberately, so a signed token can never aim the proxy
-  at another host. Supporting them means loading those thumbs directly in the
-  browser and applying them via `change/url`, i.e. two of everything.
+- ~~*They duplicate Find Posters.*~~ Mostly, but not entirely. Plex also offers
+  **IMDb** (`m.media-amazon.com`) and **Gracenote** (`metadata-static.plex.tv`)
+  artwork, and posteria.app carries neither. Plex's list is also bound to the
+  rating key, with no title-matching step — the failure mode the stale-TMDB-id
+  correction in `ChangePosterController` exists to repair.
+- ~~*They would need a second apply path and a second image path.*~~ They need
+  no new server code at all. An offered candidate is a URL, which is what the
+  From URL tab already posts to `change/url`; the client calls the existing
+  `openPreview(url, 'url')` and the rest is unchanged. Find Posters already
+  loads remote thumbnails directly into the page, so that is no new precedent
+  either.
 
-The inclusion test is therefore `key` starts with `/`. That is the same property
-the proxy's guard already enforces, so a listed candidate is by construction one
-the proxy can serve — the rule and the guard cannot drift apart.
+The one reason that held is **burial**: twenty-six stock posters above nine
+uploads is exactly the failure the grouping was meant to prevent. That is an
+argument about *order*, not about inclusion — so offered artwork is listed last.
 
-*Alternative considered:* list everything in three groups. Rejected above. If it
-is ever wanted, it is additive and the remote branch is the only new work.
+```
+  Uploaded to Plex   9   ← the user's own history        held → proxy → select
+  Found by Plex      5   ← what Plex had before them     held → proxy → select
+  Offered by Plex   26   ← what Plex could fetch         URL → direct → upload
+```
+
+The classifier is `key` starts with `/`. That is the same property the proxy's
+guard enforces, so a candidate classified as held is by construction one the
+proxy can serve and an offered one is by construction one it would refuse — the
+rule and the guard cannot drift apart. An offered address must additionally be
+`http(s)`, since it goes into the page as an image source; anything else is
+dropped rather than trusted.
+
+The asymmetry in how the groups apply is real and worth stating plainly rather
+than smoothing over: applying a held poster adds nothing to Plex, applying an
+offered one uploads. That is the difference between Plex having the image and
+Plex merely knowing where it is.
 
 ## Risks / Trade-offs
 
@@ -276,4 +293,6 @@ All resolved during implementation:
 
 Raised and settled after the real response was seen:
 
-- ~~Should remote provider URLs be listed?~~ No. Decision 6.
+- ~~Should remote provider URLs be listed?~~ Yes, as a third group, last.
+  Decision 6 — revised after the first answer (no) turned out to rest on two
+  claims that did not survive checking.

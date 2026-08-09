@@ -85,7 +85,7 @@ final class PlexPostersTabTest extends AppTestCase
     /**
      * @param App<\Psr\Container\ContainerInterface|null> $app
      *
-     * @return array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, error: string|null}
+     * @return array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, offered: list<array{url: string, thumb: string, selected: bool}>, error: string|null}
      */
     private function listFor(App $app, string $filename = 'Solaris.jpg'): array
     {
@@ -95,7 +95,7 @@ final class PlexPostersTabTest extends AppTestCase
         $payload = json_decode((string) $response->getBody(), true);
         self::assertIsArray($payload);
 
-        /** @var array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, error: string|null} $payload */
+        /** @var array{uploaded: list<array{token: string, thumb: string, selected: bool}>, server: list<array{token: string, thumb: string, selected: bool}>, offered: list<array{url: string, thumb: string, selected: bool}>, error: string|null} $payload */
         return $payload;
     }
 
@@ -108,15 +108,24 @@ final class PlexPostersTabTest extends AppTestCase
         self::assertCount(1, $payload['server']);
     }
 
-    public function testTheRemoteProviderPosterIsNotListed(): void
+    /**
+     * Held posters are addressed through the proxy and carry a token; offered
+     * ones are plain provider URLs with no token, because there is nothing on
+     * the Plex server to address and no credential involved.
+     */
+    public function testHeldPostersAreProxiedAndOfferedOnesAreNot(): void
     {
         $payload = $this->listFor($this->app());
-        $all = array_merge($payload['uploaded'], $payload['server']);
 
-        self::assertCount(3, $all);
-        foreach ($all as $candidate) {
+        foreach (array_merge($payload['uploaded'], $payload['server']) as $candidate) {
             self::assertStringStartsWith('/plex-poster-image/', $candidate['thumb']);
+            self::assertArrayHasKey('token', $candidate);
         }
+
+        self::assertCount(1, $payload['offered']);
+        self::assertSame('https://image.tmdb.org/t/p/original/remote.jpg', $payload['offered'][0]['url']);
+        self::assertSame('https://images.plex.tv/photo?url=remote', $payload['offered'][0]['thumb']);
+        self::assertArrayNotHasKey('token', $payload['offered'][0]);
     }
 
     public function testTheSelectedPosterIsFlagged(): void

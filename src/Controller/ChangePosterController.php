@@ -150,6 +150,7 @@ final class ChangePosterController
         return $this->json($response, [
             'uploaded' => $this->candidates($listing->uploaded()),
             'server' => $this->candidates($listing->server()),
+            'offered' => $this->offered($listing->offered()),
             'error' => $this->plexPosterMessageFor($listing->outcome),
         ]);
     }
@@ -202,6 +203,29 @@ final class ChangePosterController
                 // sends back the same opaque value the grid was given.
                 'token' => $this->signedPaths->sign($c->path),
                 'thumb' => '/plex-poster-image/' . $this->signedPaths->sign($c->thumbPath),
+                'selected' => $c->selected,
+            ],
+            $candidates,
+        );
+    }
+
+    /**
+     * Artwork Plex has not downloaded, as plain URLs.
+     *
+     * No token and no proxy: there is nothing on the Plex server to address and
+     * no Plex credential involved, so these behave exactly like an address a
+     * user pasted into the From URL tab — which is also how applying one works.
+     *
+     * @param list<PlexPosterCandidate> $candidates
+     *
+     * @return list<array<string, string|bool>>
+     */
+    private function offered(array $candidates): array
+    {
+        return array_map(
+            static fn (PlexPosterCandidate $c): array => [
+                'url' => $c->path,
+                'thumb' => $c->thumbPath,
                 'selected' => $c->selected,
             ],
             $candidates,

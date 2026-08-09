@@ -844,7 +844,7 @@
                 // to hold results at the same time: someone comparing what their
                 // server already has against what a search turned up should not
                 // lose one by looking at the other.
-                plexPosters: { loading: false, error: '', uploaded: [], server: [] },
+                plexPosters: { loading: false, error: '', uploaded: [], server: [], offered: [] },
                 // The full-screen step every tab commits through: inspect the
                 // image, offer to use it, then confirm. `source` says where the
                 // image came from and so which request applying it makes;
@@ -1092,7 +1092,7 @@
                         linked: !!linked,
                     };
                     this.finder = { loading: false, error: '', notice: '', results: [] };
-                    this.plexPosters = { loading: false, error: '', uploaded: [], server: [] };
+                    this.plexPosters = { loading: false, error: '', uploaded: [], server: [], offered: [] };
                     this.closePreview();
                     // The file and URL inputs are DOM state that no Alpine
                     // binding owns, so dismissing the dialog leaves whatever was
@@ -1115,20 +1115,21 @@
                 // partial, so there is one message line and no notice line.
                 loadPlexPosters: function () {
                     var self = this;
-                    this.plexPosters = { loading: true, error: '', uploaded: [], server: [] };
+                    this.plexPosters = { loading: true, error: '', uploaded: [], server: [], offered: [] };
                     fetch('/library/' + this.change.category + '/plex-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
-                        .then(function (r) { return r.ok ? r.json() : { uploaded: [], server: [], error: 'Could not reach Plex.' }; })
+                        .then(function (r) { return r.ok ? r.json() : { uploaded: [], server: [], offered: [], error: 'Could not reach Plex.' }; })
                         .then(function (d) {
                             self.plexPosters = {
                                 loading: false,
                                 error: d.error || '',
                                 uploaded: d.uploaded || [],
                                 server: d.server || [],
+                                offered: d.offered || [],
                             };
                         })
                         .catch(function () {
-                            self.plexPosters = { loading: false, error: 'Could not reach Plex.', uploaded: [], server: [] };
+                            self.plexPosters = { loading: false, error: 'Could not reach Plex.', uploaded: [], server: [], offered: [] };
                         });
                 },
                 // A Plex candidate previews at full resolution through the same
@@ -1137,6 +1138,15 @@
                 // path client-side.
                 openPlexPreview: function (candidate) {
                     this.openPreview('/plex-poster-image/' + candidate.token, 'plex', null, candidate.token);
+                },
+                // Artwork Plex has not downloaded is a plain URL, so it takes
+                // the same route a pasted address does — previewed from its own
+                // source and applied by the server fetching it. Applying one
+                // *does* upload to Plex, because Plex does not have the image;
+                // that is the difference between offering a poster and holding
+                // one, not an inconsistency with the groups above.
+                openOfferedPreview: function (candidate) {
+                    this.openPreview(candidate.url, 'url', null);
                 },
                 findPosters: function () {
                     var self = this;

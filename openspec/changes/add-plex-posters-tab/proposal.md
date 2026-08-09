@@ -12,21 +12,24 @@ walk back through.
 
 ## What Changes
 
-- The change-poster dialog gains a fourth tab, **Plex Posters**, listing the
-  posters Plex itself holds for the linked item. Tab order becomes
+- The change-poster dialog gains a fourth tab, **Plex Posters**, listing every
+  poster Plex reports for the linked item. Tab order becomes
   Upload | From URL | **Plex Posters** | Find Posters.
-- Candidates are split into two labelled groups: posters previously **uploaded**
-  to the item (the user's own history) first, then artwork Plex's **metadata
-  agent** fetched on its own. Plex reports which is which.
+- Candidates are split into three labelled groups, most to least particular to
+  the user: **Uploaded to Plex** (their own history) first, then **Found by
+  Plex** (what the server already holds otherwise), then **Offered by Plex**
+  (artwork Plex knows of but has not downloaded). Plex reports which is which.
 - The poster Plex currently has selected is marked in the grid.
 - Choosing a candidate uses the existing preview → "Use this poster" → confirm
   flow unchanged, then stores the poster, makes it the item's poster in Plex,
   and locks it — the same end state the other three tabs reach.
-- Because the poster is already on the server, applying **selects** it rather
-  than uploading it back. Plex never prunes an item's posters, so uploading one
-  it already holds would leave a duplicate behind.
-- Candidate images are served through a signed-token proxy. Plex image URLs
-  carry the token, which must never reach the browser.
+- For the two held groups, applying **selects** the poster rather than uploading
+  it back. Plex never prunes an item's posters, so uploading one it already
+  holds would leave a duplicate behind. Offered artwork is uploaded, because
+  Plex does not have that image.
+- Held candidate images are served through a signed-token proxy: Plex image URLs
+  carry the token, which must never reach the browser. Offered ones are plain
+  provider URLs with no credential involved, and load directly.
 - The tab reports two failure states in the manner Find Posters already uses:
   Plex holds no posters for this item (final), and Plex could not be reached
   (transient). A poster with no Plex mapping gets a disabled tab with an

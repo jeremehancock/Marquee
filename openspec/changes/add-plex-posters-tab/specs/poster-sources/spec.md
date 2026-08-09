@@ -41,50 +41,60 @@ as which provider a poster search matched.
 - **THEN** it searches and reports exactly as it did before, with no Plex-held
   posters mixed into its results
 
-### Requirement: Only posters held on the Plex server are listed
+### Requirement: Posters are distinguished by whether Plex holds them
 Plex answers for an item's posters with two unlike things: images stored on the
-server itself, and remote provider URLs the server is merely offering. The tab
-SHALL list only the first kind.
+server itself, given a server-relative path; and remote provider artwork the
+server only knows about, given an absolute URL to another host. The system SHALL
+list both and SHALL distinguish them, because that single property decides
+everything downstream.
 
-A poster is held on the server when Plex gives it a server-relative path; a
-remote offering is given an absolute URL to another host. That single property
-SHALL decide inclusion, because it is also what the image proxy can serve — a
-candidate this tab shows is by construction one the application can fetch with
-the server's own credentials, and a candidate it excludes is one the proxy would
-have refused anyway.
+A held poster SHALL be shown through the application's image proxy and applied
+by selecting it. An offered poster SHALL be loaded from its own source and
+applied exactly as a pasted address is — there is nothing on the Plex server to
+address and no Plex credential involved.
 
-Excluding the remote offerings is what keeps this tab distinct. They are TMDB,
-fanart.tv, and TheTVDB artwork — the same providers Find Posters already
-aggregates and ranks — so listing them here would duplicate the neighbouring tab
-while burying the posters that exist nowhere else. What only this tab can show
-is what is already on the user's server.
+The same property SHALL decide both the classification and what the image proxy
+will serve, so a candidate classified as held is by construction one the proxy
+can fetch and an offered one is by construction one it would refuse. The two
+cannot then drift apart.
 
-#### Scenario: Server-held posters are listed
+An offered candidate SHALL be an ordinary web address. Anything else Plex
+reports SHALL be dropped rather than placed in the page as an image source.
+
+#### Scenario: Held posters are listed and proxied
 - **WHEN** Plex reports posters for an item that are stored on the server
-- **THEN** they are listed as candidates
+- **THEN** they are listed, and their images are served through the application
+  rather than addressed directly
 
-#### Scenario: Remote provider URLs are excluded
-- **WHEN** Plex's answer includes posters addressed as absolute URLs to
-  providers such as TMDB, fanart.tv, or TheTVDB
-- **THEN** those are not listed, and Find Posters remains the way to reach
-  provider artwork
+#### Scenario: Offered posters are listed and loaded directly
+- **WHEN** Plex's answer includes artwork it has not downloaded, addressed as an
+  absolute URL to a provider such as TMDB, fanart.tv, or TheTVDB
+- **THEN** it is listed, and its image is loaded from that address rather than
+  through the proxy
 
-#### Scenario: An item offering only remote artwork
+#### Scenario: An item that holds nothing but is offered artwork
 - **WHEN** every poster Plex reports for an item is a remote provider URL
-- **THEN** the tab reports that Plex has no posters for this item, rather than
-  showing an empty grid
+- **THEN** those are shown, rather than the tab reporting that Plex has no
+  posters
+
+#### Scenario: An offered address that is not a web address is dropped
+- **WHEN** Plex reports a poster whose address uses neither `http` nor `https`
+- **THEN** it is not listed, and nothing puts that address into the page
 
 ### Requirement: Plex poster candidates are grouped by where they came from
-The Plex Posters tab SHALL present its candidates in two labelled groups:
-posters that were **uploaded** to the item, first, then the other posters held
-on the server. Plex marks an uploaded poster distinctly, and the system SHALL
-use that marking rather than inferring it from the image itself.
+The Plex Posters tab SHALL present its candidates in three labelled groups, in
+this order: posters **uploaded** to the item; the other posters **held** on the
+server; then artwork Plex **offers** but has not downloaded. Plex marks an
+uploaded poster distinctly, and the system SHALL use that marking rather than
+inferring it from the image itself.
 
-The order is not cosmetic. Plex never removes a poster from an item, so the
-list only grows. The uploaded group is the user's own history — every poster
-they ever applied to that item, including ones no longer stored in Marquee and
-ones no poster search will surface again. That group is the reason this tab
-exists, so it SHALL come first.
+The order is not cosmetic, and it runs from most to least specific to the user.
+Plex never removes a poster from an item, so the list only grows. The uploaded
+group is the user's own history — every poster they ever applied to that item,
+including ones no longer stored in Marquee and ones no poster search will
+surface again. That group is the reason this tab exists, so it SHALL come first,
+and the offered group SHALL come last: it is the largest and the least particular
+to this user, and placing it above the others would bury them.
 
 The second group SHALL NOT be described as coming from a metadata agent. It
 holds posters of several kinds — artwork an agent downloaded, a poster file
@@ -99,11 +109,10 @@ much history an item has accumulated without counting.
 Each group SHALL be shown only when it has candidates, so an item with no
 uploads does not display an empty heading.
 
-#### Scenario: Uploaded posters come first
-- **WHEN** the Plex Posters tab lists an item that has both uploaded posters and
-  other server-held posters
-- **THEN** the uploaded posters appear first, under their own heading, and the
-  rest follow under their own heading
+#### Scenario: Uploaded posters come first and offered artwork last
+- **WHEN** the Plex Posters tab lists an item that has uploaded posters, other
+  held posters, and offered artwork
+- **THEN** they appear in that order, each under its own heading
 
 #### Scenario: Groups are labelled
 - **WHEN** a user views the Plex Posters results
@@ -197,11 +206,16 @@ poster in Plex and lock it. A poster the user has deliberately chosen SHALL be
 protected from a later metadata refresh regardless of which tab they chose it
 from.
 
-The system SHALL do this by **selecting** the poster Plex already holds, and
+For a poster Plex **holds**, the system SHALL do this by **selecting** it, and
 SHALL NOT upload it back. Plex never removes a poster from an item, so uploading
 one it already has would leave a second, identical copy — and applying the
 poster Plex has currently selected would duplicate it against itself. Locking is
 a separate operation on the item and applies equally either way.
+
+For a poster Plex only **offers**, the system SHALL fetch it and upload it, as
+it does for any other address. Plex does not have that image, so there is
+nothing to select; this is the difference between offering a poster and holding
+one rather than an inconsistency between the groups.
 
 The image SHALL be fetched from Plex by the application rather than by the
 browser, so applying does not depend on the proxied grid image and never needs
@@ -233,11 +247,16 @@ unchanged.
 - **THEN** the system stores that image as the poster, makes it the item's
   poster in Plex, and locks it
 
-#### Scenario: Applying never adds a copy to Plex
+#### Scenario: Applying a held poster never adds a copy to Plex
 - **WHEN** a user applies any Plex-held candidate, including the one Plex
   currently has selected
 - **THEN** no poster is uploaded to the item, so its poster list is no longer
   than it was
+
+#### Scenario: Applying offered artwork
+- **WHEN** a user applies a candidate from the offered group
+- **THEN** the system fetches that image, stores it, and uploads it to Plex,
+  locking it — as it would for an address the user pasted
 
 #### Scenario: The chosen poster is gone by the time it is applied
 - **WHEN** a user applies a candidate that Plex no longer holds for the item,
