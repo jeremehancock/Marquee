@@ -2,10 +2,30 @@
    shared with the poster action sheet. Driven by the standalone `menuOpen` scope
    on the topbar (see layout.html.twig), so it is independent of any page's Alpine
    root and works on every page that renders the topbar nav. Shown only on narrow
-   screens — the menu button that opens it is hidden on desktop. #}
+   screens — the menu button that opens it is hidden on desktop.
+
+   Teleported to <body>, and that is load-bearing rather than tidiness.
+
+   This tray is markup inside <header class="topbar">, because that is where the
+   `menuOpen` scope lives. The header is a glass surface, and `backdrop-filter`
+   makes an element a containing block for its fixed-position descendants — the
+   same rule that catches `transform` and `filter`. So the moment the header went
+   translucent, this tray's `position: fixed; inset: 0` stopped resolving against
+   the viewport and started resolving against the header's own box: the whole
+   full-screen tray rendered squashed into the height of the bar that opened it.
+
+   x-teleport moves the rendered element to <body>, out of the header's containing
+   block, while leaving it inside the `menuOpen` scope for reactivity — which is
+   the one thing keeping it in the header ever bought. Everything else that
+   touches a tray finds it by document-level delegation (the drag gesture, the
+   scroll lock), so none of them care where it lives.
+
+   Do not "simplify" this back into a bare div. It renders correctly on a desktop
+   viewport either way, because the tray is hidden there. #}
 {% import 'partials/_nav_macros.html.twig' as nav %}
 {% import 'partials/_transitions.html.twig' as tx %}
 
+<template x-teleport="body">
 <div class="sheet" x-show="menuOpen" x-cloak {{ tx.tray() }}
      @keydown.escape.window="menuOpen = false" style="display:none">
     <div class="sheet__backdrop" @click="menuOpen = false"></div>
@@ -38,3 +58,4 @@
         </div>
     </div>
 </div>
+</template>

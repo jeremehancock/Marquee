@@ -542,12 +542,49 @@ h1 {
     cursor: pointer;
 }
 
+/* Flashes and inline notices — "Signed in to Plex.", an import that Plex would
+   not take, the obsolete-PLEX_TOKEN warning.
+
+   Each severity is one hue used three ways — a solid bar down the leading edge,
+   a wash behind, and a hairline around — plus the ink for the text. --alert-hue
+   and --alert-ink carry them, so a severity is two declarations below rather
+   than five colours to keep in agreement, and a new severity is one rule.
+
+   The ink is a separate token rather than the hue reused, because text on a wash
+   of its own colour is the case where that shortcut fails. Measured on --surface,
+   the error red #e4785f comes to 4.90:1 against the bare panel — but the wash is
+   that same red, so it lifts the background toward the text and drops the pair to
+   3.81:1, under AA, purely by being the same hue. The ink is that red lightened
+   until the pair clears it again (4.96:1). Green and amber sit high enough that
+   their ink is the hue unchanged; they still state it, so the contract reads the
+   same for all three and a fourth severity has an obvious shape to copy. */
+
+   The leading bar is doing the work. A message identified only by a tinted
+   background is a rectangle slightly different from the rectangle above it, which
+   is why these read as filler; a bar gives the eye an edge to catch and a place
+   the message starts. It also survives being wrong about colour — someone who
+   cannot separate the green from the amber still sees a marked block, and the
+   wording says which it is.
+
+   Elevation is deliberately the lowest tier. A flash sits in the page's flow,
+   above it but not over it; --elev-2 or higher would have it float like a panel
+   it is not. */
 .alert {
-    background: rgba(228, 120, 95, 0.15);
-    border: 1px solid rgba(228, 120, 95, 0.4);
-    color: #e4785f;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
+    --alert-hue: 228, 120, 95;
+    --alert-ink: #ea9885;
+    position: relative;
+    padding: 12px 14px 12px 16px;
+    border: 1px solid rgba(var(--alert-hue), 0.34);
+    border-left: 3px solid rgb(var(--alert-hue));
+    border-radius: var(--radius-md);
+    background: linear-gradient(
+        100deg,
+        rgba(var(--alert-hue), 0.17),
+        rgba(var(--alert-hue), 0.08)
+    );
+    box-shadow: var(--elev-1);
+    color: var(--alert-ink);
+    font-weight: 500;
 }
 
 /* Success flashes fade themselves out (see app.js). The transition is on the
@@ -558,9 +595,8 @@ h1 {
 }
 
 .alert--success {
-    background: rgba(111, 191, 127, 0.15);
-    border-color: rgba(111, 191, 127, 0.4);
-    color: #74c084;
+    --alert-hue: 116, 192, 132;
+    --alert-ink: #74c084;
 }
 
 /* Amber: the operation did what it was asked locally but could not finish —
@@ -568,9 +604,8 @@ h1 {
    true of that, and the difference matters: the new poster is stored and on
    screen, so the message is about Plex, not about the change. */
 .alert--warning {
-    background: rgba(228, 181, 95, 0.15);
-    border-color: rgba(228, 181, 95, 0.4);
-    color: #e4b55f;
+    --alert-hue: 228, 181, 95;
+    --alert-ink: #e4b55f;
 }
 
 /* The Plex connection screen. A single panel with one action, so the spacing is
@@ -713,7 +748,19 @@ h1 {
    The rule along the bottom edge is .tabs' old border, moved out here. Inside a
    single pinned block that border read as a divider between the tabs and the
    toolbar rather than as the edge of the thing; on the block it bounds the whole
-   of it, matching how the page header is separated from the content. */
+   of it, matching how the page header is separated from the content.
+
+   That hairline is the block's ONLY separator, and deliberately. This rule
+   carried an --elev-2 shadow briefly, on the argument that the block outranks the
+   cards on the z ladder and so ought to outrank them in depth. The argument was
+   sound and the result was not: a wide, straight-edged bar spanning the content
+   column, already edged by a hairline and already separated by the blur, gains a
+   second and a third edge from a shadow, and the stack of them reads as a
+   rendering artefact rather than as elevation. Depth belongs to things with
+   shape — cards, dialogs, trays. Chrome that spans the viewport is separated by
+   the blur and the hairline, which is what "above" looks like for a surface with
+   no sides. The phone toolbar had the same shadow removed for the same reason.
+   Do not add one back without looking at it on a real screen first. */
 .gallery-head {
     position: sticky;
     top: 0;
@@ -721,11 +768,6 @@ h1 {
     background: var(--chrome-tint);
     -webkit-backdrop-filter: var(--chrome-blur);
     backdrop-filter: var(--chrome-blur);
-    /* Above the cards on the z ladder, so it has to sit above them in depth too.
-       Without this the pinned block is the one thing on screen with nothing under
-       it while the cards it covers each cast a shadow — which reads as the bar
-       being printed on the page rather than floating over it. */
-    box-shadow: var(--elev-2);
     padding-top: 12px;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border);
@@ -2257,7 +2299,6 @@ h1 {
         background: var(--chrome-tint);
         -webkit-backdrop-filter: var(--chrome-blur);
         backdrop-filter: var(--chrome-blur);
-        box-shadow: var(--elev-2);
         margin: 0 -14px 8px;
         padding: 8px 14px;
     }

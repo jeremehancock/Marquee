@@ -84,6 +84,61 @@ final class TrayDismissalTest extends TestCase
         return (int) $m[1];
     }
 
+    /**
+     * A tray nested inside a glass surface must be teleported out of it.
+     *
+     * `backdrop-filter` makes an element a containing block for its
+     * fixed-position descendants — the same rule that catches `transform`,
+     * `filter` and `perspective`, and the reason this is worth a tripwire: the
+     * two declarations involved are in different files, neither looks wrong on
+     * its own, and the CSS one is nowhere near the markup it breaks.
+     *
+     * The app-wide actions tray is markup inside <header class="topbar">, because
+     * that is where its `menuOpen` scope lives. When the header went translucent,
+     * the tray's `position: fixed; inset: 0` stopped resolving against the
+     * viewport and started resolving against the header — so the full-screen tray
+     * rendered squashed into the height of the bar that opened it. x-teleport
+     * moves it to <body> while leaving it in scope.
+     *
+     * Stated as an implication rather than a flat assertion: it is the glass that
+     * creates the requirement, so taking the glass off the header would release
+     * it. Written this way the test explains itself when it fails.
+     */
+    public function testATrayInsideGlassChromeIsTeleportedOutOfIt(): void
+    {
+        $topbar = $this->stylesheet();
+        $start = strpos($topbar, '.topbar {');
+        self::assertIsInt($start, 'The header rule must remain findable.');
+        $rule = substr($topbar, $start, (int) strpos($topbar, '}', $start) - $start);
+
+        if (!str_contains($rule, 'backdrop-filter')) {
+            self::markTestSkipped('The header is no longer a glass surface, so it '
+                . 'is no longer a containing block for the tray inside it.');
+        }
+
+        $menu = file_get_contents(dirname(__DIR__, 3) . '/templates/partials/_menu.html.twig');
+        self::assertIsString($menu);
+
+        self::assertStringContainsString(
+            'x-teleport="body"',
+            $menu,
+            'The header declares backdrop-filter, which makes it a containing block '
+            . 'for fixed-position descendants. The actions tray is fixed and lives '
+            . 'inside it, so without x-teleport it renders inside the header\'s box '
+            . 'instead of over the viewport — a phone-only break, invisible from a '
+            . 'desktop viewport because the tray is hidden there.',
+        );
+
+        // The teleport has to wrap the tray, not sit inside it: Alpine moves the
+        // <template>'s contents, so a template nested within .sheet would move the
+        // contents and leave the fixed element behind.
+        self::assertLessThan(
+            (int) strpos($menu, '<div class="sheet"'),
+            (int) strpos($menu, 'x-teleport="body"'),
+            'The teleport must wrap the tray, or the fixed element stays put.',
+        );
+    }
+
     public function testDragRegionsOptOutOfBrowserGestures(): void
     {
         $css = $this->stylesheet();
