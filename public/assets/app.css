@@ -101,6 +101,22 @@
     --muted-on-chrome: #b9bfc9;
     --backdrop-tint: rgba(9, 10, 13, 0.62);
     --backdrop-blur: blur(6px) saturate(110%);
+
+    /* The page's graded field, as an image stack. A token because two elements
+       paint it — <body>, and the pinned gallery block that has to be
+       indistinguishable from the page behind it. Both anchor it to the viewport
+       with `background-attachment: fixed`, which is what makes them align: a
+       fixed background resolves against the viewport rather than the element, so
+       identical declarations put identical pixels at identical screen positions
+       no matter where the element sits or how far the page has scrolled.
+
+       Restating this stack instead of referencing the token would put the two
+       one edit away from disagreeing, and the symptom — a faint rectangle around
+       the tabs, only at some scroll offsets — is the kind nobody attributes to
+       a stylesheet. */
+    --page-field:
+        radial-gradient(1100px 620px at 50% -12%, rgba(229, 160, 13, 0.055), transparent 62%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.22));
 }
 
 * {
@@ -147,9 +163,7 @@ body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
     background-color: var(--bg);
-    background-image:
-        radial-gradient(1100px 620px at 50% -12%, rgba(229, 160, 13, 0.055), transparent 62%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.22));
+    background-image: var(--page-field);
     background-attachment: fixed;
     background-repeat: no-repeat;
     color: var(--ink);
@@ -566,18 +580,20 @@ h1 {
 /* Flashes and inline notices — "Signed in to Plex.", an import that Plex would
    not take, the obsolete-PLEX_TOKEN warning.
 
-   Each severity is one hue used four ways — a glyph, a solid bar down the leading
-   edge, a wash behind, and a hairline around — plus the ink for the text.
-   --alert-hue and --alert-ink carry them, so a severity is two declarations
-   below rather than six colours to keep in agreement, and a new severity is one
-   rule plus its glyph.
+   Each severity is one hue used three ways — a glyph, a wash behind, and a
+   hairline around — plus the ink for the text. --alert-hue and --alert-ink carry
+   them, so a severity is two declarations below rather than five colours to keep
+   in agreement, and a new severity is one rule plus its glyph.
 
-   The glyph and the leading bar are what stop these reading as filler. A message
-   identified only by a tinted background is a rectangle slightly different from
-   the rectangle above it; a mark and an edge give the eye somewhere to land and
-   the message somewhere to start. They also survive being wrong about colour —
-   someone who cannot separate the green from the amber still gets a distinct
-   shape, and the wording says which it is either way.
+   The glyph is what stops these reading as filler. A message identified only by a
+   tinted background is a rectangle slightly different from the rectangle above
+   it; a mark gives the eye somewhere to land. It also survives being wrong about
+   colour — someone who cannot separate the green from the amber still gets a
+   distinct shape, and the wording says which it is either way.
+
+   The border is uniform. A heavier bar down the leading edge was tried and cut:
+   with the glyph already marking the severity it was a second announcement of the
+   same thing, and it broke the box's outline on the one side the eye starts from.
 
    The glyph is a masked data-URI rather than markup, and that is what keeps this
    to one file. .alert is used on a bare <p> in four templates and on a <div> of
@@ -603,9 +619,8 @@ h1 {
        hairline. Same reasoning as .sort__btn .icon. */
     --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5'/%3E%3Cpath d='M12 16.5h.01'/%3E%3C/svg%3E");
     position: relative;
-    padding: 13px 15px 13px 46px;
+    padding: 13px 15px 13px 44px;
     border: 1px solid rgba(var(--alert-hue), 0.34);
-    border-left: 3px solid rgb(var(--alert-hue));
     border-radius: var(--radius-md);
     background: linear-gradient(
         100deg,
@@ -793,9 +808,23 @@ h1 {
    block is different: it is wide, it is straight-edged, it spans the content
    column, and it is the frame the gallery is read through rather than something
    floating over it. Glassed, it drew attention to itself every time a poster
-   slid under it, which is the opposite of what chrome is for. Opaque, it simply
-   stops being noticed. Tried both on a real screen; this is the one that reads
-   as intended. The phone rules keep the glass.
+   slid under it, which is the opposite of what chrome is for. The phone rules
+   keep the glass.
+
+   But opaque is not the same as flat, and a flat --bg was still wrong here. The
+   page is a graded field, so a bar filled with the anchor colour alone sat a
+   shade off whatever the page was doing behind it — a rectangle you could pick
+   out against its own background, which is precisely the self-announcement
+   removing the glass was meant to stop. So it paints --page-field, the same
+   stack <body> paints, anchored to the viewport the same way. Both being
+   `fixed` is what makes them line up: the background resolves against the
+   viewport rather than the element, so the bar shows exactly the slice of field
+   the page would have shown at those screen coordinates and the seam disappears
+   at every scroll position.
+
+   The surface is still doing its original job. It remains fully opaque, so the
+   posters passing under it are hidden as they always were; it has simply stopped
+   being a different colour from the page while it does that.
 
    The rule along the bottom edge is .tabs' old border, moved out here. Inside a
    single pinned block that border read as a divider between the tabs and the
@@ -817,7 +846,10 @@ h1 {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image: var(--page-field);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     padding-top: 12px;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border);
