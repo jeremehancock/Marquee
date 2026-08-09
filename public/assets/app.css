@@ -1523,11 +1523,13 @@ h1 {
     padding-top: 0;
 }
 
-/* Comfortably more than the 12px gap between tiles inside a grid: at 22px the
-   break between two groups was competing with the spacing within one, so the
-   headings had to carry the whole separation on their own. */
+/* The space above a heading must clearly beat the space below it, or the
+   heading reads as floating between two grids instead of belonging to the one
+   it labels. Roughly 5:1 against the 12px below, and several times the 12px gap
+   between tiles inside a grid, so the break between groups is never in
+   competition with the spacing within one. */
 .plex-group + .plex-group {
-    margin-top: 34px;
+    margin-top: 56px;
 }
 
 /* A section label, not a line of prose: the two groups are the tab's structure,
@@ -1537,7 +1539,7 @@ h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     color: var(--ink);
     font-size: 0.75rem;
     font-weight: 600;
