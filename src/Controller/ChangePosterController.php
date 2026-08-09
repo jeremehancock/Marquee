@@ -10,6 +10,10 @@ use App\Plex\Export\ExportException;
 use App\Plex\PlexException;
 use App\Plex\PlexFailureMessage;
 use App\Plex\PlexMediaType;
+use App\Plex\Poster\PlexPosterCandidate;
+use App\Plex\Poster\PlexPosterOutcome;
+use App\Plex\Poster\PlexPosterService;
+use App\Plex\SignedImagePath;
 use App\Poster\Edit\ChangePosterService;
 use App\Poster\PosterCategory;
 use App\Poster\Source\PosterCandidate;
@@ -39,6 +43,8 @@ final class ChangePosterController
         private readonly Flash $flash,
         private readonly LoggerInterface $logger,
         private readonly PlexFailureMessage $plexMessage,
+        private readonly PlexPosterService $plexPosters,
+        private readonly SignedImagePath $signedPaths,
     ) {
     }
 
@@ -122,6 +128,94 @@ final class ChangePosterController
         }
 
         return $this->back($response, $category);
+    }
+
+    /**
+     * The posters Plex already holds for this poster's item, in two groups.
+     *
+     * Kept apart from findPosters() rather than folded into it: that searches a
+     * title and can fail in ways a rating key cannot, and its candidates carry
+     * provider attribution these do not.
+     *
+     * @param array<string, string> $args
+     */
+    public function plexPosters(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $category = $this->requireCategory($request, $args);
+        $params = $request->getQueryParams();
+        $filename = isset($params['filename']) && is_string($params['filename']) ? $params['filename'] : '';
+
+        $listing = $this->plexPosters->forPoster($category, $filename);
+
+        return $this->json($response, [
+            'uploaded' => $this->candidates($listing->uploaded()),
+            'server' => $this->candidates($listing->server()),
+            'error' => $this->plexPosterMessageFor($listing->outcome),
+        ]);
+    }
+
+    /**
+     * Apply one of those posters, named by the signed path the listing gave out.
+     *
+     * @param array<string, string> $args
+     */
+    public function usePlexPoster(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $category = $this->requireCategory($request, $args);
+        $filename = $this->filename($request);
+        $body = (array) $request->getParsedBody();
+        $token = isset($body['token']) && is_string($body['token']) ? $body['token'] : '';
+
+        $path = $this->signedPaths->pathFor($token);
+        if ($path === null) {
+            // The only way here is a token this application did not sign, so
+            // there is nothing to explain to the user beyond the refusal.
+            $this->flash->add('error', 'That poster could not be applied.');
+
+            return $this->back($response, $category);
+        }
+
+        try {
+            $this->flashChanged($this->change->changeFromPlexPath($category, $filename, $path));
+        } catch (UploadException $e) {
+            $this->flash->add('error', $this->plexMessage->for($e));
+        } catch (ExportException | PlexException $e) {
+            $this->flashChangedButNotPushed($e);
+        }
+
+        return $this->back($response, $category);
+    }
+
+    /**
+     * A candidate as the grid needs it: an opaque, signed address for the image
+     * and nothing that discloses where on Plex it lives.
+     *
+     * @param list<PlexPosterCandidate> $candidates
+     *
+     * @return list<array<string, string|bool>>
+     */
+    private function candidates(array $candidates): array
+    {
+        return array_map(
+            fn (PlexPosterCandidate $c): array => [
+                // The token stands in for the full-resolution path, so applying
+                // sends back the same opaque value the grid was given.
+                'token' => $this->signedPaths->sign($c->path),
+                'thumb' => '/plex-poster-image/' . $this->signedPaths->sign($c->thumbPath),
+                'selected' => $c->selected,
+            ],
+            $candidates,
+        );
+    }
+
+    private function plexPosterMessageFor(PlexPosterOutcome $outcome): ?string
+    {
+        return match ($outcome) {
+            PlexPosterOutcome::Ok => null,
+            PlexPosterOutcome::None => 'Plex has no posters of its own for this item.',
+            PlexPosterOutcome::NotLinked => 'This poster is not linked to a Plex item.',
+            PlexPosterOutcome::Unavailable => 'Plex could not be reached. Trying again shortly may work.',
+        };
     }
 
     /**

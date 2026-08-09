@@ -5,13 +5,45 @@
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
+{# One group of Plex-held candidates. `source` is an Alpine expression naming the
+   array, so both groups render from one piece of markup. The whole group is
+   dropped when it is empty rather than left as a heading over nothing — an item
+   with no uploads must not show an "Uploaded to Plex" label with a gap under it. #}
+{% macro plex_group(label, source) %}
+    <template x-if="{{ source }}.length">
+        <div class="plex-group">
+            <p class="stats">{{ label }}</p>
+            <div class="find-grid">
+                <template x-for="poster in {{ source }}" :key="poster.token">
+                    {# Per-cell loaded flag, as in the Find Posters grid: Alpine builds
+                       and tears these down long after initImages() has run, and `@error`
+                       must resolve the cell too so a candidate whose image fails stops
+                       shimmering instead of promising one that is never coming. #}
+                    <figure class="find-item" x-data="{ loaded: false }">
+                        <div class="find-item__frame">
+                            <template x-if="poster.selected">
+                                <span class="find-item__badge">In use</span>
+                            </template>
+                            <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
+                                 :class="loaded ? 'is-loaded' : ''"
+                                 @load="loaded = true" @error="loaded = true"
+                                 @click="openPlexPreview(poster)"
+                                 :data-tooltip="poster.selected ? 'The poster Plex is using now — click to preview' : 'Click to preview'">
+                        </div>
+                    </figure>
+                </template>
+            </div>
+        </div>
+    </template>
+{% endmacro %}
+
 {% set base = '/library/' ~ view.value %}
 
 {% block content %}
 <div data-gallery data-base="{{ base }}" x-data="galleryUI"
      @gallery:view.window="view($event.detail.url)"
      @gallery:copy.window="copyUrl($event.detail.url)"
-     @gallery:change.window="openChange($event.detail.filename, $event.detail.title, $event.detail.category)"
+     @gallery:change.window="openChange($event.detail.filename, $event.detail.title, $event.detail.category, $event.detail.linked)"
      @gallery:confirm.window="askConfirm($event.detail)"
      @gallery:toast.window="notify($event.detail.text)"
      @gallery:sheet.window="openSheet($event.detail)"
@@ -92,7 +124,7 @@
     <div class="modal" x-show="change.open" x-cloak {{ tx.dialog() }}
          @keydown.escape.window="if (!confirm.open && !preview.open) change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
-        <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
+        <div class="modal__panel" :class="(change.tab === 'find' || change.tab === 'plex') ? 'modal__panel--wide' : ''"
              role="dialog" aria-modal="true" aria-label="Change poster">
             {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
                phone. A real element rather than a pseudo-element so touch can
@@ -107,6 +139,14 @@
                 <div class="modal__tabs">
                     <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
                     <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
+                    {# Shown for every poster, disabled for one with no Plex item, so the
+                       strip keeps its shape from poster to poster. Hiding it would leave a
+                       user who learned where the tab sits finding it gone with no reason
+                       given. Disabled carries its reason in the tooltip and in the panel. #}
+                    <button type="button" :class="change.tab === 'plex' ? 'is-active' : ''"
+                            :disabled="!change.linked"
+                            :data-tooltip="change.linked ? null : 'This poster is not linked to a Plex item.'"
+                            @click="change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.server.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
                     <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
                             @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
@@ -128,6 +168,22 @@
                     <input id="change-url" x-ref="changeUrl" type="url" name="url" placeholder="https://…" required>
                     <button type="submit" class="btn btn--accent">Fetch poster</button>
                 </form>
+
+                {# What the Plex server already holds for this item. Two groups, uploads
+                   first: Plex never prunes a poster, so an item edited over a year
+                   accumulates a long tail, and the uploads are the user's own history —
+                   the reason to come here at all. #}
+                <div x-show="change.tab === 'plex'">
+                    <p class="stats" x-show="plexPosters.loading">Reading posters from Plex…</p>
+                    <p class="alert" x-show="plexPosters.error && !plexPosters.loading" x-text="plexPosters.error"></p>
+                    <p class="stats" x-show="!plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.server.length)">
+                        Tap a poster to preview it.
+                    </p>
+                    <div class="plex-groups" x-show="!plexPosters.loading && !plexPosters.error">
+                        {{ _self.plex_group('Uploaded to Plex', 'plexPosters.uploaded') }}
+                        {{ _self.plex_group('Also on your server', 'plexPosters.server') }}
+                    </div>
+                </div>
 
                 <div x-show="change.tab === 'find'">
                     <p class="stats" x-show="finder.loading">Finding posters…</p>

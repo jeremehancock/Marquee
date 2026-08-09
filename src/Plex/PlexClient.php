@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Plex;
 
+use App\Plex\Poster\PlexPosterList;
+
 /**
  * Read access to a Plex Media Server. Implementations must not throw for an
  * unconfigured server from isConfigured(); other methods throw PlexException.
@@ -57,11 +59,24 @@ interface PlexClient
     public function sessions(): array;
 
     /**
-     * Raw bytes of the poster at a Plex image path (a session's `thumb` or
-     * `grandparentThumb`). The path must originate from a session this client
-     * produced; callers never pass an untrusted path directly.
+     * Every poster the server holds for an item, in the order Plex reports.
+     *
+     * Remote provider artwork Plex merely offers for the item is not included;
+     * see {@see \App\Plex\Poster\PlexPosterList::fromXml()} for why.
      */
-    public function sessionPoster(string $thumb): string;
+    public function itemPosters(string $ratingKey): PlexPosterList;
+
+    /**
+     * Raw bytes of the image at a Plex image path — a session's `thumb` or
+     * `grandparentThumb`, or one of an item's own poster paths.
+     *
+     * The path must originate from this client, either from a session or from
+     * an item's poster list; callers never pass an untrusted path directly.
+     * Where a path makes a round trip through a URL before coming back here, it
+     * is signed on the way out and verified on the way in — see
+     * {@see SignedImagePath}.
+     */
+    public function imageAt(string $path): string;
 
     /**
      * The server's own friendly name, or null when it cannot be obtained.

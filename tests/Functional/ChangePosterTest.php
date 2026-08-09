@@ -103,6 +103,11 @@ final class ChangePosterTest extends AppTestCase
                 throw PlexException::itemNotFound();
             }
 
+            public function selectPoster(string $ratingKey, string $posterKey): void
+            {
+                throw PlexException::itemNotFound();
+            }
+
             public function lockPoster(string $ratingKey): void
             {
             }

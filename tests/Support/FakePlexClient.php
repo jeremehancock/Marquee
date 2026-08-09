@@ -10,6 +10,8 @@ use App\Plex\PlexException;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexSession;
+use App\Plex\Poster\PlexPosterList;
+use SimpleXMLElement;
 
 /**
  * In-memory PlexClient for tests: canned libraries/items and generated posters.
@@ -29,6 +31,7 @@ final class FakePlexClient implements PlexClient
      * @param list<string>                     $failingThumbs    thumb paths whose poster fetch fails
      * @param list<string>                     $excluded         library names the real client would hide
      * @param string|null                      $serverName       the server's friendly name, null when unknown
+     * @param array<array-key, string>         $postersByKey     raw posters XML, keyed by rating key
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -41,6 +44,7 @@ final class FakePlexClient implements PlexClient
         private readonly array $failingThumbs = [],
         private readonly array $excluded = [],
         private readonly ?string $serverName = 'Anansi',
+        private readonly array $postersByKey = [],
     ) {
     }
 
@@ -106,9 +110,24 @@ final class FakePlexClient implements PlexClient
         return $this->sessions;
     }
 
-    public function sessionPoster(string $thumb): string
+    /**
+     * Parses canned XML rather than building candidates directly, so tests
+     * exercise the same filtering production does.
+     */
+    public function itemPosters(string $ratingKey): PlexPosterList
     {
-        if (in_array($thumb, $this->failingThumbs, true)) {
+        if (in_array($ratingKey, $this->failingKeys, true)) {
+            throw PlexException::connectionFailed();
+        }
+
+        return PlexPosterList::fromXml(new SimpleXMLElement(
+            $this->postersByKey[$ratingKey] ?? '<MediaContainer/>'
+        ));
+    }
+
+    public function imageAt(string $path): string
+    {
+        if (in_array($path, $this->failingThumbs, true)) {
             throw PlexException::connectionFailed();
         }
 

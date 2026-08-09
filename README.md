@@ -25,8 +25,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   Season, and Collection. A step-by-step picker asks what you want first, then
   shows only the libraries that can provide it.
 - **Edit posters in place** — for any poster:
-  - **Change poster** by uploading a file, pasting an image URL, or choosing
-    from **Find Posters** — an online poster search served by
+  - **Change poster** by uploading a file, pasting an image URL, choosing from
+    **Plex Posters** — the posters your own Plex server already holds for the
+    item — or from **Find Posters**, an online poster search served by
     [posteria.app](https://posteria.app).
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
@@ -384,6 +385,22 @@ existed in Marquee — art you uploaded but never sent — is gone.
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.
 
+**What's the difference between "Plex Posters" and "Find Posters"?**
+Plex Posters shows what your own server already has for that item. Find Posters
+searches the internet for something new.
+
+**I want a poster back that I used to have**
+Use **Plex Posters**. Plex keeps every poster ever uploaded to an item and never
+removes them, so a poster you applied months ago is still on your server even if
+it's long gone from Marquee — and even if no poster search would turn it up
+again. The tab lists your uploads first, and marks the one Plex is using now.
+Pick one and Marquee stores it, points Plex at it, and locks it — without
+uploading a duplicate, since Plex already has the image.
+
+Only posters held on your server are listed. Plex also offers artwork straight
+from TMDB, fanart.tv, and TheTVDB for most items, but that is what Find Posters
+already searches — and it ranks it better.
+
 **"Find Posters" isn't returning many results for my library**
 Find Posters is most accurate when Plex has matched an item to a known title,
 because that lets Marquee ask for that exact movie or show. Without a match it
@@ -408,6 +425,10 @@ so Plex can replace it, along with matches you'd corrected by hand. Marquee
 still has its copy: use **Send to Plex** to put a poster back, and do that
 before your next import, because importing pulls whatever artwork Plex has at
 that moment into Marquee.
+
+If an import already overwrote Marquee's copy, check **Plex Posters** before
+giving up — the previous artwork is often still sitting on your server even
+though Marquee no longer has it.
 
 If Find Posters is already working well for you, there's nothing here you need
 to do.

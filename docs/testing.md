@@ -1,17 +1,19 @@
 # Testing Marquee against Plex
 
-Four Plex-facing behaviors are worth verifying by hand from time to time:
+Five Plex-facing behaviors are worth verifying by hand from time to time:
 
 1. A poster is **locked** in Plex after you update it in Marquee.
 2. The **Kometa "Overlay" label** feature (`PLEX_REMOVE_OVERLAY_LABEL`).
-3. **Orphan detection** — posters for media that no longer exists in Plex.
-4. **A corrected match** — Plex's **Fix Match**, and what the next import does
+3. **Plex Posters** — applying one selects it rather than uploading a copy.
+4. **Orphan detection** — posters for media that no longer exists in Plex.
+5. **A corrected match** — Plex's **Fix Match**, and what the next import does
    with it.
 
 The first two can be checked automatically with the included script
 ([`scripts/marquee-plex-test.py`](../scripts/marquee-plex-test.py)) or manually
-against the Plex API. The last two are real-world workflow tests (change
-something in Plex, then check Marquee) — see the final sections.
+against the Plex API. The third is a Plex API check below. The last two are
+real-world workflow tests (change something in Plex, then check Marquee) — see
+the final sections.
 
 > The unit/functional test suite (`composer test`) covers Marquee's internal
 > logic. This page is about validating the *live* round-trip to a real Plex
@@ -152,6 +154,38 @@ curl -s "$PLEX/library/metadata/$RK?X-Plex-Token=$TOKEN" \
 
 Plex library **type numbers** (used internally for label edits): movie = 1,
 show = 2, season = 3, collection = 18.
+
+### Plex Posters selects rather than uploads
+
+The **Plex Posters** tab lists posters your server already holds for an item.
+Applying one points Plex at it (`PUT …/poster?url=<key>`) and then locks it — it
+does **not** upload the image back. Plex never prunes an item's posters, so an
+upload here would leave a duplicate behind, and applying the poster already in
+use would duplicate it against itself.
+
+The count is the whole test: it must not grow.
+
+```bash
+# how many posters does the item have now?
+curl -s "$PLEX/library/metadata/$RK/posters?X-Plex-Token=$TOKEN" \
+  | grep -c '<Photo'
+```
+
+1. Note the count.
+2. In Marquee, open **Change poster → Plex Posters** and apply a candidate from
+   **Uploaded to Plex** — ideally the one marked **In use**, which is the case
+   an upload would handle worst.
+3. Re-run the count.
+
+**Pass:** the count is unchanged, `selected="1"` has moved to the poster you
+picked, and the `thumb` field is still `locked="1"` (check it the same way as
+[Poster lock](#poster-lock) above).
+
+**Fail:** the count grew by one — applying uploaded instead of selecting.
+
+Only posters held on the server are listed. Plex also offers remote artwork
+straight from TMDB, fanart.tv, and TheTVDB for most items; that is Find Posters'
+territory and is filtered out here.
 
 ---
 

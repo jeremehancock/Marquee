@@ -20,9 +20,17 @@ final class FakePlexPosterWriter implements PlexPosterWriter
     /** @var list<array{section: string, type: int, rating: string}> */
     public array $labelRemovals = [];
 
+    /** @var list<array{rating: string, poster: string}> */
+    public array $selected = [];
+
     public function uploadPoster(string $ratingKey, string $imageBytes): void
     {
         $this->uploaded[] = $ratingKey;
+    }
+
+    public function selectPoster(string $ratingKey, string $posterKey): void
+    {
+        $this->selected[] = ['rating' => $ratingKey, 'poster' => $posterKey];
     }
 
     public function lockPoster(string $ratingKey): void

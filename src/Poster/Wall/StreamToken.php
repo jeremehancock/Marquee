@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Poster\Wall;
 
+use App\Plex\SignedImagePath;
+
 /**
  * Mints and resolves the opaque token that stands in for a now-playing poster
  * in the `/wall/stream-poster/{id}` URL.
@@ -13,14 +15,21 @@ namespace App\Poster\Wall;
  * store while refusing any path it did not itself sign. This keeps the proxy
  * from becoming an open relay for arbitrary Plex URLs. Live TV has no library
  * art, so it uses a fixed sentinel that resolves to the bundled placeholder.
+ *
+ * The signing itself is {@see SignedImagePath}, shared with the change dialog's
+ * Plex poster proxy. What stays here is the wall's own concern: the Live TV
+ * sentinel, which is a tile state rather than an image path.
  */
 final class StreamToken
 {
     /** Sentinel token for a Live TV tile; resolves to the placeholder poster. */
     public const LIVE = 'live';
 
-    public function __construct(private readonly string $secret)
+    private readonly SignedImagePath $signer;
+
+    public function __construct(string $secret)
     {
+        $this->signer = new SignedImagePath($secret);
     }
 
     /**
@@ -28,9 +37,7 @@ final class StreamToken
      */
     public function forThumb(string $thumb): string
     {
-        $payload = $this->encode($thumb);
-
-        return $payload . '.' . $this->sign($payload);
+        return $this->signer->sign($thumb);
     }
 
     public function isLive(string $token): bool
@@ -45,43 +52,6 @@ final class StreamToken
      */
     public function thumbFor(string $token): ?string
     {
-        $parts = explode('.', $token, 2);
-        if (count($parts) !== 2) {
-            return null;
-        }
-
-        [$payload, $signature] = $parts;
-        if (!hash_equals($this->sign($payload), $signature)) {
-            return null;
-        }
-
-        $thumb = $this->decode($payload);
-        if ($thumb === null || !str_starts_with($thumb, '/')) {
-            return null;
-        }
-
-        return $thumb;
-    }
-
-    private function sign(string $payload): string
-    {
-        return $this->base64Url(hash_hmac('sha256', $payload, $this->secret, true));
-    }
-
-    private function encode(string $value): string
-    {
-        return $this->base64Url($value);
-    }
-
-    private function decode(string $payload): ?string
-    {
-        $decoded = base64_decode(strtr($payload, '-_', '+/'), true);
-
-        return $decoded === false ? null : $decoded;
-    }
-
-    private function base64Url(string $bytes): string
-    {
-        return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+        return $this->signer->pathFor($token);
     }
 }
