@@ -40,15 +40,18 @@ backgrounds, and the mobile block's position as the last thing in the file.
 
 ## 3. Page background
 
-- [x] 3.1 Add the gradient wash to `body`, anchored on `--bg: #1c1e24` — a faint
-      warm radial from the top over a slightly deeper vertical fall. No image
-      request.
-- [x] 3.2 Confirm the gradient's extremes stay close enough to the anchor that
-      the manifest colours, the `theme-color` meta tag, and the header logo's own
-      `#1c1e24` fill still agree with the page. Change none of those five
-      locations.
-- [x] 3.3 Check the gradient does not repeat or band on a tall page — it must be
-      fixed to the viewport, not tiled down the document.
+- [x] 3.1 Built a gradient wash on `body` anchored on `--bg`, shipped it to
+      `:dev`, and removed it again. The pinned gallery controls must be opaque and
+      must therefore reproduce the page exactly; a flat bar over a graded page is
+      a visible rectangle, and painting the bar the same gradient does not work
+      either, because `background-attachment: fixed` is unreliable on a sticky
+      element. The page is one flat colour.
+- [x] 3.2 Left all five other homes of `#1c1e24` untouched — the manifest's
+      `background_color` and `theme_color`, the `theme-color` meta tag, the inline
+      header logo, `logo.svg`, and `favicon.svg`.
+- [x] 3.3 Recorded the constraint as a `visual-design` requirement ("The page and
+      its opaque chrome share one background") so the next attempt at a graded
+      page finds the reason rather than rediscovering it.
 
 ## 4. Glass chrome
 

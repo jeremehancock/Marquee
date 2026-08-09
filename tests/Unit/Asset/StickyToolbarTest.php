@@ -278,7 +278,7 @@ final class StickyToolbarTest extends TestCase
         $head = $this->rule($this->baseBlock(), '.gallery-head');
 
         self::assertStringContainsString(
-            'background-color: var(--bg)',
+            'background: var(--bg)',
             $head,
             'The pinned desktop controls must be opaque.',
         );
@@ -289,35 +289,26 @@ final class StickyToolbarTest extends TestCase
             . 'poster-library requirement revisited, not just this rule.',
         );
 
-        // Opaque is not the same as flat. The page is a graded field, so a bar
-        // filled with the anchor colour alone sits a shade off whatever the page
-        // is doing behind it — a rectangle visible against its own background,
-        // which is the self-announcement that removing the glass was meant to
-        // stop. Painting the same stack, anchored the same way, is what makes the
-        // seam disappear: a `fixed` background resolves against the viewport, so
-        // both put the same pixels at the same screen coordinates at every scroll
-        // offset. Drop either declaration and the bar reappears as a rectangle.
-        self::assertStringContainsString(
-            'background-image: var(--page-field)',
-            $head,
-            'The pinned block must paint the same field as the page, or it reads '
-            . 'as a rectangle sitting on top of it.',
-        );
-        self::assertStringContainsString(
-            'background-attachment: fixed',
-            $head,
-            'Without viewport anchoring the block paints its own slice of the '
-            . 'gradient and stops lining up with the page behind it.',
-        );
-
+        // The bar must be the page's colour, not merely opaque, or it reads as a
+        // rectangle laid on top of the page. Asserting both sides is what makes
+        // that a contract rather than a coincidence: giving <body> a gradient and
+        // leaving this flat is the exact edit that reintroduces the seam, and it
+        // looks entirely reasonable in isolation.
         $body = $this->rule($this->baseBlock(), 'body');
         self::assertStringContainsString(
-            'background-image: var(--page-field)',
+            'background: var(--bg)',
             $body,
-            'Both halves of the match must come from the token; restating the '
-            . 'stack in either place puts them one edit from disagreeing.',
+            'The page and the pinned block must be the same flat colour.',
         );
-        self::assertStringContainsString('background-attachment: fixed', $body);
+        self::assertStringNotContainsString(
+            'gradient',
+            $body,
+            'A graded page was tried and removed. The pinned block has to match '
+            . 'this background exactly, and a gradient makes that unwinnable: flat '
+            . 'against graded is a visible rectangle, and painting the bar the same '
+            . 'gradient does not work either, because background-attachment: fixed '
+            . 'is unreliable on a sticky element.',
+        );
     }
 
     /**

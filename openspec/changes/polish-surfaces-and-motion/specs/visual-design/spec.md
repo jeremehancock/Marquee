@@ -122,34 +122,31 @@ requirements against any content that may pass behind it.
 - **THEN** the surface falls back to an opaque tint of the same colour, and no
   text or control becomes harder to read than it is with the blur applied
 
-### Requirement: The page background is a graded field
+### Requirement: The page and its opaque chrome share one background
 
-The page background SHALL be a static gradient rather than a flat fill, so that
-surfaces resting on it read as sitting on something. The gradient SHALL be
-anchored on the application's established base colour, SHALL be purely
-decorative, and SHALL NOT require any network request.
+The page background and any opaque chrome resting on it SHALL be the same
+colour, so that a pinned or fixed bar is distinguishable from the page only by
+its contents and its edge, never by its fill.
 
-The base colour SHALL remain unchanged, because it is also carried by the web
-manifest, the browser theme-colour hint, and the brand mark, which must continue
-to agree with the page.
+This constrains the page background as much as the chrome. Where a surface must
+be opaque for a functional reason — the gallery's pinned controls must hide the
+posters passing under them — it has to reproduce the page exactly, and a page
+background it cannot reproduce is therefore not available. A gradient is the
+case that fails: matching it requires the chrome to paint the same gradient
+anchored to the viewport, which is not reliable on a sticky element.
 
-#### Scenario: The page reads as graded
+#### Scenario: Pinned chrome is not visible as a shape
 
-- **WHEN** any page of the application is displayed
-- **THEN** its background varies subtly across the viewport rather than being a
-  single flat colour
+- **WHEN** the gallery's pinned controls rest over the page at any scroll
+  position
+- **THEN** no edge of their fill is visible against the page behind them, and the
+  block is bounded only by its own border
 
-#### Scenario: The background costs nothing to fetch
+#### Scenario: The page background stays reproducible
 
-- **WHEN** a page loads
-- **THEN** the background requires no image request, and the page renders its
-  background on first paint
-
-#### Scenario: The brand mark still agrees with the page
-
-- **WHEN** the header logo is displayed against the page background
-- **THEN** the logo's own background matches the page it sits on, with no seam
-  between them
+- **WHEN** the page background is chosen
+- **THEN** it is something an opaque surface elsewhere in the application can
+  reproduce exactly, rather than something that can only be approximated
 
 ### Requirement: Interactive elements respond to pointer and focus
 

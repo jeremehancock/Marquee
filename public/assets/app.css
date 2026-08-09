@@ -102,21 +102,6 @@
     --backdrop-tint: rgba(9, 10, 13, 0.62);
     --backdrop-blur: blur(6px) saturate(110%);
 
-    /* The page's graded field, as an image stack. A token because two elements
-       paint it — <body>, and the pinned gallery block that has to be
-       indistinguishable from the page behind it. Both anchor it to the viewport
-       with `background-attachment: fixed`, which is what makes them align: a
-       fixed background resolves against the viewport rather than the element, so
-       identical declarations put identical pixels at identical screen positions
-       no matter where the element sits or how far the page has scrolled.
-
-       Restating this stack instead of referencing the token would put the two
-       one edit away from disagreeing, and the symptom — a faint rectangle around
-       the tabs, only at some scroll offsets — is the kind nobody attributes to
-       a stylesheet. */
-    --page-field:
-        radial-gradient(1100px 620px at 50% -12%, rgba(229, 160, 13, 0.055), transparent 62%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.22));
 }
 
 * {
@@ -126,50 +111,33 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* The page is a graded field rather than a flat fill, so the surfaces resting on
-   it read as sitting on something. Two layers over the base colour: a faint warm
-   radial from above the top edge, picking up the accent without tinting anything
-   enough to read as colour, and a vertical fall to a slightly deeper tone.
+/* Flat, deliberately, and this is the second attempt at it.
 
-   --bg is the anchor and does not move. It is duplicated in five places outside
-   this file — ManifestController's background_color and theme_color, the
-   theme-color meta tag in layout.html.twig, the inline header logo, logo.svg,
-   and favicon.svg — so changing it means changing all six in step, and getting
-   it wrong puts a visible seam around the brand mark in the header. Grading
-   around a fixed anchor keeps all five correct without touching them.
+   A graded page was tried — a faint warm radial from above the top edge over a
+   vertical fall — and it cost more than it bought. The gallery's pinned controls
+   sit on this background and must be opaque, so they have to match it exactly or
+   they read as a rectangle laid on top of the page. Against a flat fill that is
+   free. Against a gradient it is not: a flat bar is visibly a different shade,
+   and painting the bar the same gradient does not fix it either, because
+   `background-attachment: fixed` is unreliable on a `position: sticky` element —
+   browsers composite sticky elements into their own layer, and the background
+   then resolves against that layer rather than the viewport, squeezing the whole
+   gradient into the bar's height.
 
-   `background-attachment: fixed` is load-bearing, not a flourish. The gradient
-   is sized to the element by default, so on a long gallery it would stretch down
-   the whole document: the warm cast would sit off-screen above and the visible
-   region would be an almost flat slab of the bottom colour. Fixing it to the
-   viewport is what keeps the grade visible at every scroll position, and is also
-   what stops it re-rendering as the page grows during infinite scroll.
+   Both were tried on a real screen and both looked wrong. The grade was never
+   worth that: it was decoration, and the pinned bar is the frame the gallery is
+   read through. So the page is one colour, the bar is the same colour, and the
+   seam does not exist to be chased.
 
-   Where a browser treats `fixed` as `scroll` — iOS Safari has historically been
-   unreliable here — the failure is that stretch, which reads as the flat page
-   this replaced rather than as a fault. Left as is deliberately: the robust
-   alternative is a fixed pseudo-element at a negative z-index, and that puts the
-   page's background into the stacking order, where `.is-overlay-open body`'s
-   scroll lock and every overlay tier would have to be re-reasoned about. A
-   graceful degradation is worth more than that.
-
-   Measured against the anchor, the field runs #282727 at the top of the viewport
-   to #16171c at the bottom, so #1c1e24 sits inside its range and the theme-colour
-   hint stays true. Behind the header's glass the top of the field composites to
-   #1f2125, three units off the logo rect's own #1c1e24 — no visible seam at the
-   mark's rounded corners, which is the thing that would give a shifted base away. */
+   --bg is also carried by ManifestController's background_color and theme_color,
+   the theme-color meta tag, the inline header logo, logo.svg and favicon.svg. One
+   flat value keeps all six in agreement with no arithmetic. */
 body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
-    background-color: var(--bg);
-    background-image: var(--page-field);
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    background: var(--bg);
     color: var(--ink);
-    /* The gradient is fixed to the viewport, so a document shorter than the
-       screen would leave the unpainted base colour below it. */
-    min-height: 100vh;
 }
 
 /* Glass, so the page passes behind the header rather than stopping at a flat
@@ -802,29 +770,13 @@ h1 {
    the gutters is needed here (the phone rule needs one): the poster grid sits
    inside .container's padding box, so nothing ever renders beside this block.
 
-   It stays opaque at this width, and that is a decision rather than an oversight.
-   The phone bars are glass — content passes behind them constantly on a small
-   screen, and seeing it move through is what stops them feeling like a lid. This
-   block is different: it is wide, it is straight-edged, it spans the content
-   column, and it is the frame the gallery is read through rather than something
-   floating over it. Glassed, it drew attention to itself every time a poster
-   slid under it, which is the opposite of what chrome is for. The phone rules
-   keep the glass.
-
-   But opaque is not the same as flat, and a flat --bg was still wrong here. The
-   page is a graded field, so a bar filled with the anchor colour alone sat a
-   shade off whatever the page was doing behind it — a rectangle you could pick
-   out against its own background, which is precisely the self-announcement
-   removing the glass was meant to stop. So it paints --page-field, the same
-   stack <body> paints, anchored to the viewport the same way. Both being
-   `fixed` is what makes them line up: the background resolves against the
-   viewport rather than the element, so the bar shows exactly the slice of field
-   the page would have shown at those screen coordinates and the seam disappears
-   at every scroll position.
-
-   The surface is still doing its original job. It remains fully opaque, so the
-   posters passing under it are hidden as they always were; it has simply stopped
-   being a different colour from the page while it does that.
+   It stays opaque, and flat, and exactly the page's own colour. That is the
+   whole requirement on it: the block must hide the posters passing under it
+   without announcing that it is a block. Glass was tried here and drew attention
+   to itself every time a poster slid under it; a graded page was tried behind it
+   and left it a visibly different shade. Both are gone. The phone bars keep the
+   glass, where a narrow bar with content moving behind it genuinely gains from
+   being seen through.
 
    The rule along the bottom edge is .tabs' old border, moved out here. Inside a
    single pinned block that border read as a divider between the tabs and the
@@ -846,10 +798,7 @@ h1 {
     position: sticky;
     top: 0;
     z-index: 30;
-    background-color: var(--bg);
-    background-image: var(--page-field);
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+    background: var(--bg);
     padding-top: 12px;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border);

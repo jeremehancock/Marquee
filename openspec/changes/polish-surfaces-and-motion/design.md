@@ -43,9 +43,9 @@ they must be moved deliberately.
 
 - Any change to what the application does. No route, control, layout, or
   interaction is added, removed, or moved.
-- The blurred poster montage behind the gallery — deferred; the gradient wash
-  gets most of the depth with no image request and no mobile performance
-  question.
+- The blurred poster montage behind the gallery — deferred; it adds an image
+  request and a mobile performance question, and the flat page it would replace
+  turned out to be load-bearing for the pinned controls (see D2).
 - Palette hue changes, a second accent, gradient accent fills, typography, the
   spacing rhythm, or icon redraws.
 - A CSS build step. No preprocessor, no new dependency, no Node in the runtime
@@ -65,7 +65,7 @@ strategy is source order — the mobile block sits last precisely so it wins at
 equal specificity, and its `StickyToolbarTest` helper finds it by string offset.
 Layers would silently reorder that.
 
-### D2. Hold `--bg: #1c1e24` fixed and build the gradient on top of it
+### D2. Hold `--bg: #1c1e24` fixed, and keep the page flat
 
 The base colour is duplicated in five places outside the stylesheet: the web
 manifest (`ManifestController.php`, both `background_color` and `theme_color`),
@@ -73,11 +73,24 @@ the `theme-color` meta tag in the layout, the inline header logo SVG,
 `logo.svg`, and `favicon.svg`. Changing it means changing all six in step or
 introducing a visible seam around the brand mark.
 
-The gradient is therefore layered on `body` with `#1c1e24` as its anchor: a
-faint warm radial from the top, falling to a slightly deeper tone at the
-bottom. The extremes stay close enough to the anchor that the manifest colour,
-the theme-colour hint, and the logo's own fill all continue to agree with the
-page.
+A gradient wash anchored on it was built, shipped to `:dev`, and removed. The
+reason is a constraint that only appears once the two are on screen together:
+the gallery's pinned controls must be opaque, because they exist to hide the
+posters scrolling under them — so they must reproduce the page background
+*exactly*, or they read as a rectangle laid on top of it. Against a flat fill
+that is free. Against a gradient there is no good answer:
+
+- Leaving the bar flat makes it a visibly different shade from the page.
+- Painting the bar the same gradient fails too. Matching requires
+  `background-attachment: fixed` on both so each resolves against the viewport,
+  and that is unreliable on a `position: sticky` element — browsers composite
+  sticky elements into their own layer, and the background then resolves against
+  that layer, squeezing the whole gradient into the bar's height.
+
+So the page is one colour. `visual-design` states this as a requirement rather
+than leaving it as an implementation detail, because the failure is not obvious
+from either rule alone: adding a gradient to `body` looks entirely reasonable
+until you notice what it did to the bar two hundred lines away.
 
 *Alternative considered.* Retuning the palette cooler, Overseerr-style, would
 mean touching all six locations and re-checking the amber against a new base.
@@ -104,25 +117,36 @@ the failure case — so the tint is chosen for contrast against a worst-case
 backdrop, and the blur is treated as depth, not as the thing making text
 readable.
 
-### D4. Pinned gallery controls become glass, which modifies `poster-library`
+### D4. Glass by width, which modifies `poster-library`
 
 This is the one place the visual change collides with an existing normative
 requirement. "Responsive gallery layout and pinned controls" requires the pinned
 controls be opaque so posters are "fully hidden"; glass chrome cannot satisfy
 that as written.
 
-Rather than exempt the pinned controls from the glass treatment — they are the
-most visible chrome in the application, and exempting them would leave the
-gallery looking untouched — the requirement is modified to demand *legibility
-and full-width coverage* instead of opacity. The concerns the original clause
-existed to protect are kept explicitly:
+The requirement is changed to permit translucency rather than to require it —
+MAY, not SHALL — and to say outright that it may differ by width. That wording
+is what lets the two form factors diverge, which is where they ended up after
+looking at both on a real screen:
+
+- **The narrow-screen toolbar is glass.** It is a narrow bar with content moving
+  behind it constantly, and seeing that movement is what keeps it from reading
+  as a lid over the grid.
+- **The desktop block is opaque.** It is wide, straight-edged, spans the content
+  column, and is the frame the gallery is read through rather than something
+  floating over it. Glassed, it announced itself every time a poster slid under
+  it — the opposite of what chrome is for.
+
+The concerns the original opacity clause existed to protect are kept explicitly:
 
 - **Coverage.** The original guarded against a strip of poster showing through
   the phone toolbar's 14px side channel. The negative margins that fix it stay,
   and the delta keeps a scenario asserting no unsubdued strip at either edge.
-- **Blur strength.** "Blurred and dimmed" is not enough on its own — a lightly
-  blurred poster still reads as a rendering fault. The delta requires that no
-  poster remain individually recognisable through the block.
+- **Blur strength.** Where the surface is translucent, "blurred and dimmed" is
+  not enough on its own — a lightly blurred poster still reads as a rendering
+  fault. The delta requires that no poster remain individually recognisable.
+- **Opacity where it is claimed.** Where the surface is opaque, the delta still
+  requires that no poster be visible behind it at all.
 - **Layering.** Unchanged; every overlay still covers the pinned controls.
 
 ### D5. Elevation is a five-tier scale keyed to the existing z-index ladder

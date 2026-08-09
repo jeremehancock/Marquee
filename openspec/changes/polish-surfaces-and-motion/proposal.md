@@ -12,11 +12,15 @@ rather than as the polished Plex companion it sits beside.
   easing, and translucent surface tints — so every surface in the application
   draws from one vocabulary instead of the ad-hoc values currently scattered
   through the stylesheet.
-- Give floating chrome a **glass treatment**: the page header, the pinned
-  gallery controls, the modal and tray backdrops, and the mobile tab bar become
-  translucent with a blurred backdrop, so content stays visible behind them.
-- Add a **static gradient wash** to the page background, anchored on the
-  existing base colour, so surfaces sit on something rather than on a flat fill.
+- Give floating chrome a **glass treatment**: the page header, the narrow-screen
+  toolbar and tab bar, and the modal and tray backdrops become translucent with a
+  blurred backdrop, so content stays visible behind them. The desktop pinned
+  block is deliberately excluded — it is wide enough that content moving behind
+  it draws attention to the bar rather than through it.
+- Keep the page background **one flat colour**. A gradient wash was built and
+  then removed: the gallery's pinned controls must be opaque, so they have to
+  reproduce the page exactly, and a gradient is not something a sticky bar can
+  reproduce reliably. The constraint is now stated as a requirement.
 - Establish an **elevation scale** and apply it to everything that floats —
   dialogs, trays, toasts, tooltips, and poster cards on hover.
 - Give **motion to state changes** that currently snap: button hover and press,
@@ -45,12 +49,13 @@ or interaction is added, removed, or moved.
 - `poster-library`: "Responsive gallery layout and pinned controls" currently
   requires the pinned category tabs and toolbar to be **opaque**, so that "no
   poster is visible passing behind them" and posters scrolling past are "fully
-  hidden". Glass chrome is incompatible with that as written. The requirement is
-  relaxed to demand *legibility and full coverage of the grid's width* rather
-  than opacity, so posters may show through blurred and dimmed. Everything else
-  in the requirement — what is pinned at which width, the edge-to-edge span, the
-  layering below every overlay, the keyboard behaviour, the short-results
-  case — is unchanged.
+  hidden". Glass chrome is incompatible with that as written. The requirement now
+  says the surface MAY be translucent and MAY differ by width, demanding
+  *legibility and full coverage of the grid's width* in either case. In practice
+  the narrow-screen toolbar takes the glass and the desktop block stays opaque.
+  Everything else in the requirement — what is pinned at which width, the
+  edge-to-edge span, the layering below every overlay, the keyboard behaviour,
+  the short-results case — is unchanged.
 
 No other capability changes. The placeholder-animation and fade-in requirements
 in `poster-library` and `poster-sources`, the animated scroll-to-top in `search`,
@@ -72,8 +77,10 @@ bottom tab bar carry no opacity requirement, so glassing them modifies nothing.
   dialogs and trays to animate out as well as in.
 - `tests/Unit/Asset/StickyToolbarTest.php` — two assertions require the literal
   `background: var(--bg)` on the pinned controls, with the message "The pinned
-  desktop controls must be opaque." Both must move to asserting the translucent
-  tint and its blur instead.
+  desktop controls must be opaque." The phone one moves to asserting the
+  translucent tint, its blur, and the `@supports` fallback; the desktop one keeps
+  the opacity assertion and gains one that the page background stays flat, since
+  the two must match.
 
 **Constraints to respect**
 
@@ -85,15 +92,15 @@ bottom tab bar carry no opacity requirement, so glassing them modifies nothing.
   changes must respect those notes.
 - The base colour `#1c1e24` is duplicated in the web manifest, the
   `theme-color` meta tag, the inline header logo, `logo.svg`, and `favicon.svg`.
-  Holding it fixed as the anchor of the gradient keeps all five correct.
+  Holding it as one flat value keeps all five correct with no arithmetic.
 - `backdrop-filter` must degrade to a solid tint where it is unsupported, so no
   surface ever becomes unreadable.
 
 **Not in scope**
 
 - The blurred poster montage behind the gallery. Considered and deferred: it
-  adds image loading and a mobile performance question that the gradient wash
-  avoids entirely.
+  adds image loading and a mobile performance question, and the flat page it
+  would have replaced turned out to be load-bearing for the pinned controls.
 - Any change to the colour palette's hue, the accent, or the brand mark.
 - Typography, spacing rhythm, and icon redraws.
 
