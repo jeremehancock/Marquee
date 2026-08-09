@@ -65,19 +65,19 @@
 
 ## 5. Validation on a phone
 
-- [ ] 5.1 On the `:dev` image, open the Import from Plex tray on a phone: the form
+- [x] 5.1 On the `:dev` image, open the Import from Plex tray on a phone: the form
       sits flat on the tray surface with no shadow rectangle around it. Confirm
       the standalone `/plex` page on desktop still shows the panel with its
       border, background and elevation.
-- [ ] 5.2 Open the Orphans tray with no orphans present: the "No orphaned posters
+- [x] 5.2 Open the Orphans tray with no orphans present: the "No orphaned posters
       found" panel and its Re-check button sit flat, with no halo.
-- [ ] 5.3 With orphans present, confirm the count / delete-all bar spans the tray
+- [x] 5.3 With orphans present, confirm the count / delete-all bar spans the tray
       edge to edge, on the tray's own surface, with no darker band and no strip of
       surface beside it.
-- [ ] 5.4 The reported reopen path: open the Orphans tray, wait for the scan,
+- [x] 5.4 The reported reopen path: open the Orphans tray, wait for the scan,
       close it, reopen it. While "Checking Plex for orphans…" is up, the previous
       count bar must be dimmed and blurred beneath the spinner like the grid
       below it — not drawn over it.
-- [ ] 5.5 Delete a single orphan from the tray and confirm the count line and the
+- [x] 5.5 Delete a single orphan from the tray and confirm the count line and the
       delete-all confirmation both still report the right number — the check that
       task 2.1 landed.
