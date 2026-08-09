@@ -1524,7 +1524,37 @@ h1 {
 }
 
 .plex-group + .plex-group {
-    margin-top: 18px;
+    margin-top: 22px;
+}
+
+/* A section label, not a line of prose: the two groups are the tab's structure,
+   and .stats (muted, body-sized) let them read as captions on the posters below
+   rather than as the boundary between two different kinds of poster. */
+.plex-group__heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+    color: var(--ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+/* The rule runs out to the edge so the heading reads as the start of a band
+   rather than as text that happens to sit above some posters. */
+.plex-group__heading::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.plex-group__count {
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0;
 }
 
 /* Marks the poster Plex is using now. Without it every candidate reads as

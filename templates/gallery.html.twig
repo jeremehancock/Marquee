@@ -12,7 +12,10 @@
 {% macro plex_group(label, source) %}
     <template x-if="{{ source }}.length">
         <div class="plex-group">
-            <p class="stats">{{ label }}</p>
+            <p class="plex-group__heading">
+                <span>{{ label }}</span>
+                <span class="plex-group__count" x-text="{{ source }}.length"></span>
+            </p>
             <div class="find-grid">
                 <template x-for="poster in {{ source }}" :key="poster.token">
                     {# Per-cell loaded flag, as in the Find Posters grid: Alpine builds
@@ -181,7 +184,7 @@
                     </p>
                     <div class="plex-groups" x-show="!plexPosters.loading && !plexPosters.error">
                         {{ _self.plex_group('Uploaded to Plex', 'plexPosters.uploaded') }}
-                        {{ _self.plex_group('Also on your server', 'plexPosters.server') }}
+                        {{ _self.plex_group('Found by Plex', 'plexPosters.server') }}
                     </div>
                 </div>
 

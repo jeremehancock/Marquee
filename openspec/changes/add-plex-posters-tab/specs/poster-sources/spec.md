@@ -89,7 +89,12 @@ exists, so it SHALL come first.
 The second group SHALL NOT be described as coming from a metadata agent. It
 holds posters of several kinds — artwork an agent downloaded, a poster file
 found alongside the media, an image embedded in the media itself — and naming
-one of them would misdescribe the others.
+one of them would misdescribe the others. Its label SHALL describe what is true
+of all of them: Plex obtained the poster itself rather than being given it.
+
+Each group's heading SHALL be presented as a section label rather than as
+body text, and SHALL carry the number of candidates in it, so a user can see how
+much history an item has accumulated without counting.
 
 Each group SHALL be shown only when it has candidates, so an item with no
 uploads does not display an empty heading.
@@ -104,6 +109,11 @@ uploads does not display an empty heading.
 - **WHEN** a user views the Plex Posters results
 - **THEN** each group names what it contains, so a poster the user applied
   themselves is distinguishable from one that arrived another way
+
+#### Scenario: Headings read as structure
+- **WHEN** a user views a Plex Posters result with both groups present
+- **THEN** each heading is presented distinctly from the surrounding body text
+  and shows how many candidates its group holds
 
 #### Scenario: A group with no candidates is omitted
 - **WHEN** an item has other server-held posters but nothing was ever uploaded
