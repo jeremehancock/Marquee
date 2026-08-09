@@ -1,0 +1,34 @@
+{# The x-transition attributes every overlay carries, declared once.
+
+   Eight overlays across four templates need the same six attributes, and six
+   attributes repeated eight times is six chances for one of them to drift. The
+   classes themselves are defined in app.css under "Overlay transitions"; what
+   lives here is only the wiring that hands them to Alpine.
+
+   Both macros emit the same class names. A dialog and a tray differ in how they
+   move, not in when — and app.css already keys that difference off the panel
+   inside (.modal__panel scales, .sheet__panel slides), so a single set of state
+   classes drives both. The two macros exist to name the intent at the call site
+   and to give either one somewhere to diverge later without touching the other.
+
+   `enter-start` and `leave-end` are the same class, as are `enter-end` and
+   `leave-start`: an overlay has two resting appearances, shut and shown, and a
+   transition is a trip between them in one direction or the other. #}
+
+{% macro dialog() %}
+    x-transition:enter="overlay-opening"
+    x-transition:enter-start="overlay-shut"
+    x-transition:enter-end="overlay-shown"
+    x-transition:leave="overlay-closing"
+    x-transition:leave-start="overlay-shown"
+    x-transition:leave-end="overlay-shut"
+{% endmacro %}
+
+{% macro tray() %}
+    x-transition:enter="overlay-opening"
+    x-transition:enter-start="overlay-shut"
+    x-transition:enter-end="overlay-shown"
+    x-transition:leave="overlay-closing"
+    x-transition:leave-start="overlay-shown"
+    x-transition:leave-end="overlay-shut"
+{% endmacro %}

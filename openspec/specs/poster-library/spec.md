@@ -1227,11 +1227,28 @@ are already permanently on screen as a bottom tab bar. On a pointer/desktop scre
 the category tabs and the toolbar SHALL be pinned together as a single block, so
 switching category, searching, and re-sorting are all reachable while scrolled.
 
-The pinned controls SHALL be opaque, so no poster is visible passing behind them,
-and SHALL span the full width of the region the poster grid occupies, so no poster
-is visible passing beside them either. They SHALL layer above the poster grid and
-below every overlay — the bottom tab bar, trays, dialogs, and the fullscreen
-viewer — so an open overlay always covers them.
+The pinned controls SHALL be drawn on a surface of their own that spans the full
+width of the region the poster grid occupies, so no poster is ever visible beside
+them at full strength. That surface MAY be translucent, so posters passing behind
+it show through blurred and dimmed rather than being hidden outright (see
+"Translucent floating chrome" in `visual-design`). Whether it is translucent MAY
+differ by screen width, since what reads as chrome on a narrow screen and on a
+wide one is not the same thing.
+
+Where the surface is translucent, the tint SHALL be strong enough that every
+control on it — each category tab label, the search field and its text, and the
+sort control — stays fully legible against any poster that may pass behind it,
+and the blur SHALL be strong enough that no poster remains individually
+recognisable through it. Where it is opaque, no poster SHALL be visible behind it
+at all.
+
+Either way, a poster SHALL NOT appear at full strength anywhere within the pinned
+block's bounds, including at its left and right edges, whether it is passing
+behind the block or beside it.
+
+The pinned controls SHALL layer above the poster grid and below every overlay —
+the bottom tab bar, trays, dialogs, and the fullscreen viewer — so an open overlay
+always covers them.
 
 Pinning applies only while the page can scroll. When the results are too short to
 fill the viewport — a search with no matches, most obviously — the controls SHALL
@@ -1280,13 +1297,28 @@ coordinate space the pinned toolbar and the fixed bottom tab bar resolve against
 
 #### Scenario: Pinned toolbar hides the posters passing under it
 - **WHEN** the gallery is scrolled on a narrow screen with the toolbar pinned
-- **THEN** posters scrolling past are fully hidden behind the toolbar, including
-  at the left and right edges of the viewport
+- **THEN** no poster passing behind the toolbar is individually recognisable, at
+  any point across the full width of the viewport including its left and right
+  edges
+- **AND** the search field and the sort trigger remain fully legible over it
 
 #### Scenario: Pinned desktop controls hide the posters passing under them
 - **WHEN** the gallery is scrolled on a pointer/desktop-width screen
 - **THEN** posters scrolling past are fully hidden behind the pinned tabs and
   toolbar, including at the left and right edges of the poster grid
+- **AND** every category tab label, the search field, and the inline sort control
+  remain fully legible
+
+#### Scenario: No unsubdued strip beside the pinned controls
+- **WHEN** the gallery is scrolled at any width
+- **THEN** no strip of poster appears at full strength within the pinned block's
+  bounds, at either edge, where the block's own surface does not reach
+
+#### Scenario: A translucent pinned surface stays legible without blur support
+- **WHEN** the gallery is scrolled on a narrow screen in a browser that does not
+  support backdrop blur
+- **THEN** the pinned toolbar falls back to an opaque surface, and every control
+  on it remains fully legible
 
 #### Scenario: Results too short to scroll leave the toolbar in flow
 - **WHEN** a search returns no matches, on a narrow or a pointer/desktop screen

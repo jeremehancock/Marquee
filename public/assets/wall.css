@@ -1,3 +1,21 @@
+/* The wall is a standalone page: wall.html.twig links this file alone, so
+   app.css — and with it the design token contract — is not in scope here. The
+   handful of values the wall genuinely shares with the app are restated below
+   rather than imported, and only those. Keep this list short: every entry is a
+   value that must be changed in two places, which is the cost of the wall being
+   its own document.
+
+   Most of what the wall draws is deliberately NOT app vocabulary. It is a
+   full-screen display seen from across a room, on pure black rather than on the
+   app's page colour, and its crossfade and frame shadow are theatrical rather
+   than UI depth. Those stay as literals, commented where they are used. */
+:root {
+    /* The Plex amber, identical to --accent in app.css. */
+    --wall-accent: #e5a00d;
+    /* Matches --radius-xs: a full-screen image's corner. */
+    --wall-radius: 6px;
+}
+
 * {
     margin: 0;
     box-sizing: border-box;
@@ -22,6 +40,8 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0;
+    /* Far slower than any duration on the app's motion scale, and correctly so:
+       this is a slideshow dissolve watched passively, not feedback on a tap. */
     transition: opacity 1.2s ease;
 }
 
@@ -53,8 +73,10 @@ body {
     max-height: 92%;
     max-width: 92%;
     aspect-ratio: 2 / 3;
-    border-radius: 6px;
+    border-radius: var(--wall-radius);
     overflow: hidden;
+    /* Deeper and wider than any tier on the app's elevation scale, deliberately:
+       this is a single poster floating in a black room, not a panel on a page. */
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
     container-type: inline-size;
 }
@@ -116,7 +138,7 @@ body {
     letter-spacing: 0.23em;
     font-weight: 800;
     color: #1a1205;
-    background: #e5a00d;
+    background: var(--wall-accent);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 

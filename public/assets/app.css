@@ -1,3 +1,12 @@
+/* The design token contract. Component rules draw from these rather than
+   restating literals: a value that expresses depth, roundness, timing, or
+   surface tint belongs here, and only a dimension specific to one element
+   (a 40px grab handle, a 26px tab glyph) stays inline.
+
+   Seeded from the values the stylesheet already used, so introducing the scales
+   changed no rendered pixel. Retune a scale here and every surface follows —
+   which is the whole point, and also the trap: a value nudged here moves things
+   far from where you are looking. */
 :root {
     color-scheme: light dark;
     --bg: #1c1e24;
@@ -8,6 +17,91 @@
     --accent: #e5a00d;
     --accent-dim: #b9800c;
     --border: #34373d;
+
+    /* Elevation. Five tiers, keyed to the z-index ladder documented in the Modal
+       section (pinned controls 30, tab bar 40, trays 50, dialogs 55, viewer 60,
+       toast 80, tooltip 100). A surface's tier MUST agree with where it sits on
+       that ladder, or depth and stacking tell the reader different stories —
+       ElevationLadderTest asserts the agreement, because picking a shadow by eye
+       is exactly how they drift apart.
+
+       Two layers each: a tight contact shadow that reads as the edge lifting off
+       the page, and a wide ambient one that reads as the distance. A single
+       large blur has no contact edge and comes out as fog against a background
+       this dark. */
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.22);
+    --elev-2: 0 2px 4px rgba(0, 0, 0, 0.32), 0 6px 16px rgba(0, 0, 0, 0.28);
+    --elev-3: 0 4px 8px rgba(0, 0, 0, 0.36), 0 12px 32px rgba(0, 0, 0, 0.34);
+    --elev-4: 0 6px 12px rgba(0, 0, 0, 0.40), 0 20px 48px rgba(0, 0, 0, 0.42);
+    --elev-5: 0 8px 16px rgba(0, 0, 0, 0.44), 0 24px 60px rgba(0, 0, 0, 0.48);
+
+    /* Corner radii, seeded from the six values already in the file: full-screen
+       images (6), controls (8), cards and rows (10), panels and dialogs (12),
+       the top corners of a tray (16), and pills. */
+    --radius-xs: 6px;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 999px;
+
+    /* Motion. Four durations, consolidated from the seven hand-picked values the
+       file used to carry. `--dur-exit` is deliberately the fast one: leaving
+       should feel quicker than arriving, and an exit that lingers reads as the
+       interface being slow to obey. */
+    --dur-fast: 0.12s;
+    --dur-base: 0.18s;
+    --dur-slow: 0.3s;
+    --dur-fade: 0.45s;
+    --dur-exit: var(--dur-fast);
+
+    /* Progress tempos, deliberately NOT on the duration scale above. That scale
+       sizes feedback on an action; these are the pulse of a thing that is
+       waiting, tuned to read as patient rather than urgent, and nothing about
+       them should follow when the scale is retuned.
+
+       They are tokens rather than literals for one reason: the reduced-motion
+       rule at the end of this file collapses every animation in the application
+       and then exempts these two, so each tempo is named twice. A number written
+       twice is a number that will disagree with itself. */
+    --tempo-spin: 0.8s;
+    --tempo-shimmer: 1.3s;
+
+    /* Standard for state changes that reverse (hover on, hover off); entrance
+       decelerates into place; exit accelerates away. */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-entrance: cubic-bezier(0, 0, 0.2, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    /* Translucency, for chrome that floats over content. Two tints: the lighter
+       one for bars content passes *behind* (header, pinned controls, tab bar),
+       the heavier one for the backdrop behind a dialog or tray, which has to
+       push the whole page back.
+
+       The tint alone carries legibility, not the blur. Blur redistributes
+       luminance but guarantees no contrast ratio: a large flat white region on a
+       minimalist poster blurs to itself, so the worst case behind a tab label is
+       simply white. --chrome-tint's alpha is therefore solved for, not chosen by
+       eye — 0.85 is where --ink reaches 8.35:1 and --accent 4.64:1 against that
+       white, both clear of AA. Saturation is lifted with the blur so the greys
+       behind do not go flat and lifeless.
+
+       --muted does NOT survive that test: at 154,160,170 it lands on 3.95:1,
+       under the 4.5 body text needs, and raising the tint far enough to rescue it
+       (0.90+) leaves a bar too opaque to be worth calling glass. Text on chrome
+       takes --muted-on-chrome instead, which is the same grey lifted until it
+       reaches 5.63:1 there. Anything muted sitting on a glass surface must use
+       it; --muted stays correct everywhere else, where the surface behind is
+       known.
+
+       Every rule using these MUST have a matching entry in the
+       `@supports not (backdrop-filter: ...)` block at the end of this file. */
+    --chrome-tint: rgba(28, 30, 36, 0.85);
+    --chrome-blur: blur(18px) saturate(140%);
+    --muted-on-chrome: #b9bfc9;
+    --backdrop-tint: rgba(9, 10, 13, 0.62);
+    --backdrop-blur: blur(6px) saturate(110%);
+
 }
 
 * {
@@ -17,6 +111,27 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Flat, deliberately, and this is the second attempt at it.
+
+   A graded page was tried — a faint warm radial from above the top edge over a
+   vertical fall — and it cost more than it bought. The gallery's pinned controls
+   sit on this background and must be opaque, so they have to match it exactly or
+   they read as a rectangle laid on top of the page. Against a flat fill that is
+   free. Against a gradient it is not: a flat bar is visibly a different shade,
+   and painting the bar the same gradient does not fix it either, because
+   `background-attachment: fixed` is unreliable on a `position: sticky` element —
+   browsers composite sticky elements into their own layer, and the background
+   then resolves against that layer rather than the viewport, squeezing the whole
+   gradient into the bar's height.
+
+   Both were tried on a real screen and both looked wrong. The grade was never
+   worth that: it was decoration, and the pinned bar is the frame the gallery is
+   read through. So the page is one colour, the bar is the same colour, and the
+   seam does not exist to be chased.
+
+   --bg is also carried by ManifestController's background_color and theme_color,
+   the theme-color meta tag, the inline header logo, logo.svg and favicon.svg. One
+   flat value keeps all six in agreement with no arithmetic. */
 body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -25,29 +140,43 @@ body {
     color: var(--ink);
 }
 
+/* Glass, so the page passes behind the header rather than stopping at a flat
+   band. The hairline stays: it is what gives the translucent bar an edge, and
+   without one the header dissolves into the content on a light poster.
+
+   Not `position: sticky`. The header scrolls away as it always has — glassing it
+   is about the page showing through as content passes under it on its way out,
+   and about matching the pinned controls below it, which do stay. Pinning the
+   header too would be a behaviour change, and nothing asked for one. */
 .topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 14px 24px;
-    background: var(--surface);
+    background: var(--chrome-tint);
+    -webkit-backdrop-filter: var(--chrome-blur);
+    backdrop-filter: var(--chrome-blur);
     border-bottom: 1px solid var(--border);
 }
 
 /* Desktop follows the project's landing page (getmarquee.now): the bar spans
-   the viewport, but its contents line up with the 960px content column, and it
-   is tinted like the page with a single hairline under it rather than raised as
-   a panel. The gutter is padding rather than a max-width wrapper so the markup
-   stays as it is: the `max()` collapses to a plain 24px once the viewport is
-   narrower than the column, which is what `.container` does there too.
-   Deliberately a `min-width` query — the complement of the
-   `@media (max-width: 640px)` block at the END of this file — rather than the
-   file's usual base-rule-plus-mobile-override shape: the phone topbar must stay
-   exactly as it is, and leaving the base rule untouched guarantees that. */
+   the viewport, but its contents line up with the 960px content column. The
+   gutter is padding rather than a max-width wrapper so the markup stays as it
+   is: the `max()` collapses to a plain 24px once the viewport is narrower than
+   the column, which is what `.container` does there too. Deliberately a
+   `min-width` query — the complement of the `@media (max-width: 640px)` block at
+   the END of this file.
+
+   This block used to also restate `background: var(--bg)`, because the base rule
+   raised the phone header onto --surface and the desktop bar is specified as
+   page-coloured chrome rather than a panel. --chrome-tint is --bg carrying an
+   alpha, so the base rule now gives both widths the page colour and the override
+   has nothing left to say. Do not reintroduce a background here: it would land
+   on top of the glass and turn the desktop header opaque, which is the one thing
+   this arrangement is for. */
 @media (min-width: 641px) {
     .topbar {
         padding-inline: max(24px, calc((100% - 960px) / 2 + 24px));
-        background: var(--bg);
     }
 }
 
@@ -70,7 +199,7 @@ body {
 }
 
 .topbar a {
-    color: var(--muted);
+    color: var(--muted-on-chrome);
     text-decoration: none;
 }
 
@@ -95,7 +224,7 @@ body {
     padding: 8px 10px;
     border-color: transparent;
     background: none;
-    color: var(--muted);
+    color: var(--muted-on-chrome);
     font-size: 0.92rem;
     white-space: nowrap;
 }
@@ -150,7 +279,7 @@ body {
 /* .topbar a is (0,1,1) and would otherwise beat this, so the resting and hover
    colours are stated at matching weight — the same reason .nav-item does. */
 .topbar .conn-status {
-    color: var(--muted);
+    color: var(--muted-on-chrome);
 }
 
 .topbar a.conn-status:hover .conn-status__name,
@@ -175,6 +304,10 @@ body {
     border-radius: 50%;
 }
 
+/* The two halos below are the file's only `box-shadow` outside the elevation
+   scale, and deliberately so: a spread-only ring at zero offset is a status
+   light's glow, not depth. Reaching for --elev-* here would put the dot on the
+   layering ladder, where it does not belong. */
 .conn-dot--ok {
     background: #3fb950;
     box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.18);
@@ -188,12 +321,33 @@ body {
 }
 
 /* The tray is a vertical list, so the hairline turns to sit above it — a left
-   border on a full-width row would point at nothing. */
+   border on a full-width row would point at nothing.
+
+   Colour and text-decoration are stated here rather than inherited, and that is
+   the whole reason this rule grew. The tray used to be markup inside <header>, so
+   `.topbar a` reached it and gave every link in it the muted colour and no
+   underline. The tray is teleported to <body> now — it had to be, because the
+   glass header became a containing block for the fixed tray inside it — and the
+   moment it moved, this link fell out of that selector's reach and reverted to
+   the browser's default: blue and underlined, in the middle of a themed tray.
+   Nothing else in the tray was affected, because every other link there is a
+   .btn and carries its own colour; this is the one bare anchor.
+
+   --muted rather than --muted-on-chrome: the tray is an opaque surface, so the
+   lifted grey the glass bars need would just read as brighter than the rows
+   above it. */
 .menu__body .conn-status {
     margin: 6px 0 0;
     padding: 12px 0 2px;
     border-left: 0;
     border-top: 1px solid var(--border);
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.menu__body a.conn-status:hover .conn-status__name,
+.menu__body a.conn-status:focus-visible .conn-status__name {
+    color: var(--ink);
 }
 
 /* In the narrow band the name goes with the nav labels and the dot stands alone,
@@ -292,6 +446,8 @@ body {
 .menu__footer a:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+    /* Not on the radius scale: this rounds the focus ring around a run of text,
+       not a surface. The scale's smallest step would bow it visibly. */
     border-radius: 2px;
 }
 
@@ -313,7 +469,7 @@ body {
     display: inline-flex;
     align-items: center;
     opacity: 0.75;
-    transition: opacity 0.2s;
+    transition: opacity var(--dur-base) var(--ease-standard);
 }
 
 .attribution__logos a:hover {
@@ -344,7 +500,8 @@ body {
 .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-2);
     padding: 28px;
 }
 
@@ -371,7 +528,7 @@ h1 {
 
 .form input {
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--ink);
@@ -381,42 +538,108 @@ h1 {
     margin-top: 18px;
     padding: 10px 16px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--accent);
     color: #1a1300;
     font-weight: 600;
     cursor: pointer;
 }
 
+/* Flashes and inline notices — "Signed in to Plex.", an import that Plex would
+   not take, the obsolete-PLEX_TOKEN warning.
+
+   Each severity is one hue used three ways — a glyph, a wash behind, and a
+   hairline around — plus the ink for the text. --alert-hue and --alert-ink carry
+   them, so a severity is two declarations below rather than five colours to keep
+   in agreement, and a new severity is one rule plus its glyph.
+
+   The glyph is what stops these reading as filler. A message identified only by a
+   tinted background is a rectangle slightly different from the rectangle above
+   it; a mark gives the eye somewhere to land. It also survives being wrong about
+   colour — someone who cannot separate the green from the amber still gets a
+   distinct shape, and the wording says which it is either way.
+
+   The border is uniform. A heavier bar down the leading edge was tried and cut:
+   with the glyph already marking the severity it was a second announcement of the
+   same thing, and it broke the box's outline on the one side the eye starts from.
+
+   The glyph is a masked data-URI rather than markup, and that is what keeps this
+   to one file. .alert is used on a bare <p> in four templates and on a <div> of
+   several <p>s for the obsolete-PLEX_TOKEN notice; adding an <svg> would mean
+   touching every call site and giving the multi-paragraph variant a wrapper it
+   does not have. `mask-image` also means the glyph is painted with
+   `background: currentColor`, so it takes --alert-ink automatically and cannot
+   drift from the text beside it.
+
+   Absolutely positioned, not a flex item. Making .alert a flex row would turn
+   those sibling <p>s into columns; taking the glyph out of flow leaves every
+   variant laid out exactly as it was, and costs only the left padding that makes
+   room for it.
+
+   Elevation is deliberately the lowest tier. A flash sits in the page's flow,
+   above it but not over it; --elev-2 or higher would have it float like a panel
+   it is not. */
 .alert {
-    background: rgba(228, 120, 95, 0.15);
-    border: 1px solid rgba(228, 120, 95, 0.4);
-    color: #e4785f;
-    padding: 10px 12px;
-    border-radius: 8px;
+    --alert-hue: 228, 120, 95;
+    --alert-ink: #ea9885;
+    /* Drawn at a 24 viewBox with a 1.9 stroke — heavier than the 1.7 the nav and
+       tab glyphs use, because this renders at 19px where 1.7 thins to a
+       hairline. Same reasoning as .sort__btn .icon. */
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5'/%3E%3Cpath d='M12 16.5h.01'/%3E%3C/svg%3E");
+    position: relative;
+    padding: 13px 15px 13px 44px;
+    border: 1px solid rgba(var(--alert-hue), 0.34);
+    border-radius: var(--radius-md);
+    background: linear-gradient(
+        100deg,
+        rgba(var(--alert-hue), 0.17),
+        rgba(var(--alert-hue), 0.08)
+    );
+    box-shadow: var(--elev-1);
+    color: var(--alert-ink);
+    font-weight: 500;
+}
+
+.alert::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    /* Pinned to the first line rather than centred on the box: the multi-paragraph
+       notice is tall, and a glyph floating in the middle of it points at nothing.
+       Aligned against the cap height of the first line, not its box. */
+    top: 14px;
+    width: 19px;
+    height: 19px;
+    background: currentColor;
+    -webkit-mask: var(--alert-glyph) center / contain no-repeat;
+    mask: var(--alert-glyph) center / contain no-repeat;
+    pointer-events: none;
 }
 
 /* Success flashes fade themselves out (see app.js). The transition is on the
    alert itself rather than a wrapper so the space it occupied collapses with it. */
 .alert--fading {
     opacity: 0;
-    transition: opacity 0.5s ease;
+    transition: opacity var(--dur-fade) var(--ease-standard);
 }
 
 .alert--success {
-    background: rgba(111, 191, 127, 0.15);
-    border-color: rgba(111, 191, 127, 0.4);
-    color: #74c084;
+    --alert-hue: 116, 192, 132;
+    --alert-ink: #74c084;
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8.2 12.3 2.6 2.6 5-5.4'/%3E%3C/svg%3E");
 }
 
 /* Amber: the operation did what it was asked locally but could not finish —
    a poster replaced on disk that Plex would not take. Neither green nor red is
    true of that, and the difference matters: the new poster is stored and on
-   screen, so the message is about Plex, not about the change. */
+   screen, so the message is about Plex, not about the change.
+
+   A triangle rather than the default circle, so the three severities differ in
+   silhouette and not only in hue. */
 .alert--warning {
-    background: rgba(228, 181, 95, 0.15);
-    border-color: rgba(228, 181, 95, 0.4);
-    color: #e4b55f;
+    --alert-hue: 228, 181, 95;
+    --alert-ink: #e4b55f;
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 4.3 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z'/%3E%3Cpath d='M12 9.5v4'/%3E%3Cpath d='M12 17.2h.01'/%3E%3C/svg%3E");
 }
 
 /* The Plex connection screen. A single panel with one action, so the spacing is
@@ -454,17 +677,65 @@ h1 {
     display: none !important;
 }
 
-/* Buttons */
+/* Buttons.
+
+   The base button carried no transition and no hover state at all until the
+   surfaces work: every button in the application snapped between appearances, or
+   more often had no second appearance to snap to. .card__actions .btn had its
+   own hover rules, which is why the poster overlay felt responsive and nothing
+   else did.
+
+   Feedback is stated here once, for every caller. Hover is scoped to
+   `@media (hover: hover)` — on a touch device the hover state sticks after a tap
+   and leaves a button looking pressed until something else is touched. Press
+   feedback is not scoped: it is the only feedback a touch device gets, and it is
+   what replaces the native tap flash the `*` rule at the top of this file turns
+   off. */
 .btn {
     display: inline-block;
     padding: 8px 14px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink);
     font: inherit;
     text-decoration: none;
     cursor: pointer;
+    transition: background var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                color var(--dur-base) var(--ease-standard),
+                box-shadow var(--dur-base) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .btn:hover {
+        background: var(--surface-2);
+        border-color: #4b515b;
+    }
+
+    .btn--accent:hover {
+        background: #f0ac1c;
+        border-color: #f0ac1c;
+    }
+
+    .btn--danger:hover {
+        background: rgba(228, 120, 95, 0.14);
+        border-color: rgba(228, 120, 95, 0.7);
+    }
+}
+
+/* Distinct from hover, and on every device. `translateY` rather than a colour
+   change alone: displacement is what reads as a press, and one pixel is enough
+   at this size. Transform does not participate in layout, so nothing beside the
+   button moves. */
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .btn--accent {
@@ -499,10 +770,30 @@ h1 {
    the gutters is needed here (the phone rule needs one): the poster grid sits
    inside .container's padding box, so nothing ever renders beside this block.
 
+   It stays opaque, and flat, and exactly the page's own colour. That is the
+   whole requirement on it: the block must hide the posters passing under it
+   without announcing that it is a block. Glass was tried here and drew attention
+   to itself every time a poster slid under it; a graded page was tried behind it
+   and left it a visibly different shade. Both are gone. The phone bars keep the
+   glass, where a narrow bar with content moving behind it genuinely gains from
+   being seen through.
+
    The rule along the bottom edge is .tabs' old border, moved out here. Inside a
    single pinned block that border read as a divider between the tabs and the
    toolbar rather than as the edge of the thing; on the block it bounds the whole
-   of it, matching how the page header is separated from the content. */
+   of it, matching how the page header is separated from the content.
+
+   That hairline is the block's ONLY separator, and deliberately. This rule
+   carried an --elev-2 shadow briefly, on the argument that the block outranks the
+   cards on the z ladder and so ought to outrank them in depth. The argument was
+   sound and the result was not: a wide, straight-edged bar spanning the content
+   column, already edged by a hairline and already separated by the blur, gains a
+   second and a third edge from a shadow, and the stack of them reads as a
+   rendering artefact rather than as elevation. Depth belongs to things with
+   shape — cards, dialogs, trays. Chrome that spans the viewport is separated by
+   the blur and the hairline, which is what "above" looks like for a surface with
+   no sides. The phone toolbar had the same shadow removed for the same reason.
+   Do not add one back without looking at it on a real screen first. */
 .gallery-head {
     position: sticky;
     top: 0;
@@ -523,9 +814,24 @@ h1 {
 
 .tab {
     padding: 10px 14px;
-    color: var(--muted);
+    color: var(--muted-on-chrome);
     text-decoration: none;
     border-bottom: 2px solid transparent;
+    transition: color var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .tab:hover {
+        color: var(--ink);
+        border-bottom-color: var(--border);
+    }
+
+    /* The active tab is already at --ink over the accent, so its hover has
+       nothing left to say. Stated so the rule above cannot dim its underline. */
+    .tab--active:hover {
+        border-bottom-color: var(--accent);
+    }
 }
 
 .tab--active {
@@ -559,12 +865,16 @@ h1 {
 .search input {
     flex: 1;
     padding: 9px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--ink);
 }
 
+/* Despite the name, this never renders on the pinned toolbar — it is the clear
+   link in the results summary and the back link on /plex, /orphans and the
+   sign-in screen, all of which sit on the ordinary page. So it keeps --muted;
+   --muted-on-chrome here would simply read as brighter than the text beside it. */
 .search__clear {
     color: var(--muted);
     text-decoration: none;
@@ -594,7 +904,7 @@ h1 {
 }
 
 .sort__label {
-    color: var(--muted);
+    color: var(--muted-on-chrome);
     font-size: 0.9rem;
 }
 
@@ -649,10 +959,29 @@ h1 {
     justify-content: center;
     padding: 8px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink);
     cursor: pointer;
+    transition: background var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .icon-btn:hover {
+        background: var(--surface-2);
+        border-color: #4b515b;
+    }
+}
+
+.icon-btn:active {
+    transform: translateY(1px);
+}
+
+.icon-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .sort-trigger {
@@ -661,7 +990,7 @@ h1 {
 
 .fieldset {
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 12px 14px;
     margin: 0 0 16px;
 }
@@ -719,13 +1048,15 @@ h1 {
     text-align: center;
     padding: 10px 18px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     color: var(--ink);
     /* Elevated fill so an unselected choice reads as a button rather than blending
        into the surface behind it. */
     background: var(--surface-2);
-    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    transition: border-color var(--dur-base) var(--ease-standard),
+                color var(--dur-base) var(--ease-standard),
+                background var(--dur-base) var(--ease-standard);
 }
 
 .choice input:checked + span {
@@ -763,20 +1094,28 @@ h1 {
    Retune the timing there, not here. */
 [data-gallery].is-loading #results {
     opacity: 0.55;
-    transition: opacity 0.1s ease;
+    transition: opacity var(--dur-fast) var(--ease-standard);
 }
 
 .card {
     margin: 0;
 }
 
-/* The frame holds the poster and its hover overlay; the title sits below it. */
+/* The frame holds the poster and its hover overlay; the title sits below it.
+
+   No resting elevation, deliberately. A shadow on every card was tried and cut:
+   posters already carry their own contrast, the border already separates them
+   from the page, and a grid of forty shadowed rectangles reads as muddy rather
+   than as depth. The failure that made it obvious was at the top of the grid —
+   the row sitting under the pinned controls put its shadows along the bar's
+   lower edge, and the bar, which casts nothing, looked like it was casting one.
+   Depth arrives on hover instead, where it means something. */
 .card__frame {
     position: relative;
     aspect-ratio: 2 / 3;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -791,7 +1130,7 @@ h1 {
 .viewer__placeholder {
     background: linear-gradient(100deg, var(--surface) 30%, rgba(255, 255, 255, 0.06) 50%, var(--surface) 70%);
     background-size: 200% 100%;
-    animation: shimmer 1.3s linear infinite;
+    animation: shimmer var(--tempo-shimmer) linear infinite;
 }
 
 .card__frame::before,
@@ -819,7 +1158,7 @@ h1 {
 .find-item__img,
 .viewer img {
     opacity: 0;
-    transition: opacity 0.4s ease;
+    transition: opacity var(--dur-fade) var(--ease-entrance);
 }
 
 .card__image.is-loaded,
@@ -877,8 +1216,8 @@ h1 {
     background: var(--surface);
     color: var(--ink);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--elev-5);
     font-size: 0.8rem;
     line-height: 1.35;
     text-align: center;
@@ -886,7 +1225,7 @@ h1 {
     overflow-wrap: anywhere;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.12s ease;
+    transition: opacity var(--dur-fast) var(--ease-standard);
 }
 
 .tooltip--visible {
@@ -909,9 +1248,9 @@ h1 {
     color: #fff;
     background: rgba(0, 0, 0, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     pointer-events: none;
-    transition: opacity 0.18s ease;
+    transition: opacity var(--dur-base) var(--ease-standard);
 }
 
 /* Per-type tints drawn from the app palette — muted gold / teal / blue / violet
@@ -934,7 +1273,7 @@ h1 {
     background: rgba(0, 0, 0, 0.72);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.18s ease;
+    transition: opacity var(--dur-base) var(--ease-standard);
     overflow-y: auto;
 }
 
@@ -951,6 +1290,34 @@ h1 {
     .card__frame:hover .card__badge,
     .card__frame:focus-within .card__badge {
         opacity: 0;
+    }
+
+    /* The card lifts toward the pointer as its actions arrive.
+
+       `transform` and `box-shadow` only, and that is the whole constraint rather
+       than a stylistic preference: neither participates in layout, so a lifted
+       card cannot move its neighbours or reflow the grid. Anything that changed
+       the card's box instead — margin, scale via width, a border — would push
+       every card after it in the row, and on a grid that reflows into the next
+       row. The scale is deliberately small for the same reason it is safe: at
+       1.02 a 200px card grows 4px, which overlaps its gutter without ever
+       reaching the card beside it.
+
+       Keyed to the frame, not the whole card: the caption stays put, so a title
+       does not slide out from under its poster.
+
+       No `will-change`. It would promote every card in a long gallery to its own
+       layer for a hover that touches one at a time, which costs memory
+       continuously to save paint work that happens once. */
+    .card__frame {
+        transition: transform var(--dur-base) var(--ease-standard),
+                    box-shadow var(--dur-base) var(--ease-standard);
+    }
+
+    .card__frame:hover,
+    .card__frame:focus-within {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: var(--elev-3);
     }
 }
 
@@ -987,7 +1354,9 @@ h1 {
     text-align: left;
     padding: 6px 8px;
     font-size: 0.8rem;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    transition: background var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                color var(--dur-base) var(--ease-standard);
 }
 
 .card__action-ico {
@@ -1074,7 +1443,7 @@ h1 {
     aspect-ratio: 2 / 3;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     overflow: hidden;
 }
 
@@ -1123,12 +1492,19 @@ h1 {
     border: 1px solid var(--border);
     color: var(--ink);
     padding: 10px 18px;
-    border-radius: 999px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--elev-5);
     font-size: 0.9rem;
     text-align: center;
 }
 
+/* The progress overlay — import running, orphan scan, applying a poster. It
+   blocks the screen while work happens, so it dims harder than a dialog backdrop
+   does: the page behind is not somewhere the user may act right now.
+
+   `background` is a shorthand and resets background-color, so the extra dimming
+   is written as its own layer over --backdrop-tint rather than as a second tint
+   token nobody else would use. */
 .overlay {
     position: fixed;
     inset: 0;
@@ -1136,13 +1512,18 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.72);
+    background:
+        linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+        var(--backdrop-tint);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    backdrop-filter: var(--backdrop-blur);
 }
 
 .overlay__box {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-4);
     padding: 30px 34px;
     text-align: center;
     max-width: 360px;
@@ -1155,7 +1536,7 @@ h1 {
     border: 4px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin var(--tempo-spin) linear infinite;
 }
 
 @keyframes spin {
@@ -1164,20 +1545,7 @@ h1 {
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .spinner,
-    .card__frame::before,
-    .find-item__frame::before,
-    .viewer__placeholder {
-        animation: none;
-    }
 
-    .card__image,
-    .find-item__img,
-    .viewer img {
-        transition: none;
-    }
-}
 
 /* NOTE: the mobile `@media (max-width: 640px)` block lives at the END of this
    file so its overrides win over every base component rule (several of which —
@@ -1200,7 +1568,7 @@ h1 {
     margin: 0;
     border-width: 3px;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--dur-base) var(--ease-standard);
 }
 
 .scroll-sentinel.is-busy .spinner {
@@ -1237,13 +1605,29 @@ h1 {
     min-width: 38px;
     padding: 6px 10px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--ink);
     text-align: center;
     text-decoration: none;
     font-variant-numeric: tabular-nums;
     cursor: pointer;
+    transition: background var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    /* Not the current page: it is rendered as a span rather than a link, so it
+       has nowhere to go and must not offer to travel. */
+    .pagination__page:not(.pagination__page--current):hover {
+        background: var(--surface-2);
+        border-color: #4b515b;
+    }
+}
+
+.pagination__page:not(.pagination__page--current):active {
+    transform: translateY(1px);
 }
 
 .pagination__page--current {
@@ -1292,10 +1676,15 @@ h1 {
     z-index: 55;
 }
 
+/* Dimmed and blurred, not merely dimmed. Dimming alone leaves the page legible
+   behind the dialog and it keeps competing for attention; blurring pushes it
+   back to texture while still showing the user where they were. */
 .modal__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--backdrop-tint);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    backdrop-filter: var(--backdrop-blur);
 }
 
 .modal__panel {
@@ -1303,9 +1692,10 @@ h1 {
     width: min(440px, 92vw);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elev-4);
     padding: 20px;
-    transition: width 0.15s ease;
+    transition: width var(--dur-base) var(--ease-standard);
 }
 
 /* The grab handle is markup on every modal but is a phone affordance only: on a
@@ -1354,6 +1744,17 @@ h1 {
     font-size: 1.6rem;
     line-height: 1;
     cursor: pointer;
+    transition: color var(--dur-base) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .modal__close:hover {
+        color: var(--ink);
+    }
+}
+
+.modal__close:active {
+    color: var(--accent);
 }
 
 .modal__tabs {
@@ -1370,6 +1771,15 @@ h1 {
     padding: 8px 12px;
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    transition: color var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .modal__tabs button:not(.is-active):hover {
+        color: var(--ink);
+        border-bottom-color: var(--border);
+    }
 }
 
 .modal__tabs button.is-active {
@@ -1413,7 +1823,7 @@ h1 {
 .viewer img {
     max-width: 100%;
     max-height: 100%;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
 }
 
 /* Stands in for the image while it loads, at poster proportions — deliberately
@@ -1445,7 +1855,7 @@ h1 {
     margin-block: auto;
     max-width: 100%;
     aspect-ratio: 2 / 3;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     /* Decorative: a click on it is a click on the backdrop behind it, which is
        what dismisses the viewer. Waiting for a poster must not be the one state
        the viewer cannot be closed from. */
@@ -1508,6 +1918,87 @@ h1 {
     border-color: #4b515b;
 }
 
+/* ==========================================================================
+   Overlay transitions.
+
+   Driven by Alpine's x-transition, which is the only thing that can animate
+   these: every overlay is toggled by x-show, and x-show sets `display: none`,
+   which CSS cannot transition. That is why the trays had an entrance keyframe
+   and no exit at all before this — an animation can fire when an element is
+   displayed, but nothing can run while it is being undisplayed.
+
+   The class names come from partials/_transitions.html.twig, which declares the
+   six x-transition attributes once for all eight overlays rather than repeating
+   them at each tag. A dialog fades and scales; a tray slides from the edge it is
+   docked to. Both carry their backdrop with them, because the transition is on
+   the overlay root and the backdrop is inside it.
+
+   `pointer-events: none` while closing is load-bearing, not polish. Alpine holds
+   the element displayed for the length of the leave transition, so without it a
+   dismissed dialog goes on swallowing clicks for as long as it takes to fade —
+   the user taps Cancel, reaches for something behind it, and the tap lands on a
+   backdrop that is visually almost gone. The scroll lock in gallery.js has the
+   same problem and solves it the same way, by treating a closing overlay as shut.
+
+   Exits run at --dur-exit, which is shorter than the entrance. Leaving should
+   feel quicker than arriving.
+   ========================================================================== */
+.overlay-opening {
+    transition: opacity var(--dur-base) var(--ease-entrance);
+}
+
+.overlay-closing {
+    transition: opacity var(--dur-exit) var(--ease-exit);
+    pointer-events: none;
+}
+
+.overlay-shut {
+    opacity: 0;
+}
+
+.overlay-shown {
+    opacity: 1;
+}
+
+/* A dialog scales from slightly reduced. 0.96 rather than anything smaller: the
+   dialog should look like it is arriving, not like it is being thrown at the
+   screen. Scaling the overlay root would take the backdrop with it, so the
+   transform is on the panel and the fade is on the root. */
+.overlay-opening .modal__panel {
+    transition: transform var(--dur-base) var(--ease-entrance);
+}
+
+.overlay-closing .modal__panel {
+    transition: transform var(--dur-exit) var(--ease-exit);
+}
+
+.overlay-shut .modal__panel {
+    transform: scale(0.96);
+}
+
+.overlay-shown .modal__panel {
+    transform: scale(1);
+}
+
+/* A tray slides instead. Its entrance is longer than a dialog's — it travels the
+   height of the panel rather than 4% of it, and at --dur-base that reads as a
+   snap rather than a slide. */
+.overlay-opening .sheet__panel {
+    transition: transform var(--dur-slow) var(--ease-entrance);
+}
+
+.overlay-closing .sheet__panel {
+    transition: transform var(--dur-exit) var(--ease-exit);
+}
+
+.overlay-shut .sheet__panel {
+    transform: translateY(100%);
+}
+
+.overlay-shown .sheet__panel {
+    transform: translateY(0);
+}
+
 /* Mobile action sheet: a poster's actions slide up from the bottom.
    Sits below .modal on the shared layering scale — see the Modal section. */
 .sheet {
@@ -1522,7 +2013,9 @@ h1 {
 .sheet__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--backdrop-tint);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    backdrop-filter: var(--backdrop-blur);
 }
 
 /* The panel clips; its body scrolls. Keeping the scroll on the body (not the
@@ -1539,9 +2032,19 @@ h1 {
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;
-    border-radius: 16px 16px 0 0;
-    animation: sheet-up 0.2s ease;
-    transition: transform 0.2s ease;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    /* A tray is docked to the bottom edge, so it casts upward, not down: the
+       tier's own downward offsets would throw the shadow off-screen and leave
+       the raised top edge — the only edge anyone sees — flat against the page.
+       Stated as a literal for that reason, with the tray tier's weights. */
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.36), 0 -12px 32px rgba(0, 0, 0, 0.34);
+    /* The entrance slide is x-transition's now, not a keyframe's — see the
+       Overlay transitions block. Keeping `animation: sheet-up` here as well would
+       run the tray up twice over different durations, and the keyframe would win
+       the first frame. The transition below stays: it is what the drag-dismiss
+       gesture animates against when it releases a partly-dragged tray, and that
+       is a different movement from opening or closing. */
+    transition: transform var(--dur-base) var(--ease-standard);
 }
 
 /* Import/orphans trays hold a whole page; give them more of the screen. */
@@ -1576,12 +2079,6 @@ h1 {
     max-width: 84%;
 }
 
-@keyframes sheet-up {
-    from {
-        transform: translateY(100%);
-    }
-}
-
 /* Grab handle: the app-style affordance that replaces a close button. Dragging
    it (or the head) down dismisses the tray; see initSheetGestures in gallery.js. */
 .sheet__grip {
@@ -1595,7 +2092,7 @@ h1 {
 .sheet__handle {
     width: 40px;
     height: 5px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: #4b4f57;
 }
 
@@ -1682,12 +2179,6 @@ h1 {
     text-align: center;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .sheet__panel {
-        animation: none;
-    }
-}
-
 /* ==========================================================================
    Mobile overrides. Placed last so they win over every base component rule
    (.pagination, .modal, .sheet, … are defined above), which a mid-file media
@@ -1696,6 +2187,22 @@ h1 {
 @media (max-width: 640px) {
     .container {
         padding: 20px 14px;
+    }
+
+    /* The gallery's toolbar pins to the top of the viewport, so on a phone it
+       comes to rest directly under the header — and the container's 20px top
+       padding sat between them as a band of page colour, which read as the bar
+       having come loose from the header rather than as breathing room.
+
+       Scoped with :has() so only the gallery loses that padding. /plex, /orphans
+       and the sign-in screen open with a heading rather than a pinned bar, and
+       they still want the gap. `display: contents` on .gallery-head means it
+       generates no box here, but it is still in the DOM and still matched — which
+       is exactly what makes it a usable marker for "this page pins a toolbar".
+       The stylesheet already relies on :has() for the shimmer, so this needs no
+       new support assumption. */
+    .container:has(.gallery-head) {
+        padding-top: 0;
     }
 
     /* The desktop wrapper leaves the box tree entirely on a phone, restoring the
@@ -1755,7 +2262,17 @@ h1 {
         display: flex;
         gap: 0;
         margin: 0;
-        background: var(--surface);
+        /* Glass, like every other bar content passes behind. The tab bar gains
+           the most from it: it sits over the grid permanently, so an opaque
+           strip across the bottom of a phone is a standing announcement that the
+           posters stop there. */
+        background: var(--chrome-tint);
+        -webkit-backdrop-filter: var(--chrome-blur);
+        backdrop-filter: var(--chrome-blur);
+        /* Docked to the bottom, so it casts upward — the same reasoning as
+           .sheet__panel, one tier lower because the tab bar sits under the trays
+           on the z ladder. */
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.32), 0 -6px 16px rgba(0, 0, 0, 0.28);
         border-top: 1px solid var(--border);
         border-bottom: none;
         padding-bottom: env(safe-area-inset-bottom);
@@ -1816,16 +2333,26 @@ h1 {
        because it pins to the bottom, against the document's natural flow.)
 
        Two declarations here are load-bearing rather than cosmetic. The background
-       is what hides posters passing behind the bar — .toolbar has none of its own,
-       so without it they scroll straight through. The negative side margins,
-       matched by equal padding, bleed the bar past .container's 14px gutters:
-       inside them, posters show through a 14px channel down each edge while the
-       contents stay on the content grid. */
+       is the bar's own surface — .toolbar has none otherwise, so without it the
+       posters scroll straight through with nothing between them and the search
+       field. The negative side margins, matched by equal padding, bleed the bar
+       past .container's 14px gutters: inside them, posters show through a 14px
+       channel down each edge while the contents stay on the content grid.
+
+       The bleed survives the move to glass, and is the reason to keep watching
+       it. Translucency changed what the surface owes — legibility rather than
+       concealment — but it did not make an uncovered channel acceptable: an
+       unblurred 14px strip of poster beside a blurred bar reads as a broken bar,
+       which is worse than the flat one it replaced. Glass makes that channel
+       harder to spot in review, not less wrong.
+       StickyToolbarTest::testPinnedToolbarBleedsPastTheContentGutters guards it. */
     .toolbar {
         position: sticky;
         top: 0;
         z-index: 30;
-        background: var(--bg);
+        background: var(--chrome-tint);
+        -webkit-backdrop-filter: var(--chrome-blur);
+        backdrop-filter: var(--chrome-blur);
         margin: 0 -14px 8px;
         padding: 8px 14px;
     }
@@ -1900,10 +2427,31 @@ h1 {
            only two ways out, since these carry no close button on a phone. */
         max-height: 85vh;
         overflow: hidden;
-        border-radius: 16px 16px 0 0;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        /* The base rule gives a dialog the downward --elev-4. A dialog docked to
+           the bottom edge throws that shadow off-screen and leaves its raised top
+           edge — the only edge visible here — flat. Turned over, at the dialog
+           tier's weights, so it still outranks the tray it may have been raised
+           from. */
+        box-shadow: 0 -6px 12px rgba(0, 0, 0, 0.40), 0 -20px 48px rgba(0, 0, 0, 0.42);
         padding: 0;
-        animation: sheet-up 0.2s ease;
-        transition: transform 0.2s ease;
+        transition: transform var(--dur-base) var(--ease-standard);
+    }
+
+    /* A dialog is a tray at this width, so it has to arrive and leave like one.
+       The base rules scale .modal__panel from 0.96; that is the wrong movement
+       for something docked to the bottom edge, and it also leaves the panel
+       fully visible at the start of its entrance instead of off-screen. */
+    .overlay-opening .modal__panel {
+        transition: transform var(--dur-slow) var(--ease-entrance);
+    }
+
+    .overlay-shut .modal__panel {
+        transform: translateY(100%);
+    }
+
+    .overlay-shown .modal__panel {
+        transform: translateY(0);
     }
 
     .modal .sheet__grip {
@@ -1996,7 +2544,7 @@ h1 {
         padding: 13px 14px;
         margin-bottom: 8px;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: var(--radius-md);
         background: var(--surface-2);
         cursor: pointer;
     }
@@ -2025,5 +2573,106 @@ h1 {
         padding: 14px;
         font-size: 1rem;
         margin-top: 8px;
+    }
+}
+
+/* ==========================================================================
+   Reduced motion.
+
+   One blanket rule rather than a list of selectors. The list this replaced named
+   five elements and had to be extended by hand every time anything new was
+   animated — which is a rule that is wrong by default, and silently: nothing
+   fails when an animation is added and not listed, it simply keeps moving for
+   the people who asked it not to. Placed near the end of the file so it beats
+   the component rules it overrides; `!important` covers the rest.
+
+   Durations collapse to 0.01ms, NOT to `none`. `transition: none` suppresses
+   `transitionend` outright and a zero-length animation can skip `animationend`,
+   so anything waiting on either event would wait forever. A hundredth of a
+   millisecond is imperceptible and still fires both. The state change itself is
+   untouched either way: a hovered button reaches its hover appearance, it just
+   arrives there instead of travelling.
+
+   No `scroll-behavior`, though the usual form of this snippet carries one. This
+   stylesheet declares scroll behaviour nowhere, deliberately: both smooth scrolls
+   in the application are per-call `behavior` options in gallery.js which read the
+   preference themselves, and a CSS rule would also catch the scroll-lock restore
+   and animate the page sliding back after every tray dismissal. Even `auto` here
+   would be stating a policy that belongs to the caller.
+   PaginationScrollTest::testTheSmoothScrollStaysLocalToTheHelper enforces that.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    /* Exempt: progress. These two report that work is happening, and freezing
+       them says the opposite — a stopped spinner over a running import reads as
+       an import that has hung. Reduced motion asks for less decoration, not for
+       less information, so they keep their tempo.
+
+       Re-declared as whole shorthands because the blanket rule above sets both
+       duration and iteration-count; restoring either alone would leave the other
+       clamped and the animation would run once, fast, and stop. */
+    .spinner {
+        animation: spin var(--tempo-spin) linear infinite !important;
+    }
+
+    .card__frame::before,
+    .find-item__frame::before,
+    .viewer__placeholder {
+        animation: shimmer var(--tempo-shimmer) linear infinite !important;
+    }
+}
+
+/* ==========================================================================
+   Backdrop-filter fallback. Placed after the mobile block — which is itself
+   placed last so it wins at equal specificity — because the phone toolbar and
+   tab bar are declared in there and this has to beat them too. @supports adds no
+   specificity of its own, so source order is the whole mechanism.
+
+   Every rule in the file that uses --chrome-blur or --backdrop-blur MUST have an
+   entry here. A glass surface with no fallback does not degrade to the old flat
+   bar; it degrades to a translucent one with nothing blurring behind it, which
+   is a poster grid showing through at nearly full strength under the search
+   field. That is a legibility failure, not a cosmetic one.
+
+   The condition tests both spellings. Safari carried -webkit-backdrop-filter
+   alone for six major versions, and testing the unprefixed property by itself
+   would send every one of those browsers down this path and make them opaque
+   while the blur they do support goes unused. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    /* Chrome falls back to the page colour. --chrome-tint is --bg carrying an
+       alpha, so an opaque --bg is what the glass composited to anyway — the depth
+       is lost, the colour is not. */
+    .topbar {
+        background: var(--bg);
+    }
+
+    /* .toolbar and .tabs carry a background only at phone width — on desktop they
+       are transparent children of .gallery-head, which is handled above. Scoped
+       to match, so this block never hands a desktop element a surface it does not
+       have. */
+    @media (max-width: 640px) {
+        .toolbar,
+        .tabs {
+            background: var(--bg);
+        }
+    }
+
+    /* Backdrops dim harder to compensate. Without the blur, the page behind stays
+       fully legible and goes on competing with the dialog in front of it; the
+       extra darkness is what does that job instead. */
+    .modal__backdrop,
+    .sheet__backdrop {
+        background: rgba(0, 0, 0, 0.74);
+    }
+
+    .overlay {
+        background: rgba(0, 0, 0, 0.85);
     }
 }

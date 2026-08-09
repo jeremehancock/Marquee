@@ -77,6 +77,60 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * Every overlay's x-transition attributes must survive into the rendered
+     * page, because nothing else notices if they do not.
+     *
+     * They come from a macro in partials/_transitions.html.twig, shared by all
+     * eight overlays so the six attributes are written once. That sharing is what
+     * makes this worth asserting: a macro that stopped emitting — renamed, or
+     * imported under a different alias in one template — renders as valid, silent
+     * HTML. The page still works, every dialog still opens and closes, and the
+     * only symptom is that they do it instantly again. No test that checks the
+     * markup renders would catch it, and neither would a stylesheet tripwire: the
+     * classes would still be defined in app.css, just never applied to anything.
+     */
+    public function testOverlaysCarryTheirTransitionAttributes(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        // The endpoint classes are the pair that actually moves an overlay: an
+        // enter with no start state, or a leave with no end state, animates
+        // between a position and itself.
+        foreach ([
+            'x-transition:enter="overlay-opening"',
+            'x-transition:enter-start="overlay-shut"',
+            'x-transition:enter-end="overlay-shown"',
+            'x-transition:leave="overlay-closing"',
+            'x-transition:leave-start="overlay-shown"',
+            'x-transition:leave-end="overlay-shut"',
+        ] as $attribute) {
+            self::assertStringContainsString(
+                $attribute,
+                $body,
+                sprintf('The shared overlay transition macro must emit %s.', $attribute),
+            );
+        }
+
+        // Both presentations, not just whichever the macro was last edited for:
+        // the gallery renders dialogs (change poster, confirm) and trays (sort,
+        // import, orphans, menu, poster actions) from the same page.
+        self::assertSame(
+            2,
+            substr_count($body, 'class="modal" x-show'),
+            'The gallery renders two dialogs — change poster and the shared '
+            . 'confirmation; each needs the transition macro. The third dialog in '
+            . 'the application belongs to the orphans page.',
+        );
+        self::assertSame(
+            5,
+            substr_count($body, 'class="sheet" x-show'),
+            'The gallery renders five trays; each needs the transition macro.',
+        );
+    }
+
+    /**
      * A-Z as the user actually sees it: the seasons must appear in the rendered
      * page in numeric order, not 1, 10, 11, 2.
      */

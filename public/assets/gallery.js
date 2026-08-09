@@ -274,6 +274,13 @@
             if (!drag) { return; }
             var panel = drag.panel;
             var dismissed = drag.dy > Math.min(120, drag.h * 0.3);
+            // Both inline styles are cleared before the dismissal below, and the
+            // order matters now that x-transition drives the exit. The leave
+            // transition animates the panel out through a class, and an inline
+            // transform set during the drag would outrank it — the backdrop would
+            // fade while the panel stayed frozen wherever the finger left it.
+            // Clearing first hands the panel back to the stylesheet, so a released
+            // drag settles and the exit then runs from there.
             panel.style.transition = '';
             panel.style.transform = '';
             if (dismissed) {
@@ -304,10 +311,18 @@
         var locked = false;
         var queued = false;
 
+        // An overlay that is transitioning out does not count. x-transition keeps
+        // the element displayed for the length of the leave animation, so without
+        // this the page stays pinned for an extra beat after every dismissal —
+        // the user closes a dialog, flicks to scroll, and the first flick is
+        // swallowed. The class is the one app.css uses to fade the overlay out,
+        // and it is also what makes the dying overlay stop taking clicks.
         function anyOverlayOpen() {
             var overlays = document.querySelectorAll('.sheet, .modal, .viewer');
             for (var i = 0; i < overlays.length; i++) {
-                if (overlays[i].style.display !== 'none') { return true; }
+                if (overlays[i].style.display === 'none') { continue; }
+                if (overlays[i].classList.contains('overlay-closing')) { continue; }
+                return true;
             }
             return false;
         }
@@ -350,9 +365,23 @@
             window.requestAnimationFrame(sync);
         }
 
+        // `style` catches x-show writing `display`, which is what opens the lock
+        // and — before x-transition existed — was also what closed it. `class` is
+        // what closes it now: an overlay stays displayed for the length of its
+        // leave transition, so the release has to be driven by `overlay-closing`
+        // arriving rather than by `display: none` arriving several frames later.
+        // Both are needed; watching `style` alone re-delays the release, and
+        // watching `class` alone never notices an overlay opening.
+        //
+        // Watching `class` across the whole subtree does mean every unrelated
+        // class change schedules a pass — `is-loaded` on each lazily-revealed
+        // poster is the loudest of them. That is affordable because `schedule()`
+        // coalesces a whole frame's mutations into one rAF and `sync()` returns
+        // immediately when the open state has not actually changed, so a hundred
+        // images landing together cost one comparison, not a hundred.
         new MutationObserver(schedule).observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['style'],
+            attributeFilter: ['style', 'class'],
             childList: true,
             subtree: true,
         });

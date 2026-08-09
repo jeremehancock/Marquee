@@ -21,6 +21,26 @@ use PHPUnit\Framework\TestCase;
  * overlay no longer covers it. Each of those reads as a rendering bug rather
  * than a missing rule.
  *
+ * What that background owes differs by width, and the two tests below differ with
+ * it. This is the one place in the file where the phone and the desktop are not
+ * doing the same thing for different reasons — they are doing different things.
+ *
+ * The phone bar is glass. It is narrow, content passes behind it constantly, and
+ * watching it move through is what keeps the bar from reading as a lid. So it
+ * owes three things instead of one: the tint carries the contrast, the blur is
+ * what stops a passing poster reading as a rendering fault, and the @supports
+ * fallback is what keeps the bar legible where blur is unavailable. A translucent
+ * bar with no fallback is worse than the flat one it replaced — the posters come
+ * through at nearly full strength under the search field — so each of the three
+ * is asserted separately.
+ *
+ * The desktop block stays opaque. It is wide, straight-edged, spans the content
+ * column, and is the frame the gallery is read through rather than something
+ * floating over it; glassed, it announced itself every time a poster slid under
+ * it. Both were tried on a real screen. poster-library's requirement is written
+ * to permit translucency rather than to require it, precisely so these two can
+ * differ.
+ *
  * The sharpest trap is the wrapper. A sticky element cannot travel outside its
  * containing block, so wrapping the phone's already-sticky .toolbar in a short
  * .gallery-head would cut its range to that wrapper's height and unpin it after
@@ -114,16 +134,28 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testPinnedToolbarHidesThePostersPassingUnderIt(): void
+    public function testPinnedToolbarSubduesThePostersPassingUnderIt(): void
     {
         $toolbar = $this->rule($this->mobileBlock(), '.toolbar');
 
-        // .toolbar has no background of its own, so without this the posters
-        // scroll visibly through the pinned bar.
+        // .toolbar has no background of its own, so without a surface here the
+        // posters scroll under the search field with nothing in between.
         self::assertStringContainsString(
-            'background: var(--bg)',
+            'background: var(--chrome-tint)',
             $toolbar,
-            'The pinned toolbar must be opaque.',
+            'The pinned toolbar needs the tint that carries its contrast.',
+        );
+        self::assertStringContainsString(
+            'backdrop-filter: var(--chrome-blur)',
+            $toolbar,
+            'Without the blur a poster stays recognisable under the bar, which '
+            . 'reads as a rendering fault rather than as intent.',
+        );
+        self::assertContains(
+            '.toolbar',
+            $this->fallbackSelectors(),
+            'A glass bar with no @supports fallback degrades to a translucent one '
+            . 'with nothing blurred behind it.',
         );
     }
 
@@ -227,17 +259,98 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
+    /**
+     * Opaque here, glass on a phone — the two widths genuinely differ, and the
+     * asymmetry is the point rather than an oversight someone should tidy up.
+     *
+     * A phone bar is narrow and content passes behind it constantly; seeing it
+     * move through is what keeps the bar from feeling like a lid. This block is
+     * wide, straight-edged, spans the content column, and is the frame the gallery
+     * is read through. Glassed, it announced itself every time a poster slid under
+     * it. Opaque, it stops being noticed, which is what chrome is for.
+     */
     public function testPinnedDesktopControlsHideThePostersPassingUnderThem(): void
     {
         // Neither .tabs nor .toolbar has a background, so the wrapper has to
         // supply one or the grid scrolls visibly through the pinned block. No
         // gutter bleed is needed as it is on a phone: the poster grid sits inside
         // .container's padding box, so nothing ever renders beside this block.
+        $head = $this->rule($this->baseBlock(), '.gallery-head');
+
         self::assertStringContainsString(
             'background: var(--bg)',
-            $this->rule($this->baseBlock(), '.gallery-head'),
+            $head,
             'The pinned desktop controls must be opaque.',
         );
+        self::assertStringNotContainsString(
+            'backdrop-filter',
+            $head,
+            'The desktop block is opaque by decision. Glassing it needs the '
+            . 'poster-library requirement revisited, not just this rule.',
+        );
+
+        // The bar must be the page's colour, not merely opaque, or it reads as a
+        // rectangle laid on top of the page. Asserting both sides is what makes
+        // that a contract rather than a coincidence: giving <body> a gradient and
+        // leaving this flat is the exact edit that reintroduces the seam, and it
+        // looks entirely reasonable in isolation.
+        $body = $this->rule($this->baseBlock(), 'body');
+        self::assertStringContainsString(
+            'background: var(--bg)',
+            $body,
+            'The page and the pinned block must be the same flat colour.',
+        );
+        self::assertStringNotContainsString(
+            'gradient',
+            $body,
+            'A graded page was tried and removed. The pinned block has to match '
+            . 'this background exactly, and a gradient makes that unwinnable: flat '
+            . 'against graded is a visible rectangle, and painting the bar the same '
+            . 'gradient does not work either, because background-attachment: fixed '
+            . 'is unreliable on a sticky element.',
+        );
+    }
+
+    /**
+     * Every selector named inside the `@supports not (...backdrop-filter...)`
+     * block at the end of the stylesheet.
+     *
+     * The block is matched from its condition to the end of the file rather than
+     * by brace counting: it is deliberately the last thing in app.css, since it
+     * has to beat the mobile block that is itself placed last to win at equal
+     * specificity. If something is ever appended after it, this returns too much
+     * rather than too little — which fails safe, because these tests assert that
+     * a selector is present.
+     *
+     * @return list<string>
+     */
+    private function fallbackSelectors(): array
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', $this->stylesheet());
+
+        $start = strpos($css, '@supports not (');
+        self::assertIsInt(
+            $start,
+            'The backdrop-filter fallback block must remain in app.css: without it '
+            . 'no glass surface has a defined appearance where blur is unsupported.',
+        );
+
+        // Innermost rules only: `[^{}]` cannot cross a brace, so the @supports
+        // condition and the nested @media header are both skipped and what is
+        // left is the selector list of each declaration block.
+        preg_match_all('/([^{}]+)\{[^{}]*\}/', substr($css, $start), $matches);
+
+        $selectors = [];
+        foreach ($matches[1] as $head) {
+            foreach (explode(',', $head) as $selector) {
+                $selector = trim($selector);
+                if (str_starts_with($selector, '.')) {
+                    $selectors[] = $selector;
+                }
+            }
+        }
+
+        return $selectors;
     }
 
     public function testDesktopToolbarIsNotPinnedIndependentlyOfTheWrapper(): void

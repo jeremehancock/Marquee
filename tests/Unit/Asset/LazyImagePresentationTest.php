@@ -97,7 +97,20 @@ final class LazyImagePresentationTest extends TestCase
     {
         // `opacity: 0` and the `is-loaded` reveal are a pair: an image on one list
         // but not the other is either permanently invisible or never faded.
-        $hidden = $this->selectorsDeclaring('transition: opacity 0.4s ease');
+        //
+        // Matched on tokens rather than on literal values: the fade's length is
+        // --dur-fade's to set, and pinning a number here would fail this test
+        // whenever the motion scale is retuned, for no reason. What the test is
+        // actually for is the membership of the two lists.
+        //
+        // The easing is part of the match and has to be. --dur-fade is also what
+        // .alert--fading uses, so duration alone matches two unrelated rules and
+        // the helper — which requires exactly one — resolves to whichever comes
+        // first in the file. Arriving eases differently from leaving, so the pair
+        // is unambiguous.
+        $hidden = $this->selectorsDeclaring(
+            'transition: opacity var(--dur-fade) var(--ease-entrance)',
+        );
         $revealed = $this->selectorsAlongside('.viewer img.is-loaded');
 
         foreach (['.card__image', '.find-item__img', '.viewer img'] as $selector) {
@@ -114,23 +127,91 @@ final class LazyImagePresentationTest extends TestCase
         }
     }
 
-    public function testReducedMotionCoversEveryCallerOfTheTreatment(): void
+    /**
+     * This used to assert the opposite, and the inversion is the point.
+     *
+     * Reduced motion was once a list of five selectors, so every caller of the
+     * shimmer and the lazy fade had to be named in it — and a caller added to the
+     * treatment but not to that list went on animating for the people who asked
+     * it not to, with nothing failing to say so. The list is a blanket rule now,
+     * so a new caller is covered the moment it exists and naming it would be
+     * redundant. What is left to protect is the exemption: the shimmer reports
+     * that a poster is on its way, and a frozen shimmer says it never will be.
+     */
+    public function testReducedMotionCoversEverythingAndExemptsProgress(): void
+    {
+        $block = $this->reducedMotionBlock();
+
+        // The blanket itself. Without the pseudo-element arms the shimmer would
+        // not be reached at all, since every caller of it draws on ::before.
+        foreach (['*', '*::before', '*::after'] as $selector) {
+            self::assertMatchesRegularExpression(
+                '/^\s*' . preg_quote($selector, '/') . '\s*[,{]/m',
+                $block,
+                'Reduced motion must stay a blanket rule: a list of selectors is '
+                . 'wrong by default every time something new is animated.',
+            );
+        }
+
+        // Collapsed, not removed. `transition: none` suppresses transitionend and
+        // a zero-length animation can skip animationend, so anything awaiting
+        // either would wait forever.
+        self::assertStringContainsString('animation-duration: 0.01ms', $block);
+        self::assertStringContainsString('transition-duration: 0.01ms', $block);
+        self::assertStringNotContainsString(
+            'transition: none',
+            $block,
+            'Collapsing to zero costs the transitionend event.',
+        );
+
+        // Every caller of the shimmer keeps it, or one of the three places a
+        // poster is awaited stops reporting that it is coming.
+        foreach ([
+            '.card__frame::before' => 'the gallery card',
+            '.find-item__frame::before' => 'the Find Posters candidate cell',
+            '.viewer__placeholder' => 'the full-screen views',
+        ] as $selector => $what) {
+            self::assertStringContainsString(
+                $selector,
+                $block,
+                sprintf('The shimmer for %s must stay exempt: a frozen placeholder '
+                    . 'reads as a poster that is never arriving.', $what),
+            );
+        }
+
+        self::assertStringContainsString(
+            '.spinner',
+            $block,
+            'A stopped spinner over a running import reads as an import that hung.',
+        );
+    }
+
+    /**
+     * The whole `@media (prefers-reduced-motion: reduce)` section, braces matched.
+     *
+     * Read by counting braces rather than by taking a fixed number of characters:
+     * the block carries nested rules now, so a fixed window ends inside the first
+     * of them and silently stops seeing the rest.
+     */
+    private function reducedMotionBlock(): string
     {
         $css = $this->declarations();
         $start = strpos($css, '@media (prefers-reduced-motion: reduce) {');
         self::assertIsInt($start, 'The reduced-motion block must remain a single section.');
-        $block = substr($css, $start, 400);
 
-        // A shimmer is an animation and a fade is a transition; adding a caller to
-        // one without adding it here reintroduces motion for the people who asked
-        // for none.
-        foreach (['.find-item__frame::before', '.viewer__placeholder', '.find-item__img', '.viewer img'] as $selector) {
-            self::assertStringContainsString(
-                $selector,
-                $block,
-                sprintf('"%s" must opt out of motion along with the poster cards.', $selector)
-            );
+        $depth = 0;
+        for ($i = (int) strpos($css, '{', $start); $i < strlen($css); $i++) {
+            if ($css[$i] === '{') {
+                $depth++;
+            } elseif ($css[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($css, $start, $i - $start + 1);
+                }
+            }
         }
+
+        self::fail('The reduced-motion block is unterminated.');
     }
 
     public function testCandidateCellReservesItsSpaceBeforeTheImageArrives(): void

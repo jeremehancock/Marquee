@@ -1,6 +1,7 @@
 {% extends 'layout.html.twig' %}
 {% import 'partials/_icons.html.twig' as icons %}
 {% import 'partials/_sort.html.twig' as sort_control %}
+{% import 'partials/_transitions.html.twig' as tx %}
 
 {% block title %}{{ view.label }} · {{ site_title }}{% endblock %}
 
@@ -88,7 +89,7 @@
        close this one underneath whichever is stacked over it — discarding the file
        or URL the user had just picked along with it. Ordering cannot fix that;
        only the guard can. #}
-    <div class="modal" x-show="change.open" x-cloak
+    <div class="modal" x-show="change.open" x-cloak {{ tx.dialog() }}
          @keydown.escape.window="if (!confirm.open && !preview.open) change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
         <div class="modal__panel" :class="change.tab === 'find' ? 'modal__panel--wide' : ''"
@@ -217,7 +218,8 @@
 
     {# Sort tray (phone): the same sort links as the desktop toolbar, presented as
        an app-style sheet to keep the toolbar uncluttered. #}
-    <div class="sheet" x-show="sortOpen" x-cloak @keydown.escape.window="sortOpen = false" style="display:none">
+    <div class="sheet" x-show="sortOpen" x-cloak {{ tx.tray() }}
+         @keydown.escape.window="sortOpen = false" style="display:none">
         <div class="sheet__backdrop" @click="sortOpen = false"></div>
         <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Sort order">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
@@ -230,7 +232,8 @@
 
     {# Import tray (phone): the Import from Plex link opens this instead of
        navigating; its body is fetched from /plex and wired on first open. #}
-    <div class="sheet" x-show="importOpen" x-cloak @keydown.escape.window="closeImport()" style="display:none">
+    <div class="sheet" x-show="importOpen" x-cloak {{ tx.tray() }}
+         @keydown.escape.window="closeImport()" style="display:none">
         <div class="sheet__backdrop" @click="closeImport()"></div>
         <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
@@ -245,7 +248,8 @@
     {# Orphans tray (phone): the Orphans link opens this instead of navigating. Its
        body is the /orphans page content, fetched and wired on first open so its
        own scan/delete logic and (now tray-contained) progress overlays are reused. #}
-    <div class="sheet" x-show="orphansOpen" x-cloak @keydown.escape.window="closeOrphans()" style="display:none">
+    <div class="sheet" x-show="orphansOpen" x-cloak {{ tx.tray() }}
+         @keydown.escape.window="closeOrphans()" style="display:none">
         <div class="sheet__backdrop" @click="closeOrphans()"></div>
         <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Orphaned posters">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>

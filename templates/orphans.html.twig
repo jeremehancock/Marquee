@@ -1,4 +1,5 @@
 {% extends 'layout.html.twig' %}
+{% import 'partials/_transitions.html.twig' as tx %}
 
 {# Suppresses the header's own Orphans link, which would point at this page. #}
 {% set nav_current = 'orphans' %}
@@ -50,7 +51,8 @@
         </div>
 
         {# Delete-all confirmation — count is filled in after the scan. #}
-        <div class="modal" x-show="confirmOpen" x-cloak @keydown.escape.window="confirmOpen = false" style="display:none">
+        <div class="modal" x-show="confirmOpen" x-cloak {{ tx.dialog() }}
+             @keydown.escape.window="confirmOpen = false" style="display:none">
             <div class="modal__backdrop" @click="confirmOpen = false"></div>
             <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm delete">
                 {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
