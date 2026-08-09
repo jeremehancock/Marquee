@@ -246,7 +246,7 @@ final class DesignTokenContractTest extends TestCase
             }
         }
 
-        foreach (['.card__frame', '.panel', '.modal__panel', '.overlay__box', '.tooltip', '.toast'] as $selector) {
+        foreach (['.panel', '.modal__panel', '.overlay__box', '.tooltip', '.toast'] as $selector) {
             self::assertArrayHasKey(
                 $selector,
                 $shadows,
@@ -254,15 +254,34 @@ final class DesignTokenContractTest extends TestCase
             );
         }
 
-        // Resting content, then raised content, then dialogs, then the transient
-        // notices that outrank everything. Trays sit between raised content and
-        // dialogs but cast upward, so they are asserted by the shadow test above
-        // rather than here.
-        self::assertLessThan(
-            $tier($shadows['.panel']),
-            $tier($shadows['.card__frame']),
-            'A card rests on the page; a panel is raised off it.',
+        // A poster card is not on this list, and that is the decision rather than
+        // an omission. It carries no resting elevation: posters supply their own
+        // contrast, the frame's border already separates them from the page, and
+        // a grid of shadowed rectangles reads as muddy. Worse, the row under the
+        // pinned controls laid its shadows along that bar's lower edge and made
+        // the bar — which casts nothing — look like it was casting one. The card
+        // gains depth on hover, where it means something.
+        self::assertArrayNotHasKey(
+            '.card__frame',
+            $shadows,
+            'A poster card must not carry a resting elevation; the top row makes '
+            . 'the pinned controls look like they are casting a shadow.',
         );
+        self::assertArrayHasKey(
+            '.card__frame:hover',
+            $shadows,
+            'The card lift is where a card gains depth.',
+        );
+        self::assertGreaterThan(
+            $tier($shadows['.panel']),
+            $tier($shadows['.card__frame:hover']),
+            'A lifted card is picked up off the page, so it reads as further from '
+            . 'it than a panel resting on it.',
+        );
+
+        // Raised content, then dialogs, then the transient notices that outrank
+        // everything. Trays sit between raised content and dialogs but cast
+        // upward, so they are asserted by the shadow test above rather than here.
         self::assertLessThan(
             $tier($shadows['.modal__panel']),
             $tier($shadows['.panel']),

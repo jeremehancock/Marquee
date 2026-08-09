@@ -1101,14 +1101,21 @@ h1 {
     margin: 0;
 }
 
-/* The frame holds the poster and its hover overlay; the title sits below it. */
+/* The frame holds the poster and its hover overlay; the title sits below it.
+
+   No resting elevation, deliberately. A shadow on every card was tried and cut:
+   posters already carry their own contrast, the border already separates them
+   from the page, and a grid of forty shadowed rectangles reads as muddy rather
+   than as depth. The failure that made it obvious was at the top of the grid —
+   the row sitting under the pinned controls put its shadows along the bar's
+   lower edge, and the bar, which casts nothing, looked like it was casting one.
+   Depth arrives on hover instead, where it means something. */
 .card__frame {
     position: relative;
     aspect-ratio: 2 / 3;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--elev-1);
     overflow: hidden;
 }
 
