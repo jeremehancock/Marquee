@@ -4,8 +4,9 @@
    root and works on every page that renders the topbar nav. Shown only on narrow
    screens — the menu button that opens it is hidden on desktop. #}
 {% import 'partials/_nav_macros.html.twig' as nav %}
+{% import 'partials/_transitions.html.twig' as tx %}
 
-<div class="sheet" x-show="menuOpen" x-cloak
+<div class="sheet" x-show="menuOpen" x-cloak {{ tx.tray() }}
      @keydown.escape.window="menuOpen = false" style="display:none">
     <div class="sheet__backdrop" @click="menuOpen = false"></div>
     <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Actions">

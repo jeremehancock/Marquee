@@ -21,6 +21,18 @@ use PHPUnit\Framework\TestCase;
  * overlay no longer covers it. Each of those reads as a rendering bug rather
  * than a missing rule.
  *
+ * That background used to be an opaque var(--bg), and these tests used to assert
+ * exactly that under the heading "must be opaque". The pinned block is glass now,
+ * and the requirement moved with it: poster-library no longer asks that posters
+ * be hidden behind the pinned controls, it asks that they be blurred and dimmed
+ * while every control stays legible. So the surface is still load-bearing — it
+ * simply owes something different, and it owes three things instead of one. The
+ * tint carries the contrast, the blur is what stops a passing poster reading as a
+ * rendering fault, and the @supports fallback is what keeps the bar legible where
+ * blur is unavailable. A translucent bar with no fallback is worse than the flat
+ * one it replaced: the posters come through at nearly full strength under the
+ * search field. Each of the three is asserted separately below for that reason.
+ *
  * The sharpest trap is the wrapper. A sticky element cannot travel outside its
  * containing block, so wrapping the phone's already-sticky .toolbar in a short
  * .gallery-head would cut its range to that wrapper's height and unpin it after
@@ -114,16 +126,28 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testPinnedToolbarHidesThePostersPassingUnderIt(): void
+    public function testPinnedToolbarSubduesThePostersPassingUnderIt(): void
     {
         $toolbar = $this->rule($this->mobileBlock(), '.toolbar');
 
-        // .toolbar has no background of its own, so without this the posters
-        // scroll visibly through the pinned bar.
+        // .toolbar has no background of its own, so without a surface here the
+        // posters scroll under the search field with nothing in between.
         self::assertStringContainsString(
-            'background: var(--bg)',
+            'background: var(--chrome-tint)',
             $toolbar,
-            'The pinned toolbar must be opaque.',
+            'The pinned toolbar needs the tint that carries its contrast.',
+        );
+        self::assertStringContainsString(
+            'backdrop-filter: var(--chrome-blur)',
+            $toolbar,
+            'Without the blur a poster stays recognisable under the bar, which '
+            . 'reads as a rendering fault rather than as intent.',
+        );
+        self::assertContains(
+            '.toolbar',
+            $this->fallbackSelectors(),
+            'A glass bar with no @supports fallback degrades to a translucent one '
+            . 'with nothing blurred behind it.',
         );
     }
 
@@ -227,17 +251,72 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testPinnedDesktopControlsHideThePostersPassingUnderThem(): void
+    public function testPinnedDesktopControlsSubdueThePostersPassingUnderThem(): void
     {
         // Neither .tabs nor .toolbar has a background, so the wrapper has to
-        // supply one or the grid scrolls visibly through the pinned block. No
-        // gutter bleed is needed as it is on a phone: the poster grid sits inside
-        // .container's padding box, so nothing ever renders beside this block.
+        // supply one or the grid scrolls through the pinned block with nothing in
+        // between. No gutter bleed is needed as it is on a phone: the poster grid
+        // sits inside .container's padding box, so nothing renders beside it.
+        $head = $this->rule($this->baseBlock(), '.gallery-head');
+
         self::assertStringContainsString(
-            'background: var(--bg)',
-            $this->rule($this->baseBlock(), '.gallery-head'),
-            'The pinned desktop controls must be opaque.',
+            'background: var(--chrome-tint)',
+            $head,
+            'The pinned desktop controls need the tint that carries their contrast.',
         );
+        self::assertStringContainsString(
+            'backdrop-filter: var(--chrome-blur)',
+            $head,
+            'Without the blur a poster stays recognisable under the tabs.',
+        );
+        self::assertContains(
+            '.gallery-head',
+            $this->fallbackSelectors(),
+            'A glass block with no @supports fallback degrades to a translucent one '
+            . 'with nothing blurred behind it.',
+        );
+    }
+
+    /**
+     * Every selector named inside the `@supports not (...backdrop-filter...)`
+     * block at the end of the stylesheet.
+     *
+     * The block is matched from its condition to the end of the file rather than
+     * by brace counting: it is deliberately the last thing in app.css, since it
+     * has to beat the mobile block that is itself placed last to win at equal
+     * specificity. If something is ever appended after it, this returns too much
+     * rather than too little — which fails safe, because these tests assert that
+     * a selector is present.
+     *
+     * @return list<string>
+     */
+    private function fallbackSelectors(): array
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', $this->stylesheet());
+
+        $start = strpos($css, '@supports not (');
+        self::assertIsInt(
+            $start,
+            'The backdrop-filter fallback block must remain in app.css: without it '
+            . 'no glass surface has a defined appearance where blur is unsupported.',
+        );
+
+        // Innermost rules only: `[^{}]` cannot cross a brace, so the @supports
+        // condition and the nested @media header are both skipped and what is
+        // left is the selector list of each declaration block.
+        preg_match_all('/([^{}]+)\{[^{}]*\}/', substr($css, $start), $matches);
+
+        $selectors = [];
+        foreach ($matches[1] as $head) {
+            foreach (explode(',', $head) as $selector) {
+                $selector = trim($selector);
+                if (str_starts_with($selector, '.')) {
+                    $selectors[] = $selector;
+                }
+            }
+        }
+
+        return $selectors;
     }
 
     public function testDesktopToolbarIsNotPinnedIndependentlyOfTheWrapper(): void

@@ -56,6 +56,9 @@ context: |
     - auto-import         (scheduled cron import, per-type toggles, exclusions)
     - orphan-detection    (detect + delete orphaned posters)
     - poster-wall         (full-screen rotating wall, random batches)
+    - visual-design       (the design token contract, surface layering and
+                           translucency, pointer/focus feedback, app-wide
+                           reduced motion; how things look, not what they do)
     - pwa                 (installable manifest, offline assets, version check)
     - release-publishing  (branch -> Docker tag, VERSION-driven releases;
                            build/release behavior, not an app capability)

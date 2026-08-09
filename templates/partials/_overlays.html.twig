@@ -3,8 +3,11 @@
    (galleryUI, orphansPage) — they expose the same state (confirm, sheet, viewer,
    toast) and methods (doConfirm, closeSheet, notify), so this markup is shared. #}
 
+{% import 'partials/_transitions.html.twig' as tx %}
+
 {# Confirm modal #}
-<div class="modal" x-show="confirm.open" x-cloak @keydown.escape.window="confirm.open = false" style="display:none">
+<div class="modal" x-show="confirm.open" x-cloak {{ tx.dialog() }}
+     @keydown.escape.window="confirm.open = false" style="display:none">
     <div class="modal__backdrop" @click="confirm.open = false"></div>
     <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm">
         {# Grab handle: hidden on desktop, the drag-to-dismiss target on a phone.
@@ -38,7 +41,7 @@
    rendered above it and leaves it standing, so an unguarded handler here would
    close the tray out from under a confirmation the user is still answering —
    the same guard the change dialog carries. #}
-<div class="sheet" x-show="sheet.open" x-cloak
+<div class="sheet" x-show="sheet.open" x-cloak {{ tx.tray() }}
      @keydown.escape.window="if (!confirm.open) closeSheet()" style="display:none">
     <div class="sheet__backdrop" @click="closeSheet()"></div>
     <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Poster actions">
