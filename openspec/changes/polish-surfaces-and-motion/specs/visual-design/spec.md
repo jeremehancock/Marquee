@@ -77,8 +77,15 @@ surface drawn above another never appears to sit beneath it.
 
 Chrome that floats over content SHALL be translucent with a blurred backdrop, so
 that content passing beneath it stays perceptible rather than being hidden by an
-opaque band. This SHALL apply to the page header, the pinned gallery controls,
-the mobile category tab bar, and the backdrops behind dialogs and trays.
+opaque band. This SHALL apply to the page header, the narrow-screen pinned
+toolbar, the narrow-screen category tab bar, and the backdrops behind dialogs and
+trays.
+
+Translucency SHALL be applied where it makes chrome recede and withheld where it
+would make chrome assert itself. A narrow bar with content moving behind it gains
+from being seen through; a wide, straight-edged block spanning the content column
+does not, and the requirement above SHALL NOT be read as obliging every pinned
+surface at every width to be translucent.
 
 Legibility SHALL NOT depend on the blur. Every translucent surface SHALL carry a
 tint opaque enough that its own text and controls meet their contrast
@@ -90,11 +97,18 @@ requirements against any content that may pass behind it.
 - **THEN** the content behind the header is visible through it, blurred and
   dimmed, rather than being covered by a flat band
 
-#### Scenario: Pinned gallery controls stay legible
+#### Scenario: The narrow-screen pinned toolbar stays legible
 
-- **WHEN** poster cards scroll beneath the pinned category tabs and toolbar
-- **THEN** the posters are perceptible through the pinned block, and the tab
-  labels, search field, and sort control remain fully legible
+- **WHEN** poster cards scroll beneath the pinned toolbar on a narrow screen
+- **THEN** the posters are perceptible through it, and the search field and sort
+  trigger remain fully legible
+
+#### Scenario: Chrome that would assert itself stays opaque
+
+- **WHEN** a pinned surface is wide enough that content passing behind it draws
+  the eye to the surface rather than through it
+- **THEN** it is drawn opaque, and no requirement here obliges it to be
+  translucent
 
 #### Scenario: A dialog backdrop blurs the page
 

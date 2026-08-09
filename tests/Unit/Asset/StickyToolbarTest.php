@@ -21,17 +21,25 @@ use PHPUnit\Framework\TestCase;
  * overlay no longer covers it. Each of those reads as a rendering bug rather
  * than a missing rule.
  *
- * That background used to be an opaque var(--bg), and these tests used to assert
- * exactly that under the heading "must be opaque". The pinned block is glass now,
- * and the requirement moved with it: poster-library no longer asks that posters
- * be hidden behind the pinned controls, it asks that they be blurred and dimmed
- * while every control stays legible. So the surface is still load-bearing — it
- * simply owes something different, and it owes three things instead of one. The
- * tint carries the contrast, the blur is what stops a passing poster reading as a
- * rendering fault, and the @supports fallback is what keeps the bar legible where
- * blur is unavailable. A translucent bar with no fallback is worse than the flat
- * one it replaced: the posters come through at nearly full strength under the
- * search field. Each of the three is asserted separately below for that reason.
+ * What that background owes differs by width, and the two tests below differ with
+ * it. This is the one place in the file where the phone and the desktop are not
+ * doing the same thing for different reasons — they are doing different things.
+ *
+ * The phone bar is glass. It is narrow, content passes behind it constantly, and
+ * watching it move through is what keeps the bar from reading as a lid. So it
+ * owes three things instead of one: the tint carries the contrast, the blur is
+ * what stops a passing poster reading as a rendering fault, and the @supports
+ * fallback is what keeps the bar legible where blur is unavailable. A translucent
+ * bar with no fallback is worse than the flat one it replaced — the posters come
+ * through at nearly full strength under the search field — so each of the three
+ * is asserted separately.
+ *
+ * The desktop block stays opaque. It is wide, straight-edged, spans the content
+ * column, and is the frame the gallery is read through rather than something
+ * floating over it; glassed, it announced itself every time a poster slid under
+ * it. Both were tried on a real screen. poster-library's requirement is written
+ * to permit translucency rather than to require it, precisely so these two can
+ * differ.
  *
  * The sharpest trap is the wrapper. A sticky element cannot travel outside its
  * containing block, so wrapping the phone's already-sticky .toolbar in a short
@@ -251,29 +259,34 @@ final class StickyToolbarTest extends TestCase
         );
     }
 
-    public function testPinnedDesktopControlsSubdueThePostersPassingUnderThem(): void
+    /**
+     * Opaque here, glass on a phone — the two widths genuinely differ, and the
+     * asymmetry is the point rather than an oversight someone should tidy up.
+     *
+     * A phone bar is narrow and content passes behind it constantly; seeing it
+     * move through is what keeps the bar from feeling like a lid. This block is
+     * wide, straight-edged, spans the content column, and is the frame the gallery
+     * is read through. Glassed, it announced itself every time a poster slid under
+     * it. Opaque, it stops being noticed, which is what chrome is for.
+     */
+    public function testPinnedDesktopControlsHideThePostersPassingUnderThem(): void
     {
         // Neither .tabs nor .toolbar has a background, so the wrapper has to
-        // supply one or the grid scrolls through the pinned block with nothing in
-        // between. No gutter bleed is needed as it is on a phone: the poster grid
-        // sits inside .container's padding box, so nothing renders beside it.
+        // supply one or the grid scrolls visibly through the pinned block. No
+        // gutter bleed is needed as it is on a phone: the poster grid sits inside
+        // .container's padding box, so nothing ever renders beside this block.
         $head = $this->rule($this->baseBlock(), '.gallery-head');
 
         self::assertStringContainsString(
-            'background: var(--chrome-tint)',
+            'background: var(--bg)',
             $head,
-            'The pinned desktop controls need the tint that carries their contrast.',
+            'The pinned desktop controls must be opaque.',
         );
-        self::assertStringContainsString(
-            'backdrop-filter: var(--chrome-blur)',
+        self::assertStringNotContainsString(
+            'backdrop-filter',
             $head,
-            'Without the blur a poster stays recognisable under the tabs.',
-        );
-        self::assertContains(
-            '.gallery-head',
-            $this->fallbackSelectors(),
-            'A glass block with no @supports fallback degrades to a translucent one '
-            . 'with nothing blurred behind it.',
+            'The desktop block is opaque by decision. Glassing it needs the '
+            . 'poster-library requirement revisited, not just this rule.',
         );
     }
 

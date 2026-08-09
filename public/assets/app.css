@@ -339,12 +339,33 @@ body {
 }
 
 /* The tray is a vertical list, so the hairline turns to sit above it — a left
-   border on a full-width row would point at nothing. */
+   border on a full-width row would point at nothing.
+
+   Colour and text-decoration are stated here rather than inherited, and that is
+   the whole reason this rule grew. The tray used to be markup inside <header>, so
+   `.topbar a` reached it and gave every link in it the muted colour and no
+   underline. The tray is teleported to <body> now — it had to be, because the
+   glass header became a containing block for the fixed tray inside it — and the
+   moment it moved, this link fell out of that selector's reach and reverted to
+   the browser's default: blue and underlined, in the middle of a themed tray.
+   Nothing else in the tray was affected, because every other link there is a
+   .btn and carries its own colour; this is the one bare anchor.
+
+   --muted rather than --muted-on-chrome: the tray is an opaque surface, so the
+   lifted grey the glass bars need would just read as brighter than the rows
+   above it. */
 .menu__body .conn-status {
     margin: 6px 0 0;
     padding: 12px 0 2px;
     border-left: 0;
     border-top: 1px solid var(--border);
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.menu__body a.conn-status:hover .conn-status__name,
+.menu__body a.conn-status:focus-visible .conn-status__name {
+    color: var(--ink);
 }
 
 /* In the narrow band the name goes with the nav labels and the dot stands alone,
@@ -545,26 +566,31 @@ h1 {
 /* Flashes and inline notices — "Signed in to Plex.", an import that Plex would
    not take, the obsolete-PLEX_TOKEN warning.
 
-   Each severity is one hue used three ways — a solid bar down the leading edge,
-   a wash behind, and a hairline around — plus the ink for the text. --alert-hue
-   and --alert-ink carry them, so a severity is two declarations below rather
-   than five colours to keep in agreement, and a new severity is one rule.
+   Each severity is one hue used four ways — a glyph, a solid bar down the leading
+   edge, a wash behind, and a hairline around — plus the ink for the text.
+   --alert-hue and --alert-ink carry them, so a severity is two declarations
+   below rather than six colours to keep in agreement, and a new severity is one
+   rule plus its glyph.
 
-   The ink is a separate token rather than the hue reused, because text on a wash
-   of its own colour is the case where that shortcut fails. Measured on --surface,
-   the error red #e4785f comes to 4.90:1 against the bare panel — but the wash is
-   that same red, so it lifts the background toward the text and drops the pair to
-   3.81:1, under AA, purely by being the same hue. The ink is that red lightened
-   until the pair clears it again (4.96:1). Green and amber sit high enough that
-   their ink is the hue unchanged; they still state it, so the contract reads the
-   same for all three and a fourth severity has an obvious shape to copy. */
+   The glyph and the leading bar are what stop these reading as filler. A message
+   identified only by a tinted background is a rectangle slightly different from
+   the rectangle above it; a mark and an edge give the eye somewhere to land and
+   the message somewhere to start. They also survive being wrong about colour —
+   someone who cannot separate the green from the amber still gets a distinct
+   shape, and the wording says which it is either way.
 
-   The leading bar is doing the work. A message identified only by a tinted
-   background is a rectangle slightly different from the rectangle above it, which
-   is why these read as filler; a bar gives the eye an edge to catch and a place
-   the message starts. It also survives being wrong about colour — someone who
-   cannot separate the green from the amber still sees a marked block, and the
-   wording says which it is.
+   The glyph is a masked data-URI rather than markup, and that is what keeps this
+   to one file. .alert is used on a bare <p> in four templates and on a <div> of
+   several <p>s for the obsolete-PLEX_TOKEN notice; adding an <svg> would mean
+   touching every call site and giving the multi-paragraph variant a wrapper it
+   does not have. `mask-image` also means the glyph is painted with
+   `background: currentColor`, so it takes --alert-ink automatically and cannot
+   drift from the text beside it.
+
+   Absolutely positioned, not a flex item. Making .alert a flex row would turn
+   those sibling <p>s into columns; taking the glyph out of flow leaves every
+   variant laid out exactly as it was, and costs only the left padding that makes
+   room for it.
 
    Elevation is deliberately the lowest tier. A flash sits in the page's flow,
    above it but not over it; --elev-2 or higher would have it float like a panel
@@ -572,8 +598,12 @@ h1 {
 .alert {
     --alert-hue: 228, 120, 95;
     --alert-ink: #ea9885;
+    /* Drawn at a 24 viewBox with a 1.9 stroke — heavier than the 1.7 the nav and
+       tab glyphs use, because this renders at 19px where 1.7 thins to a
+       hairline. Same reasoning as .sort__btn .icon. */
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5'/%3E%3Cpath d='M12 16.5h.01'/%3E%3C/svg%3E");
     position: relative;
-    padding: 12px 14px 12px 16px;
+    padding: 13px 15px 13px 46px;
     border: 1px solid rgba(var(--alert-hue), 0.34);
     border-left: 3px solid rgb(var(--alert-hue));
     border-radius: var(--radius-md);
@@ -587,6 +617,22 @@ h1 {
     font-weight: 500;
 }
 
+.alert::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    /* Pinned to the first line rather than centred on the box: the multi-paragraph
+       notice is tall, and a glyph floating in the middle of it points at nothing.
+       Aligned against the cap height of the first line, not its box. */
+    top: 14px;
+    width: 19px;
+    height: 19px;
+    background: currentColor;
+    -webkit-mask: var(--alert-glyph) center / contain no-repeat;
+    mask: var(--alert-glyph) center / contain no-repeat;
+    pointer-events: none;
+}
+
 /* Success flashes fade themselves out (see app.js). The transition is on the
    alert itself rather than a wrapper so the space it occupied collapses with it. */
 .alert--fading {
@@ -597,15 +643,20 @@ h1 {
 .alert--success {
     --alert-hue: 116, 192, 132;
     --alert-ink: #74c084;
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8.2 12.3 2.6 2.6 5-5.4'/%3E%3C/svg%3E");
 }
 
 /* Amber: the operation did what it was asked locally but could not finish —
    a poster replaced on disk that Plex would not take. Neither green nor red is
    true of that, and the difference matters: the new poster is stored and on
-   screen, so the message is about Plex, not about the change. */
+   screen, so the message is about Plex, not about the change.
+
+   A triangle rather than the default circle, so the three severities differ in
+   silhouette and not only in hue. */
 .alert--warning {
     --alert-hue: 228, 181, 95;
     --alert-ink: #e4b55f;
+    --alert-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 4.3 2.6 17.5a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z'/%3E%3Cpath d='M12 9.5v4'/%3E%3Cpath d='M12 17.2h.01'/%3E%3C/svg%3E");
 }
 
 /* The Plex connection screen. A single panel with one action, so the spacing is
@@ -736,14 +787,15 @@ h1 {
    the gutters is needed here (the phone rule needs one): the poster grid sits
    inside .container's padding box, so nothing ever renders beside this block.
 
-   That background is now glass rather than the opaque --bg it carried until the
-   surfaces work. The requirement it answers changed with it: the block no longer
-   has to hide the posters, it has to keep every control on it legible while they
-   pass through blurred and dimmed. Both halves matter. --chrome-tint is set for
-   contrast against a worst-case bright poster, and --chrome-blur is strong
-   enough that no individual poster stays recognisable — a lightly blurred poster
-   sliding under the tabs reads as a rendering fault rather than as intent, which
-   is the failure this replaced opacity to avoid.
+   It stays opaque at this width, and that is a decision rather than an oversight.
+   The phone bars are glass — content passes behind them constantly on a small
+   screen, and seeing it move through is what stops them feeling like a lid. This
+   block is different: it is wide, it is straight-edged, it spans the content
+   column, and it is the frame the gallery is read through rather than something
+   floating over it. Glassed, it drew attention to itself every time a poster
+   slid under it, which is the opposite of what chrome is for. Opaque, it simply
+   stops being noticed. Tried both on a real screen; this is the one that reads
+   as intended. The phone rules keep the glass.
 
    The rule along the bottom edge is .tabs' old border, moved out here. Inside a
    single pinned block that border read as a divider between the tabs and the
@@ -765,9 +817,7 @@ h1 {
     position: sticky;
     top: 0;
     z-index: 30;
-    background: var(--chrome-tint);
-    -webkit-backdrop-filter: var(--chrome-blur);
-    backdrop-filter: var(--chrome-blur);
+    background: var(--bg);
     padding-top: 12px;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border);
@@ -2151,6 +2201,22 @@ h1 {
         padding: 20px 14px;
     }
 
+    /* The gallery's toolbar pins to the top of the viewport, so on a phone it
+       comes to rest directly under the header — and the container's 20px top
+       padding sat between them as a band of page colour, which read as the bar
+       having come loose from the header rather than as breathing room.
+
+       Scoped with :has() so only the gallery loses that padding. /plex, /orphans
+       and the sign-in screen open with a heading rather than a pinned bar, and
+       they still want the gap. `display: contents` on .gallery-head means it
+       generates no box here, but it is still in the DOM and still matched — which
+       is exactly what makes it a usable marker for "this page pins a toolbar".
+       The stylesheet already relies on :has() for the shimmer, so this needs no
+       new support assumption. */
+    .container:has(.gallery-head) {
+        padding-top: 0;
+    }
+
     /* The desktop wrapper leaves the box tree entirely on a phone, restoring the
        arrangement the rules below expect: .tabs pins itself to the bottom of the
        viewport and .toolbar does its own pinning at the top.
@@ -2595,8 +2661,7 @@ h1 {
     /* Chrome falls back to the page colour. --chrome-tint is --bg carrying an
        alpha, so an opaque --bg is what the glass composited to anyway — the depth
        is lost, the colour is not. */
-    .topbar,
-    .gallery-head {
+    .topbar {
         background: var(--bg);
     }
 
