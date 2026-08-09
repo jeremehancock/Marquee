@@ -13,16 +13,21 @@ namespace App\Plex\Poster;
  * item, by Marquee or anything else that uploaded one. Plex marks these
  * `upload://`.
  *
- * {@see Server} — the rest of what the server actually holds: artwork a
- * metadata agent downloaded, a poster file found alongside the media, an image
- * embedded in the media itself. Deliberately *not* called "from the metadata
- * agent"; it holds all three kinds and naming one would misdescribe the others.
+ * {@see Server} — Plex's own copies: artwork a metadata agent downloaded, a
+ * poster file taken from alongside the media, an image extracted from the media
+ * itself. All of it lives in Plex's storage, which is the only thing true of all
+ * three — so this is named for *where it is*, not where it came from.
  *
  * {@see Offered} — artwork Plex knows about but has **not** downloaded, given
  * as an absolute URL to the provider. Mostly the same providers Find Posters
  * aggregates, but not entirely: Plex also offers IMDb and Gracenote artwork,
  * which the poster search does not carry. These need no token, cannot go
  * through the image proxy, and are applied the same way a pasted URL is.
+ *
+ * Note that {@see Server} and {@see Offered} are **not** distinguished by
+ * source. Most of a Server group came from TMDB, which is also where much of an
+ * Offered group would come from; the difference is only whether Plex has the
+ * bytes. Any label implying separate origins misdescribes both.
  */
 enum PlexPosterOrigin
 {

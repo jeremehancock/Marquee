@@ -96,11 +96,18 @@ surface again. That group is the reason this tab exists, so it SHALL come first,
 and the offered group SHALL come last: it is the largest and the least particular
 to this user, and placing it above the others would bury them.
 
-The second group SHALL NOT be described as coming from a metadata agent. It
-holds posters of several kinds — artwork an agent downloaded, a poster file
-found alongside the media, an image embedded in the media itself — and naming
-one of them would misdescribe the others. Its label SHALL describe what is true
-of all of them: Plex obtained the poster itself rather than being given it.
+The second and third groups SHALL be labelled by **whether Plex holds the
+image**, and SHALL NOT be labelled in terms that imply they come from different
+sources. They largely do not: most of what Plex has downloaded for an item came
+from the same providers it would otherwise offer, so a label suggesting separate
+origins misdescribes both groups. The distinction that exists, and the only one
+worth naming, is that Plex has one and would have to fetch the other.
+
+The second group SHALL NOT be described as coming from a metadata agent either.
+It holds posters of several kinds — artwork an agent downloaded, a poster file
+taken from alongside the media, an image extracted from the media itself — and
+naming one of them would misdescribe the others. What is true of all three is
+that the poster sits in Plex's own storage.
 
 Each group's heading SHALL be presented as a section label rather than as
 body text, and SHALL carry the number of candidates in it, so a user can see how

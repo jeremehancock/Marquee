@@ -236,7 +236,7 @@ argument about *order*, not about inclusion — so offered artwork is listed las
 
 ```
   Uploaded to Plex   9   ← the user's own history        held → proxy → select
-  Found by Plex      5   ← what Plex had before them     held → proxy → select
+  Stored by Plex     5   ← Plex downloaded/ingested it    held → proxy → select
   Offered by Plex   26   ← what Plex could fetch         URL → direct → upload
 ```
 

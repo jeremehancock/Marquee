@@ -183,7 +183,7 @@ picked, and the `thumb` field is still `locked="1"` (check it the same way as
 
 **Fail:** the count grew by one — applying uploaded instead of selecting.
 
-This holds for the **Uploaded to Plex** and **Found by Plex** groups, whose
+This holds for the **Uploaded to Plex** and **Stored by Plex** groups, whose
 images are already on the server. **Offered by Plex** is artwork Plex has not
 downloaded — applying one of those *does* upload, and the count *should* grow by
 one. Test it against the first two groups.
