@@ -106,6 +106,31 @@ Each group's heading SHALL be presented as a section label rather than as
 body text, and SHALL carry the number of candidates in it, so a user can see how
 much history an item has accumulated without counting.
 
+Groups SHALL be separated by enough space to read as distinct sections, and each
+heading SHALL sit closer to the group it labels than to the one above it, so
+proximity does the grouping rather than the label having to.
+
+While a group's candidates are on screen, its heading SHALL remain visible as
+the user scrolls, and SHALL leave with its own group. The offered group in
+particular can run to dozens of candidates, and the heading is the only thing
+saying which kind of poster is being looked at — scrolling past it would take
+that answer away exactly when the list is long enough to need it.
+
+#### Scenario: Groups are visibly separated
+- **WHEN** a user views a result with more than one group
+- **THEN** the space between two groups is clearly greater than the space
+  between a heading and its own candidates
+
+#### Scenario: A heading stays visible while its group is scrolled
+- **WHEN** a user scrolls through a long group of candidates
+- **THEN** that group's heading remains visible, and the candidates pass behind
+  it rather than over it
+
+#### Scenario: The visible heading is always the right one
+- **WHEN** a user scrolls from one group into the next
+- **THEN** the heading on screen is the one belonging to the candidates on
+  screen
+
 Each group SHALL be shown only when it has candidates, so an item with no
 uploads does not display an empty heading.
 
