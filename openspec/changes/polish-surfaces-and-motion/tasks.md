@@ -120,7 +120,7 @@ backgrounds, and the mobile block's position as the last thing in the file.
       `.viewer__placeholder` — so they keep conveying that work is in progress.
 - [x] 7.3 Confirm the `search` capability's reduced-motion scroll-to-top branch
       in `gallery.js` is unaffected; it is a script branch, not a CSS rule.
-- [ ] 7.4 Walk the app under reduced motion: every dialog, tray, overlay, and
+- [x] 7.4 Walk the app under reduced motion: every dialog, tray, overlay, and
       control must reach its correct appearance and stay fully operable.
 
 ## 8. Tests
@@ -162,19 +162,19 @@ backgrounds, and the mobile block's position as the last thing in the file.
 ## 10. Validation against the `:dev` image
 
 - [x] 10.1 Build and run the image; smoke-test `/health` per `docs/docker.md`.
-- [ ] 10.2 Desktop pass: gallery scroll under the glass header and pinned
+- [x] 10.2 Desktop pass: gallery scroll under the glass header and pinned
       controls, card hover lift, every dialog open and close, the fullscreen
       viewer, Find Posters, the import and orphans screens, and the sign-in
       screen.
-- [ ] 10.3 Phone pass on real hardware: glass toolbar and bottom tab bar while
+- [x] 10.3 Phone pass on real hardware: glass toolbar and bottom tab bar while
       scrolling, every tray opening and dismissing including the drag gesture,
       and confirmation that scrolling has not degraded. If it has, fall the phone
       toolbar back to opaque through the `@supports` path from 4.6.
-- [ ] 10.4 Confirm the pinned controls read as deliberate rather than as a
+- [x] 10.4 Confirm the pinned controls read as deliberate rather than as a
       rendering fault — no poster individually recognisable through the blur.
-- [ ] 10.5 Load an already-installed PWA against the new build and confirm the
+- [x] 10.5 Load an already-installed PWA against the new build and confirm the
       new stylesheet arrives rather than the service worker serving the cached
       one.
-- [ ] 10.6 Reduced-motion pass with the OS setting enabled.
-- [ ] 10.7 Test a browser without `backdrop-filter` support, or with it disabled,
+- [x] 10.6 Reduced-motion pass with the OS setting enabled.
+- [x] 10.7 Test a browser without `backdrop-filter` support, or with it disabled,
       and confirm every glass surface falls back legibly.
