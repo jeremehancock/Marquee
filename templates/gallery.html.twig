@@ -155,7 +155,7 @@
                     <button type="button" :class="change.tab === 'plex' ? 'is-active' : ''"
                             :disabled="!change.linked"
                             :data-tooltip="change.linked ? null : 'This poster is not linked to a Plex item.'"
-                            @click="change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.server.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
+                            @click="change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
                     <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
                             @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>

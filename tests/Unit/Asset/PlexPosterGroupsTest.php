@@ -101,6 +101,40 @@ final class PlexPosterGroupsTest extends TestCase
         );
     }
 
+    /**
+     * Every `plexPosters.x` the template reads must exist in the component's
+     * state.
+     *
+     * Nothing else catches this. The template is Twig, the state is JavaScript,
+     * and no gate in this project reads both — PHPStan does not see either, and
+     * a stale field is valid Twig and valid JS. Alpine's failure mode makes it
+     * worse than a blank space: reading `.length` off an undefined field throws
+     * mid-expression, so the *rest* of the handler never runs. Renaming one
+     * array left the tab's own click handler pointing at the old name, which
+     * silently stopped the fetch and left the tab permanently empty.
+     */
+    public function testTheTemplateOnlyReadsStateTheComponentDefines(): void
+    {
+        $template = file_get_contents(dirname(__DIR__, 3) . '/templates/gallery.html.twig');
+        $script = file_get_contents(dirname(__DIR__, 3) . '/public/assets/gallery.js');
+        self::assertIsString($template);
+        self::assertIsString($script);
+
+        $matched = preg_match('/plexPosters:\s*\{([^}]*)\}/', $script, $state);
+        self::assertSame(1, $matched, 'The plexPosters state initialiser must remain findable.');
+
+        preg_match_all('/(\w+)\s*:/', $state[1], $defined);
+        preg_match_all('/plexPosters\.(\w+)/', $template, $used);
+
+        foreach (array_unique($used[1]) as $field) {
+            self::assertContains(
+                $field,
+                $defined[1],
+                sprintf('gallery.html.twig reads plexPosters.%s, which the component never defines.', $field),
+            );
+        }
+    }
+
     private function stackingOrder(string $selector): int
     {
         $matched = preg_match('/z-index:\s*(\d+)/', $this->rule($selector), $m);
