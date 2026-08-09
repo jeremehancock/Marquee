@@ -2,14 +2,21 @@
 
 ## Purpose
 
-Finding a better poster than the one Plex has. Marquee queries the posteria.app
-API — a hosted service that aggregates candidates from TMDB, fanart.tv, and
-TheTVDB — for a specific media item, presents the candidates, and applies the one
-the user picks.
+Offering a user candidate posters for a media item, and applying the one they
+pick. Two sources, reached from their own tabs in the change-poster dialog:
 
-The poster source is an external dependency, not part of this repository. It is
-best-effort: when it is unreachable or returns nothing, the user's poster is
-left exactly as it was.
+- **Plex Posters** — everything the connected Plex server reports for the item.
+  Addressed by the rating key recorded at import, so there is no matching step
+  and nothing to get wrong. It is the only way to reach a poster the user
+  applied in the past and no longer has, because Plex keeps every poster ever
+  uploaded to an item and never prunes them.
+- **Find Posters** — the posteria.app API, a hosted service that aggregates
+  candidates from TMDB, fanart.tv, and TheTVDB. It resolves a *title* to a work,
+  so it can fail at that step in ways a rating key cannot.
+
+The poster search service is an external dependency, not part of this
+repository. Both sources are best-effort: when either is unreachable or returns
+nothing, the user's poster is left exactly as it was.
 ## Requirements
 ### Requirement: Find posters for a media item
 The system SHALL let a user search for candidate posters for a specific media
