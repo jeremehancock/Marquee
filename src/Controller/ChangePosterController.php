@@ -10,6 +10,10 @@ use App\Plex\Export\ExportException;
 use App\Plex\PlexException;
 use App\Plex\PlexFailureMessage;
 use App\Plex\PlexMediaType;
+use App\Plex\Poster\PlexPosterCandidate;
+use App\Plex\Poster\PlexPosterOutcome;
+use App\Plex\Poster\PlexPosterService;
+use App\Plex\SignedImagePath;
 use App\Poster\Edit\ChangePosterService;
 use App\Poster\PosterCategory;
 use App\Poster\Source\PosterCandidate;
@@ -39,6 +43,8 @@ final class ChangePosterController
         private readonly Flash $flash,
         private readonly LoggerInterface $logger,
         private readonly PlexFailureMessage $plexMessage,
+        private readonly PlexPosterService $plexPosters,
+        private readonly SignedImagePath $signedPaths,
     ) {
     }
 
@@ -122,6 +128,132 @@ final class ChangePosterController
         }
 
         return $this->back($response, $category);
+    }
+
+    /**
+     * The posters Plex already holds for this poster's item, in two groups.
+     *
+     * Kept apart from findPosters() rather than folded into it: that searches a
+     * title and can fail in ways a rating key cannot, and its candidates carry
+     * provider attribution these do not.
+     *
+     * @param array<string, string> $args
+     */
+    public function plexPosters(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $category = $this->requireCategory($request, $args);
+        $params = $request->getQueryParams();
+        $filename = isset($params['filename']) && is_string($params['filename']) ? $params['filename'] : '';
+
+        $listing = $this->plexPosters->forPoster($category, $filename);
+
+        return $this->json($response, [
+            'uploaded' => $this->candidates($listing->uploaded()),
+            // One list, deliberately. Whether Plex already has the bytes decides
+            // how applying works, but it is not a distinction a user is choosing
+            // between — they are picking a poster. The two are still ordered
+            // held-first, so the ones that need no upload come up first.
+            'available' => array_merge(
+                $this->candidates($listing->server()),
+                $this->offered($listing->offered()),
+            ),
+            'error' => $this->plexPosterMessageFor($listing->outcome),
+        ]);
+    }
+
+    /**
+     * Apply one of those posters, named by the signed path the listing gave out.
+     *
+     * @param array<string, string> $args
+     */
+    public function usePlexPoster(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $category = $this->requireCategory($request, $args);
+        $filename = $this->filename($request);
+        $body = (array) $request->getParsedBody();
+        $token = isset($body['token']) && is_string($body['token']) ? $body['token'] : '';
+
+        $path = $this->signedPaths->pathFor($token);
+        if ($path === null) {
+            // The only way here is a token this application did not sign, so
+            // there is nothing to explain to the user beyond the refusal.
+            $this->flash->add('error', 'That poster could not be applied.');
+
+            return $this->back($response, $category);
+        }
+
+        try {
+            $this->flashChanged($this->change->changeFromPlexPath($category, $filename, $path));
+        } catch (UploadException $e) {
+            $this->flash->add('error', $this->plexMessage->for($e));
+        } catch (ExportException | PlexException $e) {
+            $this->flashChangedButNotPushed($e);
+        }
+
+        return $this->back($response, $category);
+    }
+
+    /**
+     * A candidate Plex holds, as the grid needs it: an opaque, signed address
+     * for the image and nothing that discloses where on Plex it lives.
+     *
+     * `ref` is the signed token standing for the full-resolution path, so
+     * applying sends back the same opaque value the grid was given.
+     *
+     * @param list<PlexPosterCandidate> $candidates
+     *
+     * @return list<array{ref: string, thumb: string, selected: bool, held: bool}>
+     */
+    private function candidates(array $candidates): array
+    {
+        return array_map(
+            fn (PlexPosterCandidate $c): array => [
+                'ref' => $this->signedPaths->sign($c->path),
+                'thumb' => '/plex-poster-image/' . $this->signedPaths->sign($c->thumbPath),
+                'selected' => $c->selected,
+                // Says which of the two ways this candidate is applied, since
+                // the grid mixes both. Never shown to the user.
+                'held' => true,
+            ],
+            $candidates,
+        );
+    }
+
+    /**
+     * Artwork Plex has not downloaded, as plain URLs.
+     *
+     * No token and no proxy: there is nothing on the Plex server to address and
+     * no Plex credential involved, so these behave exactly like an address a
+     * user pasted into the From URL tab — which is also how applying one works.
+     *
+     * `ref` is the provider URL itself — the same field a held candidate carries
+     * a token in, so one grid renders both and one handler applies either.
+     *
+     * @param list<PlexPosterCandidate> $candidates
+     *
+     * @return list<array{ref: string, thumb: string, selected: bool, held: bool}>
+     */
+    private function offered(array $candidates): array
+    {
+        return array_map(
+            static fn (PlexPosterCandidate $c): array => [
+                'ref' => $c->path,
+                'thumb' => $c->thumbPath,
+                'selected' => $c->selected,
+                'held' => false,
+            ],
+            $candidates,
+        );
+    }
+
+    private function plexPosterMessageFor(PlexPosterOutcome $outcome): ?string
+    {
+        return match ($outcome) {
+            PlexPosterOutcome::Ok => null,
+            PlexPosterOutcome::None => 'Plex has no posters of its own for this item.',
+            PlexPosterOutcome::NotLinked => 'This poster is not linked to a Plex item.',
+            PlexPosterOutcome::Unavailable => 'Plex could not be reached. Trying again shortly may work.',
+        };
     }
 
     /**

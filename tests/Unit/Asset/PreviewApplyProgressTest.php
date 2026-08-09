@@ -134,9 +134,10 @@ final class PreviewApplyProgressTest extends TestCase
     }
 
     /**
-     * The apply is one path for three sources; what the source picks is the
+     * The apply is one path for four sources; what the source picks is the
      * endpoint and the field, and nothing else. A regression here would post a
-     * File to the URL endpoint, which fails in a way no test would otherwise
+     * File to the URL endpoint, or a Plex token to the endpoint that fetches
+     * whatever address it is handed — both fail in ways no test would otherwise
      * catch until a user tried it.
      */
     public function testTheSourceSelectsTheEndpointAndTheField(): void
@@ -144,14 +145,31 @@ final class PreviewApplyProgressTest extends TestCase
         $body = $this->applyFunction();
 
         self::assertStringContainsString(
-            "body.append(upload ? 'poster' : 'url', payload);",
+            "var field = upload ? 'poster' : (plex ? 'token' : 'url');",
             $body,
-            'A picked file must be posted as the file field, a URL as the url field.'
+            'A picked file must post as the file field, a Plex candidate as its token, a URL as the url field.'
         );
         self::assertStringContainsString(
-            "'/change/' + (upload ? 'upload' : 'url')",
+            "var endpoint = upload ? 'upload' : (plex ? 'plex-poster' : 'url');",
             $body,
-            'A picked file must go to the upload endpoint, a URL to the url endpoint.'
+            'Each source must go to the endpoint that knows how to read it.'
+        );
+        self::assertStringContainsString('body.append(field, payload);', $body);
+        self::assertStringContainsString("'/change/' + endpoint", $body);
+    }
+
+    /**
+     * A Plex candidate is named by a signed token, never by the proxy address
+     * its preview is displaying. Posting `src` would send the server a URL to
+     * fetch from itself — a loopback that needs the session cookie and breaks
+     * wherever the container cannot resolve its own external address.
+     */
+    public function testAPlexCandidateIsAppliedByItsToken(): void
+    {
+        self::assertStringContainsString(
+            'plex ? this.preview.token : this.preview.src',
+            $this->applyFunction(),
+            'Applying a Plex candidate must post its signed token, not the proxy URL.'
         );
     }
 
@@ -177,7 +195,7 @@ final class PreviewApplyProgressTest extends TestCase
             'Revoking belongs in one helper, called when the preview closes or is replaced.'
         );
         self::assertMatchesRegularExpression(
-            '/openPreview: function \(src, source, file\) \{\s*this\._revokePreviewSrc\(\);/',
+            '/openPreview: function \(src, source, file, token\) \{\s*this\._revokePreviewSrc\(\);/',
             $source,
             'Opening a preview must release the object URL it replaces.'
         );

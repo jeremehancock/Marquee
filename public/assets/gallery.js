@@ -839,6 +839,12 @@
                 // tabs — a search that is `applying` made no sense on a dialog
                 // the user never opened Find Posters on.
                 finder: { loading: false, error: '', notice: '', results: [] },
+                // The Plex Posters tab's own state, deliberately not merged with
+                // `finder` into one "current source". The two tabs must be able
+                // to hold results at the same time: someone comparing what their
+                // server already has against what a search turned up should not
+                // lose one by looking at the other.
+                plexPosters: { loading: false, error: '', uploaded: [], available: [] },
                 // The full-screen step every tab commits through: inspect the
                 // image, offer to use it, then confirm. `source` says where the
                 // image came from and so which request applying it makes;
@@ -847,7 +853,7 @@
                 // from may have been cleared by the time it is posted.
                 // `applying` is the in-flight flag for the final "Change poster"
                 // confirm, driving the progress overlay and the disabled button.
-                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null },
+                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '' },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -1073,9 +1079,20 @@
                     dispatch('gallery:refresh', {});
                 },
 
-                openChange: function (filename, title, category) {
-                    this.change = { open: true, tab: 'upload', filename: filename, title: title, category: category || '' };
+                openChange: function (filename, title, category, linked) {
+                    this.change = {
+                        open: true,
+                        tab: 'upload',
+                        filename: filename,
+                        title: title,
+                        category: category || '',
+                        // Known from the card, so the Plex Posters tab can be
+                        // disabled without a round trip that could only come
+                        // back saying the same thing.
+                        linked: !!linked,
+                    };
                     this.finder = { loading: false, error: '', notice: '', results: [] };
+                    this.plexPosters = { loading: false, error: '', uploaded: [], available: [] };
                     this.closePreview();
                     // The file and URL inputs are DOM state that no Alpine
                     // binding owns, so dismissing the dialog leaves whatever was
@@ -1091,6 +1108,51 @@
                     // binds as a property with no attribute behind it.
                     if (this.$refs.changeFile) { this.$refs.changeFile.value = ''; }
                     if (this.$refs.changeUrl) { this.$refs.changeUrl.value = ''; }
+                },
+                // The posters the Plex server already holds for this item.
+                // Nothing like findPosters()'s outcome handling is needed: a
+                // rating key cannot fail to match, be rate limited, or come back
+                // partial, so there is one message line and no notice line.
+                loadPlexPosters: function () {
+                    var self = this;
+                    this.plexPosters = { loading: true, error: '', uploaded: [], available: [] };
+                    fetch('/library/' + this.change.category + '/plex-posters?filename=' + encodeURIComponent(this.change.filename),
+                        { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+                        .then(function (r) { return r.ok ? r.json() : { uploaded: [], available: [], error: 'Could not reach Plex.' }; })
+                        .then(function (d) {
+                            self.plexPosters = {
+                                loading: false,
+                                error: d.error || '',
+                                uploaded: d.uploaded || [],
+                                available: d.available || [],
+                            };
+                        })
+                        .catch(function () {
+                            self.plexPosters = { loading: false, error: 'Could not reach Plex.', uploaded: [], available: [] };
+                        });
+                },
+                // A Plex candidate previews at full resolution through the same
+                // proxy its thumbnail came through, and carries its signed token
+                // so applying can name the image without ever holding a Plex
+                // path client-side.
+                // One entry point, because the grid mixes both kinds and the
+                // user is choosing a poster, not a mechanism.
+                //
+                // A poster Plex holds previews at full resolution through the
+                // proxy and carries its signed token, so applying can name the
+                // image without a Plex path ever existing client-side, and
+                // reaches Plex by selection — no upload.
+                //
+                // One Plex has not downloaded is just a URL, so it takes the
+                // route a pasted address takes and *is* uploaded, because Plex
+                // does not have the image. That difference is real but it is not
+                // the user's to think about.
+                openPlexPreview: function (candidate) {
+                    if (candidate.held) {
+                        this.openPreview('/plex-poster-image/' + candidate.ref, 'plex', null, candidate.ref);
+                        return;
+                    }
+                    this.openPreview(candidate.ref, 'url', null);
                 },
                 findPosters: function () {
                     var self = this;
@@ -1128,7 +1190,11 @@
                 // `file` is kept for an upload because the blob URL is a handle
                 // for display, not something that can be posted; the bytes have
                 // to travel as the File itself.
-                openPreview: function (src, source, file) {
+                // `token` is the Plex tab's equivalent of `file`: the value that
+                // actually gets posted, kept apart from `src` because `src` is a
+                // proxy address for display and names nothing the server can act
+                // on directly.
+                openPreview: function (src, source, file, token) {
                     this._revokePreviewSrc();
                     this.preview = {
                         open: true,
@@ -1138,11 +1204,12 @@
                         applying: false,
                         source: source,
                         file: file || null,
+                        token: token || '',
                     };
                 },
                 closePreview: function () {
                     this._revokePreviewSrc();
-                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null };
+                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '' };
                 },
                 // A blob URL holds its Blob alive until it is revoked, so an
                 // upload preview that is merely replaced or closed would leak the
@@ -1197,7 +1264,8 @@
                 applyPreview: function () {
                     var self = this;
                     var upload = this.preview.source === 'upload';
-                    var payload = upload ? this.preview.file : this.preview.src;
+                    var plex = this.preview.source === 'plex';
+                    var payload = upload ? this.preview.file : (plex ? this.preview.token : this.preview.src);
                     if (!payload) { return; }
                     if (this.preview.applying) { return; }
                     this.preview.applying = true;
@@ -1207,11 +1275,15 @@
                     var filename = this.change.filename;
                     // The only thing the source changes is what is posted where.
                     // A found candidate and a pasted address are both a URL for
-                    // the server to fetch; a picked file travels as the file.
+                    // the server to fetch; a picked file travels as the file; a
+                    // Plex candidate travels as its signed token, which the
+                    // server resolves back to a path it verified it had signed.
+                    var field = upload ? 'poster' : (plex ? 'token' : 'url');
+                    var endpoint = upload ? 'upload' : (plex ? 'plex-poster' : 'url');
                     var body = new FormData();
                     body.append('filename', filename);
-                    body.append(upload ? 'poster' : 'url', payload);
-                    fetch('/library/' + category + '/change/' + (upload ? 'upload' : 'url'), {
+                    body.append(field, payload);
+                    fetch('/library/' + category + '/change/' + endpoint, {
                         method: 'POST',
                         body: body,
                         headers: withCsrf({ 'X-Requested-With': 'fetch' }),
@@ -1559,6 +1631,7 @@
                         filename: actionEl.getAttribute('data-filename'),
                         title: actionEl.getAttribute('data-title'),
                         category: actionEl.getAttribute('data-category'),
+                        linked: actionEl.getAttribute('data-linked') === '1',
                     });
                     return;
                 }

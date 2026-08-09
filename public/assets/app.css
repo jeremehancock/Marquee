@@ -1507,6 +1507,88 @@ h1 {
     cursor: zoom-in;
 }
 
+/* The Plex Posters tab stacks two grids under their own headings. Scrolling
+   belongs to the pair rather than to each grid: two independently scrolling
+   grids in one panel gives a user two places to lose their position. */
+/* Spacing between groups is a flex gap, never `.plex-group + .plex-group`. The
+   groups are rendered by `x-if`, and Alpine leaves the <template> in the DOM and
+   inserts each group after it — so the adjacent-sibling selector has a
+   <template> between every pair and silently matches nothing. A gap has no such
+   trap: a <template> is display:none, so it never becomes a flex item and no gap
+   is laid out around it. */
+.plex-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    max-height: 62vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.plex-groups .find-grid {
+    max-height: none;
+    overflow: visible;
+    padding-top: 0;
+}
+
+/* A section label, not a line of prose: the groups are the tab's structure, and
+   .stats (muted, body-sized) let them read as captions on the posters below
+   rather than as the boundary between different kinds of poster.
+
+   Sticky, because the offered group runs to dozens of posters and the label is
+   the only thing saying which kind you are looking at — scroll past it and that
+   answer is gone. It pins to the top of the scroller while its own group is in
+   view and leaves with it, so the heading on screen is always the right one.
+   The background must be opaque and match the panel: posters scroll underneath
+   it, not behind a tint. */
+.plex-group__heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 6px 0;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+/* The rule runs out to the edge so the heading reads as the start of a band
+   rather than as text that happens to sit above some posters. */
+.plex-group__heading::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.plex-group__count {
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+/* Marks the poster Plex is using now. Without it every candidate reads as
+   equally current, which bites hardest in exactly the case this tab exists for:
+   a run of near-identical posters the user has already cycled through. */
+.find-item__badge {
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 6px;
+    z-index: 1;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 600;
+}
+
 .find-item__actions {
     display: flex;
     gap: 6px;

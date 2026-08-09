@@ -6,6 +6,7 @@ namespace App\Plex;
 
 use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
+use App\Plex\Poster\PlexPosterList;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
@@ -183,14 +184,23 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         return $sessions;
     }
 
-    public function sessionPoster(string $thumb): string
+    public function itemPosters(string $ratingKey): PlexPosterList
     {
-        if ($thumb === '') {
+        // The same path uploadPoster() writes to. A GET answers with what the
+        // item already has, which is the whole of this feature.
+        return PlexPosterList::fromXml(
+            $this->get(sprintf('/library/metadata/%s/posters', rawurlencode($ratingKey)))
+        );
+    }
+
+    public function imageAt(string $path): string
+    {
+        if ($path === '') {
             throw PlexException::unexpectedResponse();
         }
 
         try {
-            $response = $this->http->request('GET', $this->config->serverUrl . $thumb, $this->options());
+            $response = $this->http->request('GET', $this->config->serverUrl . $path, $this->options());
         } catch (GuzzleException $e) {
             throw $this->classify($e);
         }
@@ -304,6 +314,15 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             sprintf('/library/metadata/%s/posters', rawurlencode($ratingKey)),
             ['body' => $imageBytes],
         );
+    }
+
+    public function selectPoster(string $ratingKey, string $posterKey): void
+    {
+        $this->write('PUT', sprintf(
+            '/library/metadata/%s/poster?%s',
+            rawurlencode($ratingKey),
+            http_build_query(['url' => $posterKey]),
+        ));
     }
 
     public function lockPoster(string $ratingKey): void

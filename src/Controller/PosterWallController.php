@@ -109,7 +109,7 @@ final class PosterWallController
         }
 
         try {
-            $bytes = $this->plex->sessionPoster($thumb);
+            $bytes = $this->plex->imageAt($thumb);
         } catch (PlexException) {
             // The stream may have ended between the poll and this request; fall
             // back to the placeholder rather than erroring the display.

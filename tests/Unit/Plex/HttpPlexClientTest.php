@@ -460,7 +460,7 @@ final class HttpPlexClientTest extends TestCase
 
     public function testSessionPosterFetchesBytesAtThumbPath(): void
     {
-        $bytes = $this->client([new Response(200, [], 'POSTER-BYTES')])->sessionPoster('/t/show');
+        $bytes = $this->client([new Response(200, [], 'POSTER-BYTES')])->imageAt('/t/show');
 
         self::assertSame('POSTER-BYTES', $bytes);
     }

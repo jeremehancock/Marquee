@@ -12,6 +12,7 @@ use App\Controller\ManifestController;
 use App\Controller\OrphanController;
 use App\Controller\PlexConnectionController;
 use App\Controller\PlexImportController;
+use App\Controller\PlexPosterImageController;
 use App\Controller\PosterController;
 use App\Controller\PosterImageController;
 use App\Controller\PosterWallController;
@@ -42,11 +43,19 @@ function registerRoutes(App $app): void
 
     $app->get('/posters/{category}/{filename}', PosterImageController::class);
 
+    // A Plex-held poster candidate, proxied so no Plex URL (and so no Plex
+    // token) is ever put in a page. Behind the login like every other route
+    // that is not explicitly public: the signed token bounds *which* paths this
+    // will fetch, not *who* may ask for them.
+    $app->get('/plex-poster-image/{token}', PlexPosterImageController::class);
+
     $app->post('/library/{category}/change/upload', [ChangePosterController::class, 'upload']);
     $app->post('/library/{category}/change/url', [ChangePosterController::class, 'url']);
     $app->post('/library/{category}/send-to-plex', [ChangePosterController::class, 'sendToPlex']);
     $app->post('/library/{category}/fetch-from-plex', [ChangePosterController::class, 'fetchFromPlex']);
     $app->get('/library/{category}/find-posters', [ChangePosterController::class, 'findPosters']);
+    $app->get('/library/{category}/plex-posters', [ChangePosterController::class, 'plexPosters']);
+    $app->post('/library/{category}/change/plex-poster', [ChangePosterController::class, 'usePlexPoster']);
     $app->post('/library/{category}/delete', [PosterController::class, 'delete']);
 
     $app->get('/connect', [PlexConnectionController::class, 'show']);

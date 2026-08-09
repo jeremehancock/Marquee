@@ -61,6 +61,60 @@ final class ChangePosterService
     }
 
     /**
+     * Replace the poster with one the Plex server already holds for its item.
+     *
+     * Deliberately *not* replaceAndPush(). Every other tab supplies an image
+     * Plex does not have, so uploading is the only way to give it one. This
+     * poster is already there, and Plex never prunes an item's posters — so
+     * uploading would leave a second, byte-identical copy behind, most absurdly
+     * when the poster being applied is the one already in use. Selecting it
+     * instead reaches the same end state: the item shows it, and lockPoster()
+     * protects it exactly as it does an upload, because the lock is a flag on
+     * the thumb field and is indifferent to how the thumb was set.
+     *
+     * Marquee still needs its own copy, so the bytes are fetched regardless —
+     * here rather than by the browser, so applying never needs the Plex token
+     * client-side and does not depend on the proxied grid image.
+     *
+     * The list is re-read rather than trusted from the request. The dialog can
+     * sit open a long time, and the path arriving signed proves only that this
+     * application minted it, never that Plex still has a poster there.
+     *
+     * @return bool whether the change was pushed to Plex
+     */
+    public function changeFromPlexPath(PosterCategory $category, string $filename, string $path): bool
+    {
+        $record = $this->items->findByFilename($category->value, $filename);
+        if ($record === null) {
+            throw ExportException::notLinked();
+        }
+
+        $candidate = $this->plex->itemPosters($record->ratingKey)->withPath($path);
+        if ($candidate === null) {
+            throw ExportException::posterGone();
+        }
+
+        $temp = $this->bytesToTempFile($this->plex->imageAt($candidate->path));
+        try {
+            if (filesize($temp) > $this->config->maxFileSize) {
+                throw UploadException::tooLarge($this->config->maxFileSize);
+            }
+            $this->validateImage($temp);
+            $this->storage->replace($category, $filename, $temp);
+        } finally {
+            $this->cleanup($temp);
+        }
+
+        if (!$this->plexConfig->isConfigured()) {
+            return false;
+        }
+
+        $this->export->selectInPlex($category, $filename, $candidate->posterKey);
+
+        return true;
+    }
+
+    /**
      * Pushes the poster currently stored in Marquee to its linked Plex item and
      * locks it, without changing the local poster first. Useful when Plex has
      * drifted (e.g. an agent refresh) and the user wants Marquee's copy back.

@@ -16,6 +16,20 @@ interface PlexPosterWriter
     public function uploadPoster(string $ratingKey, string $imageBytes): void;
 
     /**
+     * Select a poster the server already holds, named by its own key from the
+     * item's poster list (e.g. `upload://posters/<hash>`).
+     *
+     * The counterpart to uploading for a poster that is already there. Plex
+     * keeps every poster an item has ever had and never prunes them, so
+     * uploading one it already holds would add a second, byte-identical copy —
+     * most absurdly when the poster being applied is the one already in use.
+     *
+     * This does not lock: locking is {@see lockPoster()}, a separate flag on the
+     * thumb field that is indifferent to how the thumb was set.
+     */
+    public function selectPoster(string $ratingKey, string $posterKey): void;
+
+    /**
      * Lock the item's poster field so a metadata refresh keeps it.
      */
     public function lockPoster(string $ratingKey): void;

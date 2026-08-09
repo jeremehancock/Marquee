@@ -20,4 +20,14 @@ final class ExportException extends RuntimeException
     {
         return new self('The poster file could not be read.');
     }
+
+    /**
+     * A Plex-held poster chosen from an open dialog that Plex no longer has —
+     * deleted from the item, or the item itself re-matched, since the list was
+     * drawn.
+     */
+    public static function posterGone(): self
+    {
+        return new self('Plex no longer has that poster for this item. Reopen the dialog to see what it has now.');
+    }
 }

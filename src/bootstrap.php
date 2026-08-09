@@ -24,6 +24,7 @@ use App\Plex\Connection\PlexPinClient;
 use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
+use App\Plex\SignedImagePath;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
 use App\Poster\Source\PosteriaApiPosterSource;
@@ -108,6 +109,15 @@ function buildContainer(array $overrides = []): Container
         // computable by anyone.
         StreamToken::class => static fn (PlexConnectionStore $store): StreamToken
             => new StreamToken($store->signingSecret()),
+        // The change dialog's Plex poster candidates are signed with a key
+        // *derived* from that same secret rather than the secret itself, so a
+        // token minted for one proxy cannot be replayed against the other.
+        // That matters in one direction specifically: the wall's poster proxy
+        // is public and its tokens are printed into a page anyone can read, so
+        // a shared key would let an unauthenticated caller feed a candidate
+        // token to the wall route and pull the image back.
+        SignedImagePath::class => static fn (PlexConnectionStore $store): SignedImagePath
+            => new SignedImagePath(hash_hmac('sha256', 'plex-poster-candidate', $store->signingSecret())),
         PosterWallController::class => static fn (
             Twig $twig,
             PosterWallService $wall,
