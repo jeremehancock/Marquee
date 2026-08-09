@@ -151,7 +151,7 @@ Everything downstream depends on this. Do it first and do not guess.
       `CLAUDE.md` needed nothing — it points at the capability map rather than
       restating it. The map itself in `openspec/config.yaml` **was** stale and
       is updated: the capability is no longer posteria.app alone.
-- [ ] 7.3 At archive time, widen the `poster-sources` spec Purpose — it
+- [x] 7.3 At archive time, widen the `poster-sources` spec Purpose — it
       currently describes the capability as posteria.app only. Delta specs carry
       requirements, not the Purpose heading, so this will not happen on its own.
 
@@ -161,5 +161,5 @@ Everything downstream depends on this. Do it first and do not guess.
 - [x] 8.2 `composer stan` → level 10, no errors.
 - [x] 8.3 `composer cs` → 0 of 171 files to fix.
 - [x] 8.4 Validate the change: `openspec validate add-plex-posters-tab --strict` → valid.
-- [ ] 8.5 Verify against the real Plex server: list an item's posters, apply one
+- [x] 8.5 Verify against the real Plex server: list an item's posters, apply one
       from the uploaded group, confirm it lands in Plex locked.
