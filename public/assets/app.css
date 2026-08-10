@@ -1507,16 +1507,22 @@ h1 {
     cursor: zoom-in;
 }
 
-/* The Plex Posters tab stacks two grids under their own headings. Scrolling
-   belongs to the pair rather than to each grid: two independently scrolling
-   grids in one panel gives a user two places to lose their position. */
-/* Spacing between groups is a flex gap, never `.plex-group + .plex-group`. The
-   groups are rendered by `x-if`, and Alpine leaves the <template> in the DOM and
-   inserts each group after it — so the adjacent-sibling selector has a
-   <template> between every pair and silently matches nothing. A gap has no such
-   trap: a <template> is display:none, so it never becomes a flex item and no gap
-   is laid out around it. */
-.plex-groups {
+/* Shared by both tabs that stack grids under their own headings: Plex Posters
+   (two fixed groups) and Find Posters (one section per supplying service).
+   Scrolling belongs to the stack rather than to each grid — independently
+   scrolling grids in one panel give a user several places to lose their
+   position — and it has to, because the headings below are sticky and a sticky
+   element cannot travel outside its own scroll container.
+
+   This is why `.find-grid` must not keep its own `max-height`/`overflow` when it
+   sits inside here; the reset below is what hands the scroll up. */
+/* Spacing between groups is a flex gap, never `.poster-group + .poster-group`. The
+   groups are rendered by `x-if` (Plex) or `x-for` (Find), and Alpine leaves the
+   <template> in the DOM and inserts each group after it — so the adjacent-sibling
+   selector has a <template> between every pair and silently matches nothing. A
+   gap has no such trap: a <template> is display:none, so it never becomes a flex
+   item and no gap is laid out around it. */
+.poster-groups {
     display: flex;
     flex-direction: column;
     gap: 40px;
@@ -1525,7 +1531,7 @@ h1 {
     overscroll-behavior: contain;
 }
 
-.plex-groups .find-grid {
+.poster-groups .find-grid {
     max-height: none;
     overflow: visible;
     padding-top: 0;
@@ -1535,13 +1541,14 @@ h1 {
    .stats (muted, body-sized) let them read as captions on the posters below
    rather than as the boundary between different kinds of poster.
 
-   Sticky, because the offered group runs to dozens of posters and the label is
-   the only thing saying which kind you are looking at — scroll past it and that
-   answer is gone. It pins to the top of the scroller while its own group is in
-   view and leaves with it, so the heading on screen is always the right one.
+   Sticky, because a group runs to dozens of posters — Plex's offered artwork, or
+   a well-covered title's TMDB section — and the label is the only thing saying
+   which one you are looking at. Scroll past it and that answer is gone. It pins
+   to the top of the scroller while its own group is in view and leaves with it,
+   so the heading on screen is always the right one.
    The background must be opaque and match the panel: posters scroll underneath
    it, not behind a tint. */
-.plex-group__heading {
+.poster-group__heading {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -1560,14 +1567,14 @@ h1 {
 
 /* The rule runs out to the edge so the heading reads as the start of a band
    rather than as text that happens to sit above some posters. */
-.plex-group__heading::after {
+.poster-group__heading::after {
     content: "";
     flex: 1;
     height: 1px;
     background: var(--border);
 }
 
-.plex-group__count {
+.poster-group__count {
     color: var(--muted);
     font-weight: 500;
     letter-spacing: 0;

@@ -838,7 +838,7 @@
                 // own now lives in `preview` below, shared with the other two
                 // tabs — a search that is `applying` made no sense on a dialog
                 // the user never opened Find Posters on.
-                finder: { loading: false, error: '', notice: '', results: [] },
+                finder: { loading: false, error: '', notice: '', sections: [] },
                 // The Plex Posters tab's own state, deliberately not merged with
                 // `finder` into one "current source". The two tabs must be able
                 // to hold results at the same time: someone comparing what their
@@ -1091,7 +1091,7 @@
                         // back saying the same thing.
                         linked: !!linked,
                     };
-                    this.finder = { loading: false, error: '', notice: '', results: [] };
+                    this.finder = { loading: false, error: '', notice: '', sections: [] };
                     this.plexPosters = { loading: false, error: '', uploaded: [], available: [] };
                     this.closePreview();
                     // The file and URL inputs are DOM state that no Alpine
@@ -1156,25 +1156,30 @@
                 },
                 findPosters: function () {
                     var self = this;
-                    this.finder = { loading: true, error: '', notice: '', results: [] };
+                    this.finder = { loading: true, error: '', notice: '', sections: [] };
                     fetch('/library/' + this.change.category + '/find-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
-                        .then(function (r) { return r.ok ? r.json() : { posters: [], error: 'Search failed.' }; })
+                        .then(function (r) { return r.ok ? r.json() : { sections: [], error: 'Search failed.' }; })
                         .then(function (d) {
                             var message = d.error || '';
                             // A partial result is a success that also carries a
                             // warning: it has candidates to show, so its message
                             // goes on the notice line rather than the error line,
-                            // which stands in place of the grid. Results are kept
-                            // in the order the server ranked them.
+                            // which stands in place of the grid.
+                            //
+                            // Sections are rendered exactly as given: the server
+                            // decides both their order and their labels, so this
+                            // never learns a provider name and a new one needs no
+                            // change here. Within a section the server's order is
+                            // the poster source's own ranking.
                             self.finder = {
                                 loading: false,
                                 error: d.partial ? '' : message,
                                 notice: d.partial ? message : '',
-                                results: Array.isArray(d.posters) ? d.posters : [],
+                                sections: Array.isArray(d.sections) ? d.sections : [],
                             };
                         })
-                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', results: [] }; });
+                        .catch(function () { self.finder = { loading: false, error: 'Search failed.', notice: '', sections: [] }; });
                 },
 
                 // The full-screen step, shared by all three tabs: see the image
