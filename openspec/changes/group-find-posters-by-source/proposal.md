@@ -4,7 +4,7 @@ Find Posters returns a single undifferentiated grid of up to two hundred
 candidates, and nothing on screen says which service supplied any of them. That
 matters because the services are not interchangeable to the people using them:
 fanart.tv is where textless artwork lives, TMDB is where language variants live,
-TheTVDB is where a show's own artwork lives. A user who knows what they want
+TVDB is where a show's own artwork lives. A user who knows what they want
 currently has to scrub the whole grid hunting for it, with no way to tell when
 they have seen everything one service has to offer.
 
@@ -15,8 +15,8 @@ find it missing on the tab beside it.
 ## What Changes
 
 - Find Posters results are split into labelled sections, one per service that
-  supplied a candidate: TheTVDB, TMDB, and fanart.tv.
-- Sections appear in a fixed order — **TMDB, TheTVDB, fanart.tv** — that is the
+  supplied a candidate: TMDB, TVDB, and fanart.tv.
+- Sections appear in a fixed order — **TMDB, TVDB, fanart.tv** — that is the
   same for every item, so the tab's shape does not shift from poster to poster.
   This is the order the provider attribution in the footer already presents.
 - Each section heading carries a count of its own candidates, presented exactly

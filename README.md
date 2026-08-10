@@ -391,10 +391,10 @@ Plex Posters shows what your own server already has for that item. Find Posters
 searches the internet for something new.
 
 **Why is "Find Posters" split into sections?**
-Each section is one of the services the search draws from — TMDB, TheTVDB and
+Each section is one of the services the search draws from — TMDB, TVDB and
 fanart.tv — with a count of what that service returned. They're not
 interchangeable: fanart.tv is where textless artwork tends to be, TMDB carries
-the most language variants, and TheTVDB has a show's own artwork. The sections
+the most language variants, and TVDB has a show's own artwork. The sections
 are always in the same order, so once you know where your preferred service sits
 it stays there. Whichever one you want, results within a section are still
 ranked best-first.

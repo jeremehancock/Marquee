@@ -111,14 +111,20 @@ on the fallback unable to tell those works apart.
 
 ### Requirement: Find Posters candidates are grouped by the service that supplied them
 The Find Posters tab SHALL present its candidates in labelled sections, one for
-each service that supplied at least one of them: TMDB, TheTVDB, and fanart.tv.
+each service that supplied at least one of them: TMDB, TVDB, and fanart.tv.
 
 The services are not interchangeable to the people choosing between them —
 fanart.tv is where textless artwork is found, TMDB where language variants are,
-TheTVDB where a show's own artwork is — so which service supplied a candidate is
+TVDB where a show's own artwork is — so which service supplied a candidate is
 a distinction a user acts on, not an implementation detail.
 
-Sections SHALL appear in the same order for every item: TMDB, then TheTVDB, then
+The TVDB section is TheTVDB. Section headings are presented in upper case, and
+the service's own camel-cased spelling does not survive that — "THETVDB" reads
+as a run of letters. The shorter form is used in the heading for that reason
+only. The provider attribution SHALL continue to credit the service by its own
+name, which it does as a logo, so the two forms never meet as words on screen.
+
+Sections SHALL appear in the same order for every item: TMDB, then TVDB, then
 fanart.tv. A user who learns where a service's posters sit SHALL find them in the
 same place on the next item. This is the order in which the poster provider
 attribution credits those same three services, and the two SHALL NOT disagree;
@@ -155,7 +161,7 @@ it.
 #### Scenario: Section order is the same for every item
 - **WHEN** a user views Find Posters results for one item and then for another
 - **THEN** the sections appear in the same order both times — TMDB, then
-  TheTVDB, then fanart.tv — regardless of how many candidates each holds
+  TVDB, then fanart.tv — regardless of how many candidates each holds
 
 #### Scenario: Section order matches the provider attribution
 - **WHEN** the section order is compared with the order the poster provider

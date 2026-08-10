@@ -66,7 +66,7 @@ final class PosterSearchResultSectionsTest extends TestCase
             $this->candidate('https://img/tmdb.jpg', 'tmdb'),
         ]);
 
-        self::assertSame(['TMDB', 'TheTVDB', 'fanart.tv'], $this->labels($result));
+        self::assertSame(['TMDB', 'TVDB', 'fanart.tv'], $this->labels($result));
     }
 
     /**

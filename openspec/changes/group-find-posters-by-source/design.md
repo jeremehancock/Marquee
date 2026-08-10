@@ -62,7 +62,7 @@ Constraints:
 {
   "sections": [
     { "label": "TMDB",      "posters": [ … ] },
-    { "label": "TheTVDB",   "posters": [ … ] },
+    { "label": "TVDB",      "posters": [ … ] },
     { "label": "fanart.tv", "posters": [ … ] }
   ],
   "partial": false
@@ -111,11 +111,22 @@ unrecognised slug is also exactly the signal Decision 4 needs.
 
 This mirrors `PlexPosterOrigin`, which plays the same role for the Plex tab.
 
+The case *name* tracks the wire slug and the label tracks the user, which is why
+`TheTvdb` is labelled `TVDB`. Headings are uppercased in CSS and "THETVDB" reads
+as a run of letters — the camel case that makes the service's own spelling
+legible is exactly what the transform destroys. The footer's attribution still
+carries the real brand, as a logo rather than text, so the two forms never appear
+as conflicting words on screen.
+
+**Alternative considered:** keep `TheTVDB` and drop the uppercase transform on
+headings. Rejected — it restyles the Plex Posters tab's headings too, for a
+problem that affects one label.
+
 **Alternative considered:** a `match` in the controller. Rejected — it would
 scatter the slug, the label, and the order across three expressions that have to
 be kept in step by hand.
 
-### 3. Section order is fixed at TMDB, TheTVDB, fanart.tv
+### 3. Section order is fixed at TMDB, TVDB, fanart.tv
 
 Fixed, so the tab's shape is identical for every poster. That is the whole
 request: a user who learns where fanart.tv sits should find it there next time.
@@ -235,5 +246,5 @@ would need unwinding.
 
 ## Open Questions
 
-None blocking. `TVDB_API_KEY` is confirmed set on posteria.app, so the TheTVDB
+None blocking. `TVDB_API_KEY` is confirmed set on posteria.app, so the TVDB
 section will carry real candidates rather than being permanently empty.

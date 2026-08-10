@@ -24,14 +24,21 @@ enum PosterProvider: string
     case Fanart = 'fanart.tv';
 
     /**
-     * What the user is shown, which is each service's own spelling of its name —
-     * not a title-cased slug.
+     * What the user is shown.
+     *
+     * `TheTvdb` is labelled **TVDB**, not TheTVDB, and that is deliberate: the
+     * section heading is uppercased in CSS, and "THETVDB" loses the camel case
+     * that makes the full name readable at all. The provider attribution in the
+     * footer still credits the service by its own brand — it is a logo there, so
+     * the two never appear as conflicting words on screen.
+     *
+     * The case *name* tracks the wire slug; only this tracks the user.
      */
     public function label(): string
     {
         return match ($this) {
             self::Tmdb => 'TMDB',
-            self::TheTvdb => 'TheTVDB',
+            self::TheTvdb => 'TVDB',
             self::Fanart => 'fanart.tv',
         };
     }

@@ -234,7 +234,7 @@ final class ChangePosterTest extends AppTestCase
         $payload = $this->findPosters($source);
 
         self::assertSame(
-            ['TMDB', 'TheTVDB', 'fanart.tv'],
+            ['TMDB', 'TVDB', 'fanart.tv'],
             array_column($payload['sections'], 'label'),
         );
     }

@@ -203,7 +203,7 @@ Open **Change poster → Find Posters** on two or three items with good coverage
 
 | Check | Expected |
 | --- | --- |
-| Section order | **TMDB**, then **TheTVDB**, then **fanart.tv** — the same order every time, and the same order as the provider logos in the footer |
+| Section order | **TMDB**, then **TVDB**, then **fanart.tv** — the same order every time, and the same order as the provider logos in the footer |
 | Section headings | Each names its service and carries a count of its own candidates |
 | Total | There is none, by design — only per-section counts |
 | A service with no artwork for the item | No heading, no empty gap |
@@ -217,10 +217,11 @@ designed-for outcome of posteria.app adding a provider: the posters still work,
 but they sit under a vague heading instead of the service's own name. The fix is
 one case added to `App\Poster\Source\PosterProvider` — no client change.
 
-**TheTVDB depends on service-side configuration.** Its section only appears when
-`TVDB_API_KEY` is set on posteria.app; without it the service reports that
-provider as `skipped` and simply returns fewer candidates. An absent TheTVDB
-section is not, on its own, a Marquee bug.
+**TVDB depends on service-side configuration.** The **TVDB** section is TheTVDB
+— shortened because headings are uppercased and "THETVDB" is unreadable. It only
+appears when `TVDB_API_KEY` is set on posteria.app; without it the service
+reports that provider as `skipped` and simply returns fewer candidates. An absent
+TVDB section is not, on its own, a Marquee bug.
 
 ---
 

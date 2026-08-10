@@ -26,10 +26,16 @@ final class PosterProviderTest extends TestCase
         self::assertSame('fanart.tv', PosterProvider::Fanart->value);
     }
 
-    public function testEachProviderIsLabelledTheWayTheServiceSpellsItsOwnName(): void
+    /**
+     * TheTVDB is labelled "TVDB" on purpose. Section headings are uppercased in
+     * CSS, where the full name collapses to "THETVDB" and loses the camel case
+     * that makes it readable. The footer's attribution still carries the real
+     * brand, as a logo, so no two spellings meet as words on screen.
+     */
+    public function testEachProviderIsLabelledForTheHeadingItAppearsIn(): void
     {
         self::assertSame('TMDB', PosterProvider::Tmdb->label());
-        self::assertSame('TheTVDB', PosterProvider::TheTvdb->label());
+        self::assertSame('TVDB', PosterProvider::TheTvdb->label());
         self::assertSame('fanart.tv', PosterProvider::Fanart->label());
     }
 
@@ -71,7 +77,9 @@ final class PosterProviderTest extends TestCase
             [''],
             // Right service, wrong case: the match is exact.
             ['TMDB'],
-            // The other spelling of TheTVDB seen in the service's own internals.
+            // The token the service uses internally for TheTVDB. The wire slug is
+            // `thetvdb`; matching the label the user reads would be the wrong
+            // test and the wrong behaviour.
             ['tvdb'],
         ];
     }
