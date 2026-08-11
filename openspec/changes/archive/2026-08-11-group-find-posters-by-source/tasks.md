@@ -87,5 +87,5 @@
       `docs/testing.md` covering section order and per-section counts.
 - [x] 7.3 Run `composer test`, `composer stan`, and `composer cs` and fix
       anything they report.
-- [ ] 7.4 Confirm on a phone-width viewport that section headings stick correctly
+- [x] 7.4 Confirm on a phone-width viewport that section headings stick correctly
       inside the change dialog and the panel still scrolls as one.

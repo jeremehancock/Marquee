@@ -23,8 +23,10 @@ The system SHALL let a user search for candidate posters for a specific media
 item through the configured poster source, using facts recorded for that item at
 import time: its title, media type, release year when known, the TMDB identifier
 recorded for it when known, and — for seasons — the Plex season number. The system
-SHALL present the candidates the source returns in the order the source returns
-them, and SHALL NOT filter, re-rank, or re-order them.
+SHALL present every candidate the source returns, and SHALL NOT filter, re-rank,
+or re-score them. The order the source returns candidates in SHALL be preserved
+within each section the results are grouped into; the system SHALL NOT re-order
+candidates for any other reason.
 
 The recorded TMDB identifier identifies the work exactly, so a search that carries
 one does not depend on the item's title matching the work's title upstream. The
@@ -43,8 +45,14 @@ on the fallback unable to tell those works apart.
 
 #### Scenario: Candidates returned
 - **WHEN** a user opens Find Posters for a poster linked to a Plex item
-- **THEN** the system queries the poster source and shows the candidate posters
-  it returns, in the order returned
+- **THEN** the system queries the poster source and shows every candidate poster
+  it returns, grouped into sections, with the source's order kept inside each
+  section
+
+#### Scenario: No candidate is dropped
+- **WHEN** a search returns candidates
+- **THEN** the number of candidates shown across all sections equals the number
+  the source returned
 
 #### Scenario: No candidates or source unavailable
 - **WHEN** a search produces no usable candidates, whether because nothing
@@ -946,4 +954,103 @@ absence would raise.
 #### Scenario: A disabled tab cannot be opened
 - **WHEN** a user activates the disabled Plex Posters tab
 - **THEN** no request is made to Plex and the dialog stays on the tab it was on
+
+### Requirement: Find Posters candidates are grouped by the service that supplied them
+The Find Posters tab SHALL present its candidates in labelled sections, one for
+each service that supplied at least one of them: TMDB, TVDB, and fanart.tv.
+
+The services are not interchangeable to the people choosing between them —
+fanart.tv is where textless artwork is found, TMDB where language variants are,
+TVDB where a show's own artwork is — so which service supplied a candidate is
+a distinction a user acts on, not an implementation detail.
+
+The TVDB section is TheTVDB. Section headings are presented in upper case, and
+the service's own camel-cased spelling does not survive that — "THETVDB" reads
+as a run of letters. The shorter form is used in the heading for that reason
+only. The provider attribution SHALL continue to credit the service by its own
+name, which it does as a logo, so the two forms never meet as words on screen.
+
+Sections SHALL appear in the same order for every item: TMDB, then TVDB, then
+fanart.tv. A user who learns where a service's posters sit SHALL find them in the
+same place on the next item. This is the order in which the poster provider
+attribution credits those same three services, and the two SHALL NOT disagree;
+the section order SHALL be defined in a way that records that it follows the
+attribution.
+
+Within a section, candidates SHALL remain in the order the poster source
+returned them. The source ranks across all three services at once, so the leading
+candidate overall is not necessarily the first one on screen; that is the accepted
+cost of a section order that does not move.
+
+Each section's heading SHALL name its service and SHALL show how many candidates
+the section holds, in the same form as the Plex Posters tab's group headings — a
+section label rather than a line of prose. The tab SHALL NOT show a total across
+sections; the per-section counts are the whole of what is offered.
+
+Each section SHALL be shown only when it has candidates, so a service that
+returned nothing for an item leaves no empty heading behind.
+
+While a section's candidates are on screen, its heading SHALL remain visible as
+the user scrolls, and SHALL leave with its own section.
+
+A candidate whose supplying service is not one of the three named, or which
+reports no service at all, SHALL still be shown, in a section following all the
+named ones. The system SHALL NOT discard such a candidate: dropping it would be
+indistinguishable from that service having no artwork, and nothing would report
+it.
+
+#### Scenario: Candidates are split by supplying service
+- **WHEN** a user views Find Posters results drawn from more than one service
+- **THEN** the candidates appear in separate labelled sections, each holding only
+  the candidates that service supplied
+
+#### Scenario: Section order is the same for every item
+- **WHEN** a user views Find Posters results for one item and then for another
+- **THEN** the sections appear in the same order both times — TMDB, then
+  TVDB, then fanart.tv — regardless of how many candidates each holds
+
+#### Scenario: Section order matches the provider attribution
+- **WHEN** the section order is compared with the order the poster provider
+  attribution credits those services in
+- **THEN** the two agree
+
+#### Scenario: Each heading names its service and counts its candidates
+- **WHEN** a user views a Find Posters result with sections present
+- **THEN** each heading reads as a section label that names the service and shows
+  how many candidates that section holds
+
+#### Scenario: No total across sections is shown
+- **WHEN** a user views a Find Posters result
+- **THEN** no combined count of all candidates is shown alongside the sections
+
+#### Scenario: Order within a section is the source's
+- **WHEN** a user views the candidates inside one section
+- **THEN** they appear in the order the poster source returned them, with none
+  re-ranked or re-ordered within that section
+
+#### Scenario: A service that supplied nothing is omitted
+- **WHEN** one of the named services returns no candidates for an item
+- **THEN** no heading for that service is shown, and no empty section is left in
+  its place
+
+#### Scenario: A heading stays visible while its section is scrolled
+- **WHEN** a user scrolls through a long section of candidates
+- **THEN** that section's heading remains visible, and the candidates pass behind
+  it
+
+#### Scenario: The visible heading is always the right one
+- **WHEN** a user scrolls from one section into the next
+- **THEN** the heading that is showing is the one belonging to the candidates on
+  screen
+
+#### Scenario: An unrecognised service is still shown
+- **WHEN** the poster source returns a candidate attributed to a service the
+  system does not recognise, or with no service given
+- **THEN** that candidate is still shown and can still be applied, in a section
+  after every named one
+
+#### Scenario: Applying is unchanged by grouping
+- **WHEN** a user activates a candidate in any section
+- **THEN** it opens in the full-screen preview and is applied through the same
+  confirmation as before, whichever section it came from
 
