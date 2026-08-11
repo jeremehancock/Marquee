@@ -191,6 +191,40 @@ one. Test against **Uploaded to Plex** for an unambiguous result.
 
 ---
 
+### Find Posters sections
+
+The **Find Posters** tab groups its candidates by the service that supplied
+each one. Nothing here talks to Plex, so this is a read-only check — but it
+needs a live search, because the sections come from the poster source's own
+response and no fixture can prove the slugs still match.
+
+Open **Change poster → Find Posters** on two or three items with good coverage
+(a well-known film, a long-running show).
+
+| Check | Expected |
+| --- | --- |
+| Section order | **TMDB**, then **TVDB**, then **fanart.tv** — the same order every time, and the same order as the provider logos in the footer |
+| Section headings | Each names its service and carries a count of its own candidates |
+| Total | There is none, by design — only per-section counts |
+| A service with no artwork for the item | No heading, no empty gap |
+| Scrolling a long section | The heading stays pinned while its own posters pass behind it, and leaves with them |
+| An **Other** section | Should never appear. If it does, the source has added a provider — see below |
+| Applying a candidate | Works identically from any section |
+
+**An `Other` section is the finding worth reporting.** It means the poster
+source returned a `source` slug this build does not recognise, which is the
+designed-for outcome of posteria.app adding a provider: the posters still work,
+but they sit under a vague heading instead of the service's own name. The fix is
+one case added to `App\Poster\Source\PosterProvider` — no client change.
+
+**TVDB depends on service-side configuration.** The **TVDB** section is TheTVDB
+— shortened because headings are uppercased and "THETVDB" is unreadable. It only
+appears when `TVDB_API_KEY` is set on posteria.app; without it the service
+reports that provider as `skipped` and simply returns fewer candidates. An absent
+TVDB section is not, on its own, a Marquee bug.
+
+---
+
 ## Orphan detection (real-world test)
 
 An **orphan** is a poster that Marquee imported from Plex whose Plex item no

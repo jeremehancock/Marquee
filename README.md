@@ -28,7 +28,8 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   - **Change poster** by uploading a file, pasting an image URL, choosing from
     **Plex Posters** — the posters your own Plex server already holds for the
     item — or from **Find Posters**, an online poster search served by
-    [posteria.app](https://posteria.app).
+    [posteria.app](https://posteria.app) and grouped by the service each result
+    came from.
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
   - **Download**, **Copy URL**, view **Full screen**, or **Delete**.
@@ -388,6 +389,17 @@ From [posteria.app](https://posteria.app), an online poster search service.
 **What's the difference between "Plex Posters" and "Find Posters"?**
 Plex Posters shows what your own server already has for that item. Find Posters
 searches the internet for something new.
+
+**Why is "Find Posters" split into sections?**
+Each section is one of the services the search draws from — TMDB, TVDB and
+fanart.tv — with a count of what that service returned. They're not
+interchangeable: fanart.tv is where textless artwork tends to be, TMDB carries
+the most language variants, and TVDB has a show's own artwork. The sections
+are always in the same order, so once you know where your preferred service sits
+it stays there. Whichever one you want, results within a section are still
+ranked best-first.
+
+A service that returned nothing for an item is left out rather than shown empty.
 
 **I want a poster back that I used to have**
 Use **Plex Posters**. Plex keeps every poster ever uploaded to an item and never

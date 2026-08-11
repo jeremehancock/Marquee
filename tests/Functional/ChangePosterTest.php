@@ -155,7 +155,7 @@ final class ChangePosterTest extends AppTestCase
     }
 
     /**
-     * @return array{posters: list<array{url: string, thumb: string, source: string|null}>, error: string|null, partial: bool}
+     * @return array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool}
      */
     private function findPosters(FakePosterSource $source): array
     {
@@ -170,8 +170,28 @@ final class ChangePosterTest extends AppTestCase
         $payload = json_decode((string) $response->getBody(), true);
         self::assertIsArray($payload);
 
-        /** @var array{posters: list<array{url: string, thumb: string, source: string|null}>, error: string|null, partial: bool} $payload */
+        /** @var array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool} $payload */
         return $payload;
+    }
+
+    /**
+     * Every candidate across every section, in the order the page will show
+     * them.
+     *
+     * @param array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool} $payload
+     *
+     * @return list<array{url: string, thumb: string}>
+     */
+    private function allPosters(array $payload): array
+    {
+        $posters = [];
+        foreach ($payload['sections'] as $section) {
+            foreach ($section['posters'] as $poster) {
+                $posters[] = $poster;
+            }
+        }
+
+        return $posters;
     }
 
     public function testFindPostersReturnsCandidatesAsObjects(): void
@@ -186,10 +206,52 @@ final class ChangePosterTest extends AppTestCase
         self::assertNull($payload['error']);
         self::assertFalse($payload['partial']);
         self::assertSame([
-            ['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a-t.jpg', 'source' => 'tmdb'],
-            // No thumb from fanart.tv, so the grid image falls back to the full URL.
-            ['url' => 'https://img/b.jpg', 'thumb' => 'https://img/b.jpg', 'source' => 'fanart.tv'],
-        ], $payload['posters']);
+            [
+                'label' => 'TMDB',
+                'posters' => [['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a-t.jpg']],
+            ],
+            [
+                'label' => 'fanart.tv',
+                // No thumb from fanart.tv, so the grid image falls back to the full URL.
+                'posters' => [['url' => 'https://img/b.jpg', 'thumb' => 'https://img/b.jpg']],
+            ],
+        ], $payload['sections']);
+    }
+
+    /**
+     * The section order is what makes the tab's shape the same from one poster to
+     * the next, so it is pinned against a source that returns them in another
+     * order entirely.
+     */
+    public function testFindPostersSectionsAreOrderedTmdbThenTheTvdbThenFanart(): void
+    {
+        $source = $this->fakeSource(PosterSearchResult::found([
+            new PosterCandidate('https://img/fanart.jpg', source: 'fanart.tv'),
+            new PosterCandidate('https://img/tvdb.jpg', source: 'thetvdb'),
+            new PosterCandidate('https://img/tmdb.jpg', source: 'tmdb'),
+        ]));
+
+        $payload = $this->findPosters($source);
+
+        self::assertSame(
+            ['TMDB', 'TVDB', 'fanart.tv'],
+            array_column($payload['sections'], 'label'),
+        );
+    }
+
+    /**
+     * The label is resolved server-side so the page never has to know a provider
+     * name — and the slug never reaches it.
+     */
+    public function testFindPostersDoesNotPublishTheSourceSlug(): void
+    {
+        $source = $this->fakeSource(PosterSearchResult::found([
+            new PosterCandidate('https://img/a.jpg', source: 'tmdb'),
+        ]));
+
+        $payload = $this->findPosters($source);
+
+        self::assertSame(['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a.jpg'], $payload['sections'][0]['posters'][0]);
     }
 
     public function testFindPostersPassesTheStoredYearAndType(): void
@@ -454,7 +516,7 @@ final class ChangePosterTest extends AppTestCase
 
         self::assertTrue($payload['partial']);
         self::assertIsString($payload['error']);
-        self::assertCount(1, $payload['posters'], 'a partial result still has candidates to show');
+        self::assertCount(1, $this->allPosters($payload), 'a partial result still has candidates to show');
     }
 
     public function testFailedSearchLeavesThePosterUnchanged(): void
@@ -464,7 +526,7 @@ final class ChangePosterTest extends AppTestCase
         foreach ([PosterSearchOutcome::NoMatch, PosterSearchOutcome::Unavailable, PosterSearchOutcome::RateLimited] as $outcome) {
             $payload = $this->findPosters($this->fakeSource(PosterSearchResult::failed($outcome)));
 
-            self::assertSame([], $payload['posters']);
+            self::assertSame([], $payload['sections']);
             self::assertSame(
                 $before,
                 (string) file_get_contents($this->postersDir . '/movies/Solaris.jpg'),
@@ -486,7 +548,7 @@ final class ChangePosterTest extends AppTestCase
         $payload = json_decode((string) $response->getBody(), true);
 
         self::assertIsArray($payload);
-        self::assertSame([], $payload['posters']);
+        self::assertSame([], $payload['sections']);
         self::assertSame('This poster is not linked to a Plex item.', $payload['error']);
         self::assertNull($source->asked, 'an unlinked poster has nothing to search for');
     }

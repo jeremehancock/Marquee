@@ -17,10 +17,10 @@
    does not show up here. #}
 {% macro plex_group(label, source) %}
     <template x-if="{{ source }}.length">
-        <div class="plex-group">
-            <p class="plex-group__heading">
+        <div class="poster-group">
+            <p class="poster-group__heading">
                 <span>{{ label }}</span>
-                <span class="plex-group__count" x-text="{{ source }}.length"></span>
+                <span class="poster-group__count" x-text="{{ source }}.length"></span>
             </p>
             <div class="find-grid">
                 <template x-for="poster in {{ source }}" :key="poster.ref">
@@ -157,7 +157,7 @@
                             :data-tooltip="change.linked ? null : 'This poster is not linked to a Plex item.'"
                             @click="change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
                     <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
-                            @click="change.tab = 'find'; if (!finder.results.length && !finder.loading) findPosters()">Find Posters</button>
+                            @click="change.tab = 'find'; if (!finder.sections.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
 
                 {# Neither tab changes anything on its own: it hands the image to the
@@ -188,7 +188,7 @@
                     <p class="stats" x-show="!plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.available.length)">
                         Tap a poster to preview it.
                     </p>
-                    <div class="plex-groups" x-show="!plexPosters.loading && !plexPosters.error">
+                    <div class="poster-groups" x-show="!plexPosters.loading && !plexPosters.error">
                         {{ _self.plex_group('Uploaded to Plex', 'plexPosters.uploaded') }}
                         {{ _self.plex_group('Offered by Plex', 'plexPosters.available') }}
                     </div>
@@ -198,29 +198,50 @@
                     <p class="stats" x-show="finder.loading">Finding posters…</p>
                     <p class="alert" x-show="finder.error && !finder.loading" x-text="finder.error"></p>
                     <p class="alert" x-show="finder.notice && !finder.loading" x-text="finder.notice"></p>
-                    <p class="stats" x-show="!finder.loading && !finder.error && finder.results.length">
+                    <p class="stats" x-show="!finder.loading && !finder.error && finder.sections.length">
                         Tap a poster to preview it.
                     </p>
-                    {# The grid loads each candidate's thumbnail where its source gave
-                       one (thumb falls back to url server-side); previewing and
-                       applying always use the full-resolution url. #}
-                    <div class="find-grid">
-                        <template x-for="poster in finder.results" :key="poster.url">
-                            {# Each cell tracks its own image, so the shimmer stops per
-                               candidate as each thumbnail arrives. The DOM scan that
-                               does this for poster cards (initImages in gallery.js)
-                               cannot: Alpine creates and destroys these images on every
-                               search, long after that scan has run. `@error` resolves
-                               the cell too — a candidate whose image 404s must stop
-                               shimmering rather than promise one that is never coming. #}
-                            <figure class="find-item" x-data="{ loaded: false }">
-                                <div class="find-item__frame">
-                                    <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
-                                         :class="loaded ? 'is-loaded' : ''"
-                                         @load="loaded = true" @error="loaded = true"
-                                         @click="openPreview(poster.url, 'find')" data-tooltip="Click to preview">
+                    {# One section per service that supplied a candidate, in the order
+                       the server sent them — which is fixed, so the tab has the same
+                       shape for every poster. Nothing here names a provider: the label
+                       and the order both arrive in the payload, so adding a service is
+                       a server-side change only.
+
+                       Shares .poster-group* with the Plex Posters tab above, which is
+                       what carries the sticky headings and the gap-based spacing. The
+                       spacing must stay a flex gap: `x-for` leaves the <template> in
+                       the DOM between every pair of sections, so an adjacent-sibling
+                       selector would match nothing at all (see app.css). #}
+                    <div class="poster-groups">
+                        <template x-for="section in finder.sections" :key="section.label">
+                            <div class="poster-group">
+                                <p class="poster-group__heading">
+                                    <span x-text="section.label"></span>
+                                    <span class="poster-group__count" x-text="section.posters.length"></span>
+                                </p>
+                                {# The grid loads each candidate's thumbnail where its source
+                                   gave one (thumb falls back to url server-side); previewing
+                                   and applying always use the full-resolution url. #}
+                                <div class="find-grid">
+                                    <template x-for="poster in section.posters" :key="poster.url">
+                                        {# Each cell tracks its own image, so the shimmer stops per
+                                           candidate as each thumbnail arrives. The DOM scan that
+                                           does this for poster cards (initImages in gallery.js)
+                                           cannot: Alpine creates and destroys these images on every
+                                           search, long after that scan has run. `@error` resolves
+                                           the cell too — a candidate whose image 404s must stop
+                                           shimmering rather than promise one that is never coming. #}
+                                        <figure class="find-item" x-data="{ loaded: false }">
+                                            <div class="find-item__frame">
+                                                <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
+                                                     :class="loaded ? 'is-loaded' : ''"
+                                                     @load="loaded = true" @error="loaded = true"
+                                                     @click="openPreview(poster.url, 'find')" data-tooltip="Click to preview">
+                                            </div>
+                                        </figure>
+                                    </template>
                                 </div>
-                            </figure>
+                            </div>
                         </template>
                     </div>
                 </div>

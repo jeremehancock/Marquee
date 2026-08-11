@@ -20,6 +20,7 @@ use App\Poster\Source\PosterCandidate;
 use App\Poster\Source\PosterQuery;
 use App\Poster\Source\PosterSearchOutcome;
 use App\Poster\Source\PosterSearchResult;
+use App\Poster\Source\PosterSection;
 use App\Poster\Source\PosterSource;
 use App\Poster\Upload\UploadException;
 use App\Support\Flash;
@@ -273,7 +274,7 @@ final class ChangePosterController
 
         if ($record === null || $type === null) {
             return $this->json($response, [
-                'posters' => [],
+                'sections' => [],
                 'error' => 'This poster is not linked to a Plex item.',
                 'partial' => false,
             ]);
@@ -291,17 +292,25 @@ final class ChangePosterController
 
         $this->correctStaleTmdbId($record, $query, $result);
 
-        $posters = array_map(
-            static fn (PosterCandidate $c): array => [
-                'url' => $c->url,
-                'thumb' => $c->displayUrl(),
-                'source' => $c->source,
+        // Sections rather than a flat list, each already labelled: the page
+        // renders whatever it is handed, in the order handed, and never learns a
+        // provider name. Adding a provider is a change on this side only.
+        $sections = array_map(
+            static fn (PosterSection $s): array => [
+                'label' => $s->label,
+                'posters' => array_map(
+                    static fn (PosterCandidate $c): array => [
+                        'url' => $c->url,
+                        'thumb' => $c->displayUrl(),
+                    ],
+                    $s->candidates,
+                ),
             ],
-            $result->candidates,
+            $result->sections(),
         );
 
         return $this->json($response, [
-            'posters' => $posters,
+            'sections' => $sections,
             'error' => $this->messageFor($result->outcome),
             'partial' => $result->outcome === PosterSearchOutcome::Partial,
         ]);
