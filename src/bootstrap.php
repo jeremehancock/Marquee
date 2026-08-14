@@ -81,7 +81,13 @@ function buildContainer(array $overrides = []): Container
         PlexConfig::class => static fn (PlexConnectionStore $store): PlexConfig => PlexConfig::resolve($store),
         AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
         LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
-        SessionInterface::class => static fn (): SessionInterface => new NativeSession(),
+        // The duration is passed as a plain int rather than the config object:
+        // App\Support is generic infrastructure, and having it depend on
+        // App\Config would invert the layering for nothing. AuthConfig still
+        // performs the single bootstrap read, so one `SESSION_DURATION` governs
+        // the cookie, the session store, and the authenticated window alike.
+        SessionInterface::class => static fn (AuthConfig $auth): SessionInterface
+            => new NativeSession($auth->sessionDuration),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
@@ -262,8 +268,15 @@ function createApp(?Container $container = null): App
     //
     // The CSRF check is innermost, which is what puts it *inside* body parsing:
     // it reads the token from the parsed body, so it cannot run before the body
-    // has been parsed. Being inside auth also guarantees the session exists,
-    // since AuthMiddleware starts it on every request.
+    // has been parsed. Being inside auth means the session has been started for
+    // every route that has one — which is no longer every route: AuthMiddleware
+    // now skips session startup for the public routes that read no session
+    // state. That is safe here rather than merely tolerable, because those
+    // routes are all reads: routing runs outside auth, so a state-changing
+    // method against one is refused as an unrouted method before this check is
+    // reached. If a session-less route ever gained a write, this check would
+    // still fail closed — a session that was never started yields no token, and
+    // CsrfGuard::matches() refuses every candidate rather than minting one.
     $app->add($csrfMiddleware);
     $app->addBodyParsingMiddleware();
     $app->add($plexMiddleware);

@@ -28,5 +28,21 @@ interface SessionInterface
      */
     public function regenerate(): void;
 
+    /**
+     * Extend how long the *browser* holds on to this session.
+     *
+     * Named for the effect rather than the mechanism. The native implementation
+     * re-issues a cookie; the in-memory one has no browser and should not be
+     * made to pretend it does. What both promise is the same: after this call
+     * the client's copy of the session is good for another `$seconds`.
+     *
+     * This exists because the server-side window and the browser's window are
+     * two different clocks, and only one of them was ever being wound. A
+     * session can be perfectly valid on the server while the browser has
+     * already thrown away the only reference to it, which is indistinguishable
+     * from being signed out.
+     */
+    public function extendLifetime(int $seconds): void;
+
     public function clear(): void;
 }

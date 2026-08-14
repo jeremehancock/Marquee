@@ -149,4 +149,59 @@ final class SessionAuthenticatorTest extends TestCase
         putenv('SESSION_DURATION');
         self::assertSame(2592000, AuthConfig::fromEnv()->sessionDuration);
     }
+
+    /**
+     * The server's window and the browser's are two clocks, and for a long time
+     * only the first was wound. A session that is valid on the server while the
+     * browser has discarded the cookie is indistinguishable, to the user, from
+     * having been signed out — so renewing one without the other is not
+     * renewing at all.
+     */
+    public function testUseSlidesTheBrowsersWindowToo(): void
+    {
+        [$auth, $session] = $this->make(duration: 3600);
+        $auth->establish();
+
+        $session->set('expires_at', time() + 5);
+        self::assertTrue($auth->isAuthenticated());
+
+        self::assertSame(3600, $session->lastExtension());
+    }
+
+    public function testEstablishingASessionExtendsTheBrowsersWindow(): void
+    {
+        [$auth, $session] = $this->make(duration: 3600);
+
+        self::assertNull($session->lastExtension());
+        $auth->establish();
+
+        self::assertSame(1, $session->extensions());
+        self::assertSame(3600, $session->lastExtension());
+    }
+
+    /**
+     * Extension is reachable only through renew(), which is reachable only once
+     * a session is known to be authenticated. A caller with no session cannot
+     * lengthen one by asking.
+     */
+    public function testAnUnauthenticatedRequestExtendsNothing(): void
+    {
+        [$auth, $session] = $this->make();
+
+        self::assertFalse($auth->isAuthenticated());
+
+        self::assertSame(0, $session->extensions());
+    }
+
+    public function testAnExpiredSessionExtendsNothing(): void
+    {
+        [$auth, $session] = $this->make(duration: 60);
+        $auth->establish();
+        $extensionsAtLogin = $session->extensions();
+
+        $session->set('expires_at', time() - 1);
+
+        self::assertFalse($auth->isAuthenticated());
+        self::assertSame($extensionsAtLogin, $session->extensions());
+    }
 }

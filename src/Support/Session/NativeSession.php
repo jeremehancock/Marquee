@@ -20,9 +20,28 @@ namespace App\Support\Session;
  * attribute depend on a client-supplied header, and behind a misconfigured proxy
  * it fails toward the lockout. If it is ever wanted it belongs behind an
  * explicit opt-in, not a guess.
+ *
+ * The same reasoning governs two settings that decide how long a sign-in
+ * survives, and for a long time it did not reach them. Left to the runtime, the
+ * cookie is discarded when the browser closes and the session file is collected
+ * after twenty-four minutes of disuse — both of which end a thirty-day window
+ * long before thirty days, and neither of which anybody chose. They are set
+ * here, from the one configured duration, so that `SESSION_DURATION` governs
+ * every layer of the session rather than only the one the application reads
+ * back.
  */
 final class NativeSession implements SessionInterface
 {
+    /**
+     * @param int $lifetime how long a session may go unused before it ends, in
+     *                      seconds — the same value the authenticated window is
+     *                      renewed by, so the browser, the session store, and
+     *                      the application all expire together
+     */
+    public function __construct(private readonly int $lifetime)
+    {
+    }
+
     public function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE || headers_sent()) {
@@ -34,15 +53,47 @@ final class NativeSession implements SessionInterface
         // on login only closes the other half of session fixation.
         ini_set('session.use_strict_mode', '1');
 
+        // How long the store keeps an idle session. The runtime's default is
+        // twenty-four minutes, which against a thirty-day window is what
+        // actually decides when a user is signed out: the session file is
+        // deleted underneath a session the application still considers valid,
+        // and the user is returned to a login that needs plex.tv.
+        ini_set('session.gc_maxlifetime', (string) $this->lifetime);
+
         // Must precede session_start(): these have no effect once the session
         // is active.
-        session_set_cookie_params([
-            'path' => '/',
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
+        //
+        // `lifetime` here is what makes every cookie PHP issues by itself carry
+        // a real expiry — including the one session_regenerate_id() emits
+        // during login. It is not the sliding part; extendLifetime() is. Both
+        // are needed, because relying on the re-issue alone would leave the
+        // login's durability depending on which Set-Cookie header arrives last.
+        session_set_cookie_params(['lifetime' => $this->lifetime] + $this->cookieAttributes());
 
         session_start();
+    }
+
+    /**
+     * Re-issue the session cookie so its expiry moves out from now.
+     *
+     * PHP writes the cookie when it creates a session and not again, so without
+     * this the browser's window would be stamped once at sign-in and never
+     * move — an absolute deadline hidden one layer below the sliding one the
+     * application enforces, and invisible when it fires.
+     */
+    public function extendLifetime(int $seconds): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE || headers_sent()) {
+            return;
+        }
+
+        $name = session_name();
+        $id = session_id();
+        if ($name === false || $id === false) {
+            return;
+        }
+
+        setcookie($name, $id, ['expires' => time() + $seconds] + $this->cookieAttributes());
     }
 
     public function get(string $key, mixed $default = null): mixed
@@ -78,5 +129,25 @@ final class NativeSession implements SessionInterface
         if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             session_destroy();
         }
+    }
+
+    /**
+     * The cookie's attributes, minus whichever expiry key the caller needs.
+     *
+     * Shared so that a cookie re-issued by extendLifetime() cannot drift from
+     * the one session_start() issues. `Secure` is absent here for the reason
+     * given on the class; the two callers differ only in that
+     * session_set_cookie_params() takes a relative `lifetime` and setcookie()
+     * takes an absolute `expires`.
+     *
+     * @return array{path: string, httponly: bool, samesite: 'Lax'}
+     */
+    private function cookieAttributes(): array
+    {
+        return [
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ];
     }
 }
