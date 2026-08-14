@@ -15,6 +15,10 @@ final class ArraySession implements SessionInterface
 
     private int $regenerations = 0;
 
+    private int $extensions = 0;
+
+    private ?int $lastExtension = null;
+
     public function start(): void
     {
         // Nothing to do for an in-memory store.
@@ -53,6 +57,36 @@ final class ArraySession implements SessionInterface
     public function regenerations(): int
     {
         return $this->regenerations;
+    }
+
+    /**
+     * Recorded rather than ignored, for the same reason regenerate() is
+     * counted — and with more at stake. Every session test drives this class,
+     * so a no-op here is exactly what let the browser's window go unwound
+     * while the server's slid correctly: the arithmetic was covered, and the
+     * layer that actually ended the session was unobservable.
+     */
+    public function extendLifetime(int $seconds): void
+    {
+        ++$this->extensions;
+        $this->lastExtension = $seconds;
+    }
+
+    /**
+     * How many times the browser's window has been extended. Test support.
+     */
+    public function extensions(): int
+    {
+        return $this->extensions;
+    }
+
+    /**
+     * The duration of the most recent extension, or null if there has been
+     * none. Test support.
+     */
+    public function lastExtension(): ?int
+    {
+        return $this->lastExtension;
     }
 
     public function clear(): void

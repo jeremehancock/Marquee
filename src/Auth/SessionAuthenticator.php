@@ -37,6 +37,12 @@ final class SessionAuthenticator
      * they could observe, which is the opposite of trusting our own session —
      * and signing in again needs plex.tv, so the eviction would land wherever
      * their internet happened to be.
+     *
+     * This and {@see establish()} are the only paths into renew(), and both are
+     * reached only once the session is known to be authenticated: here after
+     * the window is confirmed still live, there after a sign-in is verified. So
+     * "an unauthenticated request extends nothing" holds because there is no
+     * way to call it, not because something checks.
      */
     public function isAuthenticated(): bool
     {
@@ -90,8 +96,23 @@ final class SessionAuthenticator
         $this->session->clear();
     }
 
+    /**
+     * Push both of the session's clocks out by the configured duration.
+     *
+     * The server's window and the browser's are separate, and winding only the
+     * first is indistinguishable from being signed out: the session stays valid
+     * while the browser discards the reference to it.
+     */
     private function renew(): void
     {
+        // Unconditional, deliberately. Writing this is also what refreshes the
+        // session file's mtime, and the mtime is what keeps the store's garbage
+        // collector from treating a live session as idle. PHP's `lazy_write`
+        // skips a write whose value has not changed, so making this conditional
+        // — on the expiry having moved, say — would silently restore the
+        // eviction bug it exists to prevent.
         $this->session->set(self::KEY_EXPIRES_AT, time() + $this->config->sessionDuration);
+
+        $this->session->extendLifetime($this->config->sessionDuration);
     }
 }

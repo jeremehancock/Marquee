@@ -50,6 +50,36 @@ final class AuthMiddleware implements MiddlewareInterface
     /** @var list<string> */
     private array $publicPrefixes = ['/assets/', '/wall/'];
 
+    /**
+     * Public paths that read no session state, and so are served without
+     * starting one.
+     *
+     * These MUST be a subset of the public paths above. The control flow in
+     * {@see process()} enforces that structurally, and a test asserts it
+     * again, because this list is the one place in the gate where an edit could
+     * plausibly become a security mistake.
+     *
+     * `/health` is polled by the container runtime every thirty seconds for the
+     * life of the container, and the wall polls for now-playing and rotates
+     * posters continuously on an unattended display. Between them they are the
+     * most requested routes in the product by orders of magnitude, and neither
+     * reads a session. Starting one anyway did not merely waste a file: the
+     * store collects expired sessions probabilistically *during session
+     * startup*, so these two routes became the dominant trigger for the sweep
+     * that evicted real signed-in users. A route that needs no session should
+     * not be able to sign somebody out.
+     *
+     * Public rather than private so the invariant above can be asserted
+     * directly rather than through reflection or a duplicated list. It is
+     * routing policy, not a secret.
+     *
+     * @var list<string>
+     */
+    public const SESSIONLESS_PATHS = ['/health', '/manifest.webmanifest', '/wall'];
+
+    /** @var list<string> */
+    public const SESSIONLESS_PREFIXES = ['/assets/', '/wall/'];
+
     public function __construct(
         private readonly SessionAuthenticator $authenticator,
         private readonly SessionInterface $session,
@@ -58,16 +88,61 @@ final class AuthMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        $path = $request->getUri()->getPath();
+        $public = $this->isPublic($path);
+
+        // Nested inside `$public`, never beside it. A path listed as
+        // session-less but *not* public does not reach this return: the session
+        // starts below and the gate runs, exactly as it did before. So the worst
+        // a bad edit to those lists can do is create a session nobody reads —
+        // it cannot open a protected route, which is the only way this
+        // optimisation could have become a security hole.
+        if ($public && !$this->needsSession($path)) {
+            return $handler->handle($request);
+        }
+
         $this->session->start();
 
-        $path = $request->getUri()->getPath();
-        if ($this->isPublic($path) || $this->authenticator->isAuthenticated()) {
+        if ($public || $this->authenticator->isAuthenticated()) {
             return $handler->handle($request);
         }
 
         return (new Response())
             ->withHeader('Location', self::SIGN_IN_PATH)
             ->withStatus(302);
+    }
+
+    /**
+     * Whether serving this path reads or writes session state.
+     *
+     * Separate from {@see isPublic()} on purpose: whether an anonymous visitor
+     * may reach a route and whether serving it needs a session are different
+     * questions, and conflating them is what made the health check able to
+     * evict a login.
+     *
+     * The sign-in routes answer yes — `/login` renders the layout, which asks
+     * `CsrfGuard` for a token and so writes to the session; `/plex/connection/
+     * sign-in` stores the authorization request and `/plex/connection/status`
+     * reads it back, which is the whole of "another session has no request
+     * recorded"; `/logout` needs a session to destroy. The wall answers no, and
+     * that is by construction rather than luck: `wall.html.twig` is standalone
+     * rather than extending the layout, so it never asks for a token, and
+     * `StreamToken` signs poster paths with an HMAC precisely so the proxy can
+     * recover them without a server-side session.
+     */
+    private function needsSession(string $path): bool
+    {
+        if (in_array($path, self::SESSIONLESS_PATHS, true)) {
+            return false;
+        }
+
+        foreach (self::SESSIONLESS_PREFIXES as $prefix) {
+            if (str_starts_with($path, $prefix)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isPublic(string $path): bool

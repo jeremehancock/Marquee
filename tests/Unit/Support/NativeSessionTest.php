@@ -19,11 +19,18 @@ use PHPUnit\Framework\TestCase;
  */
 final class NativeSessionTest extends TestCase
 {
+    /**
+     * A duration that is nothing like either runtime default, so an assertion
+     * cannot pass by coincidence: not 0 (the cookie default) and not 1440 (the
+     * collection default).
+     */
+    private const DURATION = 98765;
+
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
     public function testTheCookieIsHttpOnlyAndSameSiteLax(): void
     {
-        (new NativeSession())->start();
+        (new NativeSession(self::DURATION))->start();
 
         $params = session_get_cookie_params();
 
@@ -41,7 +48,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testTheCookieIsNotMarkedSecure(): void
     {
-        (new NativeSession())->start();
+        (new NativeSession(self::DURATION))->start();
 
         self::assertFalse(session_get_cookie_params()['secure']);
     }
@@ -54,7 +61,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testAnIdentifierTheSystemDidNotIssueIsRefused(): void
     {
-        (new NativeSession())->start();
+        (new NativeSession(self::DURATION))->start();
 
         self::assertSame('1', ini_get('session.use_strict_mode'));
     }
@@ -63,7 +70,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testRegeneratingReplacesTheIdentifierAndKeepsTheContents(): void
     {
-        $session = new NativeSession();
+        $session = new NativeSession(self::DURATION);
         $session->start();
         $session->set('plex_pin_code', 'ABCD');
         $before = session_id();
@@ -78,7 +85,56 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testRegeneratingWithoutAStartedSessionDoesNothing(): void
     {
-        (new NativeSession())->regenerate();
+        (new NativeSession(self::DURATION))->regenerate();
+
+        self::assertSame(PHP_SESSION_NONE, session_status());
+    }
+
+    /**
+     * Left to the runtime this is 0 — a browser-session cookie, discarded when
+     * the window closes. The server-side session is untouched and still valid;
+     * the browser has simply thrown away the only reference to it, which the
+     * user experiences as being signed out for no reason.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheCookieOutlivesTheBrowserSession(): void
+    {
+        (new NativeSession(self::DURATION))->start();
+
+        self::assertSame(self::DURATION, session_get_cookie_params()['lifetime']);
+    }
+
+    /**
+     * Left to the runtime this is 1440 — twenty-four minutes. Against a
+     * thirty-day window that default, not `SESSION_DURATION`, is what decides
+     * when a user is signed out: the store deletes the session underneath a
+     * session the application still considers live.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheStoreKeepsAnIdleSessionForTheConfiguredDuration(): void
+    {
+        (new NativeSession(self::DURATION))->start();
+
+        self::assertSame((string) self::DURATION, ini_get('session.gc_maxlifetime'));
+    }
+
+    /**
+     * Guarded the same way regenerate() is. Re-issuing a cookie for a session
+     * that does not exist would emit a header naming an empty identifier.
+     *
+     * This is the half of extendLifetime() a CLI test can reach. The header it
+     * writes when a session *is* active cannot be read back without an HTTP
+     * server or xdebug, so the assertion that it is called — and with the
+     * configured duration — is carried by SessionAuthenticatorTest against
+     * ArraySession instead. Between the two, both halves are covered.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testExtendingWithoutAStartedSessionDoesNothing(): void
+    {
+        (new NativeSession(self::DURATION))->extendLifetime(self::DURATION);
 
         self::assertSame(PHP_SESSION_NONE, session_status());
     }
