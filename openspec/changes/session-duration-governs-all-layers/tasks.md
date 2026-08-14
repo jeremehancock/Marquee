@@ -44,5 +44,5 @@
 ## 7. Live validation
 
 - [x] 7.1 Build the image locally and smoke-test `/health`, per `docs/docker.md`. No `Dockerfile` change is involved, but the session start path now runs different code on every request.
-- [ ] 7.2 On the `:dev` image, confirm by hand: sign in, close the browser completely, reopen — still signed in. Leave a tab idle well past twenty-four minutes with the Poster Wall running on another screen — still signed in. These are the two reported symptoms and neither is observable from the test suite.
+- [x] 7.2 On the `:dev` image, confirm by hand: sign in, close the browser completely, reopen — still signed in. Leave a tab idle well past twenty-four minutes with the Poster Wall running on another screen — still signed in. These are the two reported symptoms and neither is observable from the test suite.
 - [x] 7.3 Confirm `/tmp` no longer accumulates a session file per health check inside the running container.
