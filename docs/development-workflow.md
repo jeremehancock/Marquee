@@ -125,6 +125,18 @@ composer cs             # PHP-CS-Fixer (dry-run)
 
 Keep these green — CI runs the same on every push.
 
+### Seeing the actual exception: `DISPLAY_ERRORS`
+
+One environment variable exists purely for this loop. Set `DISPLAY_ERRORS` to
+`true` and the error handler renders the exception — message, class, and stack
+trace — in place of the generic error page. The default is `false`.
+
+**Leave it off anywhere reachable by anyone but you.** A stack trace names
+filesystem paths, class layout, and configuration, which is exactly what someone
+provoking an error is hoping to read. It is deliberately absent from the README's
+configuration table: it is a development setting, not a knob an install is meant
+to turn.
+
 ---
 
 ## Part 2 — OpenSpec in this repo
