@@ -26,11 +26,37 @@ final class NativeSessionTest extends TestCase
      */
     private const DURATION = 98765;
 
+    /** Directories made by the case that is running, removed afterwards. */
+    private string $dir = '';
+
+    protected function tearDown(): void
+    {
+        if ($this->dir !== '' && is_dir($this->dir)) {
+            foreach (glob($this->dir . '/*') ?: [] as $file) {
+                @unlink($file);
+            }
+            @rmdir($this->dir);
+        }
+
+        $this->dir = '';
+    }
+
+    /**
+     * A session writing somewhere of its own, so one case cannot read or
+     * collect another's files — and so none of them touch the real save path.
+     */
+    private function make(?string $dir = null): NativeSession
+    {
+        $this->dir = $dir ?? sys_get_temp_dir() . '/marquee-session-test-' . getmypid() . '-' . uniqid();
+
+        return new NativeSession(self::DURATION, $this->dir);
+    }
+
     #[RunInSeparateProcess]
     #[PreserveGlobalState(false)]
     public function testTheCookieIsHttpOnlyAndSameSiteLax(): void
     {
-        (new NativeSession(self::DURATION))->start();
+        $this->make()->start();
 
         $params = session_get_cookie_params();
 
@@ -48,7 +74,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testTheCookieIsNotMarkedSecure(): void
     {
-        (new NativeSession(self::DURATION))->start();
+        $this->make()->start();
 
         self::assertFalse(session_get_cookie_params()['secure']);
     }
@@ -61,7 +87,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testAnIdentifierTheSystemDidNotIssueIsRefused(): void
     {
-        (new NativeSession(self::DURATION))->start();
+        $this->make()->start();
 
         self::assertSame('1', ini_get('session.use_strict_mode'));
     }
@@ -70,7 +96,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testRegeneratingReplacesTheIdentifierAndKeepsTheContents(): void
     {
-        $session = new NativeSession(self::DURATION);
+        $session = $this->make();
         $session->start();
         $session->set('plex_pin_code', 'ABCD');
         $before = session_id();
@@ -85,7 +111,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testRegeneratingWithoutAStartedSessionDoesNothing(): void
     {
-        (new NativeSession(self::DURATION))->regenerate();
+        $this->make()->regenerate();
 
         self::assertSame(PHP_SESSION_NONE, session_status());
     }
@@ -100,7 +126,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testTheCookieOutlivesTheBrowserSession(): void
     {
-        (new NativeSession(self::DURATION))->start();
+        $this->make()->start();
 
         self::assertSame(self::DURATION, session_get_cookie_params()['lifetime']);
     }
@@ -115,9 +141,64 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testTheStoreKeepsAnIdleSessionForTheConfiguredDuration(): void
     {
-        (new NativeSession(self::DURATION))->start();
+        $this->make()->start();
 
         self::assertSame((string) self::DURATION, ini_get('session.gc_maxlifetime'));
+    }
+
+    /**
+     * Left to the runtime this is the container's `/tmp`, which is not a
+     * volume — so recreating the container discards every session, and pulling
+     * a new image recreates the container. That capped a thirty-day window at
+     * "until the next update" regardless of what the other settings said.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testSessionsAreWrittenWhereMarqueeDecides(): void
+    {
+        $dir = sys_get_temp_dir() . '/marquee-session-path-' . uniqid();
+
+        $this->make($dir)->start();
+
+        self::assertSame($dir, session_save_path());
+    }
+
+    /**
+     * Not merely defensive: an unwritable save path makes session_start() fail
+     * and the application impossible to enter. The container's init script
+     * cannot cover a SESSION_DIR it never prepared, and does not run at all
+     * outside the image.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testAMissingDirectoryIsCreatedRatherThanFatal(): void
+    {
+        $dir = sys_get_temp_dir() . '/marquee-session-missing-' . uniqid();
+        self::assertDirectoryDoesNotExist($dir);
+
+        $session = $this->make($dir);
+        $session->start();
+        $session->set('plex_pin_code', 'ABCD');
+        session_write_close();
+
+        self::assertDirectoryExists($dir);
+        self::assertNotSame([], glob($dir . '/sess_*') ?: [], 'no session file was written');
+    }
+
+    /**
+     * PHP writes the session files themselves 0600. A directory looser than its
+     * contents would give away for free what those permissions are careful
+     * about, so the mode is asserted rather than assumed.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheCreatedDirectoryIsNotReadableByOthers(): void
+    {
+        $dir = sys_get_temp_dir() . '/marquee-session-mode-' . uniqid();
+
+        $this->make($dir)->start();
+
+        self::assertSame('0700', substr(sprintf('%o', fileperms($dir)), -4));
     }
 
     /**
@@ -134,7 +215,7 @@ final class NativeSessionTest extends TestCase
     #[PreserveGlobalState(false)]
     public function testExtendingWithoutAStartedSessionDoesNothing(): void
     {
-        (new NativeSession(self::DURATION))->extendLifetime(self::DURATION);
+        $this->make()->extendLifetime(self::DURATION);
 
         self::assertSame(PHP_SESSION_NONE, session_status());
     }

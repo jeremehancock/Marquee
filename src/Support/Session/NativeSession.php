@@ -29,17 +29,30 @@ namespace App\Support\Session;
  * here, from the one configured duration, so that `SESSION_DURATION` governs
  * every layer of the session rather than only the one the application reads
  * back.
+ *
+ * Where the sessions are written is decided here too, and for the third time
+ * for the same reason. Left to the runtime they land in the container's `/tmp`,
+ * which is not a volume — so recreating the container discards every session,
+ * and pulling a new image recreates the container. That capped a thirty-day
+ * window at "until the next update" no matter what the other two settings said.
+ * Pointing the store at the persistent volume is what makes a signed-in user
+ * stay signed in across an update.
  */
 final class NativeSession implements SessionInterface
 {
     /**
-     * @param int $lifetime how long a session may go unused before it ends, in
-     *                      seconds — the same value the authenticated window is
-     *                      renewed by, so the browser, the session store, and
-     *                      the application all expire together
+     * @param int    $lifetime how long a session may go unused before it ends, in
+     *                         seconds — the same value the authenticated window is
+     *                         renewed by, so the browser, the session store, and
+     *                         the application all expire together
+     * @param string $savePath directory the session files are written to; on the
+     *                         persistent volume by default, so a session outlives
+     *                         the container that issued it
      */
-    public function __construct(private readonly int $lifetime)
-    {
+    public function __construct(
+        private readonly int $lifetime,
+        private readonly string $savePath,
+    ) {
     }
 
     public function start(): void
@@ -59,6 +72,21 @@ final class NativeSession implements SessionInterface
         // deleted underneath a session the application still considers valid,
         // and the user is returned to a login that needs plex.tv.
         ini_set('session.gc_maxlifetime', (string) $this->lifetime);
+
+        // Where the sessions live. Created here as well as by the container's
+        // init script, which cannot know about a SESSION_DIR pointing somewhere
+        // it never prepared, and does not run outside the image at all. The
+        // failure this prevents is total: an unwritable save path makes
+        // session_start() fail and the application impossible to enter.
+        //
+        // 0700 because PHP writes the session files themselves 0600 — a
+        // directory looser than its contents would give away for free what the
+        // file permissions are being careful about.
+        if (!is_dir($this->savePath)) {
+            @mkdir($this->savePath, 0700, true);
+        }
+
+        session_save_path($this->savePath);
 
         // Must precede session_start(): these have no effect once the session
         // is active.

@@ -81,13 +81,18 @@ function buildContainer(array $overrides = []): Container
         PlexConfig::class => static fn (PlexConnectionStore $store): PlexConfig => PlexConfig::resolve($store),
         AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
         LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
-        // The duration is passed as a plain int rather than the config object:
-        // App\Support is generic infrastructure, and having it depend on
-        // App\Config would invert the layering for nothing. AuthConfig still
-        // performs the single bootstrap read, so one `SESSION_DURATION` governs
-        // the cookie, the session store, and the authenticated window alike.
-        SessionInterface::class => static fn (AuthConfig $auth): SessionInterface
-            => new NativeSession($auth->sessionDuration),
+        // Both values are passed as plain scalars rather than the config
+        // objects: App\Support is generic infrastructure, and having it depend
+        // on App\Config would invert the layering for nothing. The configs still
+        // perform the single bootstrap read, so one `SESSION_DURATION` governs
+        // the cookie, the session store, and the authenticated window alike, and
+        // one `SESSION_DIR` decides whether any of it survives an update.
+        //
+        // The directory comes from AppConfig rather than AuthConfig because it
+        // is a directory: DATA_DIR and POSTERS_DIR live there, and AuthConfig is
+        // about how long a session lasts, not where it is kept.
+        SessionInterface::class => static fn (AuthConfig $auth, AppConfig $app): SessionInterface
+            => new NativeSession($auth->sessionDuration, $app->sessionDir),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),

@@ -92,6 +92,18 @@ end the session are unobservable. That is why this shipped.
   PHP's file session handler takes a `flock()` on every request — trading a
   login annoyance for a class of hang on a path every request travels. It needs
   its own decision. Nothing here should be documented as fixing it.
+
+  > **Correction, added by `durable-session-storage`.** The last sentence of
+  > that reasoning was overstated, and the deferral rested on it. `/config` was
+  > already on the per-request path before this change: `DATA_DIR` defaults to
+  > `/config/data`, `PlexConnectionStore` is read on every authenticated request
+  > via `PlexConnectionMiddleware`, and the SQLite database lives on the same
+  > volume. So storing sessions there is not "a class of hang the application
+  > does not currently have" — the real difference is narrower, and is that the
+  > file session handler holds an *exclusive lock* across the request rather
+  > than performing a read. Still a genuine difference, and still worth its own
+  > change; not the one stated here. Left in place rather than rewritten, so
+  > the record shows what was decided and on what basis.
 - **Changing which routes are reachable anonymously.** The public-route set is
   unchanged. Only whether a session is started changes.
 - **Adding configuration.** No new environment variable, no changed default.

@@ -3,14 +3,22 @@
 #
 # Prepare the /config volume and schedule auto-import.
 
+# /config/sessions is where PHP sessions live, so that recreating the container
+# does not sign everybody out. The app creates it too — it cannot be left to
+# this script alone, which knows nothing about a SESSION_DIR pointing elsewhere.
 mkdir -p \
     /config/data \
+    /config/sessions \
     /config/posters/movies \
     /config/posters/tv-shows \
     /config/posters/tv-seasons \
     /config/posters/collections
 
 lsiown -R abc:abc /config
+
+# Sessions are readable only by the user that runs the app. PHP writes the
+# session files 0600; the directory holding them should not be looser.
+chmod 700 /config/sessions
 
 # Cron jobs DO get the container environment: the cron service runs under
 # with-contenv, so crond inherits it and passes it to everything it spawns.

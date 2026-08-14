@@ -55,13 +55,17 @@ final class CsrfMiddleware implements MiddlewareInterface
         }
 
         // Starting a sign-in is the one refusal that gets explained rather than
-        // raised. PHP sessions live in the container's /tmp, so recreating the
-        // container discards them all. Everywhere else that is invisible: a
-        // stale page posting afterwards is unauthenticated, and AuthMiddleware
-        // redirects it long before this check. Starting a sign-in is the only
-        // state-changing route reachable with no session behind it, so it is the
-        // only place a user meets a dead token — and it is the one route they
-        // cannot get past it on, because it is the way in.
+        // raised. A token can go dead under a page that is still open — the
+        // session behind it expires, or the store it lives in is cleared.
+        // (Recreating the container used to do that to every session at once,
+        // because they lived in the container's /tmp; they are on the volume
+        // now, so it takes an expiry or a deliberate wipe. Rarer, not gone.)
+        // Everywhere else that is invisible: a stale page posting afterwards is
+        // unauthenticated, and AuthMiddleware redirects it long before this
+        // check. Starting a sign-in is the only state-changing route reachable
+        // with no session behind it, so it is the only place a user meets a dead
+        // token — and it is the one route they cannot get past it on, because it
+        // is the way in.
         //
         // The explanation is JSON because the caller is a `fetch` that reads
         // `error` out of the body and shows it. An HTML error page here would
