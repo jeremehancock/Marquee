@@ -88,6 +88,7 @@ services:
       # None to set. You open Marquee by signing in to Plex, and only the
       # account that owns your server can do it.
       # SESSION_DURATION: "2592000"   # 30 days, renewed each time you use it
+      # SESSION_DIR: "/config/sessions"   # "/tmp" if /config is a network share
 
       # --- Plex (required for import / send / fetch / orphans) ---
       PLEX_SERVER_URL: "http://192.168.1.10:32400"
@@ -130,6 +131,8 @@ The `/config` volume holds everything Marquee needs to persist:
 
 - `/config/posters` — the poster images, grouped by category
 - `/config/data` — the SQLite database and logs
+- `/config/sessions` — your signed-in sessions, so updating Marquee doesn't sign
+  you out
 
 Back this directory up if you want to keep your poster selections.
 
@@ -145,6 +148,7 @@ There are no credentials to set: you sign in to Plex.
 | `TZ` | Timezone (e.g. `America/New_York`) | `Etc/UTC` |
 | `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `SESSION_DURATION` | How long a session may go unused before it ends, in seconds. The window is renewed every time you use Marquee, so this is idle time, not total time. | `2592000` (30 days) |
+| `SESSION_DIR` | Where sessions are stored. The default is on the `/config` volume, so staying signed in survives updating the container. Point it at `/tmp` if your `/config` is a network share whose file locking misbehaves — sessions then last only until the container is recreated. | `/config/sessions` |
 | `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
 | `PLEX_CONNECT_TIMEOUT` | Plex connect timeout, in seconds | `10` |
