@@ -37,6 +37,7 @@
 - [x] 5.4 Remove `obsoleteEnvToken` from `PlexConfig` and `obsoleteEnvCredentials` / `obsoleteEnvBypass` from `AuthConfig`, updating `PlexConnectionStatus` and `PlexConnectionState` accordingly
 - [x] 5.5 Update `PlexConnectionController::screen()` and `connect.html.twig` to render the report, keeping the two kinds visually distinct and their remedies different
 - [x] 5.6 Test: both kinds report when present and stay distinguishable; an empty report renders no notice
+- [x] 5.7 Fix the notice's icon overlapping its first line. Pre-existing, not introduced here: `.plex-connection__obsolete` restated `padding: 16px 18px`, and the shorthand reset the 44px left padding that `.alert`'s absolutely positioned `::before` glyph stands in. Only visible on an upgraded install with a stale compose file, which is not a state anyone develops against — so pin it with a shape tripwire that requires any rule repadding an alert to state all four sides
 
 ## 6. Bootstrap wiring
 

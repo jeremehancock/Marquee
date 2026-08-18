@@ -670,9 +670,25 @@ h1 {
     margin-top: 20px;
 }
 
+/* The left padding is not decoration — it is the room .alert::before stands in.
+   This rule used to say `padding: 16px 18px`, and the shorthand quietly reset
+   .alert's 44px left padding to 18px while the glyph stayed absolutely
+   positioned on top of it, so the first line of every notice on this screen ran
+   underneath the icon.
+
+   Written long-hand on purpose. A four-value shorthand states the left padding
+   out loud, where `16px 18px` looks complete and is not. The glyph is nudged to
+   match: .alert pins it 1px below its own 13px top padding, and this variant
+   pads 16px, so both the offset and the 10px gap to the text survive the larger
+   box. */
 .plex-connection__obsolete {
     margin-top: 20px;
-    padding: 16px 18px;
+    padding: 16px 18px 16px 47px;
+}
+
+.plex-connection__obsolete::before {
+    top: 17px;
+    left: 18px;
 }
 
 .plex-connection__obsolete p {
