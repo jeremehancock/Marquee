@@ -31,13 +31,13 @@
             {{ form.text('site_title', 'Site title', values.site_title, errors.site_title|default(null),
                          'Shown in the header and the browser tab. It does not rename the installed app.', 60) }}
 
-            {# Named for what it does on a desktop, where the gallery is paged.
-               A phone scrolls continuously, so the number still applies — it is
-               how many arrive in each batch — but nothing there is a "page" you
-               land on, and the label alone reads as if the setting were idle. #}
+            {# "Desktop only" is the reader's view of it and the right one for a
+               hint: a phone has no pager to apply this to. The number does still
+               size the infinite-scroll batches, but that is invisible while
+               scrolling, and saying so made the hint longer and less useful. #}
             {{ form.number('images_per_page', 'Posters per page', values.images_per_page, 1, 200,
                            errors.images_per_page|default(null),
-                           'The desktop gallery is paged; a phone scrolls continuously, loading this many at a time.') }}
+                           'Desktop only. A phone scrolls continuously instead.') }}
 
             {{ form.select('default_sort', 'Default sort', values.default_sort, sort_options,
                            errors.default_sort|default(null),
