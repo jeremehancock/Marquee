@@ -113,9 +113,9 @@
 
 ## 8. Validate on `:dev` (user-run, before archiving)
 
-- [ ] 8.1 An upgrade from the existing install still works, despite the stale
+- [x] 8.1 An upgrade from the existing install still works, despite the stale
       `plex_server_url` key left in `settings.json`.
-- [ ] 8.2 A fresh install with `PLEX_SERVER_URL` set reaches sign-in with no
+- [x] 8.2 A fresh install with `PLEX_SERVER_URL` set reaches sign-in with no
       wizard and no claim prompt.
-- [ ] 8.3 Changing `PLEX_SERVER_URL` in compose and recreating the container
+- [x] 8.3 Changing `PLEX_SERVER_URL` in compose and recreating the container
       changes the address in effect.
