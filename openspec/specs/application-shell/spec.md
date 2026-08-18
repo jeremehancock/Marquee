@@ -480,17 +480,22 @@ source does not return SHALL NOT be credited.
 ### Requirement: App-wide mobile actions menu
 The shared layout SHALL provide an app-wide **actions** menu for small screens so
 that the application's secondary actions are reachable from every authenticated
-page without crowding the content. The menu's entries are actions rather than
-in-place navigation destinations: on a narrow screen Import from Plex and Orphans
-open as trays over the current page, Poster Wall and Support Development open in a
-new browsing context, and Log out is an action. The trigger's glyph SHALL
+page without crowding the content. The menu's entries are predominantly actions
+rather than in-place navigation destinations: on a narrow screen Import from Plex
+and Orphans open as trays over the current page, Poster Wall and Support
+Development open in a new browsing context, and Log out is an action.
+
+Settings is the one entry that is a destination, and it SHALL navigate to its own
+page at every width rather than opening as a tray. It is a form long enough that a
+bottom sheet would be worse than a page, and it is somewhere to go rather than
+something to do. The trigger's glyph SHALL
 therefore signify an overflow / "more actions" affordance rather than a hamburger,
 which conventionally promises an edge-anchored navigation drawer the menu does not
 provide.
 
 On a narrow screen the topbar SHALL present a single overflow menu control;
 activating it SHALL open a tray listing the secondary links (Poster Wall, Import
-from Plex, Orphans, Support Development, and Log out). The control's accessible
+from Plex, Orphans, Settings, Support Development, and Log out). The control's accessible
 name and the tray's heading SHALL both name these as actions, so what the glyph
 signifies is also what the menu calls itself. The tray SHALL reuse the
 application's shared bottom-sheet/tray presentation (including its app-style
@@ -523,8 +528,13 @@ of the viewport than the menu's occasional use justifies.
 #### Scenario: Menu opens the navigation tray on a phone
 - **WHEN** an authenticated user on a narrow screen activates the topbar menu
   control
-- **THEN** a tray opens listing Poster Wall, Import from Plex, Orphans, Support
-  Development, and Log out
+- **THEN** a tray opens listing Poster Wall, Import from Plex, Orphans, Settings,
+  Support Development, and Log out
+
+#### Scenario: Settings opens as a page from the tray
+- **WHEN** a user on a narrow screen chooses Settings from the tray
+- **THEN** the tray dismisses and the settings page is opened
+- **AND** no settings tray is presented over the current page
 
 #### Scenario: Tray shows full names even where the header shortens them
 - **WHEN** the menu tray is opened on a narrow screen
@@ -565,7 +575,7 @@ of the viewport than the menu's occasional use justifies.
 
 ### Requirement: Secondary navigation in the desktop page header
 On a pointer/desktop screen the shared layout SHALL present the application's
-secondary navigation — Poster Wall, Import from Plex, Orphans, Support
+secondary navigation — Poster Wall, Import from Plex, Orphans, Settings, Support
 Development, and Log out — in the page header, rather than inside any single
 page's own content. Because the header is shared, these actions SHALL therefore be
 reachable from every page that renders navigation, not only the gallery, matching
@@ -596,8 +606,8 @@ these occasional destinations justify.
 #### Scenario: Secondary actions render in the header on desktop
 - **WHEN** a page that renders navigation is viewed on a pointer/desktop-width
   screen
-- **THEN** Poster Wall, Import from Plex, Orphans, Support Development, and Log out
-  are presented in the page header as icon-and-label actions
+- **THEN** Poster Wall, Import from Plex, Orphans, Settings, Support Development,
+  and Log out are presented in the page header as icon-and-label actions
 - **AND** Log out is presented in the same form as the others rather than as a
   plain text link
 
