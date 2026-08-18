@@ -30,10 +30,10 @@ immutable, typed configuration objects, applying documented defaults when a
 value is absent.
 
 Where each setting comes from is defined by `settings`. The directories that
-locate the settings store itself, and the error-display switch, are read from
-the environment; every other setting is resolved from the settings store, which
-the environment seeds once. This requirement governs the bootstrap contract —
-read once, immutable, typed, defaulted — not the source.
+locate the settings store itself, the error-display switch, and the Plex server
+address are read from the environment; every other setting is resolved from the
+settings store, which the environment seeds once. This requirement governs the
+bootstrap contract — read once, immutable, typed, defaulted — not the source.
 
 Every setting SHALL have a default that the system applies when the value is
 absent or empty, and each of those defaults SHALL be asserted by a test. A
@@ -57,10 +57,14 @@ to authenticate to Plex — the system MAY read it only to tell the user it is n
 longer used. Resolution SHALL still happen once at bootstrap into the same
 immutable configuration object.
 
-The Plex server address is resolved from the settings store like any other
-setting, seeded from `PLEX_SERVER_URL`. Signing in supplies a credential, never
-an address, and the two SHALL remain separately sourced: a credential is
-obtained by an authorization the user performs, while an address is configuration.
+The Plex server address SHALL be resolved from `PLEX_SERVER_URL` in the
+environment at every bootstrap, and SHALL NOT be read from the settings store.
+Signing in supplies a credential, never an address, and the two SHALL remain
+separately sourced: a credential is obtained by an authorization the user
+performs, while an address is configuration that requires access to the host.
+
+An address that cannot be parsed SHALL be exposed as no address at all, so that
+"configured" at bootstrap and "usable" at request time cannot disagree.
 
 #### Scenario: Default applied for missing variable
 - **WHEN** an optional setting such as the site title is not set in the store or
@@ -99,6 +103,16 @@ obtained by an authorization the user performs, while an address is configuratio
 #### Scenario: No token at all
 - **WHEN** no token has been stored
 - **THEN** the system reports Plex as not connected
+
+#### Scenario: The server address comes from the environment
+- **WHEN** `PLEX_SERVER_URL` is set in the environment
+- **THEN** Plex requests are made against that address
+- **AND** no attempt is made to resolve the address from the settings store
+
+#### Scenario: An unusable server address is treated as absent
+- **WHEN** `PLEX_SERVER_URL` is set to a value that cannot be parsed as a URL
+- **THEN** the configuration exposes no server address
+- **AND** the system reports Plex as not configured rather than raising an error
 
 #### Scenario: Configuration is resolved once per request
 - **WHEN** a request is served
