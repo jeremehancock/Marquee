@@ -139,7 +139,7 @@ import, nothing is imported from it, and posters already imported from it turn u
 as orphans.
 
 **Seeding is the only place a library exclusion is typed.** On the Settings
-screen they are tick boxes over the libraries your server actually reports, so a
+screen they are selected from the libraries your server actually reports, so a
 mistyped name can't quietly exclude nothing. That is the better way to set them
 whenever the install already exists.
 

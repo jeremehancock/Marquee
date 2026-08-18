@@ -31,8 +31,13 @@
             {{ form.text('site_title', 'Site title', values.site_title, errors.site_title|default(null),
                          'Shown in the header and the browser tab. It does not rename the installed app.', 60) }}
 
+            {# Named for what it does on a desktop, where the gallery is paged.
+               A phone scrolls continuously, so the number still applies — it is
+               how many arrive in each batch — but nothing there is a "page" you
+               land on, and the label alone reads as if the setting were idle. #}
             {{ form.number('images_per_page', 'Posters per page', values.images_per_page, 1, 200,
-                           errors.images_per_page|default(null)) }}
+                           errors.images_per_page|default(null),
+                           'The desktop gallery is paged; a phone scrolls continuously, loading this many at a time.') }}
 
             {{ form.select('default_sort', 'Default sort', values.default_sort, sort_options,
                            errors.default_sort|default(null),
@@ -83,7 +88,7 @@
                 {{ form.checkbox('auto_import_seasons', 'TV Seasons', values.auto_import_seasons) }}
                 {{ form.checkbox('auto_import_collections', 'Collections', values.auto_import_collections) }}
             </div>
-            <p class="field__hint">With none of these ticked, a scheduled run does
+            <p class="field__hint">With none of these selected, a scheduled run does
                nothing.</p>
         </section>
 
@@ -128,7 +133,7 @@
                                          library.title, 'excluded-' ~ loop.index) }}
                     {% endfor %}
                 </div>
-                <p class="field__hint">Tick a library to exclude it.</p>
+                <p class="field__hint">Select a library to exclude it.</p>
             {% endif %}
 
             {# Kept by a save rather than dropped by it, so a renamed or removed

@@ -46,7 +46,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   long you stay signed in, auto-import, and library exclusions. Saved settings
   apply on the next page you load, with no restart.
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
-  the UI and in every import. Tick the ones to hide from the list your server
+  the UI and in every import. Select the ones to hide from the list your server
   reports, so a mistyped name can't quietly exclude nothing.
 - **Orphan detection** — find and remove posters whose media no longer exists in
   Plex, or whose library is now excluded.
@@ -177,14 +177,14 @@ screen states: **auto-import applies from the next scheduled run.** Marquee
 checks once an hour whether a run is due, so a change you make is picked up by
 that check rather than immediately.
 
-**Excluded libraries are tick boxes over the libraries your server actually
+**Excluded libraries are selected from the libraries your server actually
 reports**, not a list of names to type. An excluded library is invisible to the
 whole of Marquee: it is not offered for import, nothing is imported from it, and
 posters already imported from it turn up as orphans.
 
 If a library you have excluded is no longer on your server — renamed, removed, or
 the server is not answering — Marquee keeps the exclusion and shows it separately
-rather than quietly dropping it. Clearing it is a tick box of its own.
+rather than quietly dropping it. Clearing it is a selection of its own.
 
 **The Plex server address is not on this screen, and will not be.** It stays in
 your compose file because setting it is what proves the server is yours — see
@@ -338,7 +338,7 @@ nothing has to be carried across.
    TV Seasons, Collections). Marquee pulls the current poster for every item and
    maps it back to the Plex item it belongs to.
 5. **Optionally turn on auto-import.** Open **Settings**, enable it, pick how
-   often it should run, and tick the types you want, so new media picks up
+   often it should run, and select the types you want, so new media picks up
    posters on its own.
 
 From there, use Marquee as described in [Usage](#usage).
@@ -392,7 +392,7 @@ They become orphans. An excluded library doesn't exist as far as Marquee is
 concerned, so the posters it left behind are no longer linked to anything —
 they show up on the **Orphans** screen, where you can review them and delete
 the ones you don't want. Marquee never deletes them on its own. If you change
-your mind, un-tick the library under **Settings** — no restart — and its posters
+your mind, deselect the library under **Settings** — no restart — and its posters
 go back to being ordinary posters; anything you already deleted comes back with a
 fresh import.
 
