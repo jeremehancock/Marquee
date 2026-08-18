@@ -121,6 +121,18 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   test can catch a *new* service reaching for the shared client, which is why
   this is written down. There is one such caller today, and adding a second is a
   spec change to `poster-editing`, not a wiring decision.
+- **A control is switched off with `aria-disabled`, never the `disabled`
+  attribute, and every such binding needs a guard at the action.** The attribute
+  drops a control out of the tab order, so a keyboard user is not told it is
+  unavailable — they are not told it exists; and disabling a *focused* element
+  hands its focus to the document body, which is the common case here, because
+  these controls are switched off by the very press that starts their work.
+  `aria-disabled` announces and does not enforce: the click still fires,
+  `:active` still matches, and a form still submits on Enter. `DisabledStateTest`
+  pins the bindings that exist and the CSS that draws them, but it cannot catch a
+  *new* control added without its guard — the same shape of hazard as the bullet
+  above, and the same reason it is written here. The appearance is stated once on
+  `.btn`; don't restyle it per control.
 
 ## Docker
 

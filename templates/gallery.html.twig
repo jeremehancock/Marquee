@@ -149,14 +149,20 @@
                 <div class="modal__tabs">
                     <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
                     <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
-                    {# Shown for every poster, disabled for one with no Plex item, so the
+                    {# Shown for every poster, switched off for one with no Plex item, so the
                        strip keeps its shape from poster to poster. Hiding it would leave a
                        user who learned where the tab sits finding it gone with no reason
-                       given. Disabled carries its reason in the tooltip and in the panel. #}
+                       given. Off carries its reason in the tooltip and in the panel.
+
+                       aria-disabled rather than disabled: the attribute would take the tab
+                       out of the tab order, so a keyboard user would not be told the tab is
+                       unavailable — they would not be told it exists. The cost is that the
+                       click still fires, which is why the handler tests change.linked itself
+                       rather than trusting the attribute to enforce anything. #}
                     <button type="button" :class="change.tab === 'plex' ? 'is-active' : ''"
-                            :disabled="!change.linked"
+                            :aria-disabled="change.linked ? 'false' : 'true'"
                             :data-tooltip="change.linked ? null : 'This poster is not linked to a Plex item.'"
-                            @click="change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
+                            @click="if (change.linked) { change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters(); }">Plex Posters</button>
                     <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
                             @click="change.tab = 'find'; if (!finder.sections.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
@@ -279,12 +285,23 @@
                above it shrank and the image the user is inspecting jumped at the
                moment they were deciding about it. The title is one Escape away in
                the dialog heading; a still image is worth more here. #}
+            {# Both switch off the moment the change starts, and both use aria-disabled
+               rather than disabled. The attribute drops a focused element out of the
+               tab order, which hands the browser a focus it has nowhere to put: it
+               falls to the document body, so a keyboard user who pressed Change poster
+               loses their place mid-change. These are pressed and then switched off by
+               that very press, so it is the common case here, not an edge one.
+
+               applyPreview() already returns early on preview.applying (see gallery.js),
+               so the accent button needs no guard added. Cancel is an inline expression
+               with nothing behind it, so it tests the flag here — without that it would
+               dismiss the confirm bar out from under a change already in flight. #}
             <div class="viewer__actions" x-show="preview.confirming" x-cloak>
                 <span class="viewer__ask">Change the poster to this one?</span>
                 <button type="button" class="btn btn--accent" @click="applyPreview()"
-                        :disabled="preview.applying">Change poster</button>
-                <button type="button" class="btn" @click="preview.confirming = false"
-                        :disabled="preview.applying">Cancel</button>
+                        :aria-disabled="preview.applying ? 'true' : 'false'">Change poster</button>
+                <button type="button" class="btn" @click="if (!preview.applying) preview.confirming = false"
+                        :aria-disabled="preview.applying ? 'true' : 'false'">Cancel</button>
             </div>
         </div>
         {# Progress while the change runs. Shown immediately rather than after a

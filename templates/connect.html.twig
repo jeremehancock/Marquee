@@ -84,8 +84,13 @@
                     Sign in with the Plex account that owns this server.
                 </p>
             {% endif %}
+            {# aria-disabled, not disabled: this button switches itself off in response
+               to being pressed, and disabling a focused element drops focus to the
+               document body — so pressing this by keyboard would send the user back to
+               the top of the page while they wait for Plex. signIn() already returns
+               early on `busy`, so nothing is added here to refuse the second press. #}
             <button type="button" class="btn btn--accent"
-                    @click="signIn()" x-bind:disabled="busy"
+                    @click="signIn()" :aria-disabled="busy ? 'true' : 'false'"
                     x-text="busy ? 'Waiting for Plex…' : 'Sign in with Plex'">Sign in with Plex</button>
         {% endif %}
 

@@ -43,8 +43,11 @@
                       if (this.type === 'collection') return this.movieLibs + this.tvLibs;
                       if (this.type === 'show' || this.type === 'season') return this.tvLibs;
                       return 0;
+                  },
+                  get ready() {
+                      return this.type !== '' && this.sections.length > 0;
                   }
-              }" @submit="importing = true">
+              }" @submit="if (!ready || importing) { $event.preventDefault(); return; } importing = true">
             {{ csrf_field() }}
 
             <fieldset class="fieldset">
@@ -77,13 +80,28 @@
                 {% endfor %}
             </fieldset>
 
-            <label class="check" x-show="type" x-cloak>
+            {# Shown on `ready` — the same getter the Import button binds — and not on
+               `type` alone, which offered it a step early: with a content type picked
+               and no library ticked, the option was settable while the import it
+               modifies could not run.
+
+               The two conditions must stay identical rather than merely compatible.
+               This checkbox is the one control the form's component does not own — no
+               x-model reaches it — so x-show hides it without clearing it, and a
+               hidden-but-checked box still submits force=1. Tying it to the button's
+               own condition is what guarantees that anything able to change what an
+               import does is on screen while it can. #}
+            <label class="check" x-show="ready" x-cloak>
                 <input type="checkbox" name="force" value="1">
                 Re-download unchanged posters
             </label>
 
+            {# The condition was always right; until now nothing drew it. aria-disabled
+               keeps the button reachable so a keyboard user is told it is unavailable
+               instead of never meeting it — and because that also keeps it pressable,
+               the form's @submit and runImport() both refuse the same condition. #}
             <button type="submit" class="btn btn--accent"
-                    :disabled="!type || sections.length === 0 || importing">Import</button>
+                    :aria-disabled="!ready || importing ? 'true' : 'false'">Import</button>
 
             <div class="overlay" x-show="importing" x-cloak style="display:none">
                 <div class="overlay__box">

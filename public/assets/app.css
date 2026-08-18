@@ -1030,18 +1030,26 @@ h1 {
                 transform var(--dur-fast) var(--ease-standard);
 }
 
+/* The off state is excluded here rather than undone below. A disabled rule
+   placed after these would win by specificity accident, and every hover rule
+   added later would have to be re-checked against it; excluding it in the
+   selector means no hover state is ever declared for a control that cannot be
+   used. Suppressing this is the substance of the off state — a fill colour says
+   "not now", but feedback under the pointer is the promise that pressing will do
+   something, and an inert control that brightens is worse than one that never
+   reacted at all. */
 @media (hover: hover) {
-    .btn:hover {
+    .btn:not(:disabled):not([aria-disabled='true']):hover {
         background: var(--surface-2);
         border-color: #4b515b;
     }
 
-    .btn--accent:hover {
+    .btn--accent:not(:disabled):not([aria-disabled='true']):hover {
         background: #f0ac1c;
         border-color: #f0ac1c;
     }
 
-    .btn--danger:hover {
+    .btn--danger:not(:disabled):not([aria-disabled='true']):hover {
         background: rgba(228, 120, 95, 0.14);
         border-color: rgba(228, 120, 95, 0.7);
     }
@@ -1050,11 +1058,20 @@ h1 {
 /* Distinct from hover, and on every device. `translateY` rather than a colour
    change alone: displacement is what reads as a press, and one pixel is enough
    at this size. Transform does not participate in layout, so nothing beside the
-   button moves. */
-.btn:active {
+   button moves.
+
+   The off state is excluded, and here that is load-bearing rather than tidy: a
+   natively disabled button never matches `:active`, but this application marks
+   its off controls with `aria-disabled`, and to the browser those are ordinary
+   enabled buttons. Without the exclusion a dead button visibly depresses under a
+   press — and nothing reveals it until someone presses. */
+.btn:not(:disabled):not([aria-disabled='true']):active {
     transform: translateY(1px);
 }
 
+/* Deliberately not excluded. An `aria-disabled` control keeps its place in the
+   tab order — that is the point of using it — so a keyboard user lands here and
+   has to be able to see where they are. */
 .btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -1070,6 +1087,48 @@ h1 {
 .btn--danger {
     color: #e4785f;
     border-color: rgba(228, 120, 95, 0.4);
+}
+
+/* Off.
+
+   Placed after the variants so it wins over them: an emphasised button has to
+   surrender its emphasis while it cannot be used, or a full-width accent bar
+   goes on reading as the thing to press. Colour alone would not carry it —
+   opacity is what this file uses for translucent chrome and for animating things
+   in, so a faded control reads as "arriving" or "behind something" as readily as
+   "off". Surface, border, ink, and cursor together say it; none of them alone.
+
+   `:disabled` is kept beside the attribute although nothing in the application
+   uses it today. A native `<button disabled>` added later must not arrive
+   untreated, which is the whole reason this is stated once instead of at each
+   control that happens to need it.
+
+   `pointer-events: none` is deliberately absent. It would stop the click without
+   a handler change, which is exactly why it is tempting — and it would also
+   silence the tooltip on the Plex Posters tab, which is the only thing that
+   explains why that tab is off. Refusing the action belongs in the handler; this
+   rule only draws.
+
+   --surface-2 and not --surface, which is the first thing this rule got wrong:
+   .panel and .modal__panel are both drawn on --surface, so an off button filled
+   with it dissolved into whatever it sat on and left the label floating with no
+   button around it at all. The fill has to differ from every surface a button can
+   sit on — the page (--bg), a panel or dialog (--surface), and a tray — and
+   --surface-2 is the one tier that clears all three. It doubles as the hover fill
+   for an ordinary button, which would be a collision worth avoiding except that an
+   off button has no hover state to collide with.
+
+   Only border-color is set, deliberately. `.form button` declares `border: none`,
+   and a shorthand sets border-style too, so a border declared here would appear on
+   the off state and vanish again when the button came alive — two pixels of layout
+   shift at the moment the user completes their selection. Where a border exists
+   this recolours it; where the context removed it, the fill carries the state. */
+.btn:disabled,
+.btn[aria-disabled='true'] {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
 }
 
 .btn--small {
@@ -1328,13 +1387,13 @@ h1 {
 }
 
 @media (hover: hover) {
-    .icon-btn:hover {
+    .icon-btn:not(:disabled):not([aria-disabled='true']):hover {
         background: var(--surface-2);
         border-color: #4b515b;
     }
 }
 
-.icon-btn:active {
+.icon-btn:not(:disabled):not([aria-disabled='true']):active {
     transform: translateY(1px);
 }
 
@@ -1376,10 +1435,6 @@ h1 {
     color: var(--muted);
     font-size: 0.8rem;
     margin: 0 0 8px;
-}
-
-.is-disabled {
-    opacity: 0.45;
 }
 
 /* Content-type chooser (import step 1) */
@@ -1743,23 +1798,29 @@ h1 {
 }
 
 /* Make the control under the pointer (or keyboard focus) unmistakable before
-   it is clicked. Scoped to the overlay so buttons elsewhere are unaffected. */
-.card__actions .btn:hover,
-.card__actions .btn:focus-visible {
+   it is clicked. Scoped to the overlay so buttons elsewhere are unaffected.
+
+   The off state is excluded from all three, focus included. No card action is
+   switched off today, so this is for the one that will be: an off control that
+   answered a hover or a focus with the accent treatment would read as the most
+   pressable thing on the card. Focus stays visible through the plain outline
+   rule below, which is all a focused control needs to say where it is. */
+.card__actions .btn:not(:disabled):not([aria-disabled='true']):hover,
+.card__actions .btn:not(:disabled):not([aria-disabled='true']):focus-visible {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 14%, var(--surface));
     color: var(--ink);
 }
 
-.card__actions .btn--accent:hover,
-.card__actions .btn--accent:focus-visible {
+.card__actions .btn--accent:not(:disabled):not([aria-disabled='true']):hover,
+.card__actions .btn--accent:not(:disabled):not([aria-disabled='true']):focus-visible {
     background: var(--accent-dim);
     border-color: var(--accent-dim);
     color: #1a1300;
 }
 
-.card__actions .btn--danger:hover,
-.card__actions .btn--danger:focus-visible {
+.card__actions .btn--danger:not(:disabled):not([aria-disabled='true']):hover,
+.card__actions .btn--danger:not(:disabled):not([aria-disabled='true']):focus-visible {
     background: color-mix(in srgb, #e4785f 26%, var(--surface-2));
     border-color: rgba(228, 120, 95, 0.9);
     color: #f3b0a1;
@@ -2224,7 +2285,7 @@ h1 {
 }
 
 @media (hover: hover) {
-    .modal__tabs button:not(.is-active):hover {
+    .modal__tabs button:not(.is-active):not(:disabled):not([aria-disabled='true']):hover {
         color: var(--ink);
         border-bottom-color: var(--border);
     }
@@ -2233,6 +2294,31 @@ h1 {
 .modal__tabs button.is-active {
     color: var(--ink);
     border-bottom-color: var(--accent);
+}
+
+/* Off. The tab strip cannot say this as loudly as .btn can, and the reason is
+   structural rather than an omission: an available-but-inactive tab already sits
+   at --muted, so the off state has no tier of its own to drop into. What is left
+   is a further step down from muted, the cursor, and the absence of any response
+   to the pointer.
+
+   It is thin, and the strip leans on the tooltip and on the panel to carry the
+   reason — which is what the comment at the call site in gallery.html.twig has
+   always claimed, and what was not true of the appearance until now. On touch,
+   where there is no tooltip and no hover, the dimming is doing the work alone.
+   That gap is known and is not solved here.
+
+   No `pointer-events: none`, for the same reason as .btn: it would take the
+   tooltip with it, and the tooltip is the only explanation this control has. */
+.modal__tabs button:disabled,
+.modal__tabs button[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.modal__tabs button:disabled:active,
+.modal__tabs button[aria-disabled='true']:active {
+    color: var(--muted);
 }
 
 /* Fullscreen viewer */
@@ -2569,7 +2655,7 @@ h1 {
     border-color: #474c55;
 }
 
-.sheet__body .btn:not(.btn--accent):not(.btn--danger):active {
+.sheet__body .btn:not(.btn--accent):not(.btn--danger):not(:disabled):not([aria-disabled='true']):active {
     background: #3c4048;
 }
 
