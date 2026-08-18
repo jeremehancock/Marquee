@@ -113,8 +113,11 @@
 
 - [x] 6.1 `composer test`, `composer stan`, `composer cs`.
 - [x] 6.2 `openspec validate block-private-network-poster-fetch --strict`.
-- [ ] 6.3 Manually confirm the refusal path on a running instance: paste
+- [x] 6.3 Manually confirm the refusal path on a running instance: paste
       `http://127.0.0.1/` and a LAN address into the From URL field, and confirm
       each is refused with the address message and the poster is untouched.
-- [ ] 6.4 Confirm a real public poster URL still applies end to end, including
-      the push to Plex.
+      Validated on the `:dev` image.
+- [x] 6.4 Confirm a real public poster URL still applies end to end, including
+      the push to Plex. Validated on the `:dev` image, including a Find Posters
+      candidate — the case that shares this path and would have broken the
+      poster search rather than only manual entry.
