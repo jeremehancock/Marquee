@@ -76,7 +76,8 @@ of the viewport than the menu's occasional use justifies.
   Support Development, and Log out
 
 #### Scenario: Settings opens as a tray from the actions tray
-- **WHEN** a user on a narrow screen chooses Settings from the actions tray
+- **WHEN** a user on a narrow screen chooses Settings from the actions tray, on the
+  gallery
 - **THEN** the actions tray dismisses and the settings screen opens as a tray over
   the current page
 - **AND** the page behind it is not navigated away from
@@ -94,9 +95,17 @@ of the viewport than the menu's occasional use justifies.
 - **THEN** the tray stays open showing the errors against the fields they belong to
 - **AND** the page behind the tray is neither reloaded nor navigated away from
 
+#### Scenario: Settings opens as a page from the tray
+- **WHEN** a user on a narrow screen chooses Settings from the actions tray, on a
+  page that hosts no settings tray of its own — Import from Plex, or Orphaned
+  posters
+- **THEN** the actions tray dismisses and the settings page is opened
+- **AND** this is the fallback rather than the ordinary case: Import from Plex and
+  Orphans behave the same way on those pages
+
 #### Scenario: The settings page remains reachable in its own right
 - **WHEN** a user opens `/settings` directly, or reaches Settings from a
-  pointer/desktop screen or from a page that hosts no settings tray
+  pointer/desktop screen
 - **THEN** the settings screen is presented as its own page
 - **AND** the tray is an alternative presentation of that page rather than a
   replacement for it
