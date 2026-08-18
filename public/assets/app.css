@@ -19,19 +19,20 @@
     --border: #34373d;
 
     /* Elevation. Five tiers, keyed to the z-index ladder documented in the Modal
-       section (pinned controls 30, the header's overflow menu 35, tab bar 40,
-       trays 50, dialogs 55, viewer 60, toast 80, tooltip 100, and the progress
-       overlay at 100 — except inside a tray, where it is deliberately demoted to 5
-       so it covers the tray rather than the screen). A surface's tier MUST agree
-       with where it sits on that ladder, or depth and stacking tell the reader
-       different stories.
+       section (pinned controls 30, the topbar 35, tab bar 40, trays 50, dialogs 55,
+       viewer 60, toast 80, tooltip 100, and the progress overlay at 100 — except
+       inside a tray, where it is deliberately demoted to 5 so it covers the tray
+       rather than the screen). A surface's tier MUST agree with where it sits on
+       that ladder, or depth and stacking tell the reader different stories.
 
-       The overflow menu's 35 is the one rung that exists to clear a specific
-       neighbour rather than to name a class of surface: it opens downward out of
-       the header, over the content region where .gallery-head is pinned at 30, and
-       a positioned element paints above an unpositioned in-flow ancestor whatever
-       the document order says. It is desktop-only, so it never shares a screen
-       with the tab bar or a tray above it.
+       The topbar's 35 is the one rung that exists to clear a specific neighbour
+       rather than to name a class of surface. It is not the bar that needs it: the
+       bar never overlaps anything. It is the overflow menu inside it, which opens
+       downward over the content region where .gallery-head is pinned at 30 — and
+       because `backdrop-filter` makes the header a stacking context, the menu's own
+       z-index is resolved against the header and cannot reach the page. Raising the
+       header is the only thing that lifts the menu. Desktop-only in effect, so it
+       never shares a screen with the tab bar or a tray above it.
 
        DesignTokenContractTest::testElevationAgreesWithTheStackingLadder asserts
        it, because picking a shadow by eye is exactly how the two drift apart.
@@ -170,7 +171,30 @@ body {
    is about the page showing through as content passes under it on its way out,
    and about matching the pinned controls below it, which do stay. Pinning the
    header too would be a behaviour change, and nothing asked for one. */
+/* `position: relative; z-index: 35` is the header's, but it is the overflow menu
+   that needs it, and the reason is worth stating because the obvious fix does not
+   work.
+
+   `backdrop-filter` does two things to this element. The documented one is that it
+   becomes a containing block for fixed descendants — that is what teleported the
+   phone tray. The second is that it becomes a STACKING CONTEXT, and that one is
+   what traps the menu: every z-index inside the header is resolved against the
+   header, not the page. So the panel's own z-index can be any number at all and
+   the whole header still paints where an unpositioned element paints, which is
+   below .gallery-head's pinned 30. The menu came out behind the gallery's controls
+   with a perfectly correct-looking z-index on it.
+
+   Raising the header is what actually lifts the menu. `relative` keeps it in flow,
+   so the header still scrolls away with the page and nothing moves; it is here
+   only because z-index does nothing to a statically positioned element.
+
+   Safe against the pinned controls it now outranks: the header sits above them in
+   flow with the container's padding between, and .gallery-head only sticks once
+   the header has scrolled entirely off the top, so the two boxes never share
+   space. HeaderOverflowMenuTest asserts the comparison this rule exists to win. */
 .topbar {
+    position: relative;
+    z-index: 35;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -300,12 +324,11 @@ body {
    would resolve against the header's own box instead of the viewport and land in
    the wrong place; an absolute one resolves against .navmenu and is unaffected.
 
-   z-index 35 is a rung of its own on the stacking ladder, and it is load-bearing.
-   The panel opens downward over the content region, where .gallery-head is pinned
-   at 30 — and a positioned element with a z-index paints above an unpositioned
-   in-flow ancestor whatever the document order says, so without this the menu is
-   drawn behind the gallery's own controls. Above pinned controls, below the phone
-   tab bar. */
+   The z-index here only orders the panel against its siblings inside the header.
+   What lifts it over the gallery's pinned controls is the z-index on .topbar —
+   `backdrop-filter` makes the header a stacking context, so nothing in here is
+   resolved against the page. Raising this number does nothing on its own; see the
+   .topbar rule. */
 .navmenu__panel {
     position: absolute;
     top: calc(100% + 6px);

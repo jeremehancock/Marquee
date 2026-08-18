@@ -20,7 +20,7 @@
 - [x] 3.1 Give the panel `z-index: 35` so it draws above `.gallery-head` (sticky, `z-index: 30`, `app.css:1002-1006`), which it opens over.
 - [x] 3.2 Add the rung to the ladder comment at `app.css:21-27` — "pinned controls 30, header overflow menu 35, tab bar 40, …" — and give the panel a shadow from the tier that agrees with it.
 - [x] 3.3 Re-read `DesignTokenContractTest::testElevationAgreesWithTheStackingLadder` by hand and update its transcribed tiers. The test never reads a `z-index` out of the CSS, so it will not fail on its own if this is skipped.
-- [ ] 3.4 Open the panel over a scrolled gallery with its controls pinned and confirm by eye that it draws above them.
+- [x] 3.4 Open the panel over a scrolled gallery with its controls pinned and confirm by eye that it draws above them.
 
 ## 4. Settings tray
 
@@ -52,4 +52,4 @@
 - [x] 7.1 Update `README.md`: Settings sits behind the overflow control in the header on desktop (lines ~127-128 and ~159), and opens as a tray on a phone. Add it to the trays named in the mobile-experience bullet (~line 68) and the "Does it work on mobile?" answer (~line 493).
 - [x] 7.2 Check `docs/` for anything that describes the navigation or how Settings is reached, and state explicitly in the commit if nothing there is stale. (`docs/configuration.md` names the Settings *screen*, which is unchanged; the `⋯` references in `docs/testing.md` and `docs/development-workflow.md` are Plex Web and VS Code, not Marquee.)
 - [x] 7.3 Run `composer test`, `composer stan`, and `composer cs`. All three must pass before committing.
-- [ ] 7.4 Check the desktop header by eye at 960px, in the 641–900px band, and on a phone viewport, with a long `SITE_TITLE` set — the width case this change exists for.
+- [x] 7.4 Check the desktop header by eye at 960px, in the 641–900px band, and on a phone viewport, with a long `SITE_TITLE` set — the width case this change exists for.

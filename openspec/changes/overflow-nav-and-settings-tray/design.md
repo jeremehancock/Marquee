@@ -78,13 +78,29 @@ Context.
 
 Absolute positioning alone is not enough. `.gallery-head` is
 `position: sticky; z-index: 30` (`app.css:1002-1006`) and sits directly beneath the
-header in the content region the panel opens over. A positioned element with a
-`z-index` paints above an unpositioned in-flow ancestor regardless of document
-order, so a panel with no stacking context of its own would be drawn *behind* the
-gallery's pinned controls.
+header in the content region the panel opens over, so the panel needs to out-stack
+it.
 
-The panel therefore takes **`z-index: 35`** — a new rung between "pinned controls
-30" and "tab bar 40". Two things must be updated by hand:
+**The z-index goes on `.topbar`, not on the panel**, and this was got wrong first
+time round — shipped to `:dev` and caught by eye. `backdrop-filter` does two things
+to the header, and only one of them is written up in the codebase: it makes the
+header a containing block for fixed descendants (the trap that teleported the phone
+tray), **and it makes the header a stacking context**. Every z-index inside the
+header is therefore resolved against the header, and the header itself paints where
+an unpositioned in-flow element paints — below `.gallery-head`'s 30. The panel's own
+`z-index: 35` looked correct, tested green, and could never have worked.
+
+So `.topbar` takes `position: relative; z-index: 35` — a new rung between "pinned
+controls 30" and "tab bar 40". `relative` is there only because z-index does nothing
+to a static element; the header stays in flow and still scrolls away. The panel
+keeps a z-index of its own, but it now only orders it against its siblings inside
+the header.
+
+This is safe against the controls it now outranks: the header sits above them in
+flow with the container's padding between, and `.gallery-head` only sticks once the
+header has scrolled entirely off the top, so the two boxes never share space.
+
+Two things must be updated by hand:
 
 - The ladder comment at `app.css:21-27`, which is the ladder's only prose home.
 - `DesignTokenContractTest::testElevationAgreesWithTheStackingLadder`. That test
@@ -192,7 +208,10 @@ server's state rather than the rejected submission.
   tiers by hand and never reads a `z-index` out of the CSS. Adding 35 means editing
   the ladder comment and the test's assertions together, and eyeballing the panel
   over an open gallery. Called out as its own task rather than folded into the CSS
-  work.
+  work. *This risk landed:* the by-eye task is what caught the stacking-context
+  mistake above, after a green suite had signed the arrangement off. `HeaderOverflow
+  MenuTest` now compares `.topbar` against `.gallery-head` — the pair that actually
+  decides the paint order — and that assertion has been checked against a revert.
 
 - **An expired session's redirect reads as a successful save** → The auth middleware
   answers an unauthenticated POST with a 302, which is indistinguishable from the

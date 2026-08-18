@@ -76,30 +76,51 @@ final class HeaderOverflowMenuTest extends TestCase
         self::assertStringContainsString('position: relative', $this->rule('.navmenu'));
     }
 
-    public function testThePanelIsDrawnOverThePagesOwnPinnedControls(): void
+    /**
+     * The comparison that actually decides the paint order, and it is not the one
+     * it looks like it should be.
+     *
+     * This assertion originally compared `.navmenu__panel` against `.gallery-head`.
+     * It passed, and the menu still rendered behind the gallery's pinned controls,
+     * because `backdrop-filter` makes `.topbar` a stacking context: every z-index
+     * inside the header is resolved against the header, and the header itself
+     * paints where an unpositioned element paints. The panel's number was never in
+     * the running. So the pair under test is the header against the controls.
+     */
+    public function testTheHeaderOutStacksThePagesOwnPinnedControls(): void
     {
+        $topbar = $this->rule('.topbar');
+
+        // z-index does nothing to a statically positioned element, and the header
+        // is otherwise in normal flow.
+        self::assertStringContainsString(
+            'position: relative',
+            $topbar,
+            'The header needs a position for its z-index to apply at all.',
+        );
+
         self::assertGreaterThan(
             $this->zIndex('.gallery-head'),
-            $this->zIndex('.navmenu__panel'),
-            'The menu opens over the content region the gallery head is pinned in, '
-            . 'so it must out-stack it or it is simply drawn behind.',
+            $this->zIndex('.topbar'),
+            'The overflow menu opens over the region the gallery head is pinned in, '
+            . 'and only the header it is trapped inside can out-stack it.',
         );
     }
 
     /**
      * Above the pinned controls, and no higher. The tab bar, the trays and the
-     * dialogs all cover this menu; borrowing one of their rungs would let a header
-     * popover sit over an open dialog.
+     * dialogs all cover the header and the menu inside it; borrowing one of their
+     * rungs would let a header popover sit over an open dialog.
      */
-    public function testThePanelStaysBelowTheSurfacesThatCoverIt(): void
+    public function testTheHeaderStaysBelowTheSurfacesThatCoverIt(): void
     {
-        $panel = $this->zIndex('.navmenu__panel');
+        $topbar = $this->zIndex('.topbar');
 
         foreach (['.sheet' => 'a tray', '.modal' => 'a dialog'] as $selector => $what) {
             self::assertLessThan(
                 $this->zIndex($selector),
-                $panel,
-                sprintf('The header menu must be covered by %s.', $what),
+                $topbar,
+                sprintf('The header must be covered by %s.', $what),
             );
         }
     }
