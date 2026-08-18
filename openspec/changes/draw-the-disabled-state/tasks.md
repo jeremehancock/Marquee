@@ -128,33 +128,33 @@ ahead of its guard is a live button that looks dead.
 
 ## 6. Verification against the `:dev` image
 
-- [ ] 6.1 Import tray on a phone: with nothing selected the Import button reads
+- [x] 6.1 Import tray on a phone: with nothing selected the Import button reads
       as off and does not respond to a press; the re-download option is absent.
       Pick a type only — the option is still absent, the button still off. Pick a
       library — both come alive together.
-- [ ] 6.2 Import page on a desktop: point at the off Import button and confirm it
+- [x] 6.2 Import page on a desktop: point at the off Import button and confirm it
       does not brighten, does not depress when pressed, and the cursor says it
       will not respond. This is the specific defect; check it directly.
-- [ ] 6.3 Keyboard pass on `/plex`, which is where the reachability work is
+- [x] 6.3 Keyboard pass on `/plex`, which is where the reachability work is
       actually observable: Tab reaches the off Import button, it shows a focus
       ring, Enter and Space do nothing, and pressing Enter on a content-type
       radio does not submit the form.
-- [ ] 6.4 Keyboard pass on `/connect`: press **Sign in with Plex** by keyboard and
+- [x] 6.4 Keyboard pass on `/connect`: press **Sign in with Plex** by keyboard and
       confirm focus stays on the button as it switches off, rather than returning
       to the top of the document. This is the focus-stranding fix; it is invisible
       unless checked deliberately.
-- [ ] 6.5 Check `--muted` on `--surface` stays legible in both places the button
+- [x] 6.5 Check `--muted` on `--surface` stays legible in both places the button
       appears — the page and the translucent tray — since the effective
       background differs between them.
-- [ ] 6.6 Open the change dialog on a poster with no Plex item: the Plex Posters
+- [x] 6.6 Open the change dialog on a poster with no Plex item: the Plex Posters
       tab reads as off, its tooltip still gives the reason on a device with a
       pointer, and pressing it does nothing at all. Note for the record that on
       touch it still explains nothing — known, and out of scope.
-- [ ] 6.7 Apply a poster change and a Plex sign-in, watching for a flicker as the
+- [x] 6.7 Apply a poster change and a Plex sign-in, watching for a flicker as the
       brief `applying` and `busy` states turn the buttons off under their progress
       overlays. Confirm Cancel cannot be pressed while the change is running.
-- [ ] 6.8 Run an import to completion and confirm the tray rewind still clears the
+- [x] 6.8 Run an import to completion and confirm the tray rewind still clears the
       re-download option — its enclosing `x-show` now collapses at the same moment
       `_rewindImportForm` unchecks it, and the two must not fight.
-- [ ] 6.9 Screen reader spot-check on the off Import button: it is announced as a
+- [x] 6.9 Screen reader spot-check on the off Import button: it is announced as a
       button and as unavailable, rather than not being announced at all.
