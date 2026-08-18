@@ -38,11 +38,13 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Efficient imports** — Marquee skips re-downloading posters that haven't
   changed in Plex (with an option to force a full refresh), reducing load on your
   Plex server.
-- **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h).
+- **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h),
+  turned on and off in the app. Changing it needs no restart, and an install that
+  was switched off over its scheduled time imports when it comes back.
 - **Settings in the app** — change how Marquee behaves from a screen rather than
   a compose file: site title, page size, sort, upload limit, Plex timeouts, how
-  long you stay signed in, and library exclusions. Saved settings apply on the
-  next page you load, with no restart.
+  long you stay signed in, auto-import, and library exclusions. Saved settings
+  apply on the next page you load, with no restart.
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
   the UI and in every import. Tick the ones to hide from the list your server
   reports, so a mistyped name can't quietly exclude nothing.
@@ -101,6 +103,8 @@ services:
       # PLEX_REMOVE_OVERLAY_LABEL: "false"   # "true" if you use Kometa overlays
 
       # --- Auto-import (optional) ---
+      # Turned on and scheduled under Settings once running; this only seeds a
+      # brand-new install.
       # AUTO_IMPORT_ENABLED: "false"
       # AUTO_IMPORT_SCHEDULE: "24h"   # 1h | 3h | 6h | 12h | 24h
       # AUTO_IMPORT_MOVIES: "true"
@@ -195,16 +199,21 @@ There are no credentials to set: you sign in to Plex.
 ### Settings
 
 **Settings** in the header is where configuration lives once an install is
-running. Everything on it takes effect on the next page you load — nothing here
-needs the container restarted or recreated.
+running. Nothing here needs the container restarted or recreated.
 
 | Group | What you can change |
 | --- | --- |
 | Presentation | Site title, posters per page, default sort, whether leading articles are ignored when sorting, maximum upload size |
 | Plex | Connect and request timeouts, whether Kometa's `Overlay` label is removed when a poster is sent |
+| Auto-import | Whether to import on a schedule, how often, and which types |
 | Session | How long you stay signed in |
 | Updates | Whether to check GitHub for a newer release |
 | Libraries | Which Plex libraries to exclude |
+
+Everything takes effect on the next page you load, with one exception that the
+screen states: **auto-import applies from the next scheduled run.** Marquee
+checks once an hour whether a run is due, so a change you make is picked up by
+that check rather than immediately.
 
 **Excluded libraries are tick boxes over the libraries your server actually
 reports**, not a list of names to type. An excluded library is invisible to the
@@ -215,7 +224,7 @@ If a library you have excluded is no longer on your server — renamed, removed,
 the server is not answering — Marquee keeps the exclusion and shows it separately
 rather than quietly dropping it. Clearing it is a tick box of its own.
 
-The Plex server address and the auto-import schedule are not on this screen yet.
+The Plex server address is not on this screen yet.
 
 ### Signing in
 
@@ -353,9 +362,9 @@ nothing has to be carried across.
 4. **Import from Plex.** Run an import for each type you want (Movies, TV Shows,
    TV Seasons, Collections). Marquee pulls the current poster for every item and
    maps it back to the Plex item it belongs to.
-5. **Optionally turn on auto-import.** Set `AUTO_IMPORT_ENABLED=true`, pick a
-   schedule with `AUTO_IMPORT_SCHEDULE`, and enable the types you want with the
-   `AUTO_IMPORT_*` variables so new media picks up posters on its own.
+5. **Optionally turn on auto-import.** Open **Settings**, enable it, pick how
+   often it should run, and tick the types you want, so new media picks up
+   posters on its own.
 
 From there, use Marquee as described in [Usage](#usage).
 
@@ -435,7 +444,9 @@ leave you half reset.
 
 Know what that costs before you do it: every poster you'd applied to Plex comes
 back, because Plex has it and Marquee locked it there. Anything that only ever
-existed in Marquee — art you uploaded but never sent — is gone.
+existed in Marquee — art you uploaded but never sent — is gone. Your settings and
+your Plex connection are untouched; they live in their own files. Auto-import
+forgets when it last ran, so it runs once more than it strictly needed to.
 
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.

@@ -97,6 +97,7 @@ final class SettingsController
             'values' => $values,
             'errors' => $errors,
             'sort_options' => $this->form->sortOptions(),
+            'interval_options' => $this->form->intervalOptions(),
             'libraries' => $this->form->libraryChoices(
                 $libraries->titles,
                 is_array($excluded) ? $excluded : [],

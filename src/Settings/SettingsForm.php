@@ -8,6 +8,7 @@ use App\Config\AuthConfig;
 use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
+use App\Plex\Import\AutoImportInterval;
 use App\Poster\SortOrder;
 
 /**
@@ -43,6 +44,13 @@ final class SettingsForm
     public const FIELD_UPDATE_CHECK = 'update_check';
     public const FIELD_EXCLUDED = 'excluded';
     public const FIELD_CLEAR_UNREPORTED = 'clear_unreported';
+
+    public const FIELD_AUTO_IMPORT = 'auto_import';
+    public const FIELD_AUTO_IMPORT_INTERVAL = 'auto_import_interval';
+    public const FIELD_AUTO_IMPORT_MOVIES = 'auto_import_movies';
+    public const FIELD_AUTO_IMPORT_SHOWS = 'auto_import_shows';
+    public const FIELD_AUTO_IMPORT_SEASONS = 'auto_import_seasons';
+    public const FIELD_AUTO_IMPORT_COLLECTIONS = 'auto_import_collections';
 
     public const SITE_TITLE_MAX_LENGTH = 60;
 
@@ -118,6 +126,12 @@ final class SettingsForm
             ),
             self::FIELD_UPDATE_CHECK => $this->store->bool(SettingKey::UpdateCheckEnabled),
             self::FIELD_EXCLUDED => $this->store->list(SettingKey::ExcludedLibraries),
+            self::FIELD_AUTO_IMPORT => $this->store->bool(SettingKey::AutoImportEnabled),
+            self::FIELD_AUTO_IMPORT_INTERVAL => $this->storedInterval()->value,
+            self::FIELD_AUTO_IMPORT_MOVIES => $this->store->bool(SettingKey::AutoImportMovies),
+            self::FIELD_AUTO_IMPORT_SHOWS => $this->store->bool(SettingKey::AutoImportShows),
+            self::FIELD_AUTO_IMPORT_SEASONS => $this->store->bool(SettingKey::AutoImportSeasons),
+            self::FIELD_AUTO_IMPORT_COLLECTIONS => $this->store->bool(SettingKey::AutoImportCollections),
         ];
     }
 
@@ -173,6 +187,15 @@ final class SettingsForm
             $errors[self::FIELD_DEFAULT_SORT] = 'Choose one of the sort orders offered.';
         }
 
+        // Refused rather than defaulted, for the same reason the sort order is:
+        // storing something other than what was submitted is what this screen
+        // exists to stop.
+        $intervalSlug = self::string($body, self::FIELD_AUTO_IMPORT_INTERVAL);
+        $interval = AutoImportInterval::fromSlug($intervalSlug);
+        if ($interval === null) {
+            $errors[self::FIELD_AUTO_IMPORT_INTERVAL] = 'Choose one of the schedules offered.';
+        }
+
         $checked = self::strings($body, self::FIELD_EXCLUDED);
 
         $values = [
@@ -187,9 +210,15 @@ final class SettingsForm
             self::FIELD_SESSION_DURATION => self::string($body, self::FIELD_SESSION_DURATION),
             self::FIELD_UPDATE_CHECK => self::checked($body, self::FIELD_UPDATE_CHECK),
             self::FIELD_EXCLUDED => $checked,
+            self::FIELD_AUTO_IMPORT => self::checked($body, self::FIELD_AUTO_IMPORT),
+            self::FIELD_AUTO_IMPORT_INTERVAL => $intervalSlug,
+            self::FIELD_AUTO_IMPORT_MOVIES => self::checked($body, self::FIELD_AUTO_IMPORT_MOVIES),
+            self::FIELD_AUTO_IMPORT_SHOWS => self::checked($body, self::FIELD_AUTO_IMPORT_SHOWS),
+            self::FIELD_AUTO_IMPORT_SEASONS => self::checked($body, self::FIELD_AUTO_IMPORT_SEASONS),
+            self::FIELD_AUTO_IMPORT_COLLECTIONS => self::checked($body, self::FIELD_AUTO_IMPORT_COLLECTIONS),
         ];
 
-        if ($errors !== [] || $sort === null
+        if ($errors !== [] || $sort === null || $interval === null
             || $perPage === null || $fileSize === null
             || $connect === null || $request === null || $duration === null) {
             return SettingsSubmission::refused($values, $errors);
@@ -211,6 +240,12 @@ final class SettingsForm
                 $reportedLibraries,
                 self::checked($body, self::FIELD_CLEAR_UNREPORTED),
             ),
+            SettingKey::AutoImportEnabled->value => self::checked($body, self::FIELD_AUTO_IMPORT),
+            SettingKey::AutoImportSchedule->value => $interval->value,
+            SettingKey::AutoImportMovies->value => self::checked($body, self::FIELD_AUTO_IMPORT_MOVIES),
+            SettingKey::AutoImportShows->value => self::checked($body, self::FIELD_AUTO_IMPORT_SHOWS),
+            SettingKey::AutoImportSeasons->value => self::checked($body, self::FIELD_AUTO_IMPORT_SEASONS),
+            SettingKey::AutoImportCollections->value => self::checked($body, self::FIELD_AUTO_IMPORT_COLLECTIONS),
         ]);
     }
 
@@ -325,9 +360,33 @@ final class SettingsForm
         return $options;
     }
 
+    /**
+     * The schedules offered, each with the label the select shows.
+     *
+     * Built from the enum for the same reason the sort options are: the set the
+     * screen offers and the set the scheduler can honour must be one list.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public function intervalOptions(): array
+    {
+        $options = [];
+        foreach (AutoImportInterval::cases() as $interval) {
+            $options[] = ['value' => $interval->value, 'label' => $interval->label()];
+        }
+
+        return $options;
+    }
+
     private function storedSort(): SortOrder
     {
         return SortOrder::fromSlug($this->store->string(SettingKey::DefaultSort)) ?? SortOrder::default();
+    }
+
+    private function storedInterval(): AutoImportInterval
+    {
+        return AutoImportInterval::fromSlug($this->store->string(SettingKey::AutoImportSchedule))
+            ?? AutoImportInterval::default();
     }
 
     /**

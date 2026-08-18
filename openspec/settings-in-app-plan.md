@@ -57,7 +57,8 @@ Consequences that bind every phase:
       (`add-settings-store`)
 - [x] Phase 2 — settings page (preferences, Plex behavior, library exclusions)
       (`add-settings-screen`)
-- [ ] Phase 3 — app-owned auto-import schedule (cron inversion)
+- [x] Phase 3 — app-owned auto-import schedule (cron inversion)
+      (`invert-auto-import-schedule`)
 - [ ] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
 
 ---
@@ -264,6 +265,31 @@ Learned in phase 2, and cheaper to read than to rediscover:
   server address and auto-import — with the reason. Phase 3 removes auto-import
   from that requirement rather than merely adding controls; phase 4 does the same
   for the server address.
+
+Learned in phase 3, and cheaper to read than to rediscover:
+
+- **A scenario cannot be repurposed or dropped, so overturning half a requirement
+  means REMOVED + ADDED.** Phase 2's "Settings deliberately withheld" covered the
+  server address and auto-import in one requirement with a scenario each. Phase 3
+  retired the whole requirement, with `**Reason**` and `**Migration**`, and re-added
+  the server-address half under its own name. **Phase 4 does the same to that one**
+  — do not try to edit it.
+- **Cron expressions cannot appear in a PHP docblock.** `*/6` contains the
+  character pair that closes a block comment; PHP fails to parse the file. Use a
+  `//` comment or describe the schedule in words.
+- **Slot identity is `YYYYMMDDnn`, not a timestamp.** A timestamp computed as
+  local midnight plus N hours collides across a 23-hour daylight-saving day — that
+  day's last hourly slot equals the next day's first — and one run is silently
+  skipped. The date-derived identifier cannot collide.
+- **`/health` does not prove an s6 service came up.** nginx serves pages happily
+  while `svc-cron` is dead. Check `s6-svstat /run/service/<svc>` explicitly;
+  `docs/docker.md` now carries the commands.
+- **`AutoImportService::run()` takes an optional clock** (`?DateTimeImmutable`),
+  which is what makes the scheduling testable without touching the system time.
+- **Settings fields are validated against enums** — `SortOrder`,
+  `AutoImportInterval` — and refused rather than defaulted. Adding a field to
+  `SettingsForm` means adding it to the `submission()`/`form()` helpers in both
+  `SettingsFormTest` and `SettingsScreenTest`, or every save test fails at once.
 
 ---
 

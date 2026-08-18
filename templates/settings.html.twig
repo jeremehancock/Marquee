@@ -62,6 +62,31 @@
                              'Lets Kometa redraw its overlay on the poster you sent.') }}
         </section>
 
+        {# The one section on this screen that does not apply on the next page
+           load. The tick is hourly, so saying "takes effect immediately" here
+           would be a promise the scheduler cannot keep. #}
+        <section class="panel form-section">
+            <h2 class="form-section__title">Auto-import</h2>
+            <p class="field__hint">Re-import from Plex on a schedule, so new media
+               shows up without anyone opening Marquee. Changes here apply from the
+               next scheduled run rather than on your next page load.</p>
+
+            {{ form.checkbox('auto_import', 'Import from Plex on a schedule', values.auto_import) }}
+
+            {{ form.select('auto_import_interval', 'How often', values.auto_import_interval, interval_options,
+                           errors.auto_import_interval|default(null)) }}
+
+            <p class="field__label">What to import</p>
+            <div class="checkbox-list">
+                {{ form.checkbox('auto_import_movies', 'Movies', values.auto_import_movies) }}
+                {{ form.checkbox('auto_import_shows', 'TV Shows', values.auto_import_shows) }}
+                {{ form.checkbox('auto_import_seasons', 'TV Seasons', values.auto_import_seasons) }}
+                {{ form.checkbox('auto_import_collections', 'Collections', values.auto_import_collections) }}
+            </div>
+            <p class="field__hint">With none of these ticked, a scheduled run does
+               nothing.</p>
+        </section>
+
         <section class="panel form-section">
             <h2 class="form-section__title">Session</h2>
 

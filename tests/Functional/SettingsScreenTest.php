@@ -7,14 +7,17 @@ namespace App\Tests\Functional;
 use function App\buildContainer;
 
 use App\Config\AuthConfig;
+use App\Config\AutoImportConfig;
 use App\Config\LibraryExclusions;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 
 use function App\createApp;
 
+use App\Plex\Import\AutoImportInterval;
 use App\Plex\PlexClient;
 use App\Plex\PlexLibrary;
+use App\Plex\PlexMediaType;
 use App\Poster\SortOrder;
 use App\Settings\SettingKey;
 use App\Settings\SettingsStore;
@@ -123,6 +126,7 @@ final class SettingsScreenTest extends AppTestCase
             'plex_connect_timeout' => '10',
             'plex_request_timeout' => '60',
             'session_duration' => '30',
+            'auto_import_interval' => '24h',
         ], $overrides);
     }
 
@@ -424,18 +428,62 @@ final class SettingsScreenTest extends AppTestCase
     }
 
     /**
-     * Two settings are deliberately absent. The Plex server address is the
-     * assertion that only someone with host access can make, and moving it into
-     * the browser without replacing that property would let the first stranger
-     * to reach an unconfigured install claim it. Auto-import's schedule is still
-     * baked into the container at boot, so a control for it would not work.
+     * The Plex server address is deliberately absent. It is the assertion that
+     * only someone with host access can make, and moving it into the browser
+     * without replacing that property would let the first stranger to reach an
+     * unconfigured install claim it.
      */
-    public function testTheScreenWithholdsTheServerAddressAndAutoImport(): void
+    public function testTheScreenWithholdsTheServerAddress(): void
     {
         $body = (string) $this->get($this->screen(), '/settings')->getBody();
 
         self::assertStringNotContainsString('plex_server_url', $body);
-        self::assertStringNotContainsString('auto_import', $body);
-        self::assertStringNotContainsString('Auto-import', $body);
+    }
+
+    /**
+     * Auto-import was withheld while its schedule was fixed into the container
+     * at boot, because the control would not have worked. It works now.
+     */
+    public function testTheScreenOffersAutoImport(): void
+    {
+        $body = (string) $this->get($this->screen(), '/settings')->getBody();
+
+        self::assertStringContainsString('name="auto_import"', $body);
+        self::assertStringContainsString('name="auto_import_interval"', $body);
+        self::assertStringContainsString('name="auto_import_movies"', $body);
+        // Says when it applies, which is not "your next page load".
+        self::assertStringContainsString('next scheduled run', $body);
+    }
+
+    public function testAutoImportSettingsAreStored(): void
+    {
+        $app = $this->screen();
+
+        $this->postForm($app, '/settings', $this->form([
+            'auto_import' => 'on',
+            'auto_import_interval' => '6h',
+            'auto_import_movies' => 'on',
+            'auto_import_shows' => 'on',
+        ]));
+
+        $config = AutoImportConfig::resolve($this->stored());
+
+        self::assertTrue($config->enabled);
+        self::assertSame(AutoImportInterval::EverySixHours, $config->interval);
+        self::assertSame(
+            [PlexMediaType::Movie, PlexMediaType::Show],
+            $config->mediaTypes(),
+        );
+    }
+
+    public function testAnUnrecognisedIntervalIsRefused(): void
+    {
+        $app = $this->screen();
+
+        $response = $this->postForm($app, '/settings', $this->form(['auto_import_interval' => 'fortnightly']));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Choose one of the schedules offered.', (string) $response->getBody());
+        self::assertFalse(AutoImportConfig::resolve($this->stored())->enabled);
     }
 }

@@ -57,6 +57,7 @@ final class SettingsFormTest extends TestCase
             SettingsForm::FIELD_CONNECT_TIMEOUT => '10',
             SettingsForm::FIELD_REQUEST_TIMEOUT => '60',
             SettingsForm::FIELD_SESSION_DURATION => '30',
+            SettingsForm::FIELD_AUTO_IMPORT_INTERVAL => '24h',
         ], $overrides);
     }
 
