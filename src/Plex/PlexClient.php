@@ -24,6 +24,21 @@ interface PlexClient
     public function libraries(): array;
 
     /**
+     * Every library the server reports, exclusions ignored.
+     *
+     * There is exactly one legitimate caller: the settings screen that manages
+     * exclusions. Without it, exclusion is a one-way door — a library nothing
+     * can observe is one nothing can offer to un-exclude.
+     *
+     * Every other caller wants {@see libraries()}. Reaching for this one
+     * anywhere else silently undoes exclusion for that path, which is the whole
+     * behaviour `plex-import` specifies.
+     *
+     * @return list<PlexLibrary>
+     */
+    public function allLibraries(): array;
+
+    /**
      * Movies for a movie library, shows for a show library.
      *
      * @return list<PlexItem>

@@ -559,6 +559,181 @@ h1 {
     cursor: pointer;
 }
 
+/* Form controls, in one vocabulary.
+
+   The rules above dress the connection panel's single field. These are the
+   application's actual form controls, arriving with the settings screen and
+   defined here rather than beside it, so the next form does not invent a second
+   set. Everything below draws from the token contract: a control added later
+   needs no new values.
+
+   Fields are stacked, never side by side. A settings form is read top to bottom
+   and answered one question at a time; columns buy density nobody asked for and
+   cost a reflow rule at every width. */
+.field {
+    display: grid;
+    gap: 6px;
+    margin-top: 20px;
+}
+
+.field:first-of-type {
+    margin-top: 0;
+}
+
+.field__label {
+    font-size: 0.9rem;
+    color: var(--ink);
+    font-weight: 500;
+}
+
+/* Both the explanation under a field and the standalone notes in a section, so
+   the two read as the same voice. */
+.field__hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+    /* Wide enough to be scanned, short enough to be read. */
+    max-width: 60ch;
+}
+
+/* Never the only signal that a field was refused: the message says what is
+   wrong, aria-describedby ties it to the control, and the control carries
+   aria-invalid. The colour is the third telling, not the first. */
+.field__error {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #ea9885;
+}
+
+.field__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.field__unit {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.input {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    /* Fills its field by default; a number gets a width that suits the value
+       rather than the column, below. */
+    width: 100%;
+    max-width: 420px;
+    transition: border-color var(--dur-base) var(--ease-standard),
+                background var(--dur-base) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .input:hover {
+        border-color: #4b515b;
+    }
+}
+
+.input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Sized to the number it holds — a three-character field stretched across the
+   panel reads as a field expecting a sentence. */
+.input--number {
+    width: 7ch;
+}
+
+.select {
+    /* The native arrow is drawn by the platform in the platform's colour, which
+       against this surface is often near-invisible; supplying our own keeps it
+       on the ink colour at every platform. */
+    appearance: none;
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9e6df' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    cursor: pointer;
+}
+
+.field--check {
+    /* The label is the control's own text, so the stacked label/control spacing
+       above does not apply. */
+    gap: 4px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+/* A native checkbox, tinted. Its checked state is the platform's tick — a mark
+   rather than a fill — so it survives a reader who cannot separate the accent
+   from the surface, and it keeps the keyboard behaviour a div dressed as a
+   checkbox has to reimplement. */
+.checkbox__input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    /* Flex would otherwise shrink the box beside a long label. */
+    flex: none;
+}
+
+.checkbox__input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.checkbox__label {
+    color: var(--ink);
+}
+
+/* Many checkboxes at once — the library exclusions. Columns here rather than in
+   .field because the entries are short and a one-per-row list of a dozen
+   libraries is mostly whitespace. */
+.checkbox-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px 18px;
+    margin: 14px 0;
+}
+
+.checkbox-list .field {
+    margin-top: 0;
+}
+
+/* A long form reads as several short ones. Each group is a panel, titled, so the
+   eye can skip to the question it came for instead of scanning one column of
+   fourteen fields. */
+.form-section {
+    margin-top: 18px;
+}
+
+.form-section__title {
+    margin: 0 0 18px;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+}
+
+.settings__actions {
+    margin: 22px 0;
+}
+
+.settings__stale {
+    margin: 8px 0;
+    padding-left: 20px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
 /* Flashes and inline notices — "Signed in to Plex.", an import that Plex would
    not take, the obsolete-PLEX_TOKEN warning.
 

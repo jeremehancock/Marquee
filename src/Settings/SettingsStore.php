@@ -157,16 +157,39 @@ final class SettingsStore
      */
     public function set(SettingKey $key, string|int|bool|array $value): void
     {
-        $data = $this->read();
-        if (($data[$key->value] ?? null) === $value) {
-            $this->data = $data;
+        $this->setMany([$key->value => $value]);
+    }
 
-            return;
+    /**
+     * Store several settings in one write.
+     *
+     * The settings screen submits every field it renders, and writing them one
+     * at a time would mean one read-modify-rename cycle per setting — with a
+     * failure part-way leaving an install half-configured, in a state no
+     * subsequent save reconciles. One re-read, one rename, all keys.
+     *
+     * Unchanged keys cost nothing: a submission that changes one field writes
+     * the file once, and a submission that changes none does not write at all.
+     *
+     * @param array<string, string|int|bool|list<string>> $values keyed by {@see SettingKey} value
+     */
+    public function setMany(array $values): void
+    {
+        $data = $this->read();
+
+        $changed = false;
+        foreach ($values as $key => $value) {
+            if (($data[$key] ?? null) === $value) {
+                continue;
+            }
+            $data[$key] = $value;
+            $changed = true;
         }
 
-        $data[$key->value] = $value;
         $this->data = $data;
-        $this->write($data);
+        if ($changed) {
+            $this->write($data);
+        }
     }
 
     private static function defaultString(SettingKey $key): string

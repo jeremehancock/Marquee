@@ -22,6 +22,19 @@ use App\Settings\SettingsStore;
  */
 final class AuthConfig
 {
+    /**
+     * The shortest session this will resolve, in seconds.
+     *
+     * A zero or negative duration would expire every session the instant it was
+     * created, locking the install out of a login that is now the only way in.
+     *
+     * The floor lives here rather than in the store because it is a judgement
+     * about what the value means, and the settings screen applies this same
+     * constant — a value the screen accepted that bootstrap then corrected would
+     * be a setting that silently does not stick.
+     */
+    public const MINIMUM_DURATION = 60;
+
     public function __construct(
         public readonly int $sessionDuration,
     ) {
@@ -30,15 +43,7 @@ final class AuthConfig
     public static function resolve(SettingsStore $store): self
     {
         return new self(
-            // Floored rather than taken as given: a zero or negative duration
-            // would expire every session the instant it was created, locking the
-            // install out of a login that is now the only way in.
-            //
-            // The floor lives here rather than in the store because it is a
-            // judgement about what the value means, and the settings screen has
-            // to apply the same one — a value it accepted that bootstrap then
-            // corrected would be a setting that silently does not stick.
-            sessionDuration: max(60, $store->int(SettingKey::SessionDuration)),
+            sessionDuration: max(self::MINIMUM_DURATION, $store->int(SettingKey::SessionDuration)),
         );
     }
 }

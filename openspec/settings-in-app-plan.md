@@ -55,7 +55,8 @@ Consequences that bind every phase:
 
 - [x] Phase 1 — settings store, env seeding, obsolete-env reporting
       (`add-settings-store`)
-- [ ] Phase 2 — settings page (preferences, Plex behavior, library exclusions)
+- [x] Phase 2 — settings page (preferences, Plex behavior, library exclusions)
+      (`add-settings-screen`)
 - [ ] Phase 3 — app-owned auto-import schedule (cron inversion)
 - [ ] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
 
@@ -233,6 +234,36 @@ Learned in phase 1, and cheaper to read than to rediscover:
   value the settings screen accepts and a value bootstrap corrects cannot
   disagree. `SupersededEnvironment` derives its list from the enum, so a new
   setting is reported without anyone remembering to list it twice.
+
+Learned in phase 2, and cheaper to read than to rediscover:
+
+- **Each floor is now a constant on its config object** — `AuthConfig::MINIMUM_DURATION`,
+  `PlexConfig::MINIMUM_TIMEOUT`, `PosterConfig::MINIMUM_PER_PAGE` / `MINIMUM_FILE_SIZE` —
+  read by both `resolve()` and `SettingsForm`. A phase-3 setting with a floor
+  follows that pattern rather than writing the number twice. The form MAY be
+  stricter than bootstrap (it offers whole days against a sixty-second floor);
+  it must never be looser, or a saved value gets silently corrected.
+- **`SettingsStore::setMany()` is how a screen saves.** One re-read, one rename,
+  every key — so a failure part-way cannot leave an install half-configured.
+  `set()` is a one-key call to it.
+- **`makeApp()` deletes `settings.json` and re-seeds**, so a second `makeApp()`
+  erases what a save just wrote. To assert "the next request sees it", build a
+  container directly — `createApp(buildContainer([...]))` — over the store on
+  disk, or resolve the config objects from `new SettingsStore($dataDir)`. See
+  `SettingsScreenTest::nextRequest()`.
+- **`FakePlexClient` filters by its own constructor argument**, not by the
+  container's `LibraryExclusions`, so a functional test asserting that an
+  exclusion reaches a screen has to hand the fake the stored list.
+- **`PlexClient::allLibraries()` exists for exactly one caller.** It reports
+  excluded libraries, which every other caller must not see. Phase 3's scheduled
+  run wants `libraries()`.
+- **Form controls live in `templates/partials/_form.html.twig`** and their styles
+  in the "Form controls, in one vocabulary" block of `app.css`. Phase 3's
+  auto-import section is macros over those, not new markup.
+- **A phase-2 spec requirement records what the screen withholds** — the Plex
+  server address and auto-import — with the reason. Phase 3 removes auto-import
+  from that requirement rather than merely adding controls; phase 4 does the same
+  for the server address.
 
 ---
 

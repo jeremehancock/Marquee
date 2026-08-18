@@ -29,6 +29,15 @@ use InvalidArgumentException;
  */
 final class PlexConfig
 {
+    /**
+     * The shortest timeout this will resolve, in seconds.
+     *
+     * A timeout of zero means "no timeout" to Guzzle, which is the opposite of
+     * what someone typing it intends. The settings screen applies this same
+     * constant, so a value it accepts is never one bootstrap corrects.
+     */
+    public const MINIMUM_TIMEOUT = 1;
+
     public function __construct(
         public readonly string $serverUrl,
         public readonly string $token,
@@ -49,8 +58,8 @@ final class PlexConfig
         return new self(
             serverUrl: self::serverUrl($settings->string(SettingKey::PlexServerUrl)),
             token: $connection->token() ?? '',
-            connectTimeout: max(1, $settings->int(SettingKey::PlexConnectTimeout)),
-            requestTimeout: max(1, $settings->int(SettingKey::PlexRequestTimeout)),
+            connectTimeout: max(self::MINIMUM_TIMEOUT, $settings->int(SettingKey::PlexConnectTimeout)),
+            requestTimeout: max(self::MINIMUM_TIMEOUT, $settings->int(SettingKey::PlexRequestTimeout)),
             removeOverlayLabel: $settings->bool(SettingKey::PlexRemoveOverlayLabel),
         );
     }

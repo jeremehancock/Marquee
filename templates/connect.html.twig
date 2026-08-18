@@ -161,8 +161,10 @@
     {% if superseded.relocatedNames is not empty %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong>Some settings in your compose file are no longer read.</strong>
-               Marquee keeps its configuration for you now. The values you had set
-               were carried over, so nothing has changed about how it behaves.</p>
+               Marquee keeps its configuration for you now — change them in
+               {% if signed_in %}<a href="/settings">Settings</a>{% else %}Settings, once you are signed in{% endif %}.
+               The values you had set were carried over, so nothing has changed
+               about how it behaves.</p>
             <p>These are the ones still in your environment:</p>
             <p>{% for name in superseded.relocatedNames %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
             <p>Delete them from your compose file and run

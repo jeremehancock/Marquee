@@ -16,6 +16,7 @@ use App\Controller\PlexPosterImageController;
 use App\Controller\PosterController;
 use App\Controller\PosterImageController;
 use App\Controller\PosterWallController;
+use App\Controller\SettingsController;
 use App\Controller\VersionController;
 use Slim\App;
 
@@ -69,6 +70,11 @@ function registerRoutes(App $app): void
     $app->post('/plex/connection/sign-in', [PlexConnectionController::class, 'start']);
     $app->get('/plex/connection/status', [PlexConnectionController::class, 'poll']);
     $app->post('/plex/connection/sign-out', [PlexConnectionController::class, 'signOut']);
+
+    // Behind both gates like every other screen: settings are the install's,
+    // not the visitor's.
+    $app->get('/settings', [SettingsController::class, 'show']);
+    $app->post('/settings', [SettingsController::class, 'save']);
 
     $app->get('/orphans', [OrphanController::class, 'show']);
     $app->get('/orphans/list', [OrphanController::class, 'results']);

@@ -14,6 +14,22 @@ use App\Settings\SettingsStore;
 final class PosterConfig
 {
     /**
+     * The fewest posters a page will resolve to.
+     *
+     * A page of zero posters renders nothing and paginates forever. The settings
+     * screen applies this same constant, so a value it accepts is never one
+     * bootstrap corrects.
+     */
+    public const MINIMUM_PER_PAGE = 1;
+
+    /**
+     * The smallest maximum upload size this will resolve, in bytes.
+     *
+     * Zero would reject every upload while reading as "no limit".
+     */
+    public const MINIMUM_FILE_SIZE = 1;
+
+    /**
      * @param list<string> $allowedExtensions
      */
     public function __construct(
@@ -28,8 +44,8 @@ final class PosterConfig
     public static function resolve(SettingsStore $store): self
     {
         return new self(
-            perPage: max(1, $store->int(SettingKey::ImagesPerPage)),
-            maxFileSize: max(1, $store->int(SettingKey::MaxFileSize)),
+            perPage: max(self::MINIMUM_PER_PAGE, $store->int(SettingKey::ImagesPerPage)),
+            maxFileSize: max(self::MINIMUM_FILE_SIZE, $store->int(SettingKey::MaxFileSize)),
             // Not a setting. The list is what the image pipeline can actually
             // decode, so offering it as a choice would let an install ask for a
             // format nothing downstream can read.

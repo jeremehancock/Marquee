@@ -67,6 +67,25 @@ final class HttpPlexClientTest extends TestCase
         self::assertSame(['Movies', 'TV'], array_map(static fn ($l) => $l->title, $libraries));
     }
 
+    /**
+     * The one caller allowed to see past an exclusion is the screen that manages
+     * them: a library nothing can observe is one nothing can offer to
+     * un-exclude. Music is still absent, because "library" means a movie or show
+     * library in both methods.
+     */
+    public function testEveryLibraryIsReportedToTheExclusionsEditor(): void
+    {
+        $xml = '<MediaContainer>'
+            . '<Directory key="1" type="movie" title="Movies"/>'
+            . '<Directory key="2" type="movie" title="Kids Movies"/>'
+            . '<Directory key="3" type="artist" title="Music"/>'
+            . '</MediaContainer>';
+
+        $libraries = $this->client([new Response(200, [], $xml)], excluded: ['kids movies'])->allLibraries();
+
+        self::assertSame(['Movies', 'Kids Movies'], array_map(static fn ($l) => $l->title, $libraries));
+    }
+
     public function testEveryLibraryCanBeExcluded(): void
     {
         $xml = '<MediaContainer>'

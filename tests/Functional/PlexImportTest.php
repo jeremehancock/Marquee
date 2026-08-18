@@ -107,7 +107,11 @@ final class PlexImportTest extends AppTestCase
 
         $body = (string) $this->get($app, '/plex')->getBody();
 
-        self::assertStringContainsString('EXCLUDED_LIBRARIES', $body);
+        self::assertStringContainsString('every one of them is', $body);
+        // Points at the screen that changes exclusions, not at the variable that
+        // used to set them — that line no longer configures anything.
+        self::assertStringContainsString('href="/settings"', $body);
+        self::assertStringNotContainsString('EXCLUDED_LIBRARIES', $body);
         // Not the "your server has no libraries" message, which would be wrong here.
         self::assertStringNotContainsString('were found on your Plex server', $body);
     }

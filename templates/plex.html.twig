@@ -18,8 +18,12 @@
     {% elseif libraries is empty %}
         <div class="panel">
             {% if has_exclusions %}
-                <p>No libraries are available to import. Libraries listed in
-                   <code>EXCLUDED_LIBRARIES</code> are hidden from Marquee.</p>
+                {# Names the screen, not the old environment variable: the
+                   exclusions are chosen in Marquee now, and sending someone to
+                   edit a compose file would send them somewhere that no longer
+                   configures anything. #}
+                <p>No libraries are available to import — every one of them is
+                   excluded. Change that in <a href="/settings">Settings</a>.</p>
             {% else %}
                 <p>No movie or TV libraries were found on your Plex server.</p>
             {% endif %}

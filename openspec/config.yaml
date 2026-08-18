@@ -26,11 +26,15 @@ context: |
     - strict_types=1 in every PHP file; PSR-12 style (enforced by PHP-CS-Fixer).
     - Thin controllers -> service classes -> value objects. No business logic
       in templates or the front controller.
-    - All configuration comes from environment variables, read once into typed
-      config objects at bootstrap. Never call getenv() deep in the code. The
-      Plex token alone comes from the connection store written by signing in to
-      Plex, never from the environment; PLEX_TOKEN is read only to report that
-      it is obsolete. Resolution still happens once at bootstrap.
+    - All configuration comes from the settings store (/config/data/settings.json),
+      read once into typed config objects at bootstrap and editable on the
+      Settings screen. The environment seeds that store on first start and is
+      never consulted again; a variable still set afterwards is reported to the
+      user as superseded, never obeyed. Never call getenv() deep in the code.
+      Two exceptions: the Plex token comes from the connection store written by
+      signing in to Plex, and DATA_DIR / POSTERS_DIR / SESSION_DIR /
+      DISPLAY_ERRORS / UPDATE_REPO / POSTER_SOURCE_URL stay on the environment —
+      the first locates the store itself, the rest must work when it does not.
     - Every capability is defined by an OpenSpec spec before it is built.
     - PHPStan max level and PHPUnit must pass in CI on every push.
 

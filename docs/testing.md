@@ -239,7 +239,7 @@ poster whose Plex item is missing. Three things to know:
 - **No poster is exempt.** Every poster arrives through an import and keeps its
   Plex mapping, so a poster you replaced with your own upload can be flagged too
   — changing a poster changes the artwork, not the mapping.
-- A library listed in `EXCLUDED_LIBRARIES` is invisible to Marquee, so posters
+- A library excluded under **Settings → Libraries** is invisible to Marquee, so posters
   imported from it before it was excluded are flagged as orphans too. That is
   another way to reach this screen without deleting anything from Plex.
 - Detection is **live** — the Orphans page checks Plex every time you open it, so

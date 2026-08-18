@@ -39,8 +39,13 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   changed in Plex (with an option to force a full refresh), reducing load on your
   Plex server.
 - **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h).
+- **Settings in the app** — change how Marquee behaves from a screen rather than
+  a compose file: site title, page size, sort, upload limit, Plex timeouts, how
+  long you stay signed in, and library exclusions. Saved settings apply on the
+  next page you load, with no restart.
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
-  the UI and in every import.
+  the UI and in every import. Tick the ones to hide from the list your server
+  reports, so a mistyped name can't quietly exclude nothing.
 - **Orphan detection** — find and remove posters whose media no longer exists in
   Plex, or whose library is now excluded.
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
@@ -49,7 +54,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Sort your way** — order the gallery by title or by when each item was added
   to Plex, either way round: tap a sort button again to reverse it (A–Z becomes
   Z–A, newest first becomes oldest first). Each keeps the direction you left it
-  in. Set the install default with `DEFAULT_SORT`.
+  in. Set the install default under **Settings**.
 - **Poster Wall** — a full-screen, slideshow-style view of your library that
   turns into a live "now playing" board when someone is watching: it shows the
   poster of what each person is streaming, with a *Currently Streaming* banner
@@ -104,10 +109,11 @@ services:
       # AUTO_IMPORT_COLLECTIONS: "false"
 
       # --- Libraries to hide from Marquee entirely (optional) ---
-      # Library names as they appear in Plex, not section ids.
+      # Easier to tick them under Settings once you are running; this only
+      # seeds a brand-new install. Library names as they appear in Plex.
       # EXCLUDED_LIBRARIES: "4K Movies,Kids"
 
-      # --- Optional tweaks ---
+      # --- Optional tweaks (all of these live under Settings once running) ---
       # SITE_TITLE: "Marquee"
       # IMAGES_PER_PAGE: "24"
       # DEFAULT_SORT: "alphabetical"  # alphabetical | date_added
@@ -139,7 +145,11 @@ Back this directory up if you want to keep your poster selections.
 
 ## Configuration
 
-Everything is configured with environment variables. All are optional except
+**Most of this is a screen now.** Open **Settings** in the header and change it
+there; it takes effect on the next page you load, with no restart and no editing
+of files. See [Settings](#settings) below for what it covers.
+
+The variables here set up a *new* install. All are optional except
 `PLEX_SERVER_URL`, which Marquee cannot work — or even let you sign in — without.
 There are no credentials to set: you sign in to Plex.
 
@@ -148,11 +158,11 @@ There are no credentials to set: you sign in to Plex.
 > whatever your compose file says into that store — so upgrading changes nothing
 > about how your install behaves — and from then on the store is what it reads.
 >
-> Editing a variable afterwards has no effect, and Marquee will tell you so:
-> the connection screen lists any variable still in your compose file that it no
-> longer reads, so you can delete it. `PUID`, `PGID`, `TZ`, and the `/config`
-> paths are unaffected — those are container settings and are always read from
-> the environment.
+> Editing a variable afterwards has no effect, and Marquee will tell you so: the
+> Settings screen lists any variable still in your compose file that it no longer
+> reads, so you can delete it. `PUID`, `PGID`, `TZ`, and the `/config` paths are
+> unaffected — those are container settings and are always read from the
+> environment.
 >
 > Deleting `/config/data/settings.json` returns the install to a clean slate and
 > lets the next start read your compose file again.
@@ -181,6 +191,31 @@ There are no credentials to set: you sign in to Plex.
 | `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` (A–Z) or `date_added` (newest first). Users can switch field and direction in the gallery. | `alphabetical` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
+
+### Settings
+
+**Settings** in the header is where configuration lives once an install is
+running. Everything on it takes effect on the next page you load — nothing here
+needs the container restarted or recreated.
+
+| Group | What you can change |
+| --- | --- |
+| Presentation | Site title, posters per page, default sort, whether leading articles are ignored when sorting, maximum upload size |
+| Plex | Connect and request timeouts, whether Kometa's `Overlay` label is removed when a poster is sent |
+| Session | How long you stay signed in |
+| Updates | Whether to check GitHub for a newer release |
+| Libraries | Which Plex libraries to exclude |
+
+**Excluded libraries are tick boxes over the libraries your server actually
+reports**, not a list of names to type. An excluded library is invisible to the
+whole of Marquee: it is not offered for import, nothing is imported from it, and
+posters already imported from it turn up as orphans.
+
+If a library you have excluded is no longer on your server — renamed, removed, or
+the server is not answering — Marquee keeps the exclusion and shows it separately
+rather than quietly dropping it. Clearing it is a tick box of its own.
+
+The Plex server address and the auto-import schedule are not on this screen yet.
 
 ### Signing in
 

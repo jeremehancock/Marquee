@@ -1,0 +1,154 @@
+{% extends 'layout.html.twig' %}
+{% import 'partials/_form.html.twig' as form %}
+
+{# Suppresses the header's own Settings link, which would point at this page. #}
+{% set nav_current = 'settings' %}
+
+{% block title %}Settings · {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="settings">
+    <p><a class="search__clear" href="{{ back_url }}">&larr; Back to gallery</a></p>
+    <h1>Settings</h1>
+    <p class="stats">Changes take effect on the next page you load. Nothing here
+       needs the container restarted.</p>
+
+    {% if flash %}
+        <p class="alert alert--{{ flash.type }}" role="alert">{{ flash.message }}</p>
+    {% endif %}
+
+    {% if errors is not empty %}
+        <p class="alert alert--error" role="alert">Nothing was saved — check the
+           {{ errors|length == 1 ? 'field marked below' : 'fields marked below' }}.</p>
+    {% endif %}
+
+    <form method="post" action="/settings" class="settings__form">
+        {{ csrf_field() }}
+
+        <section class="panel form-section">
+            <h2 class="form-section__title">Presentation</h2>
+
+            {{ form.text('site_title', 'Site title', values.site_title, errors.site_title|default(null),
+                         'Shown in the header and the browser tab. It does not rename the installed app.', 60) }}
+
+            {{ form.number('images_per_page', 'Posters per page', values.images_per_page, 1, 200,
+                           errors.images_per_page|default(null)) }}
+
+            {{ form.select('default_sort', 'Default sort', values.default_sort, sort_options,
+                           errors.default_sort|default(null),
+                           'The order the gallery opens in. Anyone can still change it while browsing.') }}
+
+            {{ form.checkbox('ignore_articles', 'Ignore leading “a”, “an”, and “the” when sorting',
+                             values.ignore_articles) }}
+
+            {{ form.number('max_file_size', 'Maximum upload size', values.max_file_size, 1, 100,
+                           errors.max_file_size|default(null), null, 'MB') }}
+        </section>
+
+        <section class="panel form-section">
+            <h2 class="form-section__title">Plex</h2>
+
+            {{ form.number('plex_connect_timeout', 'Connect timeout', values.plex_connect_timeout, 1, 300,
+                           errors.plex_connect_timeout|default(null),
+                           'How long to wait for your server to answer at all.', 'seconds') }}
+
+            {{ form.number('plex_request_timeout', 'Request timeout', values.plex_request_timeout, 1, 300,
+                           errors.plex_request_timeout|default(null),
+                           'How long to wait for a single request to finish. Large libraries need more.',
+                           'seconds') }}
+
+            {{ form.checkbox('remove_overlay_label', 'Remove Kometa’s “Overlay” label when sending a poster',
+                             values.remove_overlay_label,
+                             'Lets Kometa redraw its overlay on the poster you sent.') }}
+        </section>
+
+        <section class="panel form-section">
+            <h2 class="form-section__title">Session</h2>
+
+            {{ form.number('session_duration', 'Stay signed in for', values.session_duration, 1, 365,
+                           errors.session_duration|default(null),
+                           'Idle time, not total time — the window starts again every time you use Marquee.',
+                           'days') }}
+        </section>
+
+        <section class="panel form-section">
+            <h2 class="form-section__title">Updates</h2>
+
+            {{ form.checkbox('update_check', 'Check GitHub for a newer release', values.update_check,
+                             'Marquee shows a note when one is available. It never updates itself.') }}
+        </section>
+
+        {# The section this whole screen was worth building for. Excluding a
+           library used to mean typing its name into a compose file, where a
+           misspelling excluded nothing and said nothing. #}
+        <section class="panel form-section">
+            <h2 class="form-section__title">Libraries</h2>
+            <p class="field__hint">An excluded library is invisible to the whole of
+               Marquee: it is not offered for import, nothing is imported from it,
+               and posters already imported from it show up as orphans.</p>
+
+            {% if not plex_configured %}
+                <p class="field__hint">Connect Marquee to Plex to choose libraries.</p>
+            {% elseif libraries_error %}
+                <p class="alert alert--warning" role="status">{{ libraries_error }}</p>
+                <p class="field__hint">Your libraries cannot be listed right now, so
+                   they cannot be changed here. Saving leaves your current
+                   exclusions exactly as they are.</p>
+            {% elseif libraries is empty %}
+                <p class="field__hint">Your server reports no movie or TV libraries.</p>
+            {% else %}
+                <div class="checkbox-list">
+                    {% for library in libraries %}
+                        {{ form.checkbox('excluded[]', library.title, library.excluded, null,
+                                         library.title, 'excluded-' ~ loop.index) }}
+                    {% endfor %}
+                </div>
+                <p class="field__hint">Tick a library to exclude it.</p>
+            {% endif %}
+
+            {# Kept by a save rather than dropped by it, so a renamed or removed
+               library cannot un-hide itself while you were changing something
+               else. Listed because a preserved entry nobody can see is one
+               nobody can remove. #}
+            {% if unreported_exclusions is not empty %}
+                <p class="field__hint">These are excluded but are not on your server
+                   right now — renamed, removed, or on a server that is not
+                   answering. They are kept until you clear them:</p>
+                <ul class="settings__stale">
+                    {% for name in unreported_exclusions %}
+                        <li><code>{{ name }}</code></li>
+                    {% endfor %}
+                </ul>
+                {# Offered only when the server actually answered with libraries.
+                   An unreachable server reports nothing, which would make every
+                   exclusion look stale and this control look like the way to
+                   tidy them up. #}
+                {% if libraries is not empty %}
+                    {{ form.checkbox('clear_unreported', 'Clear the exclusions listed above', false) }}
+                {% endif %}
+            {% endif %}
+        </section>
+
+        <div class="settings__actions">
+            <button type="submit" class="btn btn--accent">Save settings</button>
+        </div>
+    </form>
+
+    {# Settings still set in the compose file. Worded for this screen: they are
+       not gone, they are here — which is a different sentence from the one the
+       connection screen gives the variables whose capability no longer exists. #}
+    {% if superseded is not empty %}
+        <div class="alert alert--warning" role="status">
+            <p><strong>Some settings are still in your compose file.</strong>
+               Marquee manages these here now, and the values you had set were
+               carried over, so nothing about how it behaves has changed.</p>
+            <p>{% for name in superseded %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            <p>Delete them from your compose file and run
+               <code>docker compose up -d</code>.
+               <strong>Recreating the container is what clears this notice</strong>
+               — <code>docker compose restart</code> is not enough, because the
+               environment is only read when the container starts.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

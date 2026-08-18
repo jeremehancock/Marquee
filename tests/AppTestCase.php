@@ -260,8 +260,12 @@ abstract class AppTestCase extends TestCase
      * Post a form the way a browser would — carrying the CSRF token that
      * Marquee rendered into the form it came from.
      *
+     * A field's value may be a list, because a form field may be: a set of
+     * checkboxes sharing one name posts every ticked value, which is how the
+     * settings screen submits its library exclusions.
+     *
      * @param App<\Psr\Container\ContainerInterface|null> $app
-     * @param array<string, string>                       $data
+     * @param array<string, string|list<string>>          $data
      */
     protected function postForm(App $app, string $path, array $data): ResponseInterface
     {
@@ -277,7 +281,7 @@ abstract class AppTestCase extends TestCase
      * exercised deliberately.
      *
      * @param App<\Psr\Container\ContainerInterface|null> $app
-     * @param array<string, string>                       $data
+     * @param array<string, string|list<string>>          $data
      */
     protected function postFormWithoutToken(App $app, string $path, array $data): ResponseInterface
     {

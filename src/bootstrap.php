@@ -33,6 +33,7 @@ use App\Poster\Wall\NowPlayingService;
 use App\Poster\Wall\PosterWallService;
 use App\Poster\Wall\StreamToken;
 use App\Settings\SettingKey;
+use App\Settings\SettingsForm;
 use App\Settings\SettingsSeeder;
 use App\Settings\SettingsStore;
 use App\Settings\SupersededEnvironment;
@@ -90,6 +91,7 @@ function buildContainer(array $overrides = []): Container
             return $store;
         },
         SupersededEnvironment::class => static fn (): SupersededEnvironment => new SupersededEnvironment(),
+        SettingsForm::class => static fn (SettingsStore $settings): SettingsForm => new SettingsForm($settings),
         AppConfig::class => static fn (SettingsStore $settings): AppConfig => AppConfig::resolve($settings),
         AuthConfig::class => static fn (SettingsStore $settings): AuthConfig => AuthConfig::resolve($settings),
         PosterConfig::class => static fn (SettingsStore $settings): PosterConfig => PosterConfig::resolve($settings),
