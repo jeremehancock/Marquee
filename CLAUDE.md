@@ -10,6 +10,7 @@ Detail lives elsewhere — this file is only what's expensive to get wrong:
 | Branch/release flow, OpenSpec commands, toolchain | [docs/development-workflow.md](docs/development-workflow.md) |
 | The Docker image, PHP version, local smoke test | [docs/docker.md](docs/docker.md) |
 | Live Plex round-trip validation | [docs/testing.md](docs/testing.md) |
+| Every seeded variable, its default, and what supersedes it | [docs/configuration.md](docs/configuration.md) |
 | Project context + the capability map | `openspec/config.yaml` |
 | The release state machine and its guardrails | `.claude/commands/ship.md` |
 
@@ -103,6 +104,12 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     middleware, and was reverted. Don't re-add the case for consistency.
   - Any other new setting means a new `SettingKey` case. Its default lives there;
     its floor or fallback stays in the config object that owns the meaning.
+  - **Which variables the docs name is itself under test.** `DATA_DIR` and
+    `POSTERS_DIR` are deliberately absent from every user-facing page so that
+    "back up `/config`" stays unconditional, and `DISPLAY_ERRORS` lives only in
+    `docs/development-workflow.md`. `ConfigurationSurfaceTest` fails both
+    directions. Overturn the decision in the `application-shell` spec before
+    documenting one of them.
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).

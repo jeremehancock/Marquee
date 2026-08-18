@@ -29,8 +29,16 @@ final class ConfigurationSurfaceTest extends TestCase
      * Variables an install is expected to set. Their presence is the positive
      * control: without it, every absence assertion below would also pass against
      * a README that had lost its configuration section entirely.
+     *
+     * `SITE_TITLE` used to be the first of these and is deliberately no longer
+     * here. It became a field on the settings screen, so an install is no longer
+     * expected to set it — and the README's compose example is now asserted to
+     * name no variable the store owns. A control has to be a variable that will
+     * still be in the README next year, which is why the two left are the one
+     * the connection cannot work without and the one that is a path rather than
+     * a preference.
      */
-    private const DOCUMENTED_FOR_USERS = ['SITE_TITLE', 'SESSION_DIR'];
+    private const DOCUMENTED_FOR_USERS = ['PLEX_SERVER_URL', 'SESSION_DIR'];
 
     /**
      * Read by `AppConfig`, deliberately not offered. The `/config` layout is

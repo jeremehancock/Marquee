@@ -3,7 +3,7 @@
 Five Plex-facing behaviors are worth verifying by hand from time to time:
 
 1. A poster is **locked** in Plex after you update it in Marquee.
-2. The **Kometa "Overlay" label** feature (`PLEX_REMOVE_OVERLAY_LABEL`).
+2. The **Kometa "Overlay" label** feature (**Settings → Plex**).
 3. **Plex Posters** — applying one selects it rather than uploading a copy.
 4. **Orphan detection** — posters for media that no longer exists in Plex.
 5. **A corrected match** — Plex's **Fix Match**, and what the next import does
@@ -48,7 +48,7 @@ values):
 | `PLEX_URL` / `PLEX_TOKEN` | your Plex server + token |
 | `CATEGORY` / `FILENAME` / `RATING_KEY` | the test item (above) |
 | `RUN_LOCK_TEST` / `RUN_KOMETA_TEST` | `true`/`false` to toggle each test |
-| `EXPECT_LABEL_REMOVED` | set to match your `PLEX_REMOVE_OVERLAY_LABEL` (`true` = feature enabled) |
+| `EXPECT_LABEL_REMOVED` | set to match the Kometa overlay toggle under **Settings → Plex** (`true` = feature enabled) |
 | `INSECURE` | `true` to skip TLS verification (self-signed certs) |
 
 ### 3. Run it
@@ -85,9 +85,9 @@ scripts or a cron sanity check).
 - The Kometa test **temporarily adds** an `Overlay` label if the item lacks one
   and **removes it again** at the end if Marquee didn't. It won't leave a stray
   label on a non-Kometa item.
-- The script can't read Marquee's environment, so `EXPECT_LABEL_REMOVED` is how
-  you tell it what your `PLEX_REMOVE_OVERLAY_LABEL` is set to. A mismatch is
-  reported as a failure with a hint.
+- The script can't read Marquee's settings, so `EXPECT_LABEL_REMOVED` is how you
+  tell it how the overlay toggle is set. A mismatch is reported as a failure with
+  a hint.
 - **Never commit real tokens.** The script ships placeholders; pass real values
   via env vars or a local copy you don't check in.
 
@@ -134,8 +134,8 @@ your poster.
 
 ### Kometa "Overlay" label
 
-Kometa tags overlaid items with a Plex label named `Overlay`. With
-`PLEX_REMOVE_OVERLAY_LABEL=true`, Marquee removes that label when it sends a
+Kometa tags overlaid items with a Plex label named `Overlay`. With the overlay
+toggle on under **Settings → Plex**, Marquee removes that label when it sends a
 poster, so Kometa re-applies its overlay to your new poster on the next run.
 
 ```bash
@@ -144,10 +144,10 @@ curl -s "$PLEX/library/metadata/$RK?X-Plex-Token=$TOKEN" \
   | grep -o '<Label[^>]*tag="Overlay"[^>]*>'
 ```
 
-| `PLEX_REMOVE_OVERLAY_LABEL` | `Overlay` label after updating in Marquee |
+| Overlay toggle (**Settings → Plex**) | `Overlay` label after updating in Marquee |
 | --- | --- |
-| `true` | Removed |
-| `false` | Unchanged |
+| On | Removed |
+| Off | Unchanged |
 
 > Env changes require recreating the container (`docker compose up -d`), not just
 > restarting it.
