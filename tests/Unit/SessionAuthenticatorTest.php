@@ -7,10 +7,13 @@ namespace App\Tests\Unit;
 use App\Auth\SessionAuthenticator;
 use App\Config\AuthConfig;
 use App\Support\Session\ArraySession;
+use App\Tests\Support\SeedsSettings;
 use PHPUnit\Framework\TestCase;
 
 final class SessionAuthenticatorTest extends TestCase
 {
+    use SeedsSettings;
+
     /**
      * @return array{0: SessionAuthenticator, 1: ArraySession}
      */
@@ -138,7 +141,7 @@ final class SessionAuthenticatorTest extends TestCase
     public function testAnUnusableDurationIsFloored(): void
     {
         putenv('SESSION_DURATION=0');
-        $config = AuthConfig::fromEnv();
+        $config = AuthConfig::resolve($this->seededStore());
         putenv('SESSION_DURATION');
 
         self::assertGreaterThanOrEqual(60, $config->sessionDuration);
@@ -147,7 +150,7 @@ final class SessionAuthenticatorTest extends TestCase
     public function testTheDefaultSessionIsThirtyDays(): void
     {
         putenv('SESSION_DURATION');
-        self::assertSame(2592000, AuthConfig::fromEnv()->sessionDuration);
+        self::assertSame(2592000, AuthConfig::resolve($this->seededStore())->sessionDuration);
     }
 
     /**

@@ -106,7 +106,7 @@
        file: the environment is read once when the container starts, so deleting
        the variable and restarting leaves it exactly as it was — which is the
        first thing anyone tries. #}
-    {% if connection.hasObsoleteEnvToken %}
+    {% if superseded.has('PLEX_TOKEN') %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong><code>PLEX_TOKEN</code> is no longer used.</strong>
                Marquee gets its credential from signing in to Plex on this
@@ -128,7 +128,7 @@
     {# Same job as the notice above, for the credentials this screen replaced.
        An install upgraded from a version with its own login arrives at a screen
        that no longer asks for the password in its compose file. #}
-    {% if obsolete_bypass %}
+    {% if superseded.has('AUTH_BYPASS') %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong><code>AUTH_BYPASS</code> no longer disables the login.</strong>
                Marquee is now opened by signing in to Plex, and only the account
@@ -140,7 +140,7 @@
         </div>
     {% endif %}
 
-    {% if obsolete_credentials %}
+    {% if superseded.has('AUTH_USERNAME') or superseded.has('AUTH_PASSWORD') %}
         <div class="alert alert--warning plex-connection__obsolete" role="status">
             <p><strong><code>AUTH_USERNAME</code> and <code>AUTH_PASSWORD</code>
                are no longer used.</strong> Marquee is opened by signing in to
@@ -148,6 +148,28 @@
                your environment are ignored.</p>
             <p>Delete them from your compose file and run
                <code>docker compose up -d</code>.</p>
+        </div>
+    {% endif %}
+
+    {# Settings that moved into Marquee rather than disappearing. One notice for
+       all of them, because the remedy is identical and the list is long enough
+       that a block each would bury the screen's actual purpose.
+
+       Deliberately worded as "no longer read" rather than "no longer supported":
+       the values were carried across when the store was seeded, so nothing was
+       lost. The line in the compose file is now inert, not wrong. #}
+    {% if superseded.relocatedNames is not empty %}
+        <div class="alert alert--warning plex-connection__obsolete" role="status">
+            <p><strong>Some settings in your compose file are no longer read.</strong>
+               Marquee keeps its configuration for you now. The values you had set
+               were carried over, so nothing has changed about how it behaves.</p>
+            <p>These are the ones still in your environment:</p>
+            <p>{% for name in superseded.relocatedNames %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            <p>Delete them from your compose file and run
+               <code>docker compose up -d</code>.
+               <strong>Recreating the container is what clears this notice</strong>
+               — <code>docker compose restart</code> is not enough, because the
+               environment is only read when the container starts.</p>
         </div>
     {% endif %}
 {% endblock %}

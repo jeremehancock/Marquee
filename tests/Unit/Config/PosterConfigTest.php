@@ -8,10 +8,13 @@ use App\Config\PosterConfig;
 use App\Poster\SortDirection;
 use App\Poster\SortField;
 use App\Poster\SortOrder;
+use App\Tests\Support\SeedsSettings;
 use PHPUnit\Framework\TestCase;
 
 final class PosterConfigTest extends TestCase
 {
+    use SeedsSettings;
+
     protected function tearDown(): void
     {
         putenv('DEFAULT_SORT');
@@ -21,21 +24,21 @@ final class PosterConfigTest extends TestCase
     {
         putenv('DEFAULT_SORT');
 
-        self::assertSame(SortOrder::Alphabetical, PosterConfig::fromEnv()->defaultSort);
+        self::assertSame(SortOrder::Alphabetical, PosterConfig::resolve($this->seededStore())->defaultSort);
     }
 
     public function testDefaultSortReadsDateAdded(): void
     {
         putenv('DEFAULT_SORT=date_added');
 
-        self::assertSame(SortOrder::DateAdded, PosterConfig::fromEnv()->defaultSort);
+        self::assertSame(SortOrder::DateAdded, PosterConfig::resolve($this->seededStore())->defaultSort);
     }
 
     public function testUnrecognizedDefaultSortFallsBackToAlphabetical(): void
     {
         putenv('DEFAULT_SORT=whatever');
 
-        self::assertSame(SortOrder::Alphabetical, PosterConfig::fromEnv()->defaultSort);
+        self::assertSame(SortOrder::Alphabetical, PosterConfig::resolve($this->seededStore())->defaultSort);
     }
 
     /**
@@ -47,10 +50,10 @@ final class PosterConfigTest extends TestCase
     public function testDocumentedValuesSelectEachFieldsDefaultDirection(): void
     {
         putenv('DEFAULT_SORT=alphabetical');
-        $alphabetical = PosterConfig::fromEnv()->defaultSort;
+        $alphabetical = PosterConfig::resolve($this->seededStore())->defaultSort;
 
         putenv('DEFAULT_SORT=date_added');
-        $dateAdded = PosterConfig::fromEnv()->defaultSort;
+        $dateAdded = PosterConfig::resolve($this->seededStore())->defaultSort;
 
         self::assertSame(SortDirection::Ascending, $alphabetical->direction());
         self::assertSame(SortField::Alphabetical, $alphabetical->field());

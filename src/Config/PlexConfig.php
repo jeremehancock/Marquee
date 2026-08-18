@@ -5,24 +5,27 @@ declare(strict_types=1);
 namespace App\Config;
 
 use App\Plex\Connection\PlexConnectionStore;
-use App\Support\Env;
+use App\Settings\SettingKey;
+use App\Settings\SettingsStore;
 use GuzzleHttp\Psr7\Uri;
 use InvalidArgumentException;
 
 /**
  * Immutable Plex connection configuration, built once at bootstrap.
  *
- * Every setting comes from the environment except the token, which comes from
- * the connection store written by signing in to Plex. There is no second
- * source: supporting both was tried and removed, because precedence had to be
- * explained wherever the connection was described, produced a state where a
- * stored token existed but was inert, and made every Plex error message branch
- * on which source was live.
+ * Every setting comes from the settings store except the token, which comes
+ * from the connection store written by signing in to Plex. There is no second
+ * source for either: supporting both was tried and removed, because precedence
+ * had to be explained wherever the connection was described, produced a state
+ * where a stored token existed but was inert, and made every Plex error message
+ * branch on which source was live.
  *
- * `PLEX_TOKEN` is still read, for one purpose only — telling the user it is no
- * longer used. It never authenticates a request. An upgrade that silently
- * disconnects an install and offers no explanation is the worst version of this
- * change; one sentence turns it into an instruction.
+ * The address and the credential stay separately sourced on purpose. Signing in
+ * supplies a credential, never an address; the address is configuration, and it
+ * is seeded from `PLEX_SERVER_URL` like every other setting.
+ *
+ * `PLEX_TOKEN` is no longer read here at all. It is still reported to the user
+ * as retired — see {@see \App\Settings\SupersededEnvironment}.
  */
 final class PlexConfig
 {
@@ -32,27 +35,23 @@ final class PlexConfig
         public readonly int $connectTimeout,
         public readonly int $requestTimeout,
         public readonly bool $removeOverlayLabel = false,
-        public readonly bool $obsoleteEnvToken = false,
     ) {
     }
 
     /**
-     * Resolve the configuration, taking the token from the store.
+     * Resolve the configuration from both stores.
      *
-     * The store is read here rather than deeper in the application so that the
+     * They are read here rather than deeper in the application so that the
      * "read configuration once at bootstrap" rule still holds.
      */
-    public static function resolve(PlexConnectionStore $store): self
+    public static function resolve(PlexConnectionStore $connection, SettingsStore $settings): self
     {
         return new self(
-            serverUrl: self::serverUrl(Env::str('PLEX_SERVER_URL', '')),
-            token: $store->token() ?? '',
-            connectTimeout: max(1, Env::int('PLEX_CONNECT_TIMEOUT', 10)),
-            requestTimeout: max(1, Env::int('PLEX_REQUEST_TIMEOUT', 60)),
-            removeOverlayLabel: Env::bool('PLEX_REMOVE_OVERLAY_LABEL', false),
-            // Read, never used as a credential. Drives the notice that tells an
-            // upgrading user why their install is suddenly disconnected.
-            obsoleteEnvToken: Env::str('PLEX_TOKEN', '') !== '',
+            serverUrl: self::serverUrl($settings->string(SettingKey::PlexServerUrl)),
+            token: $connection->token() ?? '',
+            connectTimeout: max(1, $settings->int(SettingKey::PlexConnectTimeout)),
+            requestTimeout: max(1, $settings->int(SettingKey::PlexRequestTimeout)),
+            removeOverlayLabel: $settings->bool(SettingKey::PlexRemoveOverlayLabel),
         );
     }
 
@@ -70,9 +69,8 @@ final class PlexConfig
      * `32400` answered the connection screen with a stack trace.
      *
      * An unusable address is reported as no address at all, which is a state the
-     * connection screen already knows how to explain — and "set
-     * `PLEX_SERVER_URL`" is the right instruction for a value that cannot be
-     * used.
+     * connection screen already knows how to explain — and asking for the
+     * address again is the right instruction for a value that cannot be used.
      */
     private static function serverUrl(string $raw): string
     {

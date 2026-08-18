@@ -12,8 +12,12 @@ use function App\buildContainer;
 use function App\createApp;
 
 use App\Plex\Connection\PlexConnectionStore;
+use App\Settings\SettingKey;
+use App\Settings\SettingsSeeder;
+use App\Settings\SettingsStore;
 use App\Support\Session\ArraySession;
 use App\Support\Session\SessionInterface;
+use PHPUnit\Framework\Attributes\After;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
@@ -26,6 +30,13 @@ abstract class AppTestCase extends TestCase
 
     /** Whether the next makeApp() should start with Plex already connected. */
     private bool $connectNext = false;
+
+    /**
+     * Variables supersede() set, cleared after each test.
+     *
+     * @var list<string>
+     */
+    private array $supersededNames = [];
 
     /**
      * @param array<string, string> $env
@@ -56,7 +67,29 @@ abstract class AppTestCase extends TestCase
             'UPDATE_CHECK_ENABLED' => 'false',
         ];
         $merged = array_merge($defaults, $env);
+
+        // Split the given environment in two. Anything the settings store owns
+        // is used to seed the store and then taken back out of the environment;
+        // everything else is exported as a variable.
+        //
+        // A test is configuring an install, not its compose file. Leaving these
+        // set would also raise the superseded-settings notice on every page of
+        // every test — the same reason the AUTH_* variables above are cleared
+        // rather than set.
+        //
+        // Use supersede() where a leftover compose variable is the point.
+        $owned = [];
+        foreach (SettingKey::all() as $key) {
+            $owned[$key->variable()] = true;
+        }
+
+        $settings = [];
         foreach ($merged as $key => $value) {
+            if (isset($owned[$key])) {
+                $settings[$key] = $value;
+
+                continue;
+            }
             putenv($key . '=' . $value);
         }
 
@@ -67,6 +100,23 @@ abstract class AppTestCase extends TestCase
         // every later one. Start each app with no stored connection; use
         // connectPlex() to give one back.
         @unlink($this->dataDir . '/plex-connection.json');
+
+        // The settings store for the same reason, and a sharper one: it is
+        // seeded from the environment exactly once and then never again, so the
+        // first test to build an app would otherwise fix the configuration for
+        // the whole run and every later test's $env would be silently ignored.
+        @unlink($this->dataDir . '/settings.json');
+
+        // Seed the store the way a first boot does — through the real seeder, so
+        // a value means here exactly what it would mean in an install — and then
+        // clear the variables again.
+        foreach ($settings as $key => $value) {
+            putenv($key . '=' . $value);
+        }
+        (new SettingsSeeder(new SettingsStore($this->dataDir)))->seed();
+        foreach (array_keys($settings) as $key) {
+            putenv($key);
+        }
 
         // Before createApp(), not after: building the app resolves the gate
         // middleware, which resolves PlexConfig, which reads the store. A token
@@ -141,6 +191,43 @@ abstract class AppTestCase extends TestCase
         /** @var SessionAuthenticator $authenticator */
         $authenticator = $container->get(SessionAuthenticator::class);
         $authenticator->establish();
+    }
+
+    /**
+     * Leave a variable set in the environment after the store has been seeded,
+     * standing in for a compose file nobody has cleaned up yet.
+     *
+     * Call it after building the app. The superseded report reads the
+     * environment when the page is rendered, not when the container is built,
+     * so a variable set here is seen by the next request and — crucially —
+     * cannot have influenced the configuration that request resolves.
+     *
+     * @param array<string, string> $variables
+     */
+    protected function supersede(array $variables): void
+    {
+        foreach ($variables as $name => $value) {
+            $this->supersededNames[] = $name;
+            putenv($name . '=' . $value);
+        }
+    }
+
+    /**
+     * Clear anything supersede() set.
+     *
+     * `putenv()` is process-global and PHPUnit runs a single process, so a
+     * variable left behind here becomes a superseded-settings notice on a later
+     * test that never asked for one. An `#[After]` hook rather than tearDown(),
+     * so that subclasses keep their own teardown without chaining to this.
+     */
+    #[After]
+    protected function clearSuperseded(): void
+    {
+        foreach ($this->supersededNames as $name) {
+            putenv($name);
+        }
+
+        $this->supersededNames = [];
     }
 
     /**

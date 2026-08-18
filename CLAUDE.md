@@ -82,12 +82,18 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   imports, trailing commas in multiline).
 - Thin controllers → service classes → value objects. No business logic in
   Twig templates or the front controller.
-- All configuration comes from environment variables, read once into typed
-  config objects at bootstrap. Never call `getenv()` deep in the code. The one
-  exception is the Plex token, which comes from the connection store written by
-  signing in to Plex and is **never** read from the environment — `PLEX_TOKEN`
-  is read only to tell the user it is obsolete. Resolution still happens once at
-  bootstrap.
+- Configuration comes from the **settings store** (`/config/data/settings.json`),
+  read once into typed config objects at bootstrap. The environment seeds that
+  store on first start and is never consulted again — a variable still set
+  afterwards is reported to the user as superseded, never obeyed. Never call
+  `getenv()` deep in the code, and never add a second source for a setting.
+  - Two exceptions, both structural. The Plex token comes from the connection
+    store written by signing in to Plex. And `DATA_DIR`, `POSTERS_DIR`,
+    `SESSION_DIR`, `DISPLAY_ERRORS`, `UPDATE_REPO`, and `POSTER_SOURCE_URL` stay
+    on the environment — the first locates the store itself, and the rest have
+    to work when the store does not.
+  - A new setting means a new `SettingKey` case. Its default lives there; its
+    floor or fallback stays in the config object that owns the meaning.
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).

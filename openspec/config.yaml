@@ -44,6 +44,10 @@ context: |
   MUST target one of these rather than inventing a capability named after the
   change itself:
     - application-shell   (bootstrap, routing, config, error handling, health)
+    - settings            (the runtime settings store; how configuration is
+                           persisted, seeded from the environment, and resolved
+                           into the typed config objects at bootstrap, plus the
+                           reporting of superseded environment variables)
     - authentication      (Plex sign-in as the login, owner-only, sessions)
     - poster-library      (categories, listing, pagination, presentation,
                            pointer/touch actions, responsive layout, delete)
@@ -74,6 +78,8 @@ context: |
 rules:
   proposal:
     - Keep the Why section focused on user value, not implementation detail.
-  spec:
+  # `specs`, not `spec`: the artifact id comes from the schema, and a key that
+  # does not match one is dropped with a warning rather than applied.
+  specs:
     - Scenarios MUST use exactly four hashtags (#### Scenario:).
     - Use SHALL/MUST for normative requirements.

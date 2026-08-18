@@ -32,6 +32,10 @@ use App\Poster\Source\PosterSource;
 use App\Poster\Wall\NowPlayingService;
 use App\Poster\Wall\PosterWallService;
 use App\Poster\Wall\StreamToken;
+use App\Settings\SettingKey;
+use App\Settings\SettingsSeeder;
+use App\Settings\SettingsStore;
+use App\Settings\SupersededEnvironment;
 use App\Support\Env;
 use App\Support\Session\NativeSession;
 use App\Support\Session\SessionInterface;
@@ -71,16 +75,34 @@ function buildContainer(array $overrides = []): Container
 {
     $builder = new ContainerBuilder();
     $builder->addDefinitions([
-        AppConfig::class => static fn (): AppConfig => AppConfig::fromEnv(),
-        AuthConfig::class => static fn (): AuthConfig => AuthConfig::fromEnv(),
-        PosterConfig::class => static fn (): PosterConfig => PosterConfig::fromEnv(),
+        // The settings store comes first: every configuration object below is
+        // resolved from it. Its own location cannot, which is why the data
+        // directory is asked for separately rather than through AppConfig —
+        // building AppConfig would need the store that needs the directory.
+        //
+        // Seeding happens here rather than in a bootstrap step of its own so
+        // that it cannot be skipped by any entry point. The store refuses a
+        // second seed, so constructing it repeatedly is harmless.
+        SettingsStore::class => static function (): SettingsStore {
+            $store = new SettingsStore(AppConfig::dataDir());
+            (new SettingsSeeder($store))->seed();
+
+            return $store;
+        },
+        SupersededEnvironment::class => static fn (): SupersededEnvironment => new SupersededEnvironment(),
+        AppConfig::class => static fn (SettingsStore $settings): AppConfig => AppConfig::resolve($settings),
+        AuthConfig::class => static fn (SettingsStore $settings): AuthConfig => AuthConfig::resolve($settings),
+        PosterConfig::class => static fn (SettingsStore $settings): PosterConfig => PosterConfig::resolve($settings),
         PlexConnectionStore::class => static fn (AppConfig $app): PlexConnectionStore
             => new PlexConnectionStore($app->dataDir),
         PlexPinClient::class => static fn (ClientInterface $http, PlexConnectionStore $store): PlexPinClient
             => new PlexPinClient($http, $store, readVersion()),
-        PlexConfig::class => static fn (PlexConnectionStore $store): PlexConfig => PlexConfig::resolve($store),
-        AutoImportConfig::class => static fn (): AutoImportConfig => AutoImportConfig::fromEnv(),
-        LibraryExclusions::class => static fn (): LibraryExclusions => LibraryExclusions::fromEnv(),
+        PlexConfig::class => static fn (PlexConnectionStore $connection, SettingsStore $settings): PlexConfig
+            => PlexConfig::resolve($connection, $settings),
+        AutoImportConfig::class => static fn (SettingsStore $settings): AutoImportConfig
+            => AutoImportConfig::resolve($settings),
+        LibraryExclusions::class => static fn (SettingsStore $settings): LibraryExclusions
+            => LibraryExclusions::resolve($settings),
         // Both values are passed as plain scalars rather than the config
         // objects: App\Support is generic infrastructure, and having it depend
         // on App\Config would invert the layering for nothing. The configs still
@@ -143,12 +165,18 @@ function buildContainer(array $overrides = []): Container
             $token,
             dirname(__DIR__) . '/public/assets/live-tv.svg',
         ),
-        LatestReleaseProvider::class => static fn (ClientInterface $http): LatestReleaseProvider
-            => new GitHubLatestReleaseProvider(
-                $http,
-                Env::bool('UPDATE_CHECK_ENABLED', false),
-                Env::str('UPDATE_REPO', 'jeremehancock/Marquee'),
-            ),
+        // Whether to check is a setting; which repository to check is not. The
+        // repository exists so a fork or a local build can point the check
+        // somewhere else, and offering it in the interface would let an install
+        // aim its update notice at a project that is not this one.
+        LatestReleaseProvider::class => static fn (
+            ClientInterface $http,
+            SettingsStore $settings,
+        ): LatestReleaseProvider => new GitHubLatestReleaseProvider(
+            $http,
+            $settings->bool(SettingKey::UpdateCheckEnabled),
+            Env::str('UPDATE_REPO', 'jeremehancock/Marquee'),
+        ),
         VersionService::class => static fn (LatestReleaseProvider $latest): VersionService
             => new VersionService(readVersion(), $latest),
         LoggerInterface::class => static function (AppConfig $config): LoggerInterface {

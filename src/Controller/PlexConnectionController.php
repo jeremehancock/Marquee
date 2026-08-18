@@ -6,12 +6,12 @@ namespace App\Controller;
 
 use App\Auth\PlexConnectionMiddleware;
 use App\Auth\SessionAuthenticator;
-use App\Config\AuthConfig;
 use App\Plex\Connection\PlexConnectionState;
 use App\Plex\Connection\PlexConnectionStatus;
 use App\Plex\Connection\PlexSignInException;
 use App\Plex\Connection\PlexSignInService;
 use App\Plex\Connection\PlexSignInStatus;
+use App\Settings\SupersededEnvironment;
 use App\Support\Flash;
 use App\Support\LastCategory;
 use App\Support\Session\SessionInterface;
@@ -44,7 +44,7 @@ final class PlexConnectionController
         private readonly PlexSignInService $signIn,
         private readonly PlexConnectionStatus $status,
         private readonly SessionAuthenticator $authenticator,
-        private readonly AuthConfig $auth,
+        private readonly SupersededEnvironment $superseded,
         private readonly Flash $flash,
         private readonly SessionInterface $session,
     ) {
@@ -104,8 +104,11 @@ final class PlexConnectionController
             // Only meaningful once connected — while the gate is up there is no
             // gallery to go back to, and the template hides the link.
             'back_url' => LastCategory::backUrl($this->session),
-            'obsolete_credentials' => $this->auth->obsoleteEnvCredentials,
-            'obsolete_bypass' => $this->auth->obsoleteEnvBypass,
+            // The whole report rather than a flag per variable. The screen asks
+            // it about the retired ones by name, because each needs its own
+            // sentence about what replaced it, and lists the relocated ones,
+            // which all need the same one.
+            'superseded' => $this->superseded,
         ]);
     }
 

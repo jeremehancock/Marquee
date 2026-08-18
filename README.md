@@ -130,7 +130,8 @@ Plex** to pull in your posters.
 The `/config` volume holds everything Marquee needs to persist:
 
 - `/config/posters` — the poster images, grouped by category
-- `/config/data` — the SQLite database and logs
+- `/config/data` — your settings, your Plex connection, the SQLite database, and
+  logs
 - `/config/sessions` — your signed-in sessions, so updating Marquee doesn't sign
   you out
 
@@ -141,6 +142,20 @@ Back this directory up if you want to keep your poster selections.
 Everything is configured with environment variables. All are optional except
 `PLEX_SERVER_URL`, which Marquee cannot work — or even let you sign in — without.
 There are no credentials to set: you sign in to Plex.
+
+> **These variables set up a new install, once.** Marquee keeps its own
+> configuration on the `/config` volume. The first time it starts, it copies
+> whatever your compose file says into that store — so upgrading changes nothing
+> about how your install behaves — and from then on the store is what it reads.
+>
+> Editing a variable afterwards has no effect, and Marquee will tell you so:
+> the connection screen lists any variable still in your compose file that it no
+> longer reads, so you can delete it. `PUID`, `PGID`, `TZ`, and the `/config`
+> paths are unaffected — those are container settings and are always read from
+> the environment.
+>
+> Deleting `/config/data/settings.json` returns the install to a clean slate and
+> lets the next start read your compose file again.
 
 | Variable | Description | Default |
 | --- | --- | --- |

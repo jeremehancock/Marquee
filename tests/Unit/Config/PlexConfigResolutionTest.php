@@ -6,10 +6,13 @@ namespace App\Tests\Unit\Config;
 
 use App\Config\PlexConfig;
 use App\Plex\Connection\PlexConnectionStore;
+use App\Tests\Support\SeedsSettings;
 use PHPUnit\Framework\TestCase;
 
 final class PlexConfigResolutionTest extends TestCase
 {
+    use SeedsSettings;
+
     private string $dir = '';
 
     protected function setUp(): void
@@ -38,7 +41,7 @@ final class PlexConfigResolutionTest extends TestCase
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('from-sign-in');
 
-        $config = PlexConfig::resolve($store);
+        $config = PlexConfig::resolve($store, $this->seededStore());
 
         self::assertSame('from-sign-in', $config->token);
         self::assertTrue($config->isConfigured());
@@ -48,7 +51,7 @@ final class PlexConfigResolutionTest extends TestCase
     {
         putenv('PLEX_TOKEN=from-environment');
 
-        $config = PlexConfig::resolve(new PlexConnectionStore($this->dir));
+        $config = PlexConfig::resolve(new PlexConnectionStore($this->dir), $this->seededStore());
 
         // Read, but never used to authenticate.
         self::assertSame('', $config->token);
@@ -61,26 +64,18 @@ final class PlexConfigResolutionTest extends TestCase
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('from-sign-in');
 
-        self::assertSame('from-sign-in', PlexConfig::resolve($store)->token);
+        self::assertSame('from-sign-in', PlexConfig::resolve($store, $this->seededStore())->token);
     }
 
-    public function testAnEnvironmentTokenIsReportedAsObsolete(): void
-    {
-        putenv('PLEX_TOKEN=from-environment');
-
-        // This is the one thing the variable still does: drive the notice that
-        // tells an upgrading user why their install is disconnected.
-        self::assertTrue(PlexConfig::resolve(new PlexConnectionStore($this->dir))->obsoleteEnvToken);
-    }
-
-    public function testNoEnvironmentTokenIsNotReportedAsObsolete(): void
-    {
-        self::assertFalse(PlexConfig::resolve(new PlexConnectionStore($this->dir))->obsoleteEnvToken);
-    }
+    // Reporting `PLEX_TOKEN` as obsolete used to be this class's job, through a
+    // flag on the config it resolved. It belongs to
+    // {@see \App\Tests\Unit\Settings\SupersededEnvironmentTest} now, along with
+    // every other superseded variable. What stays here is the half that is
+    // about the credential: that the variable authenticates nothing.
 
     public function testNoStoredTokenMeansNotConfigured(): void
     {
-        $config = PlexConfig::resolve(new PlexConnectionStore($this->dir));
+        $config = PlexConfig::resolve(new PlexConnectionStore($this->dir), $this->seededStore());
 
         self::assertSame('', $config->token);
         self::assertFalse($config->isConfigured());
@@ -94,14 +89,14 @@ final class PlexConfigResolutionTest extends TestCase
 
         // Signing in cannot supply an address; the connection screen has to say
         // so rather than offering to sign in again.
-        self::assertFalse(PlexConfig::resolve($store)->isConfigured());
+        self::assertFalse(PlexConfig::resolve($store, $this->seededStore())->isConfigured());
     }
 
     public function testResolutionNeverWritesToTheStore(): void
     {
         putenv('PLEX_TOKEN=from-environment');
 
-        PlexConfig::resolve(new PlexConnectionStore($this->dir));
+        PlexConfig::resolve(new PlexConnectionStore($this->dir), $this->seededStore());
 
         // An environment token is not migrated onto disk on the user's behalf.
         self::assertNull((new PlexConnectionStore($this->dir))->token());
@@ -126,7 +121,7 @@ final class PlexConfigResolutionTest extends TestCase
             $store = new PlexConnectionStore($this->dir);
             $store->storeToken('a-token');
 
-            $config = PlexConfig::resolve($store);
+            $config = PlexConfig::resolve($store, $this->seededStore());
 
             self::assertSame('', $config->serverUrl, $url);
             self::assertFalse($config->isConfigured(), $url);
@@ -143,7 +138,7 @@ final class PlexConfigResolutionTest extends TestCase
         $store = new PlexConnectionStore($this->dir);
         $store->storeToken('a-token');
 
-        $config = PlexConfig::resolve($store);
+        $config = PlexConfig::resolve($store, $this->seededStore());
 
         self::assertSame('http://plex:32400', $config->serverUrl);
         self::assertTrue($config->isConfigured());
@@ -161,7 +156,7 @@ final class PlexConfigResolutionTest extends TestCase
             $store = new PlexConnectionStore($this->dir);
             $store->storeToken('a-token');
 
-            self::assertSame($expected, PlexConfig::resolve($store)->serverUrl, $raw);
+            self::assertSame($expected, PlexConfig::resolve($store, $this->seededStore())->serverUrl, $raw);
         }
     }
 }
