@@ -206,7 +206,7 @@ final class PreviewApplyProgressTest extends TestCase
         );
     }
 
-    public function testTheConfirmButtonIsDisabledWhileTheChangeRuns(): void
+    public function testTheConfirmButtonIsSwitchedOffWhileTheChangeRuns(): void
     {
         $template = $this->galleryTemplate();
 
@@ -215,10 +215,16 @@ final class PreviewApplyProgressTest extends TestCase
             $template,
             'The confirm button must call the apply.'
         );
+        // aria-disabled rather than the disabled attribute, which would drop the
+        // button out of the tab order at the moment it is focused — the browser
+        // then puts focus on the body, and a keyboard user loses their place in
+        // the middle of the change they just started. See DisabledStateTest,
+        // which pins the guard that has to stand behind every such binding now
+        // that the attribute no longer enforces anything.
         self::assertStringContainsString(
-            ':disabled="preview.applying"',
+            ':aria-disabled="preview.applying ? \'true\' : \'false\'"',
             $template,
-            'The confirm button must be disabled while a change is in flight.'
+            'The confirm button must be switched off while a change is in flight.'
         );
     }
 

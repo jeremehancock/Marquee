@@ -1012,6 +1012,21 @@
                 // summary and refresh the gallery grid behind it.
                 runImport: function (form) {
                     var self = this;
+                    // The second of the two guards standing where `disabled` used
+                    // to stand on its own. The Import button is aria-disabled now,
+                    // so it announces rather than enforces, and the form is
+                    // submittable by routes that never touch the button — Enter on
+                    // a radio being the obvious one, which a disabled default
+                    // button used to swallow for free.
+                    //
+                    // The form's own @submit refuses an incomplete selection too,
+                    // but it cannot refuse on this path: preventDefault() does not
+                    // stop the listener openImport attached to the same element, so
+                    // without this the tray would post a selection the page would
+                    // have rejected. `ready` is the getter the button binds, so the
+                    // two cannot drift.
+                    var data = this._importData();
+                    if (data && !data.ready) { return; }
                     fetch('/plex/import', {
                         method: 'POST',
                         body: new FormData(form),
