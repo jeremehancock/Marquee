@@ -107,7 +107,54 @@ final class DisabledStateTest extends TestCase
         $body = implode(' ', $rules);
         self::assertStringContainsString('cursor: not-allowed', $body);
         self::assertStringContainsString('var(--muted)', $body);
-        self::assertStringContainsString('var(--surface)', $body);
+    }
+
+    /**
+     * The bug this shipped with once, and the reason it is asserted by agreement
+     * rather than by value.
+     *
+     * The off state was first filled with the same token .panel and .modal__panel
+     * are drawn on, so an off button dissolved into whatever it sat on: no fill,
+     * no edge, just a muted label floating in the middle of the panel — which reads
+     * as a caption, not as a button that cannot be used. It is invisible in review,
+     * because the declaration looks perfectly reasonable on its own; it is only
+     * wrong in relation to something declared a thousand lines away.
+     *
+     * So this compares the two rather than pinning either. Retinting panels or
+     * retuning the off state must not fail here — the two colliding must.
+     */
+    public function testTheOffFillIsNotTheSurfaceAButtonSitsOn(): void
+    {
+        $offRules = $this->rulesMatching('/^\.btn(:disabled|\[aria-disabled)/');
+        $panelRules = $this->rulesMatching('/^\.(panel|modal__panel)$/');
+
+        self::assertNotSame([], $panelRules, 'Expected .panel and .modal__panel to be styled.');
+
+        $background = static function (string $body): ?string {
+            return preg_match('/(?:^|;)\s*background:\s*([^;]+)/', $body, $m) === 1
+                ? trim($m[1])
+                : null;
+        };
+
+        $offFill = $background(implode(';', $offRules));
+        self::assertNotNull($offFill, 'The off state must declare a fill of its own.');
+
+        foreach ($panelRules as $selector => $body) {
+            $surface = $background($body);
+            if ($surface === null) {
+                continue;
+            }
+            self::assertNotSame(
+                $surface,
+                $offFill,
+                sprintf(
+                    'A switched-off button filled with %s vanishes into %s, which is drawn on '
+                    . 'the same colour. The label is left floating with no button around it.',
+                    $offFill,
+                    $selector
+                )
+            );
+        }
     }
 
     /**

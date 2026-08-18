@@ -1107,10 +1107,25 @@ h1 {
    a handler change, which is exactly why it is tempting — and it would also
    silence the tooltip on the Plex Posters tab, which is the only thing that
    explains why that tab is off. Refusing the action belongs in the handler; this
-   rule only draws. */
+   rule only draws.
+
+   --surface-2 and not --surface, which is the first thing this rule got wrong:
+   .panel and .modal__panel are both drawn on --surface, so an off button filled
+   with it dissolved into whatever it sat on and left the label floating with no
+   button around it at all. The fill has to differ from every surface a button can
+   sit on — the page (--bg), a panel or dialog (--surface), and a tray — and
+   --surface-2 is the one tier that clears all three. It doubles as the hover fill
+   for an ordinary button, which would be a collision worth avoiding except that an
+   off button has no hover state to collide with.
+
+   Only border-color is set, deliberately. `.form button` declares `border: none`,
+   and a shorthand sets border-style too, so a border declared here would appear on
+   the off state and vanish again when the button came alive — two pixels of layout
+   shift at the moment the user completes their selection. Where a border exists
+   this recolours it; where the context removed it, the fill carries the state. */
 .btn:disabled,
 .btn[aria-disabled='true'] {
-    background: var(--surface);
+    background: var(--surface-2);
     border-color: var(--border);
     color: var(--muted);
     cursor: not-allowed;
