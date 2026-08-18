@@ -216,6 +216,24 @@ into a scanning foothold. Propose independently against `poster-editing`.
 - Work on `dev`. `/ship` owns everything after apply. Never archive before the
   user has validated the `:dev` image.
 
+Learned in phase 1, and cheaper to read than to rediscover:
+
+- **In a `MODIFIED` requirement, never rename a scenario.** The header is its
+  identity: `openspec archive` compares headers against the current spec and
+  refuses the archive as a dropped scenario. Reword the body freely, keep the
+  `#### Scenario:` line byte-identical, and add new scenarios rather than
+  repurposing old ones.
+- **`tests/AppTestCase.php` splits the `$env` it is given.** Anything backed by a
+  `SettingKey` seeds the settings store and is then removed from the
+  environment, because a test configures an install rather than a compose file —
+  and a variable left set raises the superseded notice on every page. Use
+  `supersede()` where a leftover compose variable is the point of the test.
+- **Adding a setting means adding a `SettingKey` case.** Its default lives there;
+  its floor or fallback stays in the config object that owns the meaning, so a
+  value the settings screen accepts and a value bootstrap corrects cannot
+  disagree. `SupersededEnvironment` derives its list from the enum, so a new
+  setting is reported without anyone remembering to list it twice.
+
 ---
 
 ## Phase 1 — settings store, env seeding, obsolete-env reporting
