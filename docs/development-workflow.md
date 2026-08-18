@@ -155,6 +155,10 @@ The first four are read straight from the environment on every start. The last
 two are development overrides and, like `DISPLAY_ERRORS`, are kept out of the
 README on purpose.
 
+`PLEX_SERVER_URL` also stays in the environment, but for a different reason
+entirely — it is a security control rather than a structural exception. See
+[the README](../README.md#connecting-to-plex).
+
 ---
 
 ## Part 2 — OpenSpec in this repo
@@ -396,7 +400,8 @@ existing users are never offered the update.
   `dev` or `main`, and creates `v<version>` itself using `GITHUB_TOKEN` (which
   re-triggers neither CI nor the publish) — so there's no double build.
 - The in-app update check compares against `UPDATE_REPO` (default
-  `jeremehancock/Marquee`); enable it with `UPDATE_CHECK_ENABLED=true`.
+  `jeremehancock/Marquee`, and still an environment variable); turn the check
+  itself on under **Settings → Updates**.
 - Every build also gets an immutable `sha-<short>` tag, so you can always pull a
   specific commit's image (handy for rollbacks).
 - Your local `main` branch goes stale, because this workflow never checks it out
@@ -469,7 +474,7 @@ Marquee/
 ├─ tests/             # PHPUnit (Unit, Functional)
 ├─ docker/            # s6 services, nginx conf, auto-import cron
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
-├─ docs/              # this file + testing.md + docker.md
+├─ docs/              # this file + configuration.md + testing.md + docker.md
 ├─ openspec/          # config.yaml, specs/, changes/
 └─ .claude/commands/  # the /opsx:* slash commands
 ```
