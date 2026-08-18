@@ -231,6 +231,62 @@ openspec --help
 Always run `openspec validate <change> --strict` before coding — it catches
 malformed spec deltas (most commonly scenarios that don't use exactly four `#`).
 
+### Traps that cost real time
+
+Each of these was hit during the settings-in-app migration and is cheaper to
+read than to rediscover.
+
+**In a `MODIFIED` requirement, never rename a scenario.** The `#### Scenario:`
+header is its identity — `openspec archive` compares headers against the current
+spec and refuses the archive, reporting a dropped scenario. Reword the body
+freely; keep the header byte-identical, and add new scenarios rather than
+repurposing old ones.
+
+**Overturning half a requirement means `REMOVED` + `ADDED`, not `MODIFIED`.**
+Because a scenario cannot be dropped or repurposed, a requirement covering two
+concerns that later diverge has to be retired whole — with `**Reason**` and
+`**Migration**` — and the surviving half re-added under its own name.
+
+**Documentation of the configuration surface is under test.**
+`ConfigurationSurfaceTest` asserts both directions: which variables the README
+must name, and which it must not. `DATA_DIR` and `POSTERS_DIR` are withheld from
+every user-facing page so "back up `/config`" stays unconditional. Overturn the
+decision in the `application-shell` spec before documenting one.
+
+**Cron expressions cannot appear in a PHP docblock.** `*/6` contains the
+character pair that closes a block comment, and the file stops parsing. Use a
+`//` comment, or describe the schedule in words.
+
+**Scheduled-slot identity is `YYYYMMDDnn`, never a timestamp.** Local midnight
+plus N hours collides across a 23-hour daylight-saving day — that day's last
+hourly slot equals the next day's first — and one run is silently skipped.
+
+### Testing traps
+
+**`tests/AppTestCase.php` splits the `$env` it is given.** Anything backed by a
+`SettingKey` seeds the settings store and is then removed from the environment,
+because a test configures an install rather than a compose file — a variable left
+set raises the superseded notice on every page. Use `supersede()` when a leftover
+compose variable is the point of the test.
+
+**`makeApp()` deletes `settings.json` and re-seeds**, so a second `makeApp()`
+erases what a save just wrote. To assert "the next request sees it", build a
+container directly — `createApp(buildContainer([...]))` — over the store on disk,
+or resolve config objects from `new SettingsStore($dataDir)`. See
+`SettingsScreenTest::nextRequest()`.
+
+**`FakePlexClient` filters by its own constructor argument**, not by the
+container's `LibraryExclusions`. A functional test asserting an exclusion reaches
+a screen has to hand the fake the stored list too.
+
+**Adding a field to `SettingsForm` means updating the `submission()` / `form()`
+helpers** in both `SettingsFormTest` and `SettingsScreenTest`, or every save test
+fails at once.
+
+**`/health` does not prove an s6 service came up** — nginx serves pages happily
+while `svc-cron` is dead. Check `s6-svstat` explicitly; see
+[docs/docker.md](docker.md).
+
 ---
 
 ## Part 3 — End-to-end: a feature on the `dev` branch
