@@ -4,10 +4,14 @@ Scaffolding for a four-phase migration. **Not a spec.**
 
 **The migration is over. Phases 1–3 shipped; phase 4 was built, validated, and
 deliberately abandoned** — see the phase 4 section at the bottom for what was
-built and why it was rolled back. Keep this file until
-`pin-server-url-to-environment` is archived; after that its only remaining value
-is the phase 4 post-mortem, which has been restated in `SettingKey`'s docblock
-and in the `settings` spec, so it can go.
+built and why it was rolled back.
+
+This file is kept as the record of that decision rather than deleted with the
+work, because the reasoning is not obvious from the code that remains: what is
+left looks like a migration someone gave up on three-quarters of the way
+through. It was finished; the last step was the wrong one. The argument is
+restated where it is load-bearing — `SettingKey`'s docblock and the `settings`
+spec — so this file is history, not instructions. Do not resume it.
 
 ## How to use this
 
