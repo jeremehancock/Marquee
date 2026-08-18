@@ -4,10 +4,22 @@ declare(strict_types=1);
 
 namespace App\Config;
 
+use App\Settings\SettingKey;
+use App\Settings\SettingsStore;
 use App\Support\Env;
 
 /**
- * Immutable application configuration, built once from the environment.
+ * Immutable application configuration, built once at bootstrap.
+ *
+ * This class draws from two sources, which is a seam rather than an oversight.
+ * The three directories and the error-display switch come from the environment
+ * because they cannot come from anywhere else: the settings store lives inside
+ * `dataDir`, so resolving that from the store would be circular, and
+ * `displayErrors` is the switch that makes a broken install diagnosable — it
+ * must not depend on reading a file that may be what broke.
+ *
+ * Everything else comes from the settings store, so that changing it does not
+ * mean editing a compose file and recreating the container.
  */
 final class AppConfig
 {
@@ -40,14 +52,30 @@ final class AppConfig
     ) {
     }
 
-    public static function fromEnv(): self
+    /**
+     * Resolve the configuration, taking the site title from the store.
+     */
+    public static function resolve(SettingsStore $store): self
     {
         return new self(
-            siteTitle: Env::str('SITE_TITLE', self::APP_NAME),
-            dataDir: rtrim(Env::str('DATA_DIR', '/config/data'), '/'),
+            siteTitle: $store->string(SettingKey::SiteTitle),
+            dataDir: self::dataDir(),
             postersDir: rtrim(Env::str('POSTERS_DIR', '/config/posters'), '/'),
             sessionDir: rtrim(Env::str('SESSION_DIR', '/config/sessions'), '/'),
             displayErrors: Env::bool('DISPLAY_ERRORS', false),
         );
+    }
+
+    /**
+     * Where the data directory is, resolved without the store.
+     *
+     * The settings store is constructed from this, so this one value has to be
+     * answerable before any store exists. It is the base of the circularity the
+     * class comment describes, isolated here so that nothing else has to know
+     * about it.
+     */
+    public static function dataDir(): string
+    {
+        return rtrim(Env::str('DATA_DIR', '/config/data'), '/');
     }
 }

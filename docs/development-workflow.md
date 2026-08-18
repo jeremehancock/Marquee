@@ -137,6 +137,24 @@ provoking an error is hoping to read. It is deliberately absent from the README'
 configuration table: it is a development setting, not a knob an install is meant
 to turn.
 
+### Settings that stay in the environment
+
+Most configuration now lives in the settings store on the `/config` volume,
+seeded once from the environment on first start. Six variables deliberately do
+not:
+
+| Variable | Why it stays |
+| --- | --- |
+| `DATA_DIR` | The settings store lives inside it — reading it from the store would be circular |
+| `POSTERS_DIR`, `SESSION_DIR` | Same class of problem, and the `/config` layout is documented as fixed |
+| `DISPLAY_ERRORS` | Has to work when the store is what broke, so it must not depend on reading it |
+| `UPDATE_REPO` | Points the update check at a fork or a local build. Offering it in the interface would let an install aim its update notice at a project that is not this one |
+| `POSTER_SOURCE_URL` | Points Find Posters at a local API during development |
+
+The first four are read straight from the environment on every start. The last
+two are development overrides and, like `DISPLAY_ERRORS`, are kept out of the
+README on purpose.
+
 ---
 
 ## Part 2 — OpenSpec in this repo

@@ -1,0 +1,91 @@
+{# The application's form controls, in one place.
+
+   Marquee had no real form until the settings screen — the connection screen is
+   a button, and every other control is a link or a poster. Defining the controls
+   here rather than where the first one happened to appear is what keeps the next
+   form from inventing a second vocabulary.
+
+   Every macro takes its error message rather than reaching for a shared `errors`
+   variable: a Twig macro sees only its own arguments, so the alternative is a
+   macro that silently renders nothing wherever the caller's scope differs.
+
+   A refused field is never identified by colour alone. The message sits beside
+   the control, is associated with it through aria-describedby, and the control
+   carries aria-invalid — so the tint is the third signal, not the only one. #}
+
+{# Rendered as the whole attribute, not just its value, so a field with neither a
+   hint nor an error carries no empty aria-describedby. #}
+{% macro _describedby(name, error, hint) %}
+    {%- set ids = [] %}
+    {%- if error %}{% set ids = ids|merge([name ~ '-error']) %}{% endif %}
+    {%- if hint %}{% set ids = ids|merge([name ~ '-hint']) %}{% endif %}
+    {%- if ids is not empty %} aria-describedby="{{ ids|join(' ') }}"{% endif -%}
+{% endmacro %}
+
+{% macro _message(name, error, hint) %}
+    {% if hint %}<p class="field__hint" id="{{ name }}-hint">{{ hint }}</p>{% endif %}
+    {% if error %}<p class="field__error" id="{{ name }}-error" role="alert">{{ error }}</p>{% endif %}
+{% endmacro %}
+
+{% macro text(name, label, value, error = null, hint = null, maxlength = null) %}
+    <div class="field{{ error ? ' field--invalid' : '' }}">
+        <label class="field__label" for="{{ name }}">{{ label }}</label>
+        <input class="input" type="text" id="{{ name }}" name="{{ name }}" value="{{ value }}"
+               {%- if maxlength %} maxlength="{{ maxlength }}"{% endif %}
+               {%- if error %} aria-invalid="true"{% endif %}
+               {{- _self._describedby(name, error, hint) }}>
+        {{ _self._message(name, error, hint) }}
+    </div>
+{% endmacro %}
+
+{# `inputmode="numeric"` rather than type="number": the spinner is useless at
+   these ranges and a number input silently discards what it cannot parse, which
+   would hide exactly the submission this form means to refuse out loud. #}
+{% macro number(name, label, value, min, max, error = null, hint = null, unit = null) %}
+    <div class="field{{ error ? ' field--invalid' : '' }}">
+        <label class="field__label" for="{{ name }}">{{ label }}</label>
+        <div class="field__row">
+            <input class="input input--number" type="text" inputmode="numeric" id="{{ name }}"
+                   name="{{ name }}" value="{{ value }}"
+                   {%- if error %} aria-invalid="true"{% endif %}
+                   {{- _self._describedby(name, error, hint) }}>
+            {% if unit %}<span class="field__unit" aria-hidden="true">{{ unit }}</span>{% endif %}
+        </div>
+        {{ _self._message(name, error, hint) }}
+    </div>
+{% endmacro %}
+
+{% macro select(name, label, value, options, error = null, hint = null) %}
+    <div class="field{{ error ? ' field--invalid' : '' }}">
+        <label class="field__label" for="{{ name }}">{{ label }}</label>
+        <select class="input select" id="{{ name }}" name="{{ name }}"
+                {%- if error %} aria-invalid="true"{% endif %}
+                {{- _self._describedby(name, error, hint) }}>
+            {% for option in options %}
+                <option value="{{ option.value }}"{{ option.value == value ? ' selected' : '' }}>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+        {{ _self._message(name, error, hint) }}
+    </div>
+{% endmacro %}
+
+{# A native checkbox, styled with accent-color. Its checked state is a mark
+   rather than a fill, so it survives being wrong about colour — and the browser
+   keeps the keyboard and assistive-technology behaviour that a div dressed as a
+   checkbox has to reimplement. #}
+{% macro checkbox(name, label, checked, hint = null, value = null, id = null) %}
+    {# An explicit id where one name covers many boxes — the library exclusions
+       all submit as `excluded[]`, and ids have to stay unique for the labels to
+       address the right control. #}
+    {% set id = id ?? name %}
+    <div class="field field--check">
+        <label class="checkbox">
+            <input class="checkbox__input" type="checkbox" id="{{ id }}" name="{{ name }}"
+                   {%- if value is not null %} value="{{ value }}"{% endif %}
+                   {{- checked ? ' checked' : '' }}
+                   {%- if hint %} aria-describedby="{{ id }}-hint"{% endif %}>
+            <span class="checkbox__label">{{ label }}</span>
+        </label>
+        {% if hint %}<p class="field__hint" id="{{ id }}-hint">{{ hint }}</p>{% endif %}
+    </div>
+{% endmacro %}

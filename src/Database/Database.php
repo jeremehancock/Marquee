@@ -86,6 +86,24 @@ final class Database
             )'
         );
 
+        // Which auto-import slot last completed, and the guard held while one is
+        // running. One row, hence the CHECK: there is one schedule.
+        //
+        // This is the one thing here that is not a cache of Plex's own data.
+        // `application-shell` admits it under a stated bound — losing it costs
+        // one redundant import, and an import that finds nothing changed in Plex
+        // downloads nothing — so deleting this file stays a safe reset.
+        //
+        // `last_slot` is the slot, not the moment the run finished: "which slot
+        // is done" is the question the scheduler asks.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS auto_import_schedule (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                last_slot INTEGER,
+                running_since INTEGER
+            )'
+        );
+
         // Added after the initial release; safe to run every boot.
         $this->ensureColumn($pdo, 'plex_items', 'section_key', "TEXT NOT NULL DEFAULT ''");
         // Plex's poster path carries a version token; storing it lets an import

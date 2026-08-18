@@ -18,7 +18,6 @@ final class PlexConnectionState
         public readonly bool $hasToken,
         public readonly ?string $serverName,
         public readonly bool $hasServerUrl,
-        public readonly bool $obsoleteEnvToken,
     ) {
     }
 
@@ -39,14 +38,5 @@ final class PlexConnectionState
     public function needsServerUrl(): bool
     {
         return !$this->hasServerUrl;
-    }
-
-    /**
-     * Whether a `PLEX_TOKEN` is still set in the environment, where it no
-     * longer does anything. True only until the user removes it.
-     */
-    public function hasObsoleteEnvToken(): bool
-    {
-        return $this->obsoleteEnvToken;
     }
 }

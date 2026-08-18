@@ -17,8 +17,9 @@ to be flagged for deletion.
 ### Requirement: Detect orphaned posters
 The system SHALL identify orphaned posters: posters whose mapped Plex rating key
 is no longer present among the Plex items the system can observe. A poster
-imported from a library that is now excluded by `EXCLUDED_LIBRARIES` is
-therefore an orphan, because an excluded library is not observed at all. When a
+imported from a library that is now excluded is therefore an orphan, because an
+excluded library is not observed at all — including a library excluded from the
+settings screen, which is now how exclusions are chosen. When a
 mapping's poster file no longer exists on disk, the system SHALL prune that
 mapping during detection rather than retaining or listing it, so that stale
 mappings cannot resurface as duplicate orphans and no two orphan entries are
@@ -32,8 +33,7 @@ excluded; it is listed as an orphan and removed only when the user deletes it.
 - **THEN** the system lists that poster as an orphan
 
 #### Scenario: Excluded library yields orphans
-- **WHEN** a poster was imported from a library that is now listed in
-  `EXCLUDED_LIBRARIES`
+- **WHEN** a poster was imported from a library that is now excluded
 - **THEN** the system lists that poster as an orphan
 - **AND** does not delete it until the user chooses to
 

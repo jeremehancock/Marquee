@@ -47,6 +47,10 @@
     {{ _self.item('wall', '/wall', 'Poster Wall', 'Wall', current, true) }}
     {{ _self.item('import', '/plex', 'Import from Plex', 'Import', current) }}
     {{ _self.item('orphans', '/orphans', 'Orphans', 'Orphans', current) }}
+    {# The one entry that is somewhere to go rather than something to do. It
+       navigates to its own page at every width: Import and Orphans open as trays
+       on a phone, but a form this long in a bottom sheet is worse than a page. #}
+    {{ _self.item('settings', '/settings', 'Settings', 'Settings', current) }}
     {# Not part of the poster workflow, so it sits last in the group. Opens the
        project's support page in a new tab, like Poster Wall. #}
     {{ _self.item('support', 'https://getmarquee.now/#support', 'Support Development', 'Support', current, true) }}

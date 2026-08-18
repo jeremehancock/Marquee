@@ -5,13 +5,30 @@ declare(strict_types=1);
 namespace App\Config;
 
 use App\Poster\SortOrder;
-use App\Support\Env;
+use App\Settings\SettingKey;
+use App\Settings\SettingsStore;
 
 /**
- * Immutable poster/gallery configuration, built once from the environment.
+ * Immutable poster/gallery configuration, built once at bootstrap.
  */
 final class PosterConfig
 {
+    /**
+     * The fewest posters a page will resolve to.
+     *
+     * A page of zero posters renders nothing and paginates forever. The settings
+     * screen applies this same constant, so a value it accepts is never one
+     * bootstrap corrects.
+     */
+    public const MINIMUM_PER_PAGE = 1;
+
+    /**
+     * The smallest maximum upload size this will resolve, in bytes.
+     *
+     * Zero would reject every upload while reading as "no limit".
+     */
+    public const MINIMUM_FILE_SIZE = 1;
+
     /**
      * @param list<string> $allowedExtensions
      */
@@ -24,15 +41,18 @@ final class PosterConfig
     ) {
     }
 
-    public static function fromEnv(): self
+    public static function resolve(SettingsStore $store): self
     {
         return new self(
-            perPage: max(1, Env::int('IMAGES_PER_PAGE', 24)),
-            maxFileSize: max(1, Env::int('MAX_FILE_SIZE', 5_242_880)),
+            perPage: max(self::MINIMUM_PER_PAGE, $store->int(SettingKey::ImagesPerPage)),
+            maxFileSize: max(self::MINIMUM_FILE_SIZE, $store->int(SettingKey::MaxFileSize)),
+            // Not a setting. The list is what the image pipeline can actually
+            // decode, so offering it as a choice would let an install ask for a
+            // format nothing downstream can read.
             allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-            ignoreArticlesInSort: Env::bool('IGNORE_ARTICLES_IN_SORT', true),
-            // Unset, empty, or unrecognized DEFAULT_SORT falls back to A–Z.
-            defaultSort: SortOrder::fromSlug(Env::str('DEFAULT_SORT', '')) ?? SortOrder::default(),
+            ignoreArticlesInSort: $store->bool(SettingKey::IgnoreArticlesInSort),
+            // Unset, empty, or unrecognized falls back to A–Z.
+            defaultSort: SortOrder::fromSlug($store->string(SettingKey::DefaultSort)) ?? SortOrder::default(),
         );
     }
 }

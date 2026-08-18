@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Config;
 
-use App\Support\Env;
+use App\Settings\SettingKey;
+use App\Settings\SettingsStore;
 
 /**
- * The libraries Marquee is told to ignore, built once from the environment.
+ * The libraries Marquee is told to ignore, built once at bootstrap.
  *
  * An excluded library is invisible to the whole application: the Plex client
  * never reports it, so no screen, import, or scheduled run can observe one.
@@ -24,9 +25,9 @@ final class LibraryExclusions
     ) {
     }
 
-    public static function fromEnv(): self
+    public static function resolve(SettingsStore $store): self
     {
-        return new self(Env::list('EXCLUDED_LIBRARIES', []));
+        return new self($store->list(SettingKey::ExcludedLibraries));
     }
 
     public function hasAny(): bool

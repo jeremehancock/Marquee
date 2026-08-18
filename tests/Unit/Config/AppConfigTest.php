@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Config;
 
 use App\Config\AppConfig;
+use App\Tests\Support\SeedsSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -26,6 +27,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class AppConfigTest extends TestCase
 {
+    use SeedsSettings;
+
     /**
      * Every name this class touches, unconditionally.
      *
@@ -53,21 +56,21 @@ final class AppConfigTest extends TestCase
     {
         putenv('SITE_TITLE');
 
-        self::assertSame('Marquee', AppConfig::fromEnv()->siteTitle);
+        self::assertSame('Marquee', AppConfig::resolve($this->seededStore())->siteTitle);
     }
 
     public function testDataDefaultsToThePersistentVolume(): void
     {
         putenv('DATA_DIR');
 
-        self::assertSame('/config/data', AppConfig::fromEnv()->dataDir);
+        self::assertSame('/config/data', AppConfig::resolve($this->seededStore())->dataDir);
     }
 
     public function testPostersDefaultToThePersistentVolume(): void
     {
         putenv('POSTERS_DIR');
 
-        self::assertSame('/config/posters', AppConfig::fromEnv()->postersDir);
+        self::assertSame('/config/posters', AppConfig::resolve($this->seededStore())->postersDir);
     }
 
     /**
@@ -81,7 +84,7 @@ final class AppConfigTest extends TestCase
     {
         putenv('SESSION_DIR');
 
-        self::assertSame('/config/sessions', AppConfig::fromEnv()->sessionDir);
+        self::assertSame('/config/sessions', AppConfig::resolve($this->seededStore())->sessionDir);
     }
 
     /**
@@ -94,7 +97,7 @@ final class AppConfigTest extends TestCase
     {
         putenv('DISPLAY_ERRORS');
 
-        self::assertFalse(AppConfig::fromEnv()->displayErrors);
+        self::assertFalse(AppConfig::resolve($this->seededStore())->displayErrors);
     }
 
     /**
@@ -106,7 +109,7 @@ final class AppConfigTest extends TestCase
     {
         putenv('SESSION_DIR=/tmp');
 
-        self::assertSame('/tmp', AppConfig::fromEnv()->sessionDir);
+        self::assertSame('/tmp', AppConfig::resolve($this->seededStore())->sessionDir);
     }
 
     /**
@@ -121,20 +124,20 @@ final class AppConfigTest extends TestCase
     {
         putenv('DATA_DIR=/mnt/data/');
 
-        self::assertSame('/mnt/data', AppConfig::fromEnv()->dataDir);
+        self::assertSame('/mnt/data', AppConfig::resolve($this->seededStore())->dataDir);
     }
 
     public function testATrailingSlashIsTrimmedFromThePostersDirectory(): void
     {
         putenv('POSTERS_DIR=/mnt/posters/');
 
-        self::assertSame('/mnt/posters', AppConfig::fromEnv()->postersDir);
+        self::assertSame('/mnt/posters', AppConfig::resolve($this->seededStore())->postersDir);
     }
 
     public function testATrailingSlashIsTrimmedFromTheSessionDirectory(): void
     {
         putenv('SESSION_DIR=/mnt/sessions/');
 
-        self::assertSame('/mnt/sessions', AppConfig::fromEnv()->sessionDir);
+        self::assertSame('/mnt/sessions', AppConfig::resolve($this->seededStore())->sessionDir);
     }
 }

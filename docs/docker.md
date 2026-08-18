@@ -59,6 +59,20 @@ docker exec marquee-test php -v            # confirm the PHP version if relevant
 docker rm -f marquee-test && docker rmi marquee:ci-test
 ```
 
+**A change under `docker/root/etc/s6-overlay/` needs the same treatment**, and
+`/health` alone does not cover it: an s6 service can fail while nginx serves
+pages perfectly. Check the service you touched is actually up.
+
+```bash
+docker exec marquee-test s6-svstat /run/service/svc-cron   # expect "up (pid …)"
+docker exec marquee-test cat /etc/crontabs/abc             # expect the hourly tick
+docker exec marquee-test /app/auto-import.sh               # one tick, by hand
+```
+
+The tick is written unconditionally and `crond` always runs, whatever the
+auto-import settings say — that is the point of it, so a container started with
+auto-import off is exactly the case worth checking.
+
 ---
 
 ## Keeping repo-only files out of the image

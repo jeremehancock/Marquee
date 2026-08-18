@@ -25,15 +25,21 @@ and dispatches to route handlers.
 - **THEN** the system responds with HTTP 404 and a rendered not-found page
 
 ### Requirement: Typed configuration from environment
-The system SHALL read all configuration from environment variables exactly once
-at bootstrap into immutable, typed configuration objects, applying documented
-defaults when a variable is absent.
+The system SHALL resolve all configuration exactly once at bootstrap into
+immutable, typed configuration objects, applying documented defaults when a
+value is absent.
 
-Every setting SHALL have a default that the system applies when the variable is
+Where each setting comes from is defined by `settings`. The directories that
+locate the settings store itself, the error-display switch, and the Plex server
+address are read from the environment; every other setting is resolved from the
+settings store, which the environment seeds once. This requirement governs the
+bootstrap contract — read once, immutable, typed, defaulted — not the source.
+
+Every setting SHALL have a default that the system applies when the value is
 absent or empty, and each of those defaults SHALL be asserted by a test. A
 default is a promise about where a self-hosted install keeps its data; one that
 nothing asserts can be moved by a refactor with no test failing and no user
-warned. This holds for every variable the configuration reads, not only the ones
+warned. This holds for every setting the configuration reads, not only the ones
 documented for users — an undocumented setting is still a location something
 depends on.
 
@@ -44,18 +50,25 @@ slash produces a doubled separator in every path built from it. Trimming SHALL
 apply uniformly to every directory setting, so that none of them behaves
 differently from its siblings.
 
-The Plex authentication token is the one exception: it SHALL come from the
-persisted connection store written by signing in to Plex, and SHALL NOT be read
-from the environment. A `PLEX_TOKEN` variable, if present, SHALL NOT be used to
-authenticate to Plex — the system MAY read it only to tell the user it is no
+The Plex authentication token SHALL come from the persisted connection store
+written by signing in to Plex, and SHALL NOT be read from the environment, nor
+from the settings store. A `PLEX_TOKEN` variable, if present, SHALL NOT be used
+to authenticate to Plex — the system MAY read it only to tell the user it is no
 longer used. Resolution SHALL still happen once at bootstrap into the same
-immutable configuration object; no other setting gains a second source.
+immutable configuration object.
 
-The Plex server address remains an environment variable. Signing in supplies a
-credential, never an address.
+The Plex server address SHALL be resolved from `PLEX_SERVER_URL` in the
+environment at every bootstrap, and SHALL NOT be read from the settings store.
+Signing in supplies a credential, never an address, and the two SHALL remain
+separately sourced: a credential is obtained by an authorization the user
+performs, while an address is configuration that requires access to the host.
+
+An address that cannot be parsed SHALL be exposed as no address at all, so that
+"configured" at bootstrap and "usable" at request time cannot disagree.
 
 #### Scenario: Default applied for missing variable
-- **WHEN** an optional environment variable such as `SITE_TITLE` is not set
+- **WHEN** an optional setting such as the site title is not set in the store or
+  the environment
 - **THEN** the corresponding configuration value uses its documented default
   ("Marquee")
 
@@ -70,12 +83,12 @@ credential, never an address.
 - **AND** the behaviour is the same for every directory setting
 
 #### Scenario: Boolean and integer coercion
-- **WHEN** a variable expected to be boolean is set to `"1"`, `"true"`, `"yes"`,
+- **WHEN** a value expected to be boolean is set to `"1"`, `"true"`, `"yes"`,
   or `"on"` in any casing
 - **THEN** the configuration exposes it as boolean `true`
 - **WHEN** it is set to any other non-empty value
 - **THEN** the configuration exposes it as boolean `false`
-- **WHEN** a variable expected to be an integer is set to a numeric string
+- **WHEN** a value expected to be an integer is set to a numeric string
 - **THEN** the configuration exposes it as an integer
 
 #### Scenario: Stored token is the credential
@@ -90,6 +103,21 @@ credential, never an address.
 #### Scenario: No token at all
 - **WHEN** no token has been stored
 - **THEN** the system reports Plex as not connected
+
+#### Scenario: The server address comes from the environment
+- **WHEN** `PLEX_SERVER_URL` is set in the environment
+- **THEN** Plex requests are made against that address
+- **AND** no attempt is made to resolve the address from the settings store
+
+#### Scenario: An unusable server address is treated as absent
+- **WHEN** `PLEX_SERVER_URL` is set to a value that cannot be parsed as a URL
+- **THEN** the configuration exposes no server address
+- **AND** the system reports Plex as not configured rather than raising an error
+
+#### Scenario: Configuration is resolved once per request
+- **WHEN** a request is served
+- **THEN** the settings store is read during bootstrap
+- **AND** no later code path reads it again to answer that request
 
 ### Requirement: Health endpoint
 The system SHALL expose an unauthenticated `GET /health` endpoint that reports
@@ -311,14 +339,28 @@ Marquee. A poster the user applied to an item was uploaded to Plex and locked
 there, so a later import brings it back; a poster only ever stored locally has no
 upstream copy and is gone. That boundary is what makes a hand-run reset safe to
 document, so the system MUST NOT begin persisting state that only exists locally
-and cannot be rebuilt from Plex.
+and cannot be rebuilt from Plex, except where an exception below applies.
 
-Connection credentials are the single exception, and they do not weaken the
+Connection credentials are the first exception, and they do not weaken the
 invariant. A token obtained by signing in cannot be rebuilt from Plex, because
 it is what reaches Plex in the first place. Losing it SHALL return the user to
 the sign-in prompt — which is first-run state, not a broken one — and the system
 SHALL keep it outside the SQLite database so that deleting the database remains
 a safe reset that costs only the cache.
+
+Scheduling state is the second, and it is admitted under a stated bound rather
+than by precedent. Which scheduled run last completed cannot be rebuilt from
+Plex, so the system MAY persist it **only** because losing it costs at most one
+redundant run of work that is idempotent — an import that finds nothing changed
+in Plex downloads nothing. State that fails that bound SHALL NOT be added under
+this exception, and the bound SHALL be restated wherever it is relied on rather
+than assumed to generalise.
+
+Losing this state SHALL therefore behave like first-run state: the next
+scheduled run treats its slot as unrun and performs one import. It SHALL NOT
+raise an error, and SHALL NOT leave scheduling disabled. Deleting the database
+remains a safe reset, now costing the cache and one import rather than the cache
+alone.
 
 #### Scenario: Database removed
 - **WHEN** the SQLite database file is deleted while the container is stopped and
@@ -345,6 +387,11 @@ a safe reset that costs only the cache.
 #### Scenario: Losing the stored credential returns to first-run
 - **WHEN** the stored Plex token is removed
 - **THEN** the system presents the sign-in prompt rather than an error state
+
+#### Scenario: Deleting the database costs one scheduled run
+- **WHEN** the SQLite database is deleted and a scheduled run is next due
+- **THEN** that run performs one import rather than reporting an error
+- **AND** scheduling continues normally afterwards
 
 ### Requirement: Page header aligns with the content column on desktop
 On a pointer/desktop-width screen the shared layout's page header SHALL place its
@@ -466,17 +513,22 @@ source does not return SHALL NOT be credited.
 ### Requirement: App-wide mobile actions menu
 The shared layout SHALL provide an app-wide **actions** menu for small screens so
 that the application's secondary actions are reachable from every authenticated
-page without crowding the content. The menu's entries are actions rather than
-in-place navigation destinations: on a narrow screen Import from Plex and Orphans
-open as trays over the current page, Poster Wall and Support Development open in a
-new browsing context, and Log out is an action. The trigger's glyph SHALL
+page without crowding the content. The menu's entries are predominantly actions
+rather than in-place navigation destinations: on a narrow screen Import from Plex
+and Orphans open as trays over the current page, Poster Wall and Support
+Development open in a new browsing context, and Log out is an action.
+
+Settings is the one entry that is a destination, and it SHALL navigate to its own
+page at every width rather than opening as a tray. It is a form long enough that a
+bottom sheet would be worse than a page, and it is somewhere to go rather than
+something to do. The trigger's glyph SHALL
 therefore signify an overflow / "more actions" affordance rather than a hamburger,
 which conventionally promises an edge-anchored navigation drawer the menu does not
 provide.
 
 On a narrow screen the topbar SHALL present a single overflow menu control;
 activating it SHALL open a tray listing the secondary links (Poster Wall, Import
-from Plex, Orphans, Support Development, and Log out). The control's accessible
+from Plex, Orphans, Settings, Support Development, and Log out). The control's accessible
 name and the tray's heading SHALL both name these as actions, so what the glyph
 signifies is also what the menu calls itself. The tray SHALL reuse the
 application's shared bottom-sheet/tray presentation (including its app-style
@@ -509,8 +561,13 @@ of the viewport than the menu's occasional use justifies.
 #### Scenario: Menu opens the navigation tray on a phone
 - **WHEN** an authenticated user on a narrow screen activates the topbar menu
   control
-- **THEN** a tray opens listing Poster Wall, Import from Plex, Orphans, Support
-  Development, and Log out
+- **THEN** a tray opens listing Poster Wall, Import from Plex, Orphans, Settings,
+  Support Development, and Log out
+
+#### Scenario: Settings opens as a page from the tray
+- **WHEN** a user on a narrow screen chooses Settings from the tray
+- **THEN** the tray dismisses and the settings page is opened
+- **AND** no settings tray is presented over the current page
 
 #### Scenario: Tray shows full names even where the header shortens them
 - **WHEN** the menu tray is opened on a narrow screen
@@ -551,7 +608,7 @@ of the viewport than the menu's occasional use justifies.
 
 ### Requirement: Secondary navigation in the desktop page header
 On a pointer/desktop screen the shared layout SHALL present the application's
-secondary navigation — Poster Wall, Import from Plex, Orphans, Support
+secondary navigation — Poster Wall, Import from Plex, Orphans, Settings, Support
 Development, and Log out — in the page header, rather than inside any single
 page's own content. Because the header is shared, these actions SHALL therefore be
 reachable from every page that renders navigation, not only the gallery, matching
@@ -582,8 +639,8 @@ these occasional destinations justify.
 #### Scenario: Secondary actions render in the header on desktop
 - **WHEN** a page that renders navigation is viewed on a pointer/desktop-width
   screen
-- **THEN** Poster Wall, Import from Plex, Orphans, Support Development, and Log out
-  are presented in the page header as icon-and-label actions
+- **THEN** Poster Wall, Import from Plex, Orphans, Settings, Support Development,
+  and Log out are presented in the page header as icon-and-label actions
 - **AND** Log out is presented in the same form as the others rather than as a
   plain text link
 

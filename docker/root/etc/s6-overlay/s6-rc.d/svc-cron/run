@@ -1,11 +1,14 @@
 #!/usr/bin/with-contenv bash
 # shellcheck shell=bash
 #
-# Run cron only when an auto-import schedule has been written; otherwise idle so
-# the longrun service does not restart-loop.
+# The tick that wakes auto-import. Always runs: the crontab is a fixed hourly
+# entry written unconditionally by init-marquee-config, and whether a tick does
+# anything is the application's decision, read from the settings store when it
+# fires.
+#
+# This used to exec `sleep infinity` when /etc/crontabs/abc was empty, which it
+# was whenever auto-import was disabled at boot. An install that started with it
+# off therefore had no cron process, so enabling the setting later could never
+# take effect — the bug that made the schedule worth moving into the app.
 
-if [ -s /etc/crontabs/abc ]; then
-    exec busybox crond -f -S -l 7
-else
-    exec sleep infinity
-fi
+exec busybox crond -f -S -l 7

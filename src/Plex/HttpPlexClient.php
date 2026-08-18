@@ -32,6 +32,17 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
 
     public function libraries(): array
     {
+        // Excluded libraries are dropped here, at the one place libraries enter
+        // the application, so nothing downstream — the import screen, an import,
+        // a scheduled run, orphan detection — can observe one.
+        return array_values(array_filter(
+            $this->allLibraries(),
+            fn (PlexLibrary $library): bool => !$this->exclusions->isExcluded($library->title),
+        ));
+    }
+
+    public function allLibraries(): array
+    {
         $xml = $this->get('/library/sections');
 
         $libraries = [];
@@ -40,18 +51,10 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
             if ($type !== 'movie' && $type !== 'show') {
                 continue;
             }
-            $title = (string) $directory['title'];
-
-            // Excluded libraries are dropped here, at the one place libraries
-            // enter the application, so nothing downstream — the import screen,
-            // an import, a scheduled run, orphan detection — can observe one.
-            if ($this->exclusions->isExcluded($title)) {
-                continue;
-            }
 
             $libraries[] = new PlexLibrary(
                 key: (string) $directory['key'],
-                title: $title,
+                title: (string) $directory['title'],
                 type: $type,
             );
         }

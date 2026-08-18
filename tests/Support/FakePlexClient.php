@@ -32,6 +32,7 @@ final class FakePlexClient implements PlexClient
      * @param list<string>                     $excluded         library names the real client would hide
      * @param string|null                      $serverName       the server's friendly name, null when unknown
      * @param array<array-key, string>         $postersByKey     raw posters XML, keyed by rating key
+     * @param bool                             $failLibraries    whether listing libraries fails, as an unreachable server does
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -45,6 +46,7 @@ final class FakePlexClient implements PlexClient
         private readonly array $excluded = [],
         private readonly ?string $serverName = 'Anansi',
         private readonly array $postersByKey = [],
+        private readonly bool $failLibraries = false,
     ) {
     }
 
@@ -62,9 +64,21 @@ final class FakePlexClient implements PlexClient
         $exclusions = new LibraryExclusions($this->excluded);
 
         return array_values(array_filter(
-            $this->libraries,
+            $this->allLibraries(),
             static fn (PlexLibrary $library): bool => !$exclusions->isExcluded($library->title),
         ));
+    }
+
+    /**
+     * Every library, exclusions ignored — what the exclusions editor sees.
+     */
+    public function allLibraries(): array
+    {
+        if ($this->failLibraries) {
+            throw PlexException::connectionFailed();
+        }
+
+        return $this->libraries;
     }
 
     public function items(PlexLibrary $library): array

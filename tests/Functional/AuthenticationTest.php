@@ -13,6 +13,8 @@ use App\Plex\PlexClient;
 use App\Plex\PlexItem;
 use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
+use App\Settings\SettingKey;
+use App\Settings\SettingsStore;
 use App\Tests\AppTestCase;
 use App\Tests\Support\FakePlexClient;
 
@@ -94,10 +96,16 @@ final class AuthenticationTest extends AppTestCase
         $app = $this->makeSignedInApp(['DATA_DIR' => $dataDir, 'POSTERS_DIR' => $postersDir]);
         $this->get($app, '/logout');
 
+        // Auto-import is configured through the settings store, not the
+        // environment: the store was seeded when the app above was built, and
+        // seeding happens once, so a variable set now would never be read.
+        // Writing it here is what the settings screen will do.
+        $settings = new SettingsStore($dataDir);
+        $settings->set(SettingKey::AutoImportEnabled, true);
+        $settings->set(SettingKey::AutoImportMovies, true);
+
         // A fresh container over the same data directory, as bin/auto-import.php
         // builds. Nothing carries over from the web request but the disk.
-        putenv('AUTO_IMPORT_ENABLED=true');
-        putenv('AUTO_IMPORT_MOVIES=true');
         $container = buildContainer([
             PlexClient::class => static fn (): PlexClient => new FakePlexClient(
                 [new PlexLibrary('1', 'Movies', 'movie')],
@@ -117,9 +125,6 @@ final class AuthenticationTest extends AppTestCase
         /** @var AutoImportService $autoImport */
         $autoImport = $container->get(AutoImportService::class);
         $result = $autoImport->run();
-
-        putenv('AUTO_IMPORT_ENABLED');
-        putenv('AUTO_IMPORT_MOVIES');
 
         // Not null: null is what "Plex is not configured" returns, which is
         // exactly the failure a cleared token would produce.

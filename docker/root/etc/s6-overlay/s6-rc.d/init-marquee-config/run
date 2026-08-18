@@ -29,18 +29,15 @@ chmod 700 /config/sessions
 rm -f /app/docker-env.sh
 chmod +x /app/auto-import.sh
 
-# Schedule auto-import from AUTO_IMPORT_SCHEDULE when it is enabled.
-if [ "${AUTO_IMPORT_ENABLED,,}" = "true" ]; then
-    case "${AUTO_IMPORT_SCHEDULE:-24h}" in
-        24h) cron_expr="0 0 * * *" ;;
-        12h) cron_expr="0 */12 * * *" ;;
-        6h) cron_expr="0 */6 * * *" ;;
-        3h) cron_expr="0 */3 * * *" ;;
-        1h) cron_expr="0 * * * *" ;;
-        *) cron_expr="0 0 * * *" ;;
-    esac
-    echo "$cron_expr /app/auto-import.sh" > /etc/crontabs/abc
-    echo "Auto-import scheduled (${AUTO_IMPORT_SCHEDULE:-24h}): $cron_expr"
-else
-    rm -f /etc/crontabs/abc
-fi
+# A fixed hourly tick, written unconditionally. The application decides whether a
+# tick is due, from settings a user can change in the browser.
+#
+# This used to map AUTO_IMPORT_SCHEDULE to a cron expression here, and write the
+# file only when AUTO_IMPORT_ENABLED was true. That made the schedule
+# unchangeable without recreating the container, and — because svc-cron started
+# crond only when this file was non-empty — left an install that booted with
+# auto-import off with no cron process at all, so nothing could ever turn it on.
+#
+# Hourly is enough: every interval offered (1h/3h/6h/12h/24h) is a whole number
+# of hours dividing the day, so the application can hit each of its slots exactly.
+echo "0 * * * * /app/auto-import.sh" > /etc/crontabs/abc

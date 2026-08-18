@@ -286,6 +286,47 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringNotContainsString('hunter2', $body);
     }
 
+    /**
+     * Settings that moved into Marquee rather than disappearing. The value was
+     * carried across when the store was seeded, so this notice says the line is
+     * inert — not that the setting is gone, which would send the user looking
+     * for something to replace it with.
+     */
+    public function testScreenListsSettingsThatMovedIntoTheApplication(): void
+    {
+        $app = $this->makeSignedInApp(
+            $this->env(),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+        $this->supersede(['SITE_TITLE' => 'Home Cinema', 'IMAGES_PER_PAGE' => '48']);
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('no longer read', $body);
+        self::assertStringContainsString('SITE_TITLE', $body);
+        self::assertStringContainsString('IMAGES_PER_PAGE', $body);
+    }
+
+    /**
+     * The two kinds keep their own wording. Collapsing them would tell someone
+     * that `AUTH_PASSWORD` is "managed in the application now", sending them to
+     * look for a password field that does not exist and never will.
+     */
+    public function testTheTwoKindsOfNoticeStaySeparate(): void
+    {
+        $app = $this->makeSignedInApp(
+            $this->env(['AUTH_PASSWORD' => 'hunter2']),
+            [PlexClient::class => static fn (): PlexClient => new FakePlexClient()],
+        );
+        $this->supersede(['SITE_TITLE' => 'Home Cinema']);
+
+        $body = (string) $this->get($app, '/connect')->getBody();
+
+        self::assertStringContainsString('no longer used', $body);
+        self::assertStringContainsString('no longer read', $body);
+        self::assertStringNotContainsString('hunter2', $body);
+    }
+
     public function testScreenIsQuietWhenNoObsoleteVariablesAreSet(): void
     {
         $app = $this->makeSignedInApp(
@@ -298,6 +339,7 @@ final class PlexConnectionTest extends AppTestCase
         self::assertStringContainsString('Connected to Anansi', $body);
         self::assertStringNotContainsString('AUTH_BYPASS', $body);
         self::assertStringNotContainsString('AUTH_USERNAME', $body);
+        self::assertStringNotContainsString('no longer read', $body);
     }
 
     public function testScreenSaysNothingAboutTheVariableWhenItIsAbsent(): void

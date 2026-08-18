@@ -72,7 +72,6 @@ final class PlexConnectionStatus
             hasToken: $this->config->token !== '',
             serverName: $serverName,
             hasServerUrl: $this->config->serverUrl !== '',
-            obsoleteEnvToken: $this->config->obsoleteEnvToken,
         );
     }
 }

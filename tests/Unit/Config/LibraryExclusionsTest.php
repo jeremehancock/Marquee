@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Config;
 
 use App\Config\LibraryExclusions;
+use App\Tests\Support\SeedsSettings;
 use PHPUnit\Framework\TestCase;
 
 final class LibraryExclusionsTest extends TestCase
 {
+    use SeedsSettings;
+
     public function testMatchesAnExactName(): void
     {
         $exclusions = new LibraryExclusions(['Kids Movies']);
@@ -50,7 +53,7 @@ final class LibraryExclusionsTest extends TestCase
         putenv('EXCLUDED_LIBRARIES=Kids Movies, Anime ,');
 
         try {
-            $exclusions = LibraryExclusions::fromEnv();
+            $exclusions = LibraryExclusions::resolve($this->seededStore());
 
             self::assertSame(['Kids Movies', 'Anime'], $exclusions->names);
             self::assertTrue($exclusions->isExcluded('kids movies'));
@@ -63,6 +66,6 @@ final class LibraryExclusionsTest extends TestCase
     {
         putenv('EXCLUDED_LIBRARIES');
 
-        self::assertFalse(LibraryExclusions::fromEnv()->hasAny());
+        self::assertFalse(LibraryExclusions::resolve($this->seededStore())->hasAny());
     }
 }

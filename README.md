@@ -38,9 +38,16 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Efficient imports** — Marquee skips re-downloading posters that haven't
   changed in Plex (with an option to force a full refresh), reducing load on your
   Plex server.
-- **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h).
+- **Auto-import** — optionally re-import on a schedule (1h / 3h / 6h / 12h / 24h),
+  turned on and off in the app. Changing it needs no restart, and an install that
+  was switched off over its scheduled time imports when it comes back.
+- **Settings in the app** — change how Marquee behaves from a screen rather than
+  a compose file: site title, page size, sort, upload limit, Plex timeouts, how
+  long you stay signed in, auto-import, and library exclusions. Saved settings
+  apply on the next page you load, with no restart.
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
-  the UI and in every import.
+  the UI and in every import. Tick the ones to hide from the list your server
+  reports, so a mistyped name can't quietly exclude nothing.
 - **Orphan detection** — find and remove posters whose media no longer exists in
   Plex, or whose library is now excluded.
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
@@ -49,7 +56,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Sort your way** — order the gallery by title or by when each item was added
   to Plex, either way round: tap a sort button again to reverse it (A–Z becomes
   Z–A, newest first becomes oldest first). Each keeps the direction you left it
-  in. Set the install default with `DEFAULT_SORT`.
+  in. Set the install default under **Settings**.
 - **Poster Wall** — a full-screen, slideshow-style view of your library that
   turns into a live "now playing" board when someone is watching: it shows the
   poster of what each person is streaming, with a *Currently Streaming* banner
@@ -96,6 +103,8 @@ services:
       # PLEX_REMOVE_OVERLAY_LABEL: "false"   # "true" if you use Kometa overlays
 
       # --- Auto-import (optional) ---
+      # Turned on and scheduled under Settings once running; this only seeds a
+      # brand-new install.
       # AUTO_IMPORT_ENABLED: "false"
       # AUTO_IMPORT_SCHEDULE: "24h"   # 1h | 3h | 6h | 12h | 24h
       # AUTO_IMPORT_MOVIES: "true"
@@ -104,10 +113,11 @@ services:
       # AUTO_IMPORT_COLLECTIONS: "false"
 
       # --- Libraries to hide from Marquee entirely (optional) ---
-      # Library names as they appear in Plex, not section ids.
+      # Easier to tick them under Settings once you are running; this only
+      # seeds a brand-new install. Library names as they appear in Plex.
       # EXCLUDED_LIBRARIES: "4K Movies,Kids"
 
-      # --- Optional tweaks ---
+      # --- Optional tweaks (all of these live under Settings once running) ---
       # SITE_TITLE: "Marquee"
       # IMAGES_PER_PAGE: "24"
       # DEFAULT_SORT: "alphabetical"  # alphabetical | date_added
@@ -130,7 +140,8 @@ Plex** to pull in your posters.
 The `/config` volume holds everything Marquee needs to persist:
 
 - `/config/posters` — the poster images, grouped by category
-- `/config/data` — the SQLite database and logs
+- `/config/data` — your settings, your Plex connection, the SQLite database, and
+  logs
 - `/config/sessions` — your signed-in sessions, so updating Marquee doesn't sign
   you out
 
@@ -138,9 +149,33 @@ Back this directory up if you want to keep your poster selections.
 
 ## Configuration
 
-Everything is configured with environment variables. All are optional except
-`PLEX_SERVER_URL`, which Marquee cannot work — or even let you sign in — without.
-There are no credentials to set: you sign in to Plex.
+**Most of this is a screen now.** Open **Settings** in the header and change it
+there; it takes effect on the next page you load, with no restart and no editing
+of files. See [Settings](#settings) below for what it covers.
+
+The variables here set up a *new* install. All are optional except
+`PLEX_SERVER_URL`, which Marquee cannot work — or even let you sign in — without,
+and which is the one variable that stays in your compose file for good. There
+are no credentials to set: you sign in to Plex.
+
+> **These variables set up a new install, once.** Marquee keeps its own
+> configuration on the `/config` volume. The first time it starts, it copies
+> whatever your compose file says into that store — so upgrading changes nothing
+> about how your install behaves — and from then on the store is what it reads.
+>
+> Editing a variable afterwards has no effect, and Marquee will tell you so: the
+> Settings screen lists any variable still in your compose file that it no longer
+> reads, so you can delete it.
+>
+> Four things are exempt and are always read from the environment. `PUID`,
+> `PGID`, `TZ`, and the `/config` paths are container settings. And
+> `PLEX_SERVER_URL` is read every time Marquee starts, so changing your Plex
+> address is still a compose edit and a restart — it is never listed as something
+> to delete, and there is no field for it on the Settings screen. See
+> [Connecting to Plex](#connecting-to-plex) for why.
+>
+> Deleting `/config/data/settings.json` returns the install to a clean slate and
+> lets the next start read your compose file again.
 
 | Variable | Description | Default |
 | --- | --- | --- |
@@ -149,7 +184,7 @@ There are no credentials to set: you sign in to Plex.
 | `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `SESSION_DURATION` | How long a session may go unused before it ends, in seconds. The window is renewed every time you use Marquee, so this is idle time, not total time. | `2592000` (30 days) |
 | `SESSION_DIR` | Where sessions are stored. The default is on the `/config` volume, so staying signed in survives updating the container. Point it at `/tmp` if your `/config` is a network share whose file locking misbehaves — sessions then last only until the container is recreated. | `/config/sessions` |
-| `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
+| `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400`. Required, and the one variable read on every start rather than seeded once — edit it and restart to point Marquee at a different server. | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
 | `PLEX_CONNECT_TIMEOUT` | Plex connect timeout, in seconds | `10` |
 | `PLEX_REQUEST_TIMEOUT` | Plex request timeout, in seconds | `60` |
@@ -166,6 +201,38 @@ There are no credentials to set: you sign in to Plex.
 | `DEFAULT_SORT` | Preferred gallery sort: `alphabetical` (A–Z) or `date_added` (newest first). Users can switch field and direction in the gallery. | `alphabetical` |
 | `UPDATE_CHECK_ENABLED` | Check GitHub for a newer release | `false` |
 | `UPDATE_REPO` | Repository to check for releases (`owner/repo`) | `jeremehancock/Marquee` |
+
+### Settings
+
+**Settings** in the header is where configuration lives once an install is
+running. Nothing here needs the container restarted or recreated.
+
+| Group | What you can change |
+| --- | --- |
+| Presentation | Site title, posters per page, default sort, whether leading articles are ignored when sorting, maximum upload size |
+| Plex | Connect and request timeouts, whether Kometa's `Overlay` label is removed when a poster is sent |
+| Auto-import | Whether to import on a schedule, how often, and which types |
+| Session | How long you stay signed in |
+| Updates | Whether to check GitHub for a newer release |
+| Libraries | Which Plex libraries to exclude |
+
+Everything takes effect on the next page you load, with one exception that the
+screen states: **auto-import applies from the next scheduled run.** Marquee
+checks once an hour whether a run is due, so a change you make is picked up by
+that check rather than immediately.
+
+**Excluded libraries are tick boxes over the libraries your server actually
+reports**, not a list of names to type. An excluded library is invisible to the
+whole of Marquee: it is not offered for import, nothing is imported from it, and
+posters already imported from it turn up as orphans.
+
+If a library you have excluded is no longer on your server — renamed, removed, or
+the server is not answering — Marquee keeps the exclusion and shows it separately
+rather than quietly dropping it. Clearing it is a tick box of its own.
+
+**The Plex server address is not on this screen, and will not be.** It stays in
+your compose file because setting it is what proves the server is yours — see
+[Connecting to Plex](#connecting-to-plex).
 
 ### Signing in
 
@@ -244,9 +311,19 @@ database is still a safe reset that costs only cached data. Because it lives in
 Your browser talks to Plex directly and Marquee polls for the result, so nothing
 has to route back in — this works behind a reverse proxy with no extra setup.
 
-`PLEX_SERVER_URL` stays an environment variable. Signing in supplies a
-credential, never an address; if the address is missing, the connection screen
-says so rather than offering a sign-in that cannot help.
+`PLEX_SERVER_URL` stays an environment variable, and is the only setting that
+does not move into the Settings screen. Signing in supplies a credential, never
+an address; if the address is missing, the connection screen says so rather than
+offering a sign-in that cannot help.
+
+It stays in your compose file because it is what decides *who gets in*. Marquee
+admits the Plex account that owns the server at that address, so setting the
+address is really an assertion about which server is yours — and setting an
+environment variable takes access to the host running Marquee. If the address
+could be typed into a browser instead, the first stranger to find an
+unconfigured install could point it at their own server and become its owner.
+Changing your Plex address is therefore a compose edit and a restart, which is
+the same access you needed to install Marquee in the first place.
 
 To disconnect, or to move Marquee to a different Plex account, use
 **Disconnect from Plex** on the same screen.
@@ -303,9 +380,9 @@ nothing has to be carried across.
 4. **Import from Plex.** Run an import for each type you want (Movies, TV Shows,
    TV Seasons, Collections). Marquee pulls the current poster for every item and
    maps it back to the Plex item it belongs to.
-5. **Optionally turn on auto-import.** Set `AUTO_IMPORT_ENABLED=true`, pick a
-   schedule with `AUTO_IMPORT_SCHEDULE`, and enable the types you want with the
-   `AUTO_IMPORT_*` variables so new media picks up posters on its own.
+5. **Optionally turn on auto-import.** Open **Settings**, enable it, pick how
+   often it should run, and tick the types you want, so new media picks up
+   posters on its own.
 
 From there, use Marquee as described in [Usage](#usage).
 
@@ -385,7 +462,9 @@ leave you half reset.
 
 Know what that costs before you do it: every poster you'd applied to Plex comes
 back, because Plex has it and Marquee locked it there. Anything that only ever
-existed in Marquee — art you uploaded but never sent — is gone.
+existed in Marquee — art you uploaded but never sent — is gone. Your settings and
+your Plex connection are untouched; they live in their own files. Auto-import
+forgets when it last ran, so it runs once more than it strictly needed to.
 
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.

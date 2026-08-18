@@ -1210,8 +1210,9 @@ scrolling or crowding, toolbar controls fit their row, and posters are sized so
 at least two fit per row on a phone.
 
 The gallery view SHALL stay focused on the posters at every width: the secondary
-navigation actions (Poster Wall, Import from Plex, Orphans, Support Development)
-SHALL NOT be presented in the gallery toolbar. On a pointer/desktop screen they
+navigation actions (Poster Wall, Import from Plex, Orphans, Settings, Support
+Development) SHALL NOT be presented in the gallery toolbar. On a pointer/desktop
+screen they
 SHALL be presented in the shared page header instead (see "Secondary navigation in
 the desktop page header" in `application-shell`); on a narrow screen they SHALL be
 presented in the app-wide menu tray. On a narrow screen sort SHALL additionally
@@ -1272,14 +1273,14 @@ coordinate space the pinned toolbar and the fixed bottom tab bar resolve against
 
 #### Scenario: Secondary navigation is behind the menu on a phone
 - **WHEN** the gallery is viewed on a narrow screen
-- **THEN** the Poster Wall, Import from Plex, Orphans, and Support Development
-  actions are not shown in the gallery toolbar
+- **THEN** the Poster Wall, Import from Plex, Orphans, Settings, and Support
+  Development actions are not shown in the gallery toolbar
 - **AND** they are reachable from the app menu tray instead
 
 #### Scenario: Secondary navigation is in the header on desktop
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
-- **THEN** the Poster Wall, Import from Plex, Orphans, and Support Development
-  actions are not shown in the gallery toolbar
+- **THEN** the Poster Wall, Import from Plex, Orphans, Settings, and Support
+  Development actions are not shown in the gallery toolbar
 - **AND** they are presented in the shared page header instead
 
 #### Scenario: Toolbar stays available while scrolling on a phone
