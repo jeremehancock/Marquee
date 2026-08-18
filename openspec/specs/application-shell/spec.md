@@ -1280,12 +1280,25 @@ development SHALL be documented in `docs/development-workflow.md` instead, where
 the toolchain they serve is described, so the user-facing table stays a list of
 decisions a user actually has to make.
 
+A variable that becomes a setting the store owns SHALL leave the README's
+configuration table, because an install is no longer expected to set it. The rule
+is unchanged by such a move; only which variables satisfy it changes. The test's
+positive control SHALL therefore be a variable that cannot become a setting —
+otherwise the control is retired by the next change that relocates one, and the
+absence assertions it protects quietly lose their meaning.
+
 The layout of the `/config` volume SHALL be presented as fixed. `DATA_DIR` and
 `POSTERS_DIR` SHALL therefore remain absent from the README, even though the code
 reads them: the README's promise is that backing up `/config` backs up
 everything, and advertising the subpaths as movable invites installs that split
 the volume and then discover the promise no longer holds for them. They remain
 overridable for the operator who already knows they exist; they are not offered.
+
+This exclusion SHALL extend to every user-facing document, not the README alone.
+A variable withheld from the README because the volume layout is fixed is
+withheld for a reason that a second user-facing page does not change, so
+documenting it there would overturn the decision while leaving the test that
+guards it passing.
 
 This split SHALL be asserted by a test, for the same reason each default is: a
 decision recorded only in prose is one a later edit reverses without anything
@@ -1305,6 +1318,12 @@ passes unnoticed.
   contents
 - **AND** no environment variable is offered for relocating them individually
 
+#### Scenario: A withheld variable stays withheld across every user-facing page
+- **WHEN** a user-facing page other than the README documents configuration
+- **THEN** `DATA_DIR` and `POSTERS_DIR` are absent from it too
+- **AND** it refers the reader to `docs/development-workflow.md` rather than
+  restating them
+
 #### Scenario: An undocumented setting is still pinned by a test
 - **WHEN** a variable is deliberately left out of the user-facing documentation
 - **THEN** its default is still asserted by a test, so that omitting it from the
@@ -1320,4 +1339,10 @@ passes unnoticed.
   `SESSION_DIR`, from the README
 - **THEN** a test fails, so the absence assertions cannot be satisfied by
   documentation that has gone missing entirely
+
+#### Scenario: A relocated setting leaves the README without breaking the control
+- **WHEN** a variable listed as the test's positive control becomes a setting the
+  store owns
+- **THEN** the control is replaced with a variable that cannot become a setting
+- **AND** the relocated variable is removed from the README's configuration table
 
