@@ -11,6 +11,8 @@ use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Plex\Export\PlexExportService;
 use App\Poster\Edit\ChangePosterService;
+use App\Poster\Edit\PosterUrlFetcher;
+use App\Poster\Edit\PublicAddressPolicy;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
 use App\Poster\SortOrder;
@@ -61,7 +63,15 @@ final class ChangePosterServiceTest extends TestCase
             new FakePlexClient(),
             $export,
             $plexConfig,
-            $http,
+            // A resolver that answers with a public address, so these tests stay
+            // about replacing a poster rather than about the address policy —
+            // which has its own test. `example.com` really does resolve
+            // publicly, but a test that depended on that would need DNS.
+            new PosterUrlFetcher(
+                $http,
+                new PublicAddressPolicy(static fn (string $host): array => ['93.184.216.34']),
+                5_000_000,
+            ),
         );
     }
 

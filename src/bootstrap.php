@@ -25,6 +25,8 @@ use App\Plex\HttpPlexClient;
 use App\Plex\PlexClient;
 use App\Plex\PlexPosterWriter;
 use App\Plex\SignedImagePath;
+use App\Poster\Edit\PosterUrlFetcher;
+use App\Poster\Edit\PublicAddressPolicy;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterStorage;
 use App\Poster\Source\PosteriaApiPosterSource;
@@ -118,6 +120,18 @@ function buildContainer(array $overrides = []): Container
         SessionInterface::class => static fn (AuthConfig $auth, AppConfig $app): SessionInterface
             => new NativeSession($auth->sessionDuration, $app->sessionDir),
         ClientInterface::class => static fn (): ClientInterface => new Client(),
+        // The poster fetcher shares this client deliberately. Its guarantee is
+        // not a property of the client: it checks the address before every
+        // request it makes and follows redirects itself, so a second client
+        // would be a second thing to keep configured without adding a guard.
+        // What keeps the two apart is that ChangePosterService is given this
+        // fetcher and no HTTP client at all.
+        PosterUrlFetcher::class => static fn (ClientInterface $http, PosterConfig $poster): PosterUrlFetcher
+            => new PosterUrlFetcher(
+                $http,
+                new PublicAddressPolicy(PublicAddressPolicy::systemResolver()),
+                $poster->maxFileSize,
+            ),
         PosterStorage::class => static fn (AppConfig $app, PosterConfig $poster): PosterStorage
             => new FilesystemPosterStorage($app->postersDir, $poster->allowedExtensions),
         PosterSource::class => static fn (ClientInterface $http, LoggerInterface $logger): PosterSource

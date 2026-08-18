@@ -516,6 +516,14 @@ token.
   Movie and TV Show poster art and what is currently playing. Season and
   Collection art is not served there, and nothing on the wall can change
   anything. If that is more than you want on your network, do not expose `/wall`.
+- **A poster URL is fetched only from the public internet.** When you change a
+  poster by pasting an address — or by applying a **Find Posters** result, which
+  travels the same way — Marquee resolves it first and refuses anything on a
+  private, loopback, or link-local address, at every redirect, on ports 80 and
+  443 only. Without that, anyone who got hold of a signed-in session could use
+  the feature to probe your network from inside it. This does not affect
+  reaching your own Plex server: `PLEX_SERVER_URL` is normally a private address
+  and is deliberately exempt.
 - **Back up your `/config` directory** regularly — an import can rebuild
   everything Plex already has, but not art you uploaded and never sent there.
   Your Plex token is in there too, so treat those backups as you would the

@@ -113,6 +113,14 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).
+- **An address a user supplied is fetched through `PosterUrlFetcher`, never
+  through the shared HTTP client.** That client is deliberately unrestricted
+  because `PlexClient` needs it — `PLEX_SERVER_URL` is normally a private
+  address — so fetching user input with it would let a stolen session probe the
+  LAN from inside. `PosterFetchWiringTest` guards the existing caller, but no
+  test can catch a *new* service reaching for the shared client, which is why
+  this is written down. There is one such caller today, and adding a second is a
+  spec change to `poster-editing`, not a wiring decision.
 
 ## Docker
 
