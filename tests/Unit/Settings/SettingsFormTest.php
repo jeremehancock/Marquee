@@ -54,7 +54,6 @@ final class SettingsFormTest extends TestCase
             SettingsForm::FIELD_PER_PAGE => '24',
             SettingsForm::FIELD_DEFAULT_SORT => 'alphabetical',
             SettingsForm::FIELD_MAX_FILE_SIZE => '5',
-            SettingsForm::FIELD_SERVER_URL => 'http://plex:32400',
             SettingsForm::FIELD_CONNECT_TIMEOUT => '10',
             SettingsForm::FIELD_REQUEST_TIMEOUT => '60',
             SettingsForm::FIELD_SESSION_DURATION => '30',
@@ -263,5 +262,26 @@ final class SettingsFormTest extends TestCase
 
         self::assertCount(4, $options);
         self::assertSame($labels, array_unique($labels));
+    }
+
+    /**
+     * The form offers no server address, so a submission carrying one is either
+     * a stale template or someone posting by hand. Either way it is ignored
+     * rather than stored.
+     *
+     * Worth pinning because the form builds what it saves from the fields it
+     * knows: a future change that started copying the body through would reopen
+     * the browser path to the address without anything looking wrong.
+     */
+    public function testASubmittedServerAddressIsNotStored(): void
+    {
+        $form = new SettingsForm($this->store());
+
+        $submission = $form->submit($this->submission([
+            'plex_server_url' => 'http://attacker.example:32400',
+        ]), []);
+
+        self::assertTrue($submission->isValid());
+        self::assertArrayNotHasKey('plex_server_url', $submission->settings);
     }
 }

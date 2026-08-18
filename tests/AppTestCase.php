@@ -31,9 +31,6 @@ abstract class AppTestCase extends TestCase
     /** Whether the next makeApp() should start with Plex already connected. */
     private bool $connectNext = false;
 
-    /** Whether the next makeApp() should start unclaimed. */
-    private bool $unclaimedNext = false;
-
     /**
      * Variables supersede() set, cleared after each test.
      *
@@ -121,22 +118,6 @@ abstract class AppTestCase extends TestCase
             putenv($key);
         }
 
-        // Claimed unless a test says otherwise. A test configures an install
-        // that already exists; leaving it unclaimed would send every request to
-        // the claim screen, which is the first-run state and almost never what
-        // is under test. Use makeUnclaimedApp() where it is.
-        //
-        // Written straight to the connection store rather than through
-        // ClaimService, so that this cannot mask a bug in how a real claim is
-        // recorded — the tests that exercise claiming build their own.
-        @unlink($this->dataDir . '/claim-code.txt');
-        @unlink($this->dataDir . '/claim-attempts.json');
-        if ($this->unclaimedNext) {
-            $this->unclaimedNext = false;
-        } else {
-            (new PlexConnectionStore($this->dataDir))->markClaimed();
-        }
-
         // Before createApp(), not after: building the app resolves the gate
         // middleware, which resolves PlexConfig, which reads the store. A token
         // written later would be invisible for the whole life of this app.
@@ -152,24 +133,6 @@ abstract class AppTestCase extends TestCase
         );
 
         return createApp(buildContainer($overrides));
-    }
-
-    /**
-     * Build an app that has never been claimed — a genuinely first-run install.
-     *
-     * @param array<string, string> $env
-     * @param array<string, mixed>  $overrides
-     *
-     * @return App<\Psr\Container\ContainerInterface|null>
-     */
-    protected function makeUnclaimedApp(array $env = [], array $overrides = []): App
-    {
-        $this->unclaimedNext = true;
-
-        // PLEX_SERVER_URL would seed the store and be read as an install
-        // configured before claiming existed, which is the upgrade path rather
-        // than a first run. Cleared here so an unclaimed app is unclaimed.
-        return $this->makeApp(array_merge($env, ['PLEX_SERVER_URL' => '']), $overrides);
     }
 
     /**

@@ -10,8 +10,6 @@ use App\Config\PlexConfig;
 use App\Config\PosterConfig;
 use App\Plex\Import\AutoImportInterval;
 use App\Poster\SortOrder;
-use GuzzleHttp\Psr7\Uri;
-use InvalidArgumentException;
 
 /**
  * The settings screen's form: the stored configuration rendered as fields, and a
@@ -39,7 +37,6 @@ final class SettingsForm
     public const FIELD_DEFAULT_SORT = 'default_sort';
     public const FIELD_IGNORE_ARTICLES = 'ignore_articles';
     public const FIELD_MAX_FILE_SIZE = 'max_file_size';
-    public const FIELD_SERVER_URL = 'plex_server_url';
     public const FIELD_CONNECT_TIMEOUT = 'plex_connect_timeout';
     public const FIELD_REQUEST_TIMEOUT = 'plex_request_timeout';
     public const FIELD_REMOVE_OVERLAY_LABEL = 'remove_overlay_label';
@@ -121,7 +118,6 @@ final class SettingsForm
                 self::TIMEOUT_MIN,
                 self::TIMEOUT_MAX,
             ),
-            self::FIELD_SERVER_URL => $this->store->string(SettingKey::PlexServerUrl),
             self::FIELD_REMOVE_OVERLAY_LABEL => $this->store->bool(SettingKey::PlexRemoveOverlayLabel),
             self::FIELD_SESSION_DURATION => (string) self::clamp(
                 self::toWholeUnits($this->store->int(SettingKey::SessionDuration), self::SECONDS_PER_DAY),
@@ -161,21 +157,6 @@ final class SettingsForm
                 'Keep the site title to %d characters or fewer.',
                 self::SITE_TITLE_MAX_LENGTH,
             );
-        }
-
-        // Validated with the parser the HTTP client uses, exactly as PlexConfig
-        // does, so an address this screen accepts is one the client can reach —
-        // rather than one that raises a MalformedUriException from inside a
-        // request later.
-        $serverUrl = rtrim(trim(self::string($body, self::FIELD_SERVER_URL)), '/');
-        if ($serverUrl === '') {
-            $errors[self::FIELD_SERVER_URL] = 'Enter your Plex server address.';
-        } else {
-            try {
-                new Uri($serverUrl);
-            } catch (InvalidArgumentException) {
-                $errors[self::FIELD_SERVER_URL] = 'That is not a usable address. For example http://192.168.1.10:32400';
-            }
         }
 
         $perPage = $this->number($body, self::FIELD_PER_PAGE, self::PER_PAGE_MIN, self::PER_PAGE_MAX, $errors);
@@ -225,7 +206,6 @@ final class SettingsForm
             self::FIELD_MAX_FILE_SIZE => self::string($body, self::FIELD_MAX_FILE_SIZE),
             self::FIELD_CONNECT_TIMEOUT => self::string($body, self::FIELD_CONNECT_TIMEOUT),
             self::FIELD_REQUEST_TIMEOUT => self::string($body, self::FIELD_REQUEST_TIMEOUT),
-            self::FIELD_SERVER_URL => $serverUrl,
             self::FIELD_REMOVE_OVERLAY_LABEL => self::checked($body, self::FIELD_REMOVE_OVERLAY_LABEL),
             self::FIELD_SESSION_DURATION => self::string($body, self::FIELD_SESSION_DURATION),
             self::FIELD_UPDATE_CHECK => self::checked($body, self::FIELD_UPDATE_CHECK),
@@ -250,7 +230,6 @@ final class SettingsForm
             SettingKey::DefaultSort->value => $sort->value,
             SettingKey::IgnoreArticlesInSort->value => self::checked($body, self::FIELD_IGNORE_ARTICLES),
             SettingKey::MaxFileSize->value => $fileSize * self::BYTES_PER_MB,
-            SettingKey::PlexServerUrl->value => $serverUrl,
             SettingKey::PlexConnectTimeout->value => $connect,
             SettingKey::PlexRequestTimeout->value => $request,
             SettingKey::PlexRemoveOverlayLabel->value => self::checked($body, self::FIELD_REMOVE_OVERLAY_LABEL),

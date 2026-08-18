@@ -60,7 +60,6 @@ final class SettingsResolutionTest extends AppTestCase
         $store = $this->installed();
         $store->set(SettingKey::SiteTitle, 'Home Cinema');
         $store->set(SettingKey::ImagesPerPage, 48);
-        $store->set(SettingKey::PlexServerUrl, 'http://plex.local:32400');
         $store->set(SettingKey::PlexRemoveOverlayLabel, true);
         $store->set(SettingKey::AutoImportEnabled, true);
         $store->set(SettingKey::ExcludedLibraries, ['Kids']);
@@ -81,7 +80,6 @@ final class SettingsResolutionTest extends AppTestCase
         self::assertSame('Home Cinema', $app->siteTitle);
         self::assertSame(48, $poster->perPage);
         self::assertSame(SortField::DateAdded, $poster->defaultSort->field());
-        self::assertSame('http://plex.local:32400', $plex->serverUrl);
         self::assertTrue($plex->removeOverlayLabel);
         self::assertTrue($autoImport->enabled);
         self::assertTrue($exclusions->isExcluded('Kids'));
@@ -152,5 +150,54 @@ final class SettingsResolutionTest extends AppTestCase
         $app = buildContainer()->get(AppConfig::class);
 
         self::assertSame('Marquee', $app->siteTitle);
+    }
+
+    /**
+     * The Plex server address is the one piece of configuration a compose file
+     * still owns, so it must not land in the store on the way through.
+     *
+     * A stored copy would be the failure: it would take effect on the next boot
+     * in place of the variable, and the address would quietly stop being the
+     * host-access assertion the rest of the design rests on.
+     */
+    public function testTheServerAddressComesFromTheEnvironmentAndIsNotStored(): void
+    {
+        $this->makeApp([
+            'DATA_DIR' => $this->dataDir,
+            'PLEX_SERVER_URL' => 'http://plex.local:32400',
+        ]);
+
+        /** @var PlexConfig $plex */
+        $plex = buildContainer()->get(PlexConfig::class);
+
+        self::assertSame('http://plex.local:32400', $plex->serverUrl);
+
+        $stored = json_decode((string) file_get_contents($this->dataDir . '/settings.json'), true);
+        self::assertIsArray($stored);
+        self::assertArrayNotHasKey('plex_server_url', $stored);
+    }
+
+    /**
+     * What seeding-once costs every other setting, and what this one is exempt
+     * from: editing the compose file has to keep working forever.
+     *
+     * The store is already seeded here, which is precisely the state in which a
+     * seeded address would have gone stale.
+     */
+    public function testChangingTheVariableChangesTheAddressOnASeededStore(): void
+    {
+        $this->makeApp([
+            'DATA_DIR' => $this->dataDir,
+            'PLEX_SERVER_URL' => 'http://old.local:32400',
+        ]);
+
+        // Not superseded — this variable is live. The helper is used for the
+        // cleanup it registers, so the value cannot leak into a later test.
+        $this->supersede(['PLEX_SERVER_URL' => 'http://new.local:32400']);
+
+        /** @var PlexConfig $plex */
+        $plex = buildContainer()->get(PlexConfig::class);
+
+        self::assertSame('http://new.local:32400', $plex->serverUrl);
     }
 }

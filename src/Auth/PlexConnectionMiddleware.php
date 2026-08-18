@@ -57,10 +57,6 @@ final class PlexConnectionMiddleware implements MiddlewareInterface
     private array $openPaths = [
         AuthMiddleware::SIGN_IN_PATH,
         self::CONNECTION_PATH,
-        // Claiming is where the connection gets configured in the first place,
-        // so gating it on a configured connection would be circular: the screen
-        // that supplies the server address cannot require one.
-        ClaimMiddleware::CLAIM_PATH,
         '/health',
         '/logout',
         '/manifest.webmanifest',

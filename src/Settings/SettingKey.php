@@ -21,6 +21,23 @@ namespace App\Settings;
  * overrides rather than settings an install is offered. Those stay on
  * {@see \App\Support\Env}.
  *
+ * `PLEX_SERVER_URL` stays there too, and for a reason that is not like the
+ * others: it is a security control rather than a preference. Marquee admits the
+ * Plex account that owns the configured server, so the address decides who is
+ * let in, and while it comes from the environment, choosing it takes access to
+ * the host. That access is the assertion which stops the first stranger who
+ * reaches a publicly reachable install from becoming its owner. Anywhere a
+ * browser could set the address it would prove nothing, because whoever typed
+ * it chose the server it names.
+ *
+ * This was tried the other way. The address was a case here, and replacing the
+ * property it had been providing took a first-run claim code, a rate limiter, a
+ * server probe, a middleware outside authentication, and a marker that had to
+ * survive disconnecting — all so the user could read a code out of `docker logs`
+ * and still type the address into a browser afterwards. Keeping one line in a
+ * compose file is cheaper and gives the same guarantee. Do not add the case back
+ * for consistency with the settings around it.
+ *
  * Floors and fallbacks are not here either. The default is what applies when
  * nothing is stored; deciding that a stored session duration below sixty
  * seconds is a lockout, or that an unrecognised sort slug means A–Z, stays in
@@ -33,7 +50,6 @@ enum SettingKey: string
     case SiteTitle = 'site_title';
     case SessionDuration = 'session_duration';
 
-    case PlexServerUrl = 'plex_server_url';
     case PlexConnectTimeout = 'plex_connect_timeout';
     case PlexRequestTimeout = 'plex_request_timeout';
     case PlexRemoveOverlayLabel = 'plex_remove_overlay_label';
@@ -62,7 +78,6 @@ enum SettingKey: string
         return match ($this) {
             self::SiteTitle => 'SITE_TITLE',
             self::SessionDuration => 'SESSION_DURATION',
-            self::PlexServerUrl => 'PLEX_SERVER_URL',
             self::PlexConnectTimeout => 'PLEX_CONNECT_TIMEOUT',
             self::PlexRequestTimeout => 'PLEX_REQUEST_TIMEOUT',
             self::PlexRemoveOverlayLabel => 'PLEX_REMOVE_OVERLAY_LABEL',
@@ -94,7 +109,6 @@ enum SettingKey: string
             self::SiteTitle => 'Marquee',
             // Thirty days, matching the sliding window's default.
             self::SessionDuration => 2592000,
-            self::PlexServerUrl => '',
             self::PlexConnectTimeout => 10,
             self::PlexRequestTimeout => 60,
             self::PlexRemoveOverlayLabel => false,

@@ -123,7 +123,6 @@ final class SettingsScreenTest extends AppTestCase
             'images_per_page' => '24',
             'default_sort' => 'alphabetical',
             'max_file_size' => '5',
-            'plex_server_url' => 'http://plex:32400',
             'plex_connect_timeout' => '10',
             'plex_request_timeout' => '60',
             'session_duration' => '30',
@@ -429,40 +428,17 @@ final class SettingsScreenTest extends AppTestCase
     }
 
     /**
-     * The Plex server address is deliberately absent. It is the assertion that
-     * only someone with host access can make, and moving it into the browser
-     * without replacing that property would let the first stranger to reach an
-     * unconfigured install claim it.
+     * The Plex server address is deliberately absent, and permanently so. It is
+     * the assertion only someone with host access can make, and moving it into
+     * the browser would let the first stranger to reach an unconfigured install
+     * take it over. This is not a gap awaiting a replacement property — the
+     * environment variable is the property.
      */
-    /**
-     * Withheld until phase 4, because it was the assertion only someone with
-     * host access could make. The claim code carries that now, so the address is
-     * an ordinary setting.
-     */
-    public function testTheScreenOffersTheServerAddress(): void
+    public function testTheScreenWithholdsTheServerAddress(): void
     {
         $body = (string) $this->get($this->screen(), '/settings')->getBody();
 
-        self::assertStringContainsString('name="plex_server_url"', $body);
-    }
-
-    public function testTheServerAddressCanBeChanged(): void
-    {
-        $app = $this->screen();
-
-        $this->postForm($app, '/settings', $this->form(['plex_server_url' => 'http://10.0.0.5:32400']));
-
-        self::assertSame('http://10.0.0.5:32400', $this->stored()->string(SettingKey::PlexServerUrl));
-    }
-
-    public function testAnUnusableServerAddressIsRefused(): void
-    {
-        $app = $this->screen();
-
-        $response = $this->postForm($app, '/settings', $this->form(['plex_server_url' => 'http://plex:324000']));
-
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('not a usable address', (string) $response->getBody());
+        self::assertStringNotContainsString('plex_server_url', $body);
     }
 
     /**

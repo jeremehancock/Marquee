@@ -6,7 +6,6 @@ namespace App;
 
 use App\Controller\AuthController;
 use App\Controller\ChangePosterController;
-use App\Controller\ClaimController;
 use App\Controller\GalleryController;
 use App\Controller\HealthController;
 use App\Controller\ManifestController;
@@ -39,12 +38,6 @@ function registerRoutes(App $app): void
     // be sitting on a page called /login. Each redirects to the other when the
     // visitor is in the wrong state, so neither can be reached misnamed.
     $app->get('/login', [PlexConnectionController::class, 'login']);
-
-    // Step one of a first run: prove host access and name the Plex server.
-    // Reachable with neither a session nor a connection, because it is what
-    // comes before both. See ClaimMiddleware.
-    $app->get('/claim', [ClaimController::class, 'show']);
-    $app->post('/claim', [ClaimController::class, 'claim']);
 
     $app->get('/', [GalleryController::class, 'home']);
     $app->get('/library/{category}', [GalleryController::class, 'show']);

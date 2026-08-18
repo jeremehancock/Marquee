@@ -1,7 +1,13 @@
 # Plan: move configuration from compose into the app
 
-Scaffolding for a four-phase migration. **Not a spec.** Delete this file when
-phase 4 is archived.
+Scaffolding for a four-phase migration. **Not a spec.**
+
+**The migration is over. Phases 1–3 shipped; phase 4 was built, validated, and
+deliberately abandoned** — see the phase 4 section at the bottom for what was
+built and why it was rolled back. Keep this file until
+`pin-server-url-to-environment` is archived; after that its only remaining value
+is the phase 4 post-mortem, which has been restated in `SettingKey`'s docblock
+and in the `settings` spec, so it can go.
 
 ## How to use this
 
@@ -36,8 +42,9 @@ that a version bump on `dev` publishes no release, and that only a push to
 
 Consequences that bind every phase:
 
-- **Decline the VERSION bump** when `/ship` offers it, until phase 4. It never
-  bumps without asking.
+- **Decline the VERSION bump** when `/ship` offers it, until the sequence ends.
+  It never bumps without asking. (The sequence ended at
+  `pin-server-url-to-environment`, which is where the bump belongs.)
 - **Still archive each phase** on `dev` after its `:dev` validation. Phase N+1's
   delta specs are written against `openspec/specs/` as phase N left it, so
   archiving per phase is required, not merely permitted.
@@ -47,8 +54,9 @@ Consequences that bind every phase:
   If the one-release decision is ever reversed, revisit phase 1's seeding
   design — see its `design.md`.
 - **Documentation edits stay within each phase's scope.** No phase should
-  describe a compose file that a later phase creates. Phase 4 owns the README's
-  configuration table.
+  describe a compose file that a later phase creates. ~~Phase 4 owns the
+  README's configuration table.~~ With phase 4 abandoned, the rollback change
+  owns it.
 - **A hotfix to `main` during this window** would need a branch off `main`
   rather than off `dev`, since `dev` will carry unreleased work for the whole
   sequence.
@@ -59,8 +67,9 @@ Consequences that bind every phase:
       (`add-settings-screen`)
 - [x] Phase 3 — app-owned auto-import schedule (cron inversion)
       (`invert-auto-import-schedule`)
-- [x] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
-      (`add-first-run-claim`)
+- [~] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
+      (`add-first-run-claim`) — **built, validated, then abandoned.** Rolled back
+      by `pin-server-url-to-environment`; `PLEX_SERVER_URL` stays in compose.
 
 ---
 
@@ -72,7 +81,8 @@ Reduce `docker-compose.yml` to container-level concerns only. Everything a user
 would want to change after install becomes a setting in the app, editable
 without recreating the container.
 
-Target end state:
+Target end state *as originally planned* — note this was not reached, and
+deliberately so. `PLEX_SERVER_URL` remains; see phase 4 below.
 
 ```yaml
 services:
@@ -85,6 +95,7 @@ services:
       PUID: "1000"
       PGID: "1000"
       TZ: "Etc/UTC"
+      PLEX_SERVER_URL: "http://10.0.0.5:32400"   # ← stays, permanently
     volumes:
       - ./marquee/config:/config
     restart: unless-stopped
@@ -114,6 +125,7 @@ concern.
 | `POSTERS_DIR`, `SESSION_DIR` | Same class of circularity |
 | `DISPLAY_ERRORS` | Debugging escape hatch; must work when the app is too broken to read its own settings |
 | `UPDATE_REPO`, `POSTER_SOURCE_URL` | Development overrides, not user settings. Exposing them invites broken installs |
+| `PLEX_SERVER_URL` | **Added to this table after the fact.** It decides which Plex account is admitted, so setting it is a host-access assertion. Phase 4 tried to move it and was reverted |
 
 **Moves into the app.**
 
@@ -124,7 +136,7 @@ concern.
 | `PLEX_CONNECT_TIMEOUT`, `PLEX_REQUEST_TIMEOUT`, `PLEX_REMOVE_OVERLAY_LABEL` | 1 → 2 |
 | `EXCLUDED_LIBRARIES` | 1 → 2 |
 | `AUTO_IMPORT_ENABLED`, `_SCHEDULE`, `_MOVIES`, `_SHOWS`, `_SEASONS`, `_COLLECTIONS` | 1 → 3 |
-| `PLEX_SERVER_URL` | 1 → 4 |
+| `PLEX_SERVER_URL` | ~~1 → 4~~ **reverted — stays in the environment** |
 
 Phase 1 moves the *source of truth* for all of them. Later phases add the UI.
 
@@ -167,8 +179,12 @@ Reachability does not save this. Marquee has outbound internet by design
 private ranges. Probing the URL for Plex identity is **UX, not a control** — a
 stub satisfies it. Say so in the spec rather than dressing it as security.
 
-**Therefore phase 4 introduces a claim code**, restoring the "requires host
-access" property in a form a settings page cannot reach:
+**Phase 4 therefore introduced a claim code** to restore the "requires host
+access" property in a form a settings page cannot reach. It was built and then
+abandoned — the analysis above is correct and is exactly why `PLEX_SERVER_URL`
+now stays in the environment, where it provides that property directly and for
+free. What follows is the design that was reverted, kept only so the reasoning
+is not rediscovered from scratch:
 
 ```
 first boot, nothing claimed
@@ -452,70 +468,53 @@ runs on a running container, with no restart, verified on the `:dev` image.
 
 ---
 
-## Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL`
+## Phase 4 — ABANDONED (first-run wizard, claim code, `PLEX_SERVER_URL`)
 
-**Capability:** `settings` and `authentication`.
+**Status: built, validated on `:dev`, and rolled back.** Do not implement this.
+The original prompt block has been removed so it cannot be copied into
+`/opsx:propose` by accident. What follows is why.
 
-The security-relevant phase, done last with 1–3 proven. **Re-read the security
-model section above before proposing.** If this phase is ever abandoned,
-stopping after phase 3 still yields a five-line compose file and every settings
-win except one variable — a real fallback, not a consolation prize.
+**What it was.** Phase 4 would have moved `PLEX_SERVER_URL` into the browser, so
+the compose file carried no application configuration at all. Because that
+address is a trust anchor and not merely a setting, the phase had to replace the
+property it was removing. It did: a 130-bit claim code written to
+`/config/data/claim-code.txt` at `0600` on first boot and logged once, a global
+attempt limiter, an unauthenticated server probe, a `ClaimMiddleware` sitting
+outside authentication, and a `claimed_at` marker in the connection store built
+to survive `clearToken()`. It worked. It was validated on a real `:dev` image on
+both the fresh and upgrade paths.
 
-The wizard is not a new surface. `/connect` is already the first-run screen,
-`PlexConnectionMiddleware` already redirects there, and
-`PlexConnectionController::screen()` already renders one template in two states.
-The wizard is that screen growing a step in front and steps behind.
+**Why it was abandoned.** It cost the user more than it saved. Retrieving the
+claim code means `docker logs` or `cat` on a volume — more work than putting one
+line in a compose file — and the Plex address still had to be typed into the
+browser afterwards. The claim added steps and removed none.
 
-Step ordering is forced by the architecture, not chosen: `PlexServerOwner` needs
-a server URL before it can verify anything, and library checkboxes need a live
-connection to render. Only step 1 is reachable without a session.
+**Why nothing was lost by reverting.** Setting an environment variable *is* the
+host-access assertion the claim code was standing in for. Requiring
+`PLEX_SERVER_URL` in compose keeps exactly the property phase 4 was built to
+replace. The problem phase 4 solved existed only because the variable was being
+taken away; with the variable staying, the problem does not exist.
 
-```
-/opsx:propose Move PLEX_SERVER_URL into the app behind a first-run claim, so the
-compose file carries no application configuration at all. This is phase 4 of the
-plan in openspec/settings-in-app-plan.md — read its Shared context section, and
-especially its security model, before proposing anything.
+**The trap this leaves behind.** Phase 1 had already made the address a
+`SettingKey`, seeded once, after which the compose value was inert. A bare revert
+of the claim would have left the worst of both worlds: compose sets the address
+once, editing it afterwards silently does nothing, and no field exists to change
+it either. So `pin-server-url-to-environment` went further than a revert and took
+the address out of the store entirely. It is now read from the environment on
+every boot.
 
-PLEX_SERVER_URL is currently a trust anchor, not just a setting: it is an
-assertion only someone with host access can make, and it is what stops the first
-stranger who reaches an unconfigured install from becoming its owner. Moving it
-into the browser removes that anchor, so this change must replace it.
+**Read this before "finishing the migration."** The instinct to fold
+`PLEX_SERVER_URL` back into the settings store for consistency with everything
+around it is the exact instinct that produced phase 4. The address decides which
+Plex account is admitted, so choosing it is an assertion about which server is
+yours, and only someone with host access can make it. An address settable from a
+browser proves nothing, because whoever typed it chose the server it names.
 
-- A claim code, generated on first boot, written to /config/data/claim-code.txt
-  at 0600 and echoed to marquee.log. The first-run wizard requires it. At least
-  20 bits of entropy, with per-IP throttling on the claim endpoint. The file is
-  deleted once the install is claimed, and the gate never reopens.
+**The one part worth keeping.** Phase 4's `docs/docker.md` note stands on its
+own: a change to first-run behaviour needs a genuinely empty volume, not a reused
+one, or you test the upgrade path while believing you tested the first run.
 
-- The claim marker MUST survive PlexConnectionStore::clearToken(). That method
-  deliberately forgets the owner so ownership is re-proven on the next sign-in;
-  if it also cleared the claim, disconnecting would reopen a public install to
-  the first stranger and the claim code would be worthless. Keep it alongside
-  client_identifier and signing_secret, which are already preserved across
-  disconnect for the same class of reason. Reclaiming requires deleting the
-  marker from the filesystem, which is the property being preserved.
-
-- Grow /connect into the first-run wizard rather than building a new screen.
-  Step 1: claim code and Plex server URL, probed with an unauthenticated request
-  to the server's identity endpoint so the server's name can be echoed back
-  before the user commits. That probe is a usability feature and must be
-  specified as one — it catches typos and wrong ports, but it cannot be a
-  security control, because a server the attacker chose can satisfy it. Step 2:
-  the existing Plex sign-in, unchanged, verifying ownership against the URL from
-  step 1. Step 3: the settings from phases 2 and 3, which require a live
-  connection to render library checkboxes at all. Only step 1 is reachable
-  without a session.
-
-- Log the owner and server URL when an install is first claimed, so a claim
-  nobody expected is visible rather than mysterious.
-
-- Update README.md: the compose example drops to PUID, PGID, TZ, the port, the
-  volume and the restart policy. Document how to find the claim code, and
-  document resetting a claimed install — including the warning that a publicly
-  reachable install should be taken off the network before its connection state
-  is deleted, because /config/posters survives independently of claim state and
-  the next claimant would see the library.
-```
-
-**Done when:** a fresh container with only `PUID`/`PGID`/`TZ` set can be taken
-from `docker compose up` to a fully configured install entirely in the browser,
-and a second browser reaching it first cannot claim it without the code.
+**Done when:** n/a — abandoned. Stopping after phase 3 was always the documented
+fallback ("a real fallback, not a consolation prize"), and it is where the
+migration ended: a six-line compose file and every settings win except one
+variable.

@@ -36,7 +36,6 @@ final class PlexConnectionStore
     private const KEY_OWNER = 'owner';
     private const KEY_CLIENT_ID = 'client_identifier';
     private const KEY_SIGNING_SECRET = 'signing_secret';
-    private const KEY_CLAIMED_AT = 'claimed_at';
 
     /**
      * Loaded contents, or null when the file has not been read yet. Every value
@@ -108,15 +107,6 @@ final class PlexConnectionStore
      * The client identifier and signing secret are just as deliberately kept:
      * disconnecting must not make Plex treat the next sign-in as a new device,
      * and must not invalidate poster-wall tokens already in flight.
-     *
-     * So is the claim, and that one is load-bearing rather than convenient. If
-     * disconnecting also un-claimed the install, a publicly reachable Marquee
-     * would reopen to the first stranger who loaded it the moment its owner
-     * disconnected — and the claim would protect nothing past the first few
-     * minutes of an install's life. This method unsets two named keys and writes
-     * the rest back, so the claim survives by construction; do not "simplify" it
-     * into rewriting the file from a fresh array.
-     * {@see \App\Tests\Unit\Plex\Connection\PlexConnectionStoreTest} asserts it.
      */
     public function clearToken(): void
     {
@@ -133,46 +123,6 @@ final class PlexConnectionStore
 
         $this->data = $remaining;
         $this->write($remaining);
-    }
-
-    /**
-     * When this install was claimed, or null while it has not been.
-     *
-     * The claim is what stops the first stranger to reach an unconfigured
-     * install from becoming its owner. It used to be provided by the Plex server
-     * address coming from the environment — an assertion only someone with host
-     * access could make — and moved here when that address became a setting.
-     *
-     * It lives in this file for the same reason the client identifier and the
-     * signing secret do: it must survive {@see clearToken()}. It deliberately
-     * does *not* live in the settings store, which the settings screen writes, or
-     * in the database, which is specified as a deletable cache. A claim that a
-     * form submission or an `rm` could clear would not be a claim.
-     */
-    public function claimedAt(): ?string
-    {
-        return $this->load()[self::KEY_CLAIMED_AT] ?? null;
-    }
-
-    public function isClaimed(): bool
-    {
-        return $this->claimedAt() !== null;
-    }
-
-    /**
-     * Record this install as claimed, if it is not already.
-     *
-     * Never overwritten: the first claim is the one that counts, and re-stamping
-     * it would erase when it happened — the one piece of evidence available if an
-     * install turns out to have been claimed by someone unexpected.
-     */
-    public function markClaimed(): void
-    {
-        if ($this->isClaimed()) {
-            return;
-        }
-
-        $this->put(self::KEY_CLAIMED_AT, gmdate('c'));
     }
 
     /**

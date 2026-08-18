@@ -18,10 +18,6 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 
 ## Features
 
-- **Nothing to configure before you start** — the compose file carries only
-  `PUID`, `PGID`, and `TZ`. On first run Marquee prints a claim code; enter it
-  with your Plex server address and the install is yours, so a Marquee reachable
-  from the internet cannot be taken over by whoever opens it first.
 - **Connect to Plex from the app** — sign in to Plex in a popup; no token goes
   in your compose file, and there is none to go hunting for. Only the account
   that owns your server is accepted.
@@ -90,17 +86,46 @@ services:
     ports:
       - "1818:80"                     # http://<host>:1818
     environment:
+      # --- Container (LinuxServer base) ---
       PUID: "1000"                    # match your host user (id -u)
       PGID: "1000"                    # match your host group (id -g)
       TZ: "Etc/UTC"
+
+      # --- Authentication ---
+      # None to set. You open Marquee by signing in to Plex, and only the
+      # account that owns your server can do it.
+      # SESSION_DURATION: "2592000"   # 30 days, renewed each time you use it
+      # SESSION_DIR: "/config/sessions"   # "/tmp" if /config is a network share
+
+      # --- Plex (required for import / send / fetch / orphans) ---
+      PLEX_SERVER_URL: "http://192.168.1.10:32400"
+      # No token here — sign in to Plex from the app on first start.
+      # PLEX_REMOVE_OVERLAY_LABEL: "false"   # "true" if you use Kometa overlays
+
+      # --- Auto-import (optional) ---
+      # Turned on and scheduled under Settings once running; this only seeds a
+      # brand-new install.
+      # AUTO_IMPORT_ENABLED: "false"
+      # AUTO_IMPORT_SCHEDULE: "24h"   # 1h | 3h | 6h | 12h | 24h
+      # AUTO_IMPORT_MOVIES: "true"
+      # AUTO_IMPORT_SHOWS: "true"
+      # AUTO_IMPORT_SEASONS: "false"
+      # AUTO_IMPORT_COLLECTIONS: "false"
+
+      # --- Libraries to hide from Marquee entirely (optional) ---
+      # Easier to tick them under Settings once you are running; this only
+      # seeds a brand-new install. Library names as they appear in Plex.
+      # EXCLUDED_LIBRARIES: "4K Movies,Kids"
+
+      # --- Optional tweaks (all of these live under Settings once running) ---
+      # SITE_TITLE: "Marquee"
+      # IMAGES_PER_PAGE: "24"
+      # DEFAULT_SORT: "alphabetical"  # alphabetical | date_added
+      # UPDATE_CHECK_ENABLED: "false"
     volumes:
       - ./marquee/config:/config
     restart: unless-stopped
 ```
-
-That is the whole file. There is no Plex address to fill in, no token to hunt
-for, and no credentials to invent — you set all of it up in the browser, and
-change it there afterwards.
 
 Then start it:
 
@@ -108,25 +133,9 @@ Then start it:
 docker compose up -d
 ```
 
-**Get your claim code.** The first time Marquee starts it prints one, and stores
-it on your volume:
-
-```bash
-docker compose logs marquee | grep "Claim code"
-# or
-cat ./marquee/config/data/claim-code.txt
-```
-
-Open `http://<host>:1818` and enter that code along with your Plex server
-address. Then sign in to Plex — that one step is both your login and the
-connection to your server. Finally go to **Import from Plex** to pull in your
-posters.
-
-> **Why a code?** Marquee only lets in the Plex account that owns the server you
-> point it at — but on a brand-new install, whoever opens it first would get to
-> name that server. The code is how Marquee knows you are the person who set the
-> container up: reading it takes access to the machine Marquee runs on. It works
-> once, and is deleted the moment the install is claimed.
+Open `http://<host>:1818`. Marquee asks you to sign in to Plex — that one step
+is both your login and the connection to your server. Then go to **Import from
+Plex** to pull in your posters.
 
 The `/config` volume holds everything Marquee needs to persist:
 
@@ -140,29 +149,30 @@ Back this directory up if you want to keep your poster selections.
 
 ## Configuration
 
-**Marquee is configured in the browser.** Open **Settings** in the header; every
-change takes effect on the next page you load, with no restart and no editing of
-files. See [Settings](#settings) below for what it covers.
+**Most of this is a screen now.** Open **Settings** in the header and change it
+there; it takes effect on the next page you load, with no restart and no editing
+of files. See [Settings](#settings) below for what it covers.
 
-Nothing in the table below is required. It exists for two reasons: the first
-three are container settings that must be set before PHP starts, and the rest
-are a way to seed a *brand-new* install from a compose file — useful if you
-deploy from one, and unnecessary otherwise.
+The variables here set up a *new* install. All are optional except
+`PLEX_SERVER_URL`, which Marquee cannot work — or even let you sign in — without,
+and which is the one variable that stays in your compose file for good. There
+are no credentials to set: you sign in to Plex.
 
 > **These variables set up a new install, once.** Marquee keeps its own
 > configuration on the `/config` volume. The first time it starts, it copies
 > whatever your compose file says into that store — so upgrading changes nothing
 > about how your install behaves — and from then on the store is what it reads.
 >
-> An install seeded with `PLEX_SERVER_URL` is treated as already claimed and
-> never asks for a claim code, which is what makes upgrading from an older
-> version seamless.
->
 > Editing a variable afterwards has no effect, and Marquee will tell you so: the
 > Settings screen lists any variable still in your compose file that it no longer
-> reads, so you can delete it. `PUID`, `PGID`, `TZ`, and the `/config` paths are
-> unaffected — those are container settings and are always read from the
-> environment.
+> reads, so you can delete it.
+>
+> Four things are exempt and are always read from the environment. `PUID`,
+> `PGID`, `TZ`, and the `/config` paths are container settings. And
+> `PLEX_SERVER_URL` is read every time Marquee starts, so changing your Plex
+> address is still a compose edit and a restart — it is never listed as something
+> to delete, and there is no field for it on the Settings screen. See
+> [Connecting to Plex](#connecting-to-plex) for why.
 >
 > Deleting `/config/data/settings.json` returns the install to a clean slate and
 > lets the next start read your compose file again.
@@ -174,7 +184,7 @@ deploy from one, and unnecessary otherwise.
 | `SITE_TITLE` | Site name shown in the header and browser tab. Does not rename the installed app, which is always "Marquee". | `Marquee` |
 | `SESSION_DURATION` | How long a session may go unused before it ends, in seconds. The window is renewed every time you use Marquee, so this is idle time, not total time. | `2592000` (30 days) |
 | `SESSION_DIR` | Where sessions are stored. The default is on the `/config` volume, so staying signed in survives updating the container. Point it at `/tmp` if your `/config` is a network share whose file locking misbehaves — sessions then last only until the container is recreated. | `/config/sessions` |
-| `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400` | _(unset)_ |
+| `PLEX_SERVER_URL` | Plex Media Server URL, e.g. `http://10.0.0.5:32400`. Required, and the one variable read on every start rather than seeded once — edit it and restart to point Marquee at a different server. | _(unset)_ |
 | `PLEX_REMOVE_OVERLAY_LABEL` | Remove Kometa's `Overlay` label when sending a poster | `false` |
 | `PLEX_CONNECT_TIMEOUT` | Plex connect timeout, in seconds | `10` |
 | `PLEX_REQUEST_TIMEOUT` | Plex request timeout, in seconds | `60` |
@@ -200,7 +210,7 @@ running. Nothing here needs the container restarted or recreated.
 | Group | What you can change |
 | --- | --- |
 | Presentation | Site title, posters per page, default sort, whether leading articles are ignored when sorting, maximum upload size |
-| Plex | Server address, connect and request timeouts, whether Kometa's `Overlay` label is removed when a poster is sent |
+| Plex | Connect and request timeouts, whether Kometa's `Overlay` label is removed when a poster is sent |
 | Auto-import | Whether to import on a schedule, how often, and which types |
 | Session | How long you stay signed in |
 | Updates | Whether to check GitHub for a newer release |
@@ -220,6 +230,9 @@ If a library you have excluded is no longer on your server — renamed, removed,
 the server is not answering — Marquee keeps the exclusion and shows it separately
 rather than quietly dropping it. Clearing it is a tick box of its own.
 
+**The Plex server address is not on this screen, and will not be.** It stays in
+your compose file because setting it is what proves the server is yours — see
+[Connecting to Plex](#connecting-to-plex).
 
 ### Signing in
 
@@ -264,18 +277,18 @@ single-user tool for managing your own posters.
 Marquee does nothing without Plex, so connecting is the first thing it asks for.
 Until you have, every page redirects to the **Plex Connection** screen.
 
-1. Open Marquee and claim it: enter the claim code from your log or from
-   `data/claim-code.txt`, along with your Plex server's address. Marquee checks
-   that something is answering there before it accepts.
-2. You land on **Plex Connection**, which is also the sign-in screen.
+1. Set `PLEX_SERVER_URL` to your server's address and start Marquee.
+2. Open Marquee. You land on **Plex Connection**, which is also the sign-in
+   screen.
 3. Choose **Sign in with Plex**. A Plex popup opens; sign in and approve
    Marquee there.
 4. The popup closes and Marquee takes you to your gallery. The connection
    status in the header names your server from then on; select it any time to
    see the connection or to disconnect.
 
-The address you gave is where ownership is checked, so a wrong one stops the
-sign-in rather than the account. You can change it later under **Settings**.
+If Marquee cannot reach the address you set, the sign-in is refused and the
+screen says so, naming `PLEX_SERVER_URL` — ownership is checked against your
+server, so a wrong address stops the sign-in rather than the account.
 
 **Sign in with the Plex account that owns the server.** Marquee refuses any
 other account, including one your server is shared with.
@@ -288,7 +301,7 @@ Marquee does not accept one.
 
 A refusal tells you which of the two things to fix. If signing in reports that
 Marquee could not reach your Plex server, the address is wrong rather than your
-account — check it under **Settings** and that Plex is running.
+account — check `PLEX_SERVER_URL` and that Plex is running.
 
 The token is stored at `/config/data/plex-connection.json`, owner-readable only
 (`0600`). It is deliberately kept out of `marquee.sqlite`, so deleting the
@@ -298,9 +311,19 @@ database is still a safe reset that costs only cached data. Because it lives in
 Your browser talks to Plex directly and Marquee polls for the result, so nothing
 has to route back in — this works behind a reverse proxy with no extra setup.
 
-The server address is a setting, not a credential. Signing in supplies the
-credential and never the address; if the address is missing, the connection
-screen says so rather than offering a sign-in that cannot help.
+`PLEX_SERVER_URL` stays an environment variable, and is the only setting that
+does not move into the Settings screen. Signing in supplies a credential, never
+an address; if the address is missing, the connection screen says so rather than
+offering a sign-in that cannot help.
+
+It stays in your compose file because it is what decides *who gets in*. Marquee
+admits the Plex account that owns the server at that address, so setting the
+address is really an assertion about which server is yours — and setting an
+environment variable takes access to the host running Marquee. If the address
+could be typed into a browser instead, the first stranger to find an
+unconfigured install could point it at their own server and become its owner.
+Changing your Plex address is therefore a compose edit and a restart, which is
+the same access you needed to install Marquee in the first place.
 
 To disconnect, or to move Marquee to a different Plex account, use
 **Disconnect from Plex** on the same screen.
@@ -442,21 +465,6 @@ back, because Plex has it and Marquee locked it there. Anything that only ever
 existed in Marquee — art you uploaded but never sent — is gone. Your settings and
 your Plex connection are untouched; they live in their own files. Auto-import
 forgets when it last ran, so it runs once more than it strictly needed to.
-
-**Can I hand this install to someone else, or start its setup over?**
-Yes, and it needs access to the machine — that is the point of the claim code.
-Stop the container, delete `data/plex-connection.json` from your `/config`
-volume, and start it again. Marquee generates a new claim code and asks to be set
-up from scratch.
-
-> ⚠️ **If your Marquee is reachable from the internet, take it off the network
-> first.** Between deleting that file and claiming it again, the install is
-> unclaimed — and whoever reaches it first can claim it. Your Plex server, your
-> token, and your media are *not* exposed: the new claimant's Plex token only
-> reaches their own account, and yours is gone with the file you deleted. What is
-> exposed is the poster library already on disk. `/config/posters` survives
-> independently of the claim, and the Poster Wall deliberately needs no sign-in,
-> so the next claimant would see your posters.
 
 **Where do "Find Posters" results come from?**
 From [posteria.app](https://posteria.app), an online poster search service.

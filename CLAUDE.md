@@ -87,19 +87,22 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   store on first start and is never consulted again — a variable still set
   afterwards is reported to the user as superseded, never obeyed. Never call
   `getenv()` deep in the code, and never add a second source for a setting.
-  - Two exceptions, both structural. The Plex token comes from the connection
-    store written by signing in to Plex. And `DATA_DIR`, `POSTERS_DIR`,
-    `SESSION_DIR`, `DISPLAY_ERRORS`, `UPDATE_REPO`, and `POSTER_SOURCE_URL` stay
-    on the environment — the first locates the store itself, and the rest have
-    to work when the store does not.
-  - A new setting means a new `SettingKey` case. Its default lives there; its
-    floor or fallback stays in the config object that owns the meaning.
-- **`claimed_at` in the connection store is a security control, not a
-  preference.** It is what stops a stranger claiming a publicly reachable
-  install, so it must survive `clearToken()` — which un-claiming would silently
-  reopen — and must never move to the settings store (a form could clear it) or
-  the database (an `rm` could). `PlexConnectionStore::clearToken()` preserves it
-  by unsetting two named keys rather than rebuilding the file; keep it that way.
+  - Three exceptions. The Plex token comes from the connection store written by
+    signing in to Plex. `DATA_DIR`, `POSTERS_DIR`, `SESSION_DIR`,
+    `DISPLAY_ERRORS`, `UPDATE_REPO`, and `POSTER_SOURCE_URL` stay on the
+    environment — the first locates the store itself, and the rest have to work
+    when the store does not.
+  - **`PLEX_SERVER_URL` is the third, and it is a security control, not a
+    structural quirk.** Marquee admits the Plex account that owns the configured
+    server, so the address decides who gets in; setting it takes host access,
+    and that access is the assertion stopping a stranger claiming a publicly
+    reachable install. It is read from the environment on *every* boot — never
+    seeded, never a `SettingKey`, never a field on the settings screen, and never
+    reported as superseded. Moving it into the store was tried: replacing the
+    property cost a first-run claim code, a rate limiter, a probe, and a
+    middleware, and was reverted. Don't re-add the case for consistency.
+  - Any other new setting means a new `SettingKey` case. Its default lives there;
+    its floor or fallback stays in the config object that owns the meaning.
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).

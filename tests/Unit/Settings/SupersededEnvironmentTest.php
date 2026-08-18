@@ -38,6 +38,8 @@ final class SupersededEnvironmentTest extends TestCase
         foreach (SettingKey::all() as $key) {
             putenv($key->variable());
         }
+        // Not a key any more, so the loop above no longer reaches it.
+        putenv('PLEX_SERVER_URL');
     }
 
     public function testNothingSetMeansNothingToReport(): void
@@ -145,5 +147,24 @@ final class SupersededEnvironmentTest extends TestCase
         self::assertFalse((new SupersededEnvironment())->has('DATA_DIR'));
 
         putenv('DATA_DIR');
+    }
+
+    /**
+     * `PLEX_SERVER_URL` briefly was a stored setting and is not one any more, so
+     * it is the variable most likely to be reported by mistake.
+     *
+     * Reporting it would be worse than untidy: it would tell the user their
+     * compose value is now managed in the application and can be deleted, when
+     * the compose file is the only place it works and deleting it would leave
+     * the install with no Plex address at all.
+     */
+    public function testTheServerAddressIsNotReportedAsSuperseded(): void
+    {
+        putenv('PLEX_SERVER_URL=http://plex.local:32400');
+
+        $report = new SupersededEnvironment();
+
+        self::assertFalse($report->has('PLEX_SERVER_URL'));
+        self::assertFalse($report->hasAny());
     }
 }
