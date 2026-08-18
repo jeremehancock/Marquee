@@ -59,7 +59,8 @@ Consequences that bind every phase:
       (`add-settings-screen`)
 - [x] Phase 3 — app-owned auto-import schedule (cron inversion)
       (`invert-auto-import-schedule`)
-- [ ] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
+- [x] Phase 4 — first-run wizard, claim code, `PLEX_SERVER_URL` moves in
+      (`add-first-run-claim`)
 
 ---
 

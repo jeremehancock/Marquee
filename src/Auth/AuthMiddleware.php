@@ -42,6 +42,12 @@ final class AuthMiddleware implements MiddlewareInterface
         self::SIGN_IN_PATH,
         '/logout',
         '/manifest.webmanifest',
+        // Claiming comes before there is anyone to authenticate: it is what
+        // decides who may sign in at all. It is not a hole in this gate, because
+        // ClaimMiddleware — which runs outside this one — closes every other
+        // route while an install is unclaimed, and redirects this one away once
+        // it is claimed.
+        ClaimMiddleware::CLAIM_PATH,
         '/plex/connection/sign-in',
         '/plex/connection/status',
         '/wall',

@@ -94,6 +94,12 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     to work when the store does not.
   - A new setting means a new `SettingKey` case. Its default lives there; its
     floor or fallback stays in the config object that owns the meaning.
+- **`claimed_at` in the connection store is a security control, not a
+  preference.** It is what stops a stranger claiming a publicly reachable
+  install, so it must survive `clearToken()` — which un-claiming would silently
+  reopen — and must never move to the settings store (a form could clear it) or
+  the database (an `rm` could). `PlexConnectionStore::clearToken()` preserves it
+  by unsetting two named keys rather than rebuilding the file; keep it that way.
 - Posters enter the library **only** through `plex-import`. There is no
   add-a-poster path; uploading a file or URL is a mode of *changing* an
   existing poster (`poster-editing`).

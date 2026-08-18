@@ -73,6 +73,23 @@ The tick is written unconditionally and `crond` always runs, whatever the
 auto-import settings say — that is the point of it, so a container started with
 auto-import off is exactly the case worth checking.
 
+**A change to the first-run claim needs a genuinely empty volume**, not a reused
+one. An install with a stored connection, or with `PLEX_SERVER_URL` seeded into
+its settings, is treated as already claimed and never shows the claim step — so a
+reused directory tests the upgrade path while looking like it tests the first
+run. Use `mktemp -d`, and check both:
+
+```bash
+# First run: a code is written 0600, and every route leads to /claim
+docker exec marquee-test ls -l /config/data/claim-code.txt
+curl -s -o /dev/null -w '%{redirect_url}\n' http://127.0.0.1:8099/login   # expect /claim
+
+# Upgrade: seeded with an address, so no code and no claim step
+docker run -d --name marquee-upgrade -e PLEX_SERVER_URL="http://10.0.0.5:32400" \
+  -v "$(mktemp -d):/config" marquee:ci-test
+docker exec marquee-upgrade ls /config/data/claim-code.txt   # expect: not found
+```
+
 ---
 
 ## Keeping repo-only files out of the image

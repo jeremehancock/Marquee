@@ -54,6 +54,7 @@ final class SettingsFormTest extends TestCase
             SettingsForm::FIELD_PER_PAGE => '24',
             SettingsForm::FIELD_DEFAULT_SORT => 'alphabetical',
             SettingsForm::FIELD_MAX_FILE_SIZE => '5',
+            SettingsForm::FIELD_SERVER_URL => 'http://plex:32400',
             SettingsForm::FIELD_CONNECT_TIMEOUT => '10',
             SettingsForm::FIELD_REQUEST_TIMEOUT => '60',
             SettingsForm::FIELD_SESSION_DURATION => '30',

@@ -38,6 +38,20 @@ server {
         try_files $uri /index.php$is_args$args;
     }
 
+    # Claiming the install. Same zone, and deliberately so: both are
+    # unauthenticated routes that a flood could use to occupy the worker pool.
+    #
+    # This is NOT what makes guessing a claim code impractical — the code's own
+    # entropy is, and it is sized so that an attacker granted unlimited attempts
+    # would still get nowhere. The application applies its own bound on failed
+    # attempts as well. This limit is here for the worker pool, like its
+    # neighbour above, and nothing rests on it.
+    location = /claim {
+        limit_req zone=marquee_signin burst=10 nodelay;
+        limit_req_status 429;
+        try_files $uri /index.php$is_args$args;
+    }
+
     # Only the front controller may execute PHP.
     location ~ ^/index\.php(/|$) {
         fastcgi_pass 127.0.0.1:9000;

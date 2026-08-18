@@ -297,9 +297,9 @@ Same flow, but be aware deleting a movie in Plex removes its media files:
   it, then reload the Orphans page. Confirm the item is truly gone from Plex
   (search for it). Emptying the Plex library's trash may be required if Plex
   keeps deleted items until trash is emptied.
-- **"Marquee must be connected to Plex to detect orphans."** → set
-  `PLEX_SERVER_URL`, recreate the container, and sign in to Plex on the
-  **Plex Connection** page.
+- **"Marquee must be connected to Plex to detect orphans."** → set your server
+  address under **Settings**, then sign in to Plex on the **Plex Connection**
+  page. On a brand-new install you will be asked for the claim code first.
 
 ---
 

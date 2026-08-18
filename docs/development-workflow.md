@@ -55,10 +55,16 @@ services:
       PUID: "1000"
       PGID: "1000"
       TZ: "Etc/UTC"
-      PLEX_SERVER_URL: "http://192.168.1.10:32400"
-      # No credentials and no token: signing in to Plex is how you open
-      # Marquee. Worth exercising that sign-in on :dev before every release —
-      # it is the one path tests mock.
+      # Nothing else to set. The server address, and everything else, is
+      # configured in the browser — signing in to Plex is how you open Marquee,
+      # and that sign-in is worth exercising on :dev before every release
+      # because it is the one path tests mock.
+      #
+      # Setting PLEX_SERVER_URL here would seed a first boot AND mark the
+      # install as already claimed, skipping the first-run wizard. Handy when
+      # you want to get straight to the app; the wrong choice when the wizard
+      # is what you meant to test. For that, start from an empty volume with
+      # nothing set and read the claim code out of the log.
     volumes:
       - ./marquee-dev/config:/config
     restart: unless-stopped

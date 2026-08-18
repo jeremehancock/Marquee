@@ -1,0 +1,37 @@
+{% extends 'layout.html.twig' %}
+{% import 'partials/_form.html.twig' as form %}
+
+{# The first screen of a first run, and the only one reachable with neither a
+   session nor a Plex connection. It renders no navigation for the same reason
+   the sign-in screen does not: there is nowhere to go yet. #}
+{% block nav %}{% endblock %}
+
+{% block title %}Set up {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="panel panel--narrow plex-connection">
+    <h1>Set up {{ app_name }}</h1>
+
+    <p class="stats">This install has not been claimed yet. Enter the claim code
+       to make it yours, so that nobody else can.</p>
+
+    {% if error %}
+        <p class="alert" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="{{ claim_path }}">
+        {{ csrf_field() }}
+
+        {{ form.text('code', 'Claim code', code, null,
+                     'Printed in the log when ' ~ app_name ~ ' started, and stored in ' ~ code_path ~ ' on your ' ~ '/config' ~ ' volume. Reading either needs access to the machine running it — which is exactly the point.') }}
+
+        {{ form.text('server_url', 'Plex server address', server_url, null,
+                     'For example http://192.168.1.10:32400') }}
+
+        <button type="submit" class="btn btn--accent">Claim this install</button>
+    </form>
+
+    <p class="field__hint">Next you will sign in to Plex. Only the account that
+       owns the server above is accepted, so that address decides who can get in.</p>
+</div>
+{% endblock %}

@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App;
 
 use App\Auth\AuthMiddleware;
+use App\Auth\Claim\ClaimAttempts;
+use App\Auth\Claim\ClaimServerProbe;
+use App\Auth\Claim\ClaimService;
+use App\Auth\ClaimMiddleware;
 use App\Auth\CsrfGuard;
 use App\Auth\CsrfMiddleware;
 use App\Auth\PlexConnectionMiddleware;
@@ -92,6 +96,19 @@ function buildContainer(array $overrides = []): Container
         },
         SupersededEnvironment::class => static fn (): SupersededEnvironment => new SupersededEnvironment(),
         SettingsForm::class => static fn (SettingsStore $settings): SettingsForm => new SettingsForm($settings),
+        ClaimAttempts::class => static fn (): ClaimAttempts => new ClaimAttempts(AppConfig::dataDir()),
+        ClaimServerProbe::class => static fn (ClientInterface $http): ClaimServerProbe
+            => new ClaimServerProbe($http),
+        // The data directory is asked for directly rather than through AppConfig
+        // for the same reason SettingsStore does: this has to be answerable
+        // before configuration exists, and on an unclaimed install almost
+        // nothing does.
+        ClaimService::class => static fn (
+            PlexConnectionStore $connection,
+            SettingsStore $settings,
+            ClaimAttempts $attempts,
+            LoggerInterface $logger,
+        ): ClaimService => new ClaimService($connection, $settings, $attempts, $logger, AppConfig::dataDir()),
         AppConfig::class => static fn (SettingsStore $settings): AppConfig => AppConfig::resolve($settings),
         AuthConfig::class => static fn (SettingsStore $settings): AuthConfig => AuthConfig::resolve($settings),
         PosterConfig::class => static fn (SettingsStore $settings): PosterConfig => PosterConfig::resolve($settings),
@@ -291,6 +308,15 @@ function createApp(?Container $container = null): App
 
     /** @var CsrfMiddleware $csrfMiddleware */
     $csrfMiddleware = $container->get(CsrfMiddleware::class);
+    /** @var ClaimMiddleware $claimMiddleware */
+    $claimMiddleware = $container->get(ClaimMiddleware::class);
+
+    // An unclaimed install writes its code before anyone can reach it, so an
+    // operator who starts the container and walks away comes back to a code
+    // rather than to a screen asking for one that was never generated.
+    /** @var ClaimService $claimService */
+    $claimService = $container->get(ClaimService::class);
+    $claimService->ensureCode();
 
     // Middleware executes outermost-first (last added runs first): errors wrap
     // routing, which wraps auth, which wraps the Plex gate, which wraps body
@@ -316,6 +342,12 @@ function createApp(?Container $container = null): App
     $app->addBodyParsingMiddleware();
     $app->add($plexMiddleware);
     $app->add($authMiddleware);
+    // Outside authentication, which is the whole reason it is its own
+    // middleware. Auth sends an anonymous visitor to /login, and /login offers a
+    // Plex sign-in — so a claim check inside it would never see the visitor it
+    // exists to stop. On an unclaimed install the sign-in is precisely what must
+    // not be reachable.
+    $app->add($claimMiddleware);
     $app->addRoutingMiddleware();
     $app->addErrorMiddleware($config->displayErrors, true, true, $logger);
 
