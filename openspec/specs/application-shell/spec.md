@@ -25,15 +25,21 @@ and dispatches to route handlers.
 - **THEN** the system responds with HTTP 404 and a rendered not-found page
 
 ### Requirement: Typed configuration from environment
-The system SHALL read all configuration from environment variables exactly once
-at bootstrap into immutable, typed configuration objects, applying documented
-defaults when a variable is absent.
+The system SHALL resolve all configuration exactly once at bootstrap into
+immutable, typed configuration objects, applying documented defaults when a
+value is absent.
 
-Every setting SHALL have a default that the system applies when the variable is
+Where each setting comes from is defined by `settings`. The directories that
+locate the settings store itself, and the error-display switch, are read from
+the environment; every other setting is resolved from the settings store, which
+the environment seeds once. This requirement governs the bootstrap contract —
+read once, immutable, typed, defaulted — not the source.
+
+Every setting SHALL have a default that the system applies when the value is
 absent or empty, and each of those defaults SHALL be asserted by a test. A
 default is a promise about where a self-hosted install keeps its data; one that
 nothing asserts can be moved by a refactor with no test failing and no user
-warned. This holds for every variable the configuration reads, not only the ones
+warned. This holds for every setting the configuration reads, not only the ones
 documented for users — an undocumented setting is still a location something
 depends on.
 
@@ -44,18 +50,21 @@ slash produces a doubled separator in every path built from it. Trimming SHALL
 apply uniformly to every directory setting, so that none of them behaves
 differently from its siblings.
 
-The Plex authentication token is the one exception: it SHALL come from the
-persisted connection store written by signing in to Plex, and SHALL NOT be read
-from the environment. A `PLEX_TOKEN` variable, if present, SHALL NOT be used to
-authenticate to Plex — the system MAY read it only to tell the user it is no
+The Plex authentication token SHALL come from the persisted connection store
+written by signing in to Plex, and SHALL NOT be read from the environment, nor
+from the settings store. A `PLEX_TOKEN` variable, if present, SHALL NOT be used
+to authenticate to Plex — the system MAY read it only to tell the user it is no
 longer used. Resolution SHALL still happen once at bootstrap into the same
-immutable configuration object; no other setting gains a second source.
+immutable configuration object.
 
-The Plex server address remains an environment variable. Signing in supplies a
-credential, never an address.
+The Plex server address is resolved from the settings store like any other
+setting, seeded from `PLEX_SERVER_URL`. Signing in supplies a credential, never
+an address, and the two SHALL remain separately sourced: a credential is
+obtained by an authorization the user performs, while an address is configuration.
 
 #### Scenario: Default applied for missing variable
-- **WHEN** an optional environment variable such as `SITE_TITLE` is not set
+- **WHEN** an optional setting such as the site title is not set in the store or
+  the environment
 - **THEN** the corresponding configuration value uses its documented default
   ("Marquee")
 
@@ -70,12 +79,12 @@ credential, never an address.
 - **AND** the behaviour is the same for every directory setting
 
 #### Scenario: Boolean and integer coercion
-- **WHEN** a variable expected to be boolean is set to `"1"`, `"true"`, `"yes"`,
+- **WHEN** a value expected to be boolean is set to `"1"`, `"true"`, `"yes"`,
   or `"on"` in any casing
 - **THEN** the configuration exposes it as boolean `true`
 - **WHEN** it is set to any other non-empty value
 - **THEN** the configuration exposes it as boolean `false`
-- **WHEN** a variable expected to be an integer is set to a numeric string
+- **WHEN** a value expected to be an integer is set to a numeric string
 - **THEN** the configuration exposes it as an integer
 
 #### Scenario: Stored token is the credential
@@ -90,6 +99,11 @@ credential, never an address.
 #### Scenario: No token at all
 - **WHEN** no token has been stored
 - **THEN** the system reports Plex as not connected
+
+#### Scenario: Configuration is resolved once per request
+- **WHEN** a request is served
+- **THEN** the settings store is read during bootstrap
+- **AND** no later code path reads it again to answer that request
 
 ### Requirement: Health endpoint
 The system SHALL expose an unauthenticated `GET /health` endpoint that reports

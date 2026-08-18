@@ -38,7 +38,7 @@ setting, seeded from `PLEX_SERVER_URL`. Signing in supplies a credential, never
 an address, and the two SHALL remain separately sourced: a credential is
 obtained by an authorization the user performs, while an address is configuration.
 
-#### Scenario: Default applied for missing value
+#### Scenario: Default applied for missing variable
 - **WHEN** an optional setting such as the site title is not set in the store or
   the environment
 - **THEN** the corresponding configuration value uses its documented default
