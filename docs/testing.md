@@ -320,7 +320,7 @@ This can't be exercised without a real Plex server, so it's a workflow test.
 2. In Marquee, **Import from Plex** for that type. The poster arrives under the
    wrong title.
 3. In Plex, **Fix Match** again and pick the correct title.
-4. In Marquee, run an ordinary import — no need to tick **Re-download unchanged
+4. In Marquee, run an ordinary import — no need to select **Re-download unchanged
    posters**.
 
 ### Expected results

@@ -39,10 +39,14 @@
         </div>
         {# Choosing a link navigates away; close the tray on any click so it is
            dismissed for same-page and new-tab (Poster Wall) destinations alike. #}
+        {# Both groups, in sequence. The desktop header splits them across the bar
+           and the ⋯ menu; a phone has a full-width row per entry and no width
+           problem to answer, so here they stay one flat list in the order they
+           always had. #}
         <div class="sheet__body menu__body" @click="menuOpen = false">
-            {{ nav.secondary_links(nav_current|default('')) }}
+            {{ nav.bar_links(nav_current|default('')) }}
+            {{ nav.overflow_links(nav_current|default(''), signed_in()) }}
             {% if signed_in() %}
-                {{ nav.logout_link() }}
                 {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
             {% endif %}
         </div>

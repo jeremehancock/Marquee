@@ -406,16 +406,27 @@
     }
 
     // ---- Secondary destinations -> trays (phone) ----
-    // On a touch device the "Import from Plex" and "Orphans" links open in a tray
-    // over the gallery instead of navigating, but only on a page that actually has
-    // the gallery (and its trays). Elsewhere, and on pointer devices, they navigate
-    // normally.
+    // On a touch device the "Import from Plex", "Orphans" and "Settings" links open
+    // in a tray over the gallery instead of navigating, but only on a page that
+    // actually has the gallery (and its trays). Elsewhere, and on pointer devices,
+    // they navigate normally.
+    var TRAY_LINKS = {
+        'data-import': 'gallery:import',
+        'data-orphans': 'gallery:orphans',
+        'data-settings': 'gallery:settings',
+    };
+
     document.addEventListener('click', function (e) {
-        var link = e.target.closest('a[data-import], a[data-orphans]');
+        var link = e.target.closest('a[data-import], a[data-orphans], a[data-settings]');
         if (!link) { return; }
         if (!isTouch() || !document.querySelector('[data-gallery]')) { return; }
-        e.preventDefault();
-        dispatch(link.hasAttribute('data-import') ? 'gallery:import' : 'gallery:orphans', {});
+        for (var attr in TRAY_LINKS) {
+            if (link.hasAttribute(attr)) {
+                e.preventDefault();
+                dispatch(TRAY_LINKS[attr], {});
+                return;
+            }
+        }
     });
 
     // ---- Alpine component: the orphans page ----
@@ -861,6 +872,11 @@
                 orphansOpen: false,
                 orphansLoading: false,
                 orphansLoaded: false,
+                // No `settingsLoaded`: the settings tray is fetched on every open,
+                // so there is no "already have it" state to record. See openSettings.
+                settingsOpen: false,
+                settingsLoading: false,
+                settingsSaving: false,
 
                 // Fetch a page's content and drop it into a tray, re-initialising
                 // Alpine on the fragment so its own wiring (the import stepper, the
@@ -879,23 +895,30 @@
                     var self = this;
                     return fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                         .then(function (r) { return r.text(); })
-                        .then(function (html) {
-                            var doc = new DOMParser().parseFromString(html, 'text/html');
-                            var content = doc.querySelector('main.container');
-                            var target = self.$refs[ref];
-                            // Drop the "Back to gallery" link and page heading — the
-                            // tray has its own title and dismisses by swipe/backdrop.
-                            if (content) {
-                                var back = content.querySelector('.search__clear');
-                                if (back && back.closest('p')) { back.closest('p').remove(); }
-                                var h1 = content.querySelector('h1');
-                                if (h1) { h1.remove(); }
-                            }
-                            target.innerHTML = content ? content.innerHTML : '';
-                            if (window.Alpine && window.Alpine.initTree) { window.Alpine.initTree(target); }
-                            initImages(target);
-                            return target;
-                        });
+                        .then(function (html) { return self._injectTray(html, ref); });
+                },
+
+                // Take a fetched page's content into a tray. Split out of _loadTray
+                // because a settings save that fails validation answers with the same
+                // page re-rendered, and it has to arrive in the tray on exactly the
+                // terms the first load did — same region, same strip, same re-init.
+                // Two copies of that would drift.
+                _injectTray: function (html, ref) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var content = doc.querySelector('main.container');
+                    var target = this.$refs[ref];
+                    // Drop the "Back to gallery" link and page heading — the
+                    // tray has its own title and dismisses by swipe/backdrop.
+                    if (content) {
+                        var back = content.querySelector('.search__clear');
+                        if (back && back.closest('p')) { back.closest('p').remove(); }
+                        var h1 = content.querySelector('h1');
+                        if (h1) { h1.remove(); }
+                    }
+                    target.innerHTML = content ? content.innerHTML : '';
+                    if (window.Alpine && window.Alpine.initTree) { window.Alpine.initTree(target); }
+                    initImages(target);
+                    return target;
                 },
 
                 // Open the import tray. The Plex import form (libraries + stepper) is
@@ -1077,6 +1100,122 @@
                     // Deleting orphans removes posters that may be shown in the
                     // gallery, so refresh the grid when the tray closes.
                     dispatch('gallery:refresh', {});
+                },
+
+                // Open the settings tray. The whole /settings page is reused inside
+                // it, the same way the import and orphans trays reuse theirs.
+                //
+                // Fetched on every open, and with none of the care openOrphans takes
+                // over re-running Alpine.initTree: settings.html.twig and its form
+                // partial carry no Alpine component at all — no x-data, x-model or
+                // x-init — so there is nothing on the fragment to re-bind. Check that
+                // still holds if the settings form ever gains one.
+                //
+                // Re-fetched rather than kept because this form does decay, unlike
+                // the import form: the library list comes from Plex and can change or
+                // start failing, and the superseded-variable notice is read from the
+                // environment. A reopen is how you get the current answer.
+                openSettings: function () {
+                    var self = this;
+                    this.settingsOpen = true;
+                    if (this.settingsLoading) { return; }
+                    this.settingsLoading = true;
+                    this._loadTray('/settings', 'settingsBody')
+                        .then(function (target) { self._bindSettingsForm(target); })
+                        .catch(function () {
+                            self.$refs.settingsBody.innerHTML =
+                                '<p class="alert" role="alert">Could not load settings. Open the <a href="/settings">Settings page</a> instead.</p>';
+                        })
+                        .finally(function () { self.settingsLoading = false; });
+                },
+
+                // Closing discards the loaded form. A tray reopened after a rejected
+                // save should ask the server what the settings are, not redisplay the
+                // submission that was refused.
+                closeSettings: function () {
+                    this.settingsOpen = false;
+                    this.settingsSaving = false;
+                    if (this.$refs.settingsBody) { this.$refs.settingsBody.innerHTML = ''; }
+                },
+
+                // Route the loaded form's submit through saveSettings. Called again
+                // after an invalid save swaps a fresh copy of the form in, because the
+                // handler went with the markup it was bound to.
+                _bindSettingsForm: function (target) {
+                    var self = this;
+                    var form = target.querySelector('form[action="/settings"]');
+                    if (!form) { return; }
+                    form.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        self.saveSettings(form);
+                    });
+                },
+
+                // Save, reading the outcome off the response status.
+                //
+                // `redirect: 'manual'` is doing real work here, and the branch it
+                // produces reads backwards: an OPAQUE REDIRECT IS THE SUCCESS CASE.
+                // The controller already answers 302-to-/settings on a valid save and
+                // 200-re-rendering-the-form on an invalid one, so the status alone
+                // says which happened and no JSON branch had to be added to it.
+                //
+                // Not following the redirect is the other half. A followed GET
+                // /settings would pull the "Settings saved." flash out of the session
+                // and throw the response away, so the reload below would land on a
+                // gallery with nothing to say. Left unconsumed, the flash is rendered
+                // by the reloaded gallery — under the new title and sort, which is
+                // where a user should see it.
+                //
+                // Reload rather than close-and-refresh: these settings change the
+                // header (site title) as well as the grid (page size, default sort,
+                // article-aware sorting, library exclusions), and gallery:refresh
+                // redraws the grid but not the header. A partial update would leave
+                // the page half-describing the configuration that was just replaced.
+                //
+                // An expired session's auth redirect is also a 302 and is read here as
+                // a save. The reload then lands on the sign-in screen, which is the
+                // right place to be — the same thing submitting the page would do.
+                saveSettings: function (form) {
+                    var self = this;
+                    if (this.settingsSaving) { return; }
+                    this.settingsSaving = true;
+                    fetch('/settings', {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'fetch' },
+                        credentials: 'same-origin',
+                        redirect: 'manual',
+                    })
+                        .then(function (r) {
+                            if (r.type === 'opaqueredirect') {
+                                self.closeSettings();
+                                window.location.reload();
+                                return null;
+                            }
+                            return r.text();
+                        })
+                        .then(function (html) {
+                            // Null is the reload path above; the page is going away.
+                            if (html === null) { return; }
+                            self._swapSettingsForm(html);
+                            self.settingsSaving = false;
+                        })
+                        .catch(function () {
+                            self.settingsSaving = false;
+                            self.notify('Could not save settings.');
+                        });
+                },
+
+                // An invalid save came back as the whole page re-rendered with its
+                // errors. It goes into the tray through the same injector the first
+                // load used, so the errors land against the fields they belong to and
+                // the tray stays open where it was. Scrolled back to the top because
+                // the summary alert the form re-renders with sits there.
+                _swapSettingsForm: function (html) {
+                    if (!this.$refs.settingsBody) { return; }
+                    var target = this._injectTray(html, 'settingsBody');
+                    this._bindSettingsForm(target);
+                    target.scrollTop = 0;
                 },
 
                 openChange: function (filename, title, category, linked) {

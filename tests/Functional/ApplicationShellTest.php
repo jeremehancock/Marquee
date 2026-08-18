@@ -29,13 +29,49 @@ final class ApplicationShellTest extends AppTestCase
      * The header's secondary navigation, isolated from the tray, which renders
      * the same macro on every page and would otherwise satisfy any assertion made
      * against the whole body.
+     *
+     * Bounded by the mobile menu button that follows it rather than by a closing
+     * tag. The desktop navigation now nests two divs of its own for the overflow
+     * menu, and a non-greedy match to the first `</div>` stopped inside them —
+     * cutting off the connection status, which sits after the menu. A regex cannot
+     * count nesting; the next sibling is the reliable edge.
      */
     private function header(string $body): string
     {
-        $matched = preg_match('#<div class="topnav__desktop">.*?\n\s*</div>#s', $body, $m);
+        $matched = preg_match(
+            '#<div class="topnav__desktop">.*?(?=<button type="button" class="menu-btn")#s',
+            $body,
+            $m,
+        );
         self::assertSame(1, $matched, 'The topbar must render the desktop navigation.');
 
         return $m[0];
+    }
+
+    /**
+     * Just the overflow menu's panel — the entries that moved off the bar and
+     * behind the ⋯ control. Bounded the same way and for the same reason.
+     */
+    private function overflowMenu(string $body): string
+    {
+        $matched = preg_match(
+            '#<div class="navmenu__panel.*?(?=</div>\s*</div>)#s',
+            $this->header($body),
+            $m,
+        );
+        self::assertSame(1, $matched, 'The header must render the overflow menu.');
+
+        return $m[0];
+    }
+
+    /**
+     * The bar: the header's navigation with the overflow menu's contents removed,
+     * so an assertion that a link is on the bar cannot be satisfied by the same
+     * link sitting inside the menu.
+     */
+    private function headerBar(string $body): string
+    {
+        return str_replace($this->overflowMenu($body), '', $this->header($body));
     }
 
     /**
@@ -50,7 +86,8 @@ final class ApplicationShellTest extends AppTestCase
         $app = $this->makeSignedInApp();
 
         foreach (['/library/movies', '/plex', '/orphans'] as $path) {
-            $header = $this->header((string) $this->get($app, $path)->getBody());
+            $body = (string) $this->get($app, $path)->getBody();
+            $header = $this->header($body);
 
             foreach (['Poster Wall', 'Import from Plex', 'Orphans', 'Support Development'] as $label) {
                 self::assertStringContainsString(
@@ -65,7 +102,107 @@ final class ApplicationShellTest extends AppTestCase
             self::assertStringContainsString('href="/logout"', $header);
             self::assertStringContainsString('nav-item', $header);
             self::assertStringNotContainsString('<nav><a href="/logout">', $header);
+
+            // And each is on the tier it belongs to. Asserted per placement rather
+            // than against the header as a whole, because the header contains both
+            // and would satisfy either claim.
+            $bar = $this->headerBar($body);
+            $menu = $this->overflowMenu($body);
+
+            foreach (['Poster Wall', 'Import from Plex', 'Orphans'] as $label) {
+                self::assertStringContainsString(
+                    'aria-label="' . $label . '"',
+                    $bar,
+                    sprintf('%s acts on the poster library and belongs on the bar.', $label),
+                );
+            }
+
+            foreach (['Settings', 'Support Development', 'Log out'] as $label) {
+                self::assertStringContainsString(
+                    'aria-label="' . $label . '"',
+                    $menu,
+                    sprintf('%s is housekeeping and belongs in the overflow menu.', $label),
+                );
+                self::assertStringNotContainsString(
+                    'aria-label="' . $label . '"',
+                    $bar,
+                    sprintf('%s must not also sit on the bar; the split is what keeps it narrow.', $label),
+                );
+            }
         }
+    }
+
+    /**
+     * The connection status is a reading, not a destination, and a reading you
+     * have to open is not one. It stays on the bar while the destinations beside
+     * it move behind the ⋯ control.
+     */
+    public function testTheConnectionStatusStaysOnTheBar(): void
+    {
+        $body = (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('conn-dot', $this->headerBar($body));
+        self::assertStringNotContainsString('conn-dot', $this->overflowMenu($body));
+    }
+
+    /**
+     * One affordance, one meaning. The phone's menu button and the desktop
+     * header's overflow control wear the same mark, so "the rest of the actions
+     * are behind this" reads the same at both widths.
+     */
+    public function testTheOverflowControlNamesItselfAndReportsItsState(): void
+    {
+        $header = $this->header((string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody());
+
+        $matched = preg_match('#<button[^>]*navmenu__trigger[^>]*>#s', $header, $m);
+        self::assertSame(1, $matched, 'The header must render the overflow control.');
+
+        // The visible mark is a glyph, so the accessible name is the only thing
+        // that says what the control is.
+        self::assertStringContainsString('aria-label="More actions"', $m[0]);
+        self::assertStringContainsString('aria-haspopup="menu"', $m[0]);
+        self::assertStringContainsString(':aria-expanded="moreOpen', $m[0]);
+
+        // The same three dots the phone's menu button uses, from one macro rather
+        // than two copies that can drift.
+        self::assertSame(
+            2,
+            substr_count((string) file_get_contents(dirname(__DIR__, 2) . '/templates/layout.html.twig'), 'nav.overflow_glyph('),
+            'Both overflow controls must draw their mark from the shared macro.',
+        );
+    }
+
+    /**
+     * Putting a destination behind a click must not also hide that you are on it.
+     */
+    public function testTheOverflowControlIsMarkedWhenItHoldsTheCurrentDestination(): void
+    {
+        $app = $this->makeSignedInApp();
+
+        $settings = (string) $this->get($app, '/settings')->getBody();
+        $matched = preg_match('#<button[^>]*navmenu__trigger[^>]*>#s', $this->header($settings), $m);
+        self::assertSame(1, $matched);
+        self::assertStringContainsString(
+            'nav-item--current',
+            $m[0],
+            'On a page the menu holds, the control that hides it must say so.',
+        );
+
+        // The entry inside is still the thing that is current, and still is not a
+        // link to the page being viewed.
+        $menu = $this->overflowMenu($settings);
+        self::assertStringContainsString('aria-current="page" aria-label="Settings"', $menu);
+        self::assertStringNotContainsString('href="/settings"', $menu);
+
+        // And the marking is not simply always on: a page the bar holds leaves the
+        // control unmarked.
+        $orphans = $this->header((string) $this->get($app, '/orphans')->getBody());
+        $matched = preg_match('#<button[^>]*navmenu__trigger[^>]*>#s', $orphans, $m);
+        self::assertSame(1, $matched);
+        self::assertStringNotContainsString('nav-item--current', $m[0]);
     }
 
     /**
@@ -130,6 +267,25 @@ final class ApplicationShellTest extends AppTestCase
 
         self::assertStringContainsString('>Import from Plex</span>', $m[0]);
         self::assertStringContainsString('>Support Development</span>', $m[0]);
+
+        // The desktop split does not reach the tray. A phone has a full-width row
+        // per entry and no width problem to answer, so all six stay one flat list —
+        // and the tray renders both groups to get them, which is the part that
+        // could silently drop one.
+        foreach ([
+            'Poster Wall',
+            'Import from Plex',
+            'Orphans',
+            'Settings',
+            'Support Development',
+            'Log out',
+        ] as $label) {
+            self::assertStringContainsString(
+                'aria-label="' . $label . '"',
+                $m[0],
+                sprintf('%s must still be in the phone tray after the desktop split.', $label),
+            );
+        }
     }
 
     public function testSignInScreenRendersNoSecondaryNavigation(): void

@@ -259,7 +259,7 @@ final class DesignTokenContractTest extends TestCase
             }
         }
 
-        foreach (['.panel', '.modal__panel', '.overlay__box', '.tooltip', '.toast'] as $selector) {
+        foreach (['.panel', '.navmenu__panel', '.modal__panel', '.overlay__box', '.tooltip', '.toast'] as $selector) {
             self::assertArrayHasKey(
                 $selector,
                 $shadows,
@@ -299,6 +299,20 @@ final class DesignTokenContractTest extends TestCase
             $tier($shadows['.modal__panel']),
             $tier($shadows['.panel']),
             'A dialog covers the page a panel sits on, so it must read as further from it.',
+        );
+        // The header's overflow menu opens over the page's own pinned controls
+        // (z 35 against 30) and is covered in turn by anything modal, so it lands
+        // between a resting panel and a dialog in depth as well as in stacking.
+        self::assertGreaterThan(
+            $tier($shadows['.panel']),
+            $tier($shadows['.navmenu__panel']),
+            'The header menu is drawn over the pinned controls a panel sits level '
+            . 'with, so it must read as further from the page than one.',
+        );
+        self::assertLessThan(
+            $tier($shadows['.modal__panel']),
+            $tier($shadows['.navmenu__panel']),
+            'A dialog covers the header menu, so the menu must read as nearer the page.',
         );
         self::assertSame(
             $tier($shadows['.modal__panel']),

@@ -19,11 +19,20 @@
     --border: #34373d;
 
     /* Elevation. Five tiers, keyed to the z-index ladder documented in the Modal
-       section (pinned controls 30, tab bar 40, trays 50, dialogs 55, viewer 60,
-       toast 80, tooltip 100, and the progress overlay at 100 — except inside a
-       tray, where it is deliberately demoted to 5 so it covers the tray rather
-       than the screen). A surface's tier MUST agree with where it sits on that
-       ladder, or depth and stacking tell the reader different stories.
+       section (pinned controls 30, the topbar 35, tab bar 40, trays 50, dialogs 55,
+       viewer 60, toast 80, tooltip 100, and the progress overlay at 100 — except
+       inside a tray, where it is deliberately demoted to 5 so it covers the tray
+       rather than the screen). A surface's tier MUST agree with where it sits on
+       that ladder, or depth and stacking tell the reader different stories.
+
+       The topbar's 35 is the one rung that exists to clear a specific neighbour
+       rather than to name a class of surface. It is not the bar that needs it: the
+       bar never overlaps anything. It is the overflow menu inside it, which opens
+       downward over the content region where .gallery-head is pinned at 30 — and
+       because `backdrop-filter` makes the header a stacking context, the menu's own
+       z-index is resolved against the header and cannot reach the page. Raising the
+       header is the only thing that lifts the menu. Desktop-only in effect, so it
+       never shares a screen with the tab bar or a tray above it.
 
        DesignTokenContractTest::testElevationAgreesWithTheStackingLadder asserts
        it, because picking a shadow by eye is exactly how the two drift apart.
@@ -162,7 +171,30 @@ body {
    is about the page showing through as content passes under it on its way out,
    and about matching the pinned controls below it, which do stay. Pinning the
    header too would be a behaviour change, and nothing asked for one. */
+/* `position: relative; z-index: 35` is the header's, but it is the overflow menu
+   that needs it, and the reason is worth stating because the obvious fix does not
+   work.
+
+   `backdrop-filter` does two things to this element. The documented one is that it
+   becomes a containing block for fixed descendants — that is what teleported the
+   phone tray. The second is that it becomes a STACKING CONTEXT, and that one is
+   what traps the menu: every z-index inside the header is resolved against the
+   header, not the page. So the panel's own z-index can be any number at all and
+   the whole header still paints where an unpositioned element paints, which is
+   below .gallery-head's pinned 30. The menu came out behind the gallery's controls
+   with a perfectly correct-looking z-index on it.
+
+   Raising the header is what actually lifts the menu. `relative` keeps it in flow,
+   so the header still scrolls away with the page and nothing moves; it is here
+   only because z-index does nothing to a statically positioned element.
+
+   Safe against the pinned controls it now outranks: the header sits above them in
+   flow with the container's padding between, and .gallery-head only sticks once
+   the header has scrolled entirely off the top, so the two boxes never share
+   space. HeaderOverflowMenuTest asserts the comparison this rule exists to win. */
 .topbar {
+    position: relative;
+    z-index: 35;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -266,6 +298,84 @@ body {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
+}
+
+/* The header's overflow menu: Settings, Support Development and Log out, behind
+   one control. The bar's contents are aligned to the 960px content column and
+   share it with a brand of unbounded width, so six labelled actions plus the
+   connection status did not reliably fit — see _nav_macros.html.twig for which
+   links went behind it and why. */
+.navmenu {
+    position: relative;
+    display: inline-flex;
+}
+
+/* Icon-only at every width, so it needs the square padding the bar's items only
+   take in the narrow band rather than the label-shaped padding they wear beside
+   it. */
+.topnav__desktop .navmenu__trigger {
+    padding: 8px;
+    cursor: pointer;
+}
+
+/* Absolute, never fixed. `.topbar` carries `backdrop-filter`, which makes it a
+   containing block for fixed-position descendants — the rule that cost the phone
+   tray a teleport to <body> (see partials/_menu.html.twig). A fixed panel here
+   would resolve against the header's own box instead of the viewport and land in
+   the wrong place; an absolute one resolves against .navmenu and is unaffected.
+
+   The z-index here only orders the panel against its siblings inside the header.
+   What lifts it over the gallery's pinned controls is the z-index on .topbar —
+   `backdrop-filter` makes the header a stacking context, so nothing in here is
+   resolved against the page. Raising this number does nothing on its own; see the
+   .topbar rule. */
+.navmenu__panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 35;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    /* The header-menu tier: a popover with shape and edges, so it casts downward
+       like the dialogs it sits just below on the ladder. */
+    box-shadow: var(--elev-3);
+}
+
+/* Rows, not a row. The panel is a vertical list like the phone tray, which is why
+   it borrows .menu__body's full-label presentation rather than restating it — see
+   the .menu__body rules below. What it does not inherit is the tray's spacing, the
+   tray being a full-screen surface and this a 200px popover. */
+.navmenu__panel .nav-item {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border-color: transparent;
+    background: none;
+    color: var(--ink);
+    font-size: 0.92rem;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.topbar .navmenu__panel .nav-item:hover,
+.topbar .navmenu__panel .nav-item:focus-visible {
+    background: var(--surface-2);
+    color: var(--ink);
+}
+
+.topbar .navmenu__panel .nav-item--current,
+.topbar .navmenu__panel .nav-item--current:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+    cursor: default;
 }
 
 /* The Plex connection, carried in the header as a state rather than a
@@ -403,13 +513,20 @@ body {
    short forms come to ~656px with the brand, against the 652px a 700px viewport
    leaves inside the content column. The custom tooltip names each action here —
    see data-tooltip-collapsed in app.js, which is what keeps it silent once a
-   label is back on screen. */
+   label is back on screen.
+
+   The child combinator confines this to the bar. It is not tidiness: the overflow
+   panel is a descendant of .topnav__desktop, so a descendant selector here would
+   strip the labels off the menu's rows in this band — and that menu is a list of
+   full names at every width, exactly as the phone tray is. The ⋯ control itself is
+   excluded for the same reason it needs no exclusion in spirit: it is icon-only
+   already and has no label to drop. */
 @media (min-width: 641px) and (max-width: 900px) {
-    .topnav__desktop .nav-label {
+    .topnav__desktop > .nav-item .nav-label {
         display: none;
     }
 
-    .topnav__desktop .nav-item {
+    .topnav__desktop > .nav-item {
         padding: 8px;
     }
 }

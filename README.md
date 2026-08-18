@@ -46,7 +46,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   long you stay signed in, auto-import, and library exclusions. Saved settings
   apply on the next page you load, with no restart.
 - **Library exclusions** — hide chosen Plex libraries from Marquee entirely, in
-  the UI and in every import. Tick the ones to hide from the list your server
+  the UI and in every import. Select the ones to hide from the list your server
   reports, so a mistyped name can't quietly exclude nothing.
 - **Orphan detection** — find and remove posters whose media no longer exists in
   Plex, or whose library is now excluded.
@@ -65,9 +65,10 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   sign-in, so you can point a spare monitor or TV straight at `/wall`, or embed
   it in a dashboard — the banner text stays readable down to a small tile.
 - **Fast, modern UI** — search as you type, background updates without full page
-  reloads, and a mobile experience built around trays: an actions menu and a
-  full-size poster action sheet keep the phone view focused on your posters,
-  with search and sort pinned to the top as you scroll. On a phone the header,
+  reloads, and a mobile experience built around trays: an actions menu, importing,
+  orphans, settings and a full-size poster action sheet all open over the gallery
+  rather than taking you away from it, with search and sort pinned to the top as
+  you scroll. On a phone the header,
   the toolbar, and the tab bar are translucent, so your posters stay visible
   passing behind them; dialogs, trays, buttons, and poster cards all animate
   rather than snap. If your system asks for reduced motion, Marquee drops the
@@ -124,10 +125,10 @@ Back this directory up if you want to keep your poster selections.
 
 ## Configuration
 
-**Marquee is configured in the app, not in a file.** Open **Settings** in the
-header and change what you want; it takes effect on the next page you load, with
-no restart and nothing to edit on disk. See [Settings](#settings) below for what
-it covers.
+**Marquee is configured in the app, not in a file.** Open **Settings** — behind
+the **⋯** menu in the header, or the actions menu on a phone — and change what you
+want; it takes effect on the next page you load, with no restart and nothing to
+edit on disk. See [Settings](#settings) below for what it covers.
 
 Your compose file keeps only what cannot be a setting: the container's own
 options, and your Plex server's address.
@@ -156,8 +157,11 @@ seeded from, and the rules about when seeding applies.
 
 ### Settings
 
-**Settings** in the header is where configuration lives once an install is
-running. Nothing here needs the container restarted or recreated.
+**Settings** is where configuration lives once an install is running. Nothing here
+needs the container restarted or recreated. It sits behind the **⋯** menu in the
+header, beside Support Development and Log out; on a phone it opens as a tray over
+the gallery, and saving closes the tray and reloads the page so your change is
+visible straight away.
 
 | Group | What you can change |
 | --- | --- |
@@ -173,14 +177,14 @@ screen states: **auto-import applies from the next scheduled run.** Marquee
 checks once an hour whether a run is due, so a change you make is picked up by
 that check rather than immediately.
 
-**Excluded libraries are tick boxes over the libraries your server actually
+**Excluded libraries are selected from the libraries your server actually
 reports**, not a list of names to type. An excluded library is invisible to the
 whole of Marquee: it is not offered for import, nothing is imported from it, and
 posters already imported from it turn up as orphans.
 
 If a library you have excluded is no longer on your server — renamed, removed, or
 the server is not answering — Marquee keeps the exclusion and shows it separately
-rather than quietly dropping it. Clearing it is a tick box of its own.
+rather than quietly dropping it. Clearing it is a selection of its own.
 
 **The Plex server address is not on this screen, and will not be.** It stays in
 your compose file because setting it is what proves the server is yours — see
@@ -334,7 +338,7 @@ nothing has to be carried across.
    TV Seasons, Collections). Marquee pulls the current poster for every item and
    maps it back to the Plex item it belongs to.
 5. **Optionally turn on auto-import.** Open **Settings**, enable it, pick how
-   often it should run, and tick the types you want, so new media picks up
+   often it should run, and select the types you want, so new media picks up
    posters on its own.
 
 From there, use Marquee as described in [Usage](#usage).
@@ -388,7 +392,7 @@ They become orphans. An excluded library doesn't exist as far as Marquee is
 concerned, so the posters it left behind are no longer linked to anything —
 they show up on the **Orphans** screen, where you can review them and delete
 the ones you don't want. Marquee never deletes them on its own. If you change
-your mind, un-tick the library under **Settings** — no restart — and its posters
+your mind, deselect the library under **Settings** — no restart — and its posters
 go back to being ordinary posters; anything you already deleted comes back with a
 fresh import.
 
@@ -490,9 +494,10 @@ to do.
 
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
-front and center: the secondary actions live behind the **⋯** Actions menu,
-search and sort stay pinned to the top while you scroll, and tapping a poster
-opens a full-size action sheet.
+front and center: the secondary actions live behind the **⋯** Actions menu, and
+importing, orphans and settings all open as trays over the gallery rather than
+navigating away from it. Search and sort stay pinned to the top while you scroll,
+and tapping a poster opens a full-size action sheet.
 
 ## Security considerations
 
