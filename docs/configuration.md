@@ -1,8 +1,9 @@
 # Configuration reference — seeding a new install from the environment
 
 **You almost certainly don't need this page.** Marquee is configured on its
-**Settings** screen: open it from the header, change what you want, and it takes
-effect on the next page you load. Nothing there needs the container restarted,
+**Settings** screen: open it from the **⋯** menu in the header, change what you
+want, and it takes effect on the next page you load. Nothing there needs the
+container restarted,
 and nothing there is in your compose file.
 
 This page is for one narrower job: **pre-configuring an install that does not

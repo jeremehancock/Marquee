@@ -59,6 +59,7 @@
      @gallery:sheet-close.window="closeSheet()"
      @gallery:import.window="openImport()"
      @gallery:orphans.window="openOrphans()"
+     @gallery:settings.window="openSettings()"
      @gallery:done.window="change.open = false">
 
     {% if flash %}
@@ -342,6 +343,35 @@
             <div class="sheet__head"><span class="sheet__title">Orphaned posters</span></div>
             <div class="sheet__body" x-ref="orphansBody" data-nested-scope>
                 <p class="stats" x-show="orphansLoading">Loading…</p>
+            </div>
+        </div>
+    </div>
+
+    {# Settings tray (phone): the Settings link opens this instead of navigating.
+       Its body is the /settings page content, fetched on every open — the library
+       list comes from Plex and the superseded-variable notice comes from the
+       environment, so unlike the import form this one decays.
+
+       Saving from here closes the tray and reloads the page rather than leaving it
+       in place, because these settings change what is behind the tray: the site
+       title in the header, how many posters a page holds, the order they are in,
+       which libraries are visible. See saveSettings in gallery.js. #}
+    <div class="sheet" x-show="settingsOpen" x-cloak {{ tx.tray() }}
+         @keydown.escape.window="closeSettings()" style="display:none">
+        <div class="sheet__backdrop" @click="closeSettings()"></div>
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Settings">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Settings</span></div>
+            <div class="sheet__body" x-ref="settingsBody" data-nested-scope>
+                <p class="stats" x-show="settingsLoading">Loading…</p>
+            </div>
+            {# Pinned over the tray rather than the screen, by the shared z-index: 5
+               demotion every tray's progress overlay takes. #}
+            <div class="overlay" x-show="settingsSaving" x-cloak style="display:none">
+                <div class="overlay__box">
+                    <div class="spinner"></div>
+                    <p><strong>Saving settings&hellip;</strong></p>
+                </div>
             </div>
         </div>
     </div>

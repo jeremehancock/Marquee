@@ -65,9 +65,10 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   sign-in, so you can point a spare monitor or TV straight at `/wall`, or embed
   it in a dashboard — the banner text stays readable down to a small tile.
 - **Fast, modern UI** — search as you type, background updates without full page
-  reloads, and a mobile experience built around trays: an actions menu and a
-  full-size poster action sheet keep the phone view focused on your posters,
-  with search and sort pinned to the top as you scroll. On a phone the header,
+  reloads, and a mobile experience built around trays: an actions menu, importing,
+  orphans, settings and a full-size poster action sheet all open over the gallery
+  rather than taking you away from it, with search and sort pinned to the top as
+  you scroll. On a phone the header,
   the toolbar, and the tab bar are translucent, so your posters stay visible
   passing behind them; dialogs, trays, buttons, and poster cards all animate
   rather than snap. If your system asks for reduced motion, Marquee drops the
@@ -124,10 +125,10 @@ Back this directory up if you want to keep your poster selections.
 
 ## Configuration
 
-**Marquee is configured in the app, not in a file.** Open **Settings** in the
-header and change what you want; it takes effect on the next page you load, with
-no restart and nothing to edit on disk. See [Settings](#settings) below for what
-it covers.
+**Marquee is configured in the app, not in a file.** Open **Settings** — behind
+the **⋯** menu in the header, or the actions menu on a phone — and change what you
+want; it takes effect on the next page you load, with no restart and nothing to
+edit on disk. See [Settings](#settings) below for what it covers.
 
 Your compose file keeps only what cannot be a setting: the container's own
 options, and your Plex server's address.
@@ -156,8 +157,11 @@ seeded from, and the rules about when seeding applies.
 
 ### Settings
 
-**Settings** in the header is where configuration lives once an install is
-running. Nothing here needs the container restarted or recreated.
+**Settings** is where configuration lives once an install is running. Nothing here
+needs the container restarted or recreated. It sits behind the **⋯** menu in the
+header, beside Support Development and Log out; on a phone it opens as a tray over
+the gallery, and saving closes the tray and reloads the page so your change is
+visible straight away.
 
 | Group | What you can change |
 | --- | --- |
@@ -490,9 +494,10 @@ to do.
 
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
-front and center: the secondary actions live behind the **⋯** Actions menu,
-search and sort stay pinned to the top while you scroll, and tapping a poster
-opens a full-size action sheet.
+front and center: the secondary actions live behind the **⋯** Actions menu, and
+importing, orphans and settings all open as trays over the gallery rather than
+navigating away from it. Search and sort stay pinned to the top while you scroll,
+and tapping a poster opens a full-size action sheet.
 
 ## Security considerations
 

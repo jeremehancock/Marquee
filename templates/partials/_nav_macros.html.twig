@@ -1,6 +1,7 @@
-{# Single source of truth for the secondary navigation links. Rendered both in
-   the desktop page header and in the mobile menu tray, so the same links appear
-   in both places without divergent markup.
+{# Single source of truth for the secondary navigation links. Rendered in the
+   desktop page header — where they are split across the header bar and the menu
+   behind its ⋯ control — and in the mobile menu tray, which renders both groups in
+   sequence. So the same links appear in every placement without divergent markup.
 
    The glyphs come from the shared icon macro; nav items ask for 20px, against
    the 22px the category tab bar uses. That import lives inside `item()` rather
@@ -39,21 +40,82 @@
         <a class="btn nav-item" href="{{ href }}" aria-label="{{ label }}"
            data-tooltip="{{ label }}" data-tooltip-collapsed
            {%- if external %} target="_blank" rel="noopener"{% endif %}
-           {%- if key == 'import' %} data-import{% elseif key == 'orphans' %} data-orphans{% endif %}>{{ body }}</a>
+           {%- if key == 'import' %} data-import{% elseif key == 'orphans' %} data-orphans
+           {%- elseif key == 'settings' %} data-settings{% endif %}>{{ body }}</a>
     {% endif %}
 {% endmacro %}
 
-{% macro secondary_links(current = '') %}
+{# The secondary links, in two groups.
+
+   The desktop header renders `bar_links()` in the header bar and `overflow_links()`
+   inside the menu behind the ⋯ control; the phone tray renders both in sequence, so
+   all six entries are still one flat list there and the order is unchanged.
+   Splitting the macro rather than the markup is what keeps the single source of
+   truth: neither placement gets to name a link the other does not.
+
+   The split is a width problem answered with a hierarchy. The header's contents are
+   aligned to the 960px content column rather than the viewport, and share it with a
+   brand of unbounded length (SITE_TITLE is user-configurable) — six labelled items
+   plus the connection status runs 824–909px of that, so the bar was one long title
+   from crowding. The line drawn is what acts on your poster library against what
+   does not: Wall, Import and Orphans are why you opened Marquee; Settings, Support
+   and Log out are configuration, an external ask, and the way out. #}
+{% macro bar_links(current = '') %}
+    {# Opens in a new tab, unlike the two beside it, and still belongs here: it is
+       the feature people open the app to show someone. Demoting it a click to save
+       ~80px is not a trade worth making. #}
     {{ _self.item('wall', '/wall', 'Poster Wall', 'Wall', current, true) }}
     {{ _self.item('import', '/plex', 'Import from Plex', 'Import', current) }}
     {{ _self.item('orphans', '/orphans', 'Orphans', 'Orphans', current) }}
-    {# The one entry that is somewhere to go rather than something to do. It
-       navigates to its own page at every width: Import and Orphans open as trays
-       on a phone, but a form this long in a bottom sheet is worse than a page. #}
+{% endmacro %}
+
+{% macro overflow_links(current = '', signed_in = false) %}
     {{ _self.item('settings', '/settings', 'Settings', 'Settings', current) }}
-    {# Not part of the poster workflow, so it sits last in the group. Opens the
-       project's support page in a new tab, like Poster Wall. #}
+    {# Not part of the poster workflow, so it sits last among the destinations.
+       Opens the project's support page in a new tab, like Poster Wall. #}
     {{ _self.item('support', 'https://getmarquee.now/#support', 'Support Development', 'Support', current, true) }}
+    {# Last, and gated: it ends the session rather than going anywhere. The gate is
+       an argument rather than the caller's `{% verbatim %}{% if %}{% endverbatim %}`
+       so that "which links are in this group" is answered in exactly one place —
+       `holds()` below has to agree with it. #}
+    {% if signed_in %}
+        {{ _self.logout_link() }}
+    {% endif %}
+{% endmacro %}
+
+{# The "more actions" mark, worn by the phone's menu button and by the desktop
+   header's overflow control alike, so one affordance means one thing at both
+   widths: the rest of the actions are behind this. On a phone it holds all six
+   entries, on desktop the three the bar does not carry.
+
+   Not in _icons.html.twig, and not for want of trying to put it there: every glyph
+   in that file is one drawing style — no fill, a currentColor stroke at 1.7 — and
+   three filled dots is not that. Rendering it through `icon()` would mean either
+   stroking three tiny circles, which reads as rings at this size, or giving that
+   macro an exception for one mark. #}
+{% macro overflow_glyph(size = 24) %}
+    <svg viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" aria-hidden="true" focusable="false">
+        <circle cx="5" cy="12" r="1.9" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.9" fill="currentColor"/>
+        <circle cx="19" cy="12" r="1.9" fill="currentColor"/>
+    </svg>
+{% endmacro %}
+
+{# The current-page class for the ⋯ control, when the destination being viewed is
+   one the overflow menu holds.
+
+   Defined here, beside the group, because it exists to keep that control marked as
+   the current page while the entry that says so is hidden behind a click. A list
+   maintained anywhere else would drift from the group the first time either moved.
+   Log out is absent deliberately: it is an action with no page to be on.
+
+   It emits the class rather than answering yes/no, and that is not a stylistic
+   choice. A Twig macro returns a `Markup` object, and an object is always truthy in
+   PHP — so `{% verbatim %}{{ nav.x(...) ? ' cls' }}{% endverbatim %}` would add the
+   class on every page, marking the control current everywhere. Printing the answer
+   sidesteps the cast entirely. #}
+{% macro overflow_current_class(current = '') %}
+    {{- current in ['settings', 'support'] ? ' nav-item--current' : '' -}}
 {% endmacro %}
 
 {# The Plex connection, as a status rather than a destination.

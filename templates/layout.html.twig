@@ -49,7 +49,7 @@
                secondary navigation stays reachable on a phone; only the Log out
                link is gated on being signed in. The sign-in screen overrides this
                block to empty, because nothing behind it is reachable yet. #}
-            <div class="topnav" x-data="{ menuOpen: false }">
+            <div class="topnav" x-data="{ menuOpen: false, moreOpen: false }">
                 {# The secondary actions live here rather than in any one page's
                    content, so they are reachable from every page that draws
                    navigation — the reach the tray already gives a phone. Import
@@ -62,24 +62,54 @@
                    Twig runs those before handing the context to this layout. It
                    suppresses the link that would point at the current page. #}
                 <div class="topnav__desktop">
-                    {{ nav.secondary_links(nav_current|default('')) }}
+                    {{ nav.bar_links(nav_current|default('')) }}
+                    {# Settings, Support and Log out, behind one control. The bar's
+                       contents are aligned to the 960px content column and share it
+                       with a brand of unbounded width, so all six labelled would not
+                       reliably fit — see the split in _nav_macros.html.twig. #}
+                    <div class="navmenu">
+                        {# Marked current when the page being viewed is one the panel
+                           holds, so putting an entry behind a click does not also
+                           hide that you are on it. #}
+                        <button type="button" x-ref="moreTrigger"
+                                class="btn nav-item navmenu__trigger{{ nav.overflow_current_class(nav_current|default('')) }}"
+                                @click="moreOpen = !moreOpen"
+                                @click.outside="moreOpen = false"
+                                @keydown.escape="moreOpen = false; $refs.moreTrigger.focus()"
+                                :aria-expanded="moreOpen ? 'true' : 'false'"
+                                aria-haspopup="menu" aria-label="More actions">
+                            {{ nav.overflow_glyph(20) }}
+                        </button>
+                        {# Absolutely positioned, never fixed. The header carries
+                           `backdrop-filter`, which makes it a containing block for
+                           fixed descendants — the trap written up at length in
+                           partials/_menu.html.twig, where it cost the phone tray a
+                           teleport. An absolute panel resolves against .navmenu and
+                           is unaffected.
+
+                           Escape is bound on the panel as well as the trigger
+                           because focus moves into the panel as soon as it is
+                           opened from the keyboard. #}
+                        <div class="navmenu__panel menu__body" x-show="moreOpen" x-cloak
+                             role="menu" aria-label="More actions"
+                             @keydown.escape="moreOpen = false; $refs.moreTrigger.focus()"
+                             @click="moreOpen = false" style="display:none">
+                            {{ nav.overflow_links(nav_current|default(''), signed_in()) }}
+                        </div>
+                    </div>
                     {% if signed_in() %}
-                        {{ nav.logout_link() }}
                         {{ nav.connection_status(plex_connection(), nav_current|default('')) }}
                     {% endif %}
                 </div>
                 {# An overflow ("more") glyph rather than a hamburger: nothing behind
-                   this button navigates in place on a phone — Import and Orphans open
-                   as trays over the current page, Poster Wall and Support open new
-                   tabs, and Log out is an action. A hamburger would promise the
-                   edge-anchored navigation drawer this menu deliberately isn't. #}
+                   this button navigates in place on a phone — Import, Orphans and
+                   Settings open as trays over the current page, Poster Wall and
+                   Support open new tabs, and Log out is an action. A hamburger would
+                   promise the edge-anchored navigation drawer this menu deliberately
+                   isn't. The same mark names the desktop overflow above. #}
                 <button type="button" class="menu-btn" @click="menuOpen = true"
                         aria-label="Actions" aria-haspopup="true">
-                    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
-                        <circle cx="5" cy="12" r="1.9" fill="currentColor"/>
-                        <circle cx="12" cy="12" r="1.9" fill="currentColor"/>
-                        <circle cx="19" cy="12" r="1.9" fill="currentColor"/>
-                    </svg>
+                    {{ nav.overflow_glyph(24) }}
                 </button>
                 {% include 'partials/_menu.html.twig' %}
             </div>
