@@ -13,15 +13,20 @@ use App\Plex\PlexClient;
 use App\Poster\PosterCategory;
 use App\Poster\PosterStorage;
 use App\Poster\Upload\UploadException;
-use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
-use Throwable;
 
 /**
  * Replaces a poster in place from a file or URL and, when the poster is linked
  * to Plex, pushes the new image to Plex and locks it. Also re-pulls a poster
  * from Plex.
+ *
+ * **Two sources of images, two levels of trust.** The Plex methods here talk to
+ * the server the operator configured, which is normally at a private address —
+ * that is the product working. {@see $fetcher} handles the one case where the
+ * address came from whoever holds a session, and it is restricted to the public
+ * internet. The distinction is why this class takes a fetcher rather than an
+ * HTTP client: there is no unguarded client here to reach for by mistake.
  */
 final class ChangePosterService
 {
@@ -32,7 +37,7 @@ final class ChangePosterService
         private readonly PlexClient $plex,
         private readonly PlexExportService $export,
         private readonly PlexConfig $plexConfig,
-        private readonly ClientInterface $http,
+        private readonly PosterUrlFetcher $fetcher,
     ) {
     }
 
@@ -57,7 +62,7 @@ final class ChangePosterService
      */
     public function changeFromUrl(PosterCategory $category, string $filename, string $url): bool
     {
-        return $this->replaceAndPush($category, $filename, $this->bytesToTempFile($this->fetchUrl($url)));
+        return $this->replaceAndPush($category, $filename, $this->bytesToTempFile($this->fetcher->fetch($url)));
     }
 
     /**
@@ -168,34 +173,6 @@ final class ChangePosterService
         if ($info === false || !in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true)) {
             throw UploadException::notAnImage();
         }
-    }
-
-    private function fetchUrl(string $url): string
-    {
-        $url = trim($url);
-        if (filter_var($url, FILTER_VALIDATE_URL) === false || preg_match('#^https?://#i', $url) !== 1) {
-            throw UploadException::invalidUrl();
-        }
-
-        try {
-            $response = $this->http->request('GET', $url, [
-                'timeout' => 20,
-                'connect_timeout' => 10,
-                'http_errors' => true,
-            ]);
-            $bytes = (string) $response->getBody();
-        } catch (Throwable) {
-            throw UploadException::fetchFailed();
-        }
-
-        if ($bytes === '') {
-            throw UploadException::fetchFailed();
-        }
-        if (strlen($bytes) > $this->config->maxFileSize) {
-            throw UploadException::tooLarge($this->config->maxFileSize);
-        }
-
-        return $bytes;
     }
 
     private function streamToTempFile(StreamInterface $stream): string

@@ -37,4 +37,21 @@ final class UploadException extends RuntimeException
     {
         return new self('The image could not be downloaded from that URL.');
     }
+
+    /**
+     * Deliberately distinct from {@see fetchFailed()}.
+     *
+     * Naming the reason tells the caller the address is internal, which in a
+     * multi-tenant application would be a finding of its own. Here the only user
+     * is the owner, who already knows what is on their own network — and the
+     * cost of hiding it is an owner who pastes their NAS address and gets an
+     * unexplained failure with nothing to act on.
+     */
+    public static function blockedAddress(): self
+    {
+        return new self(
+            'That address is not on the public internet, so Marquee will not fetch it. '
+            . 'Use an image URL reachable from the internet.',
+        );
+    }
 }
