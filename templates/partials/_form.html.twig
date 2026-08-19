@@ -69,6 +69,44 @@
     </div>
 {% endmacro %}
 
+{# Several checkboxes answering one question — "What to import", the library
+   exclusions. They are one field, not a heading followed by loose controls, and
+   the difference is not decorative: a bare <p> above a <div> of checkboxes tells
+   a screen reader nothing, so each box is announced as an unrelated control and
+   the question they answer is never spoken.
+
+   `role="group"` with `aria-labelledby` is what makes the label reach assistive
+   technology. <fieldset>/<legend> is the more idiomatic pair and was written
+   first, then withdrawn: a <legend> is laid out by the browser inside the
+   fieldset's border rather than as an ordinary child, so it does not become a
+   grid item and does not take the field's gap. `float` is the usual way around
+   that, and it does not apply to the child of a grid container. Every remaining
+   route was a browser-specific hack around a layout rule, in exchange for markup
+   that reads slightly better. The group is announced either way, which is the
+   part that matters.
+
+   Carrying `.field` means the group takes the same internal rhythm as a label and
+   its input, and sits at the same distance from its neighbours as any other
+   field, with no rule of its own.
+
+   The hint belongs inside the group. Outside it, it is a sibling of the group
+   rather than part of it, which is both a lie about what it describes and the
+   reason it used to sit at the wrong distance from the list.
+
+   The boxes arrive as already-rendered markup, captured by the caller with a
+   `set`/`endset` block. Twig has no block-passing form of a macro call — the
+   `call` tag and `caller()` are Jinja2, not Twig — and capturing is the idiom
+   Twig offers in its place. #}
+{% macro checkbox_group(id, legend, boxes, hint = null) %}
+    <div class="field" role="group" aria-labelledby="{{ id }}-legend">
+        <p class="field__label" id="{{ id }}-legend">{{ legend }}</p>
+        <div class="checkbox-list">
+            {{ boxes }}
+        </div>
+        {% if hint %}<p class="field__hint">{{ hint }}</p>{% endif %}
+    </div>
+{% endmacro %}
+
 {# A native checkbox, styled with accent-color. Its checked state is a mark
    rather than a fill, so it survives being wrong about colour — and the browser
    keeps the keyboard and assistive-technology behaviour that a div dressed as a

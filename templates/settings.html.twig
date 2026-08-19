@@ -81,15 +81,14 @@
             {{ form.select('auto_import_interval', 'How often', values.auto_import_interval, interval_options,
                            errors.auto_import_interval|default(null)) }}
 
-            <p class="field__label">What to import</p>
-            <div class="checkbox-list">
+            {% set auto_import_types %}
                 {{ form.checkbox('auto_import_movies', 'Movies', values.auto_import_movies) }}
                 {{ form.checkbox('auto_import_shows', 'TV Shows', values.auto_import_shows) }}
                 {{ form.checkbox('auto_import_seasons', 'TV Seasons', values.auto_import_seasons) }}
                 {{ form.checkbox('auto_import_collections', 'Collections', values.auto_import_collections) }}
-            </div>
-            <p class="field__hint">With none of these selected, a scheduled run does
-               nothing.</p>
+            {% endset %}
+            {{ form.checkbox_group('auto_import_types', 'What to import', auto_import_types,
+                                   'With none of these selected, a scheduled run does nothing.') }}
         </section>
 
         <section class="panel form-section">
@@ -127,13 +126,14 @@
             {% elseif libraries is empty %}
                 <p class="field__hint">Your server reports no movie or TV libraries.</p>
             {% else %}
-                <div class="checkbox-list">
+                {% set library_boxes %}
                     {% for library in libraries %}
                         {{ form.checkbox('excluded[]', library.title, library.excluded, null,
                                          library.title, 'excluded-' ~ loop.index) }}
                     {% endfor %}
-                </div>
-                <p class="field__hint">Select a library to exclude it.</p>
+                {% endset %}
+                {{ form.checkbox_group('excluded_libraries', 'Libraries to exclude', library_boxes,
+                                       'Select a library to exclude it.') }}
             {% endif %}
 
             {# Kept by a save rather than dropped by it, so a renamed or removed

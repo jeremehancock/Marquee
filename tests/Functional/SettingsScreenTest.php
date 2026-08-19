@@ -445,6 +445,116 @@ final class SettingsScreenTest extends AppTestCase
      * Auto-import was withheld while its schedule was fixed into the container
      * at boot, because the control would not have worked. It works now.
      */
+    /**
+     * The two clusters of checkboxes on this screen — what auto-import imports,
+     * and which libraries are excluded — each answer one question and are marked
+     * up as one group.
+     *
+     * Before this, each was a bare <p> above a <div> of checkboxes. A sighted
+     * reader supplied the relationship from the layout; a screen reader was told
+     * nothing, so it announced four unrelated checkboxes and never spoke the
+     * question they answer. `role="group"` with `aria-labelledby` is what carries
+     * it. The layout followed from the same change — a group that is one element
+     * is spaced as one field — but the announcement is the part worth a test,
+     * because it is the part nobody can see is missing.
+     *
+     * @param non-empty-string $id
+     */
+    private function assertRendersAsAGroup(string $body, string $id, string $legend): void
+    {
+        $group = sprintf('<div class="field" role="group" aria-labelledby="%s-legend">', $id);
+        self::assertStringContainsString(
+            $group,
+            $body,
+            sprintf('The "%s" checkboxes must be marked up as one group.', $legend),
+        );
+
+        // aria-labelledby is a promise about an id that exists. Pointing it at an
+        // element that was renamed or removed fails silently: the group is still
+        // announced, just unnamed, which is the state this replaced.
+        self::assertStringContainsString(
+            sprintf('<p class="field__label" id="%s-legend">%s</p>', $id, $legend),
+            $body,
+            sprintf('The group\'s aria-labelledby must resolve to its own label, "%s".', $legend),
+        );
+
+        // The hint explains the group, so it belongs inside it. Outside, it is a
+        // sibling — a lie about what it describes, and the reason it used to sit
+        // at the wrong distance from the list.
+        $start = strpos($body, $group);
+        self::assertIsInt($start);
+        self::assertStringContainsString(
+            'field__hint',
+            $this->divAt($body, $start),
+            sprintf('The hint for "%s" must sit inside the group it explains.', $legend),
+        );
+    }
+
+    /**
+     * One <div> element and everything in it, from an offset pointing at its
+     * opening tag. Depth-counted rather than read to the next `</div>`: a group
+     * holds the checkbox list, which holds a field per checkbox, so the first
+     * close encountered belongs to a descendant and stopping there would let a
+     * hint sitting outside the group pass.
+     */
+    private function divAt(string $html, int $start): string
+    {
+        $depth = 0;
+        $offset = $start;
+
+        while (true) {
+            $open = strpos($html, '<div', $offset);
+            $close = strpos($html, '</div>', $offset);
+
+            if (false === $close) {
+                self::fail('Unbalanced markup: no closing tag for the <div> at offset ' . $start . '.');
+            }
+
+            if (false !== $open && $open < $close) {
+                ++$depth;
+                $offset = $open + 4;
+
+                continue;
+            }
+
+            --$depth;
+            $offset = $close + 6;
+
+            if (0 === $depth) {
+                return substr($html, $start, $offset - $start);
+            }
+        }
+    }
+
+    public function testWhatToImportIsOneAnnouncedGroup(): void
+    {
+        $body = (string) $this->get($this->screen(), '/settings')->getBody();
+
+        $this->assertRendersAsAGroup($body, 'auto_import_types', 'What to import');
+
+        // Every box the group claims is inside it.
+        foreach (['movies', 'shows', 'seasons', 'collections'] as $type) {
+            self::assertStringContainsString('name="auto_import_' . $type . '"', $body);
+        }
+    }
+
+    public function testLibraryExclusionsAreOneAnnouncedGroup(): void
+    {
+        $app = $this->screen([], [new PlexLibrary('1', 'Movies', 'movie'), new PlexLibrary('2', 'Kids', 'movie')]);
+
+        $body = (string) $this->get($app, '/settings')->getBody();
+
+        // The loose markup never named this group at all — the surrounding prose
+        // carried the meaning and the checkboxes carried none.
+        $this->assertRendersAsAGroup($body, 'excluded_libraries', 'Libraries to exclude');
+
+        // Grouping must not disturb what the form submits: one name for many
+        // boxes, and an id per box so each label addresses its own control.
+        self::assertSame(2, substr_count($body, 'name="excluded[]"'));
+        self::assertStringContainsString('id="excluded-1"', $body);
+        self::assertStringContainsString('id="excluded-2"', $body);
+    }
+
     public function testTheScreenOffersAutoImport(): void
     {
         $body = (string) $this->get($this->screen(), '/settings')->getBody();
