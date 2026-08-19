@@ -68,6 +68,47 @@
     --radius-xl: 16px;
     --radius-pill: 999px;
 
+    /* Space between stacked elements. Five steps, and the last dimension family
+       in this file to become a scale — depth, roundness and timing were
+       consolidated long before the space between things was, which is why the
+       settings screen accumulated nine different vertical values before anyone
+       noticed they had no common origin.
+
+       Read them as a nesting rather than a list. The rhythm is what tells a
+       reader where one question ends and the next begins, so the steps have to
+       stay distinguishable from each other at a glance:
+
+         --space-2xs   a control and its own text  (checkbox to its label)
+         --space-xs    the parts of one field      (label, control, hint)
+         --space-sm    rows of a list of controls
+         --space-md    one field to the next
+         --space-lg    one section to the next, and one page block to the next
+
+       Seeded from values the file already used, so nothing about a field's
+       internal rhythm moved when they landed. One value changed: section to
+       section went from 18px to 28px, which is .panel's own padding — the space
+       between two panels now equals the space inside their edges, and the
+       sections read as separate cards instead of a stack that happens to have
+       borders.
+
+       These govern the space BETWEEN stacked elements. Padding inside a
+       component is that component's own dimension and does not come from here;
+       .panel's 28px and a control's 9px 12px are not on this scale even where
+       the number coincides.
+
+       The mechanism matters as much as the values. A container states one of
+       these as its `gap` and its children carry no vertical margins at all. A
+       gap applies only BETWEEN children, so there is no first-child or last-child
+       case to special-case — which is the bug this scale replaced. `.field:first-
+       of-type { margin-top: 0 }` read as "the first field" and meant "the first
+       <div>", so a section that opened with a paragraph gave its first control
+       no space at all. FormRhythmTest asserts that selector never comes back. */
+    --space-2xs: 4px;
+    --space-xs: 6px;
+    --space-sm: 10px;
+    --space-md: 20px;
+    --space-lg: 28px;
+
     /* Motion. Four durations, consolidated from the seven hand-picked values the
        file used to carry. `--dur-exit` is deliberately the fast one: leaving
        should feel quicker than arriving, and an exit that lingers reads as the
@@ -687,14 +728,19 @@ h1 {
    Fields are stacked, never side by side. A settings form is read top to bottom
    and answered one question at a time; columns buy density nobody asked for and
    cost a reflow rule at every width. */
+/* A field owns the space between its own parts and nothing else. The space
+   between one field and the next is the section's, stated once as its gap — see
+   .form-section.
+
+   There is deliberately no rule here suppressing the first field's spacing. The
+   one that used to sit below this is the reason the scale exists: `.field:first-
+   of-type { margin-top: 0 }` reads as "the first field" and means "the first
+   <div> among its siblings", so it worked in five sections that opened with their
+   heading and silently failed in the one that opened with a paragraph, leaving
+   its first checkbox touching the prose above it. A gap has no such case. */
 .field {
     display: grid;
-    gap: 6px;
-    margin-top: 20px;
-}
-
-.field:first-of-type {
-    margin-top: 0;
+    gap: var(--space-xs);
 }
 
 .field__label {
@@ -781,13 +827,13 @@ h1 {
 .field--check {
     /* The label is the control's own text, so the stacked label/control spacing
        above does not apply. */
-    gap: 4px;
+    gap: var(--space-2xs);
 }
 
 .checkbox {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-sm);
     cursor: pointer;
 }
 
@@ -813,39 +859,72 @@ h1 {
     color: var(--ink);
 }
 
-/* Many checkboxes at once — the library exclusions. Columns here rather than in
-   .field because the entries are short and a one-per-row list of a dozen
-   libraries is mostly whitespace. */
+/* Many checkboxes at once — what to import, the library exclusions. Columns here
+   rather than in .field because the entries are short and a one-per-row list of a
+   dozen libraries is mostly whitespace.
+
+   The column gap is the one literal left in this rule. It sets how far apart two
+   columns of short labels sit, which is a property of this list and not of the
+   page's vertical rhythm; the scale governs stacking. */
 .checkbox-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px 18px;
-    margin: 14px 0;
-}
-
-.checkbox-list .field {
-    margin-top: 0;
+    gap: var(--space-sm) 18px;
 }
 
 /* A long form reads as several short ones. Each group is a panel, titled, so the
    eye can skip to the question it came for instead of scanning one column of
-   fourteen fields. */
+   fourteen fields.
+
+   The section is the container that states the space between its questions.
+   Every child — the heading, an intro paragraph, a field, a grouped fieldset — is
+   one grid item, so all of them are spaced identically and none of them carries a
+   margin of its own. That is the whole rule: a child that sets a vertical margin
+   here is adding to a gap that is already correct. */
 .form-section {
-    margin-top: 18px;
+    display: grid;
+    gap: var(--space-md);
 }
 
 .form-section__title {
-    margin: 0 0 18px;
+    margin: 0;
     font-size: 1.05rem;
     letter-spacing: -0.01em;
 }
 
-.settings__actions {
-    margin: 22px 0;
+/* The settings screen and the form inside it, both stacks like .form-section and
+   spaced the same way — by a gap, with no margins on the children. The larger
+   step here is what separates a section from a section; at --space-md the panels
+   read as one long strip rather than as the several short forms they are.
+
+   --space-lg is .panel's own padding, so the space between two panels equals the
+   space inside their edges. That is not a coincidence to be tidied away later; it
+   is why 28px was the value chosen. */
+.settings,
+.settings__form {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+/* The children of those two stacks. A browser's default margins on <p> and <h1>
+   would otherwise add to the gap, unevenly, since the defaults are em-based and
+   these elements are not all the same size. */
+.settings > *,
+.settings__form > * {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* .stats is shared with the gallery, where its own margins are correct and must
+   stay. It is declared further down this file, so at equal specificity it would
+   win against the reset above and put 8px and 16px back on the screen's intro
+   line. Named here rather than weakened there. */
+.settings > .stats {
+    margin: 0;
 }
 
 .settings__stale {
-    margin: 8px 0;
+    margin: 0;
     padding-left: 20px;
     color: var(--muted);
     font-size: 0.85rem;
@@ -1303,6 +1382,23 @@ h1 {
     color: var(--muted);
     font-size: 0.9rem;
     margin: 8px 0 16px;
+}
+
+/* The gallery reports its size two ways, and the screen picks one.
+
+   .stats__range ("Showing 1–24 of 1948") describes a page, so it is only true
+   where a pager exists. .stats__total ("Total: 1948") describes the category and
+   is true at any scroll position. The swap happens in the `max-width: 640px`
+   block at the end of this file — the same block that hides .pagination, because
+   it is the same decision: below that width there is no pager to describe.
+
+   `display: none` rather than visibility or opacity, and this is the whole
+   reason both may sit in the markup at once. It removes the hidden report from
+   the accessibility tree as well as from the page, so a screen reader meets
+   exactly one sentence at any width. The other two properties would leave both
+   readable and turn this into a regression for anyone not looking at it. */
+.stats__total {
+    display: none;
 }
 
 .stats--filter {
@@ -2923,6 +3019,18 @@ h1 {
     /* Infinite scroll replaces pagination on a phone. */
     .pagination {
         display: none;
+    }
+
+    /* …and with no pager, the line above the grid stops describing a page. See
+       .stats__total. The two rules belong together: a phone showing the range
+       would be naming a control hidden two lines below it, and naming a batch
+       the reader scrolled past long ago. */
+    .stats__range {
+        display: none;
+    }
+
+    .stats__total {
+        display: inline;
     }
 
     /* Lift toasts above the fixed bottom tab bar. */

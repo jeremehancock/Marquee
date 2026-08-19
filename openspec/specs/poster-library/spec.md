@@ -47,11 +47,22 @@ number, the first/last controls, and the previous/next steppers SHALL be links.
 All pagination links SHALL preserve the active sort order and any active search
 query.
 
+Where the pagination control is shown, the gallery SHALL also report which
+posters of the total are on the current page. That report describes a page, so it
+belongs with the pager: on a narrow screen, where infinite scroll replaces
+pagination, the gallery reports the category total instead (see "Infinite scroll
+on small screens").
+
 #### Scenario: Posters are paginated
 - **WHEN** a category contains more posters than the page size
 - **THEN** the system shows only one page of posters and provides navigation to
   the other pages
-- **AND** reports how many posters are shown out of the total
+
+#### Scenario: A paged gallery reports the range it is showing
+- **WHEN** the gallery is viewed on a pointer/desktop-width screen and the
+  pagination control is shown
+- **THEN** the gallery reports how many posters are shown out of the total, as a
+  range of the current page
 
 #### Scenario: Jump to first or last page
 - **WHEN** the gallery spans more than one page
@@ -772,6 +783,18 @@ library becomes reachable by scrolling without loading it all at once. The
 pagination controls SHALL be hidden on a narrow screen and SHALL remain on a
 pointer/desktop screen.
 
+Because there is no current page on a narrow screen, the gallery SHALL NOT report
+a range of one. It SHALL report the number of posters in the category instead —
+a figure that is true when the gallery opens and stays true however far the user
+scrolls. A range would be neither: appending posters does not rewrite the line,
+so a range would still name the first batch after the user had scrolled well past
+it, and it would name a pager that is hidden.
+
+The system SHALL choose between the two reports by the width of the screen alone,
+so that a window resized across the threshold shows the report that matches the
+navigation then in use. Exactly one of the two SHALL be presented to the user at
+any width, including to assistive technology.
+
 #### Scenario: Scrolling loads more posters
 - **WHEN** a user on a narrow screen scrolls near the bottom of the current
   posters and more pages exist
@@ -784,6 +807,43 @@ pointer/desktop screen.
 #### Scenario: Desktop keeps pagination
 - **WHEN** the gallery is viewed on a pointer/desktop-width screen
 - **THEN** the pagination controls are shown and used as before
+
+#### Scenario: A scrolling gallery reports the total
+
+- **WHEN** a category is viewed on a narrow screen
+- **THEN** the gallery reports the number of posters in the category rather than
+  a range of a page
+
+#### Scenario: The reported total survives scrolling
+
+- **WHEN** a user on a narrow screen has scrolled far enough that several further
+  batches of posters have been appended
+- **THEN** the reported figure is still the category total, and is still correct
+
+#### Scenario: Only one report is presented
+
+- **WHEN** the gallery is rendered at any width
+- **THEN** exactly one of the two reports is presented, both to a reader and to
+  assistive technology
+
+#### Scenario: Resizing across the threshold switches the report
+
+- **WHEN** the viewport is resized from a pointer/desktop width to a narrow width
+  or back, without the page being reloaded
+- **THEN** the report shown changes to match the navigation in use at that width
+
+#### Scenario: A single-page category still reports its total
+
+- **WHEN** a category whose posters all fit on one page is viewed on a narrow
+  screen
+- **THEN** the gallery reports the category total, as it does for any other
+  category
+
+#### Scenario: A search reports its matches unchanged
+
+- **WHEN** a search is active on a narrow screen
+- **THEN** the gallery reports the number of matches for the query, as it does on
+  a pointer/desktop screen
 
 ### Requirement: Import and orphans run inside their trays on small screens
 When the import or orphans experience is opened in a tray on a phone, it SHALL be

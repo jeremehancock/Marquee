@@ -175,6 +175,83 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('Clear search', $body);
     }
 
+    /**
+     * The gallery reports its size two ways and the screen shows one.
+     *
+     * "Showing 1–2 of 3" describes a page, so it is true only where a pager
+     * exists. Below 640px the pager is hidden and posters arrive by infinite
+     * scroll, which appends cards to the grid and never rewrites this line — so
+     * a range there names the first batch long after the reader has left it
+     * behind, and names a control that is not on screen. "Total: 3" describes the
+     * category and survives any amount of scrolling.
+     *
+     * Both are rendered; app.css picks. The server cannot see a viewport, and a
+     * window dragged across the threshold has to follow without a reload.
+     * GalleryCountReportTest pins which one each width hides.
+     */
+    public function testAPagedGalleryRendersBothTheRangeAndTheTotal(): void
+    {
+        $this->writePoster('Alpha.png');
+        $this->writePoster('Beta.png');
+        $this->writePoster('Gamma.png');
+        $app = $this->makeSignedInApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'IMAGES_PER_PAGE' => '2',
+        ]);
+
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        self::assertStringContainsString('Showing 1–2 of 3', $body);
+        self::assertStringContainsString('Total: 3', $body);
+    }
+
+    /**
+     * A category small enough to need no pager still reports its total. A phone
+     * that sometimes shows the figure and sometimes shows nothing is harder to
+     * read than one that always shows it, and here the total is not wrong —
+     * merely obvious.
+     */
+    public function testASinglePageCategoryStillRendersItsTotal(): void
+    {
+        $this->writePoster('Alpha.png');
+        $this->writePoster('Beta.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('Showing 1–2 of 2', $body);
+        self::assertStringContainsString('Total: 2', $body);
+    }
+
+    /**
+     * A search already reports a count rather than a range, so it stays true
+     * while scrolling and needs no second form. Adding one would put two figures
+     * on a phone with a search active.
+     */
+    public function testASearchReportsItsMatchesWithoutEitherCountLine(): void
+    {
+        $this->writePoster('Solaris.png');
+        $this->writePoster('Stalker.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=solaris')->getBody();
+
+        self::assertStringContainsString('1 match for', $body);
+        self::assertStringNotContainsString('Showing', $body);
+        self::assertStringNotContainsString('Total:', $body);
+    }
+
+    /**
+     * An empty library gets one sentence telling the reader what to do about it.
+     * A total of zero beside it would be noise.
+     */
+    public function testAnEmptyLibraryReportsNeitherFigure(): void
+    {
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('import from Plex to get started', $body);
+        self::assertStringNotContainsString('Showing', $body);
+        self::assertStringNotContainsString('Total:', $body);
+    }
+
     public function testFilteredViewOffersExactlyOneClearControl(): void
     {
         $this->writePoster('Solaris.png');
