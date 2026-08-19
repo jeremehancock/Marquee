@@ -32,7 +32,7 @@
       margins on its direct children (the back-link `<p>`, `h1`, the intro
       `p.stats`, the flash `p.alert`). Confirm the trailing superseded-variables
       `div.alert` is spaced by the grid rather than by nothing.
-- [ ] 2.6 Read the settings screen top to bottom in a browser and confirm every
+- [x] 2.6 Read the settings screen top to bottom in a browser and confirm every
       gap is one of `--space-xs`, `--space-md`, or `--space-lg`, with no
       collapsed or doubled space left over.
 
@@ -57,7 +57,7 @@
       `plex_configured` / `libraries_error` / empty branches intact — only the
       branch that renders the checkbox list becomes a group. Its label reads
       "Libraries to exclude", which the loose markup never had.
-- [ ] 3.5 Confirm in a browser that both groups sit at `--space-md` from their
+- [x] 3.5 Confirm in a browser that both groups sit at `--space-md` from their
       neighbours while their internal parts sit at `--space-xs`, and that the
       library checkboxes still submit as `excluded[]` with unique ids.
 
@@ -94,9 +94,11 @@
       new visible label reads "Libraries to exclude", matching README's existing
       "Which Plex libraries to exclude".
 - [x] 5.2 Run `openspec validate consistent-settings-spacing --strict`.
-- [ ] 5.3 Build the Docker image and read the settings screen on the `:dev` image
+- [x] 5.3 Build the Docker image and read the settings screen on the `:dev` image
       at both a desktop width and a phone width. The verification for this change
       is visual — the PHP gates exercise none of it.
-- [ ] 5.4 Decide the deferred question from `design.md`: does heading → intro
+- [x] 5.4 Decide the deferred question from `design.md`: does heading → intro
       prose want a tighter gap than field → field? If yes, record it as a
-      follow-up rather than widening this change.
+      follow-up rather than widening this change. **Answered: no.** Validated on
+      the `:dev` image — the uniform gap reads correctly, so the `<header>` wrap
+      is not needed and no follow-up is recorded.

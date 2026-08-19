@@ -51,7 +51,7 @@
       mentions "posters per page" only as a settings field, and that field and
       its hint are untouched.
 - [x] 4.2 Run `openspec validate mobile-total-not-range --strict`.
-- [ ] 4.3 Build the Docker image and check the `:dev` image at a phone width:
+- [x] 4.3 Build the Docker image and check the `:dev` image at a phone width:
       the line reads `Total: N` on load, still reads `Total: N` after scrolling
       through several batches, and reads the range again when the window is
       widened past 640px without a reload.
