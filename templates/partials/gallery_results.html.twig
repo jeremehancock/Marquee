@@ -28,7 +28,22 @@
 {% else %}
     <p class="stats">
         {% if result.total > 0 %}
-            Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}
+            {# Two reports; exactly one is ever shown. A range describes a page,
+               so it belongs with the pager — and the pager is a pointer-screen
+               control. A narrow screen loads by infinite scroll, where a range
+               of one page is a fiction that also goes stale the moment a batch
+               is appended: the grid grows and this line does not. It reports the
+               size of the category there, which is true on arrival and stays
+               true however far the reader scrolls.
+
+               Which one is shown is decided in app.css, in the same
+               `max-width: 640px` block that hides .pagination. Not here: the
+               server cannot see the viewport, and a window resized across the
+               threshold has to follow without a reload. `display: none` also
+               drops the other from the accessibility tree, so a screen reader
+               hears one report rather than two. #}
+            <span class="stats__range">Showing {{ result.firstItemNumber }}–{{ result.lastItemNumber }} of {{ result.total }}</span>
+            <span class="stats__total">Total: {{ result.total }}</span>
         {% else %}
             No posters yet — import from Plex to get started.
         {% endif %}

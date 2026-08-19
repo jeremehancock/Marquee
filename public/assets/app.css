@@ -1305,6 +1305,23 @@ h1 {
     margin: 8px 0 16px;
 }
 
+/* The gallery reports its size two ways, and the screen picks one.
+
+   .stats__range ("Showing 1–24 of 1948") describes a page, so it is only true
+   where a pager exists. .stats__total ("Total: 1948") describes the category and
+   is true at any scroll position. The swap happens in the `max-width: 640px`
+   block at the end of this file — the same block that hides .pagination, because
+   it is the same decision: below that width there is no pager to describe.
+
+   `display: none` rather than visibility or opacity, and this is the whole
+   reason both may sit in the markup at once. It removes the hidden report from
+   the accessibility tree as well as from the page, so a screen reader meets
+   exactly one sentence at any width. The other two properties would leave both
+   readable and turn this into a regression for anyone not looking at it. */
+.stats__total {
+    display: none;
+}
+
 .stats--filter {
     display: flex;
     align-items: center;
@@ -2923,6 +2940,18 @@ h1 {
     /* Infinite scroll replaces pagination on a phone. */
     .pagination {
         display: none;
+    }
+
+    /* …and with no pager, the line above the grid stops describing a page. See
+       .stats__total. The two rules belong together: a phone showing the range
+       would be naming a control hidden two lines below it, and naming a batch
+       the reader scrolled past long ago. */
+    .stats__range {
+        display: none;
+    }
+
+    .stats__total {
+        display: inline;
     }
 
     /* Lift toasts above the fixed bottom tab bar. */
