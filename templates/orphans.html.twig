@@ -54,7 +54,7 @@
         <div class="modal" x-show="confirmOpen" x-cloak {{ tx.dialog() }}
              @keydown.escape.window="confirmOpen = false" style="display:none">
             <div class="modal__backdrop" @click="confirmOpen = false"></div>
-            <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm delete">
+            <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm delete" tabindex="-1">
                 {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
                    phone. See _overlays.html.twig for why it is a real element. #}
                 <div class="sheet__grip"><span class="sheet__handle"></span></div>

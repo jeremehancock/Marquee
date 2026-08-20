@@ -82,7 +82,10 @@ context: |
     - poster-wall         (full-screen rotating wall, random batches)
     - visual-design       (the design token contract, surface layering and
                            translucency, pointer/focus feedback, app-wide
-                           reduced motion; how things look, not what they do)
+                           reduced motion; and the keyboard's account of the
+                           same surfaces — what stays reachable, what reports
+                           itself unavailable, and where focus goes when an
+                           overlay opens and closes)
     - pwa                 (installable manifest, offline assets, version check)
     - release-publishing  (branch -> Docker tag, VERSION-driven releases;
                            build/release behavior, not an app capability)
