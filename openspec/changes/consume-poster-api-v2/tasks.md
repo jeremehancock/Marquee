@@ -309,3 +309,24 @@ badge appears*, never for what the licence requires.
       now false. Restate it as the real invariant — an unmarked candidate's link
       is one Marquee could remove and stay in conformance, a marked one's is not
       — and add that the two may look identical.
+
+## 14. Optical spacing of the TVmaze credit
+
+Reported from the `:dev` image: the gap before TVmaze in the footer looks wider
+than the others. It is not — the gap is the same 22px everywhere. Measured on the
+asset rather than guessed at.
+
+- [x] 14.1 Rule out a transparent margin on the PNG. There is none; ink reaches
+      every edge on all four logos, so the metric spacing really is uniform.
+- [x] 14.2 Find the actual cause: the mark opens with a full-height bracket rule
+      ~1.6px wide at render size, then internal space, with letterforms starting
+      16 of 253 columns in — ~4.4px of visually-light run-in that the eye counts
+      as gap. fanart.tv compounds it by ending in light grey ".TV".
+- [x] 14.3 Subtract the run-in back: `margin-inline-start: -4px` on the TVmaze
+      anchor, `-3px` at the narrow-screen height, both proportional to the mark
+      rather than picked by eye. Comment it as an optical correction so it is not
+      "fixed" back to a uniform gap.
+- [x] 14.4 While checking where the correction applies, verify the narrow-screen
+      wrap. It is **three on one line and TVmaze beneath**, not the two-by-two the
+      comment added in 4.4 claimed. Correct that comment — it was a false
+      statement about live CSS, which is exactly what 4.4 existed to prevent.

@@ -674,6 +674,24 @@ body {
     height: 22px;
 }
 
+/* Optical correction, not a spacing change: the gap either side of TVmaze is the
+   same 22px as every other, and it does not look it.
+
+   The mark opens with a full-height bracket rule — about 1.6px wide once scaled —
+   followed by internal space before the "T". Measured on the asset, the
+   letterforms start 16 of 253 columns in, which is ~4.4px at this height. The eye
+   reads a logo as starting where its letters start, so those 4.4px are counted as
+   part of the gap rather than part of the mark. fanart.tv makes it worse by
+   ending in light grey ".TV": two faint edges facing each other, and a
+   metrically-correct gap that reads wide.
+
+   So the run-in is subtracted back. Anything that changes the TVmaze height must
+   rescale this with it — the offset is a proportion of the mark, not a constant.
+   Do not "fix" it by restoring a uniform gap; uniform is what looked wrong. */
+.attribution__logos a:has(.attribution__logo--tvmaze) {
+    margin-inline-start: -4px;
+}
+
 .panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -2950,10 +2968,12 @@ h1 {
     }
 
     /* The tray is narrower than the page — roughly 288px inside its padding on a
-       320px phone — and four logos no longer fit across it: at these heights they
-       come to ~305px before gaps. They are therefore allowed to wrap, which
-       .attribution__logos already does gracefully (flex-wrap plus a centred main
-       axis), giving a tidy two-by-two block rather than one squeezed line.
+       320px phone — and four logos no longer fit across it: with gaps they come
+       to ~349px against the ~278px the first three occupy. They are therefore
+       allowed to wrap, which .attribution__logos already does (flex-wrap plus a
+       centred main axis). At 320px that puts TMDB, TVDB and fanart.tv on one line
+       and TVmaze centred beneath them; a little more width and all four share a
+       line again.
 
        That is the deliberate trade. Shrinking them enough to hold one line was
        tried when there were three and fanart.tv already set the floor there;
@@ -2978,6 +2998,16 @@ h1 {
 
     .attribution__logo--tvmaze {
         height: 18px;
+    }
+
+    /* The same optical run-in, rescaled: 16/253 of an 18px mark is ~3.6px.
+
+       It earns its place on the wider phones where all four marks still share a
+       line (they total ~349px). At the narrowest, TVmaze wraps alone and the
+       offset merely shifts a centred item by half of itself — 1.5px, which
+       nobody sees, and not worth a query to switch off. */
+    .attribution__logos a:has(.attribution__logo--tvmaze) {
+        margin-inline-start: -3px;
     }
 
     /* Tabs become a native-style bottom tab bar: pinned to the bottom, always
