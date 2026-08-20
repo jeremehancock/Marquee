@@ -230,19 +230,43 @@ responses partial. If a movie search ever shows a warning line mentioning
 missing results, *that* is the finding — it means something started reading the
 providers map.
 
-**The credit link.** A TVmaze poster carries a link to its own TVmaze page,
-shown in the corner of the poster in the grid and again under the full-screen
-preview. Check all four of these:
+**Two different links, and telling them apart is the test.** Every service now
+reports where a poster came from, but only some licence their artwork on terms
+requiring that link be shown. Marquee renders those two facts differently on
+purpose, so checking that only one of them is everywhere is the point.
 
-- The corner link opens TVmaze in a new tab.
-- Tapping the poster itself still opens the preview — the link must not swallow
+| Where | Which posters | What it is |
+| --- | --- | --- |
+| Corner badge on the poster, in the results grid | **TVmaze only** | The licence-required credit |
+| Link under the full-screen preview | **Every** poster, all four services | Plain provenance — "View on TMDB" |
+
+Check all of these:
+
+- In a show's results, the corner badge appears on **TVmaze posters only**. A
+  badge on TMDB, TheTVDB or fanart.tv posters means the credit has been bound to
+  the wrong thing — it is claiming a licence condition those services do not
+  impose. **A badge on every poster is the specific regression to watch for.**
+- The corner badge opens TVmaze in a new tab.
+- **The badge is plainly visible against every poster**, including bright and
+  busy artwork — it reads as a control sitting on top of the image, with its own
+  edge, not as part of it. It shipped once too faint to see, which made it a link
+  out of the application that users could not deliberately avoid.
+- Tapping the poster itself still opens the preview — the badge must not swallow
   that press, which is worth checking on a real phone and not only a mouse.
-- On a **season**, the link goes to the *season's* page, not the show's.
-- Posters from the other three services carry **no** link at all.
+- Opening **any** poster full screen offers a link naming its service. A TMDB
+  poster reads "View on TMDB". It must **not** read as a licence notice —
+  wording like "attribution required" on a TMDB poster is simply false.
+- On a **season**, the TVmaze badge goes to the *season's* page, not the show's.
+- Also on a **season**: the fanart.tv poster's preview link goes to the
+  **series** page while TMDB's and TheTVDB's go to the season. fanart.tv has no
+  season page. **That disagreement is correct — do not report it as a bug.**
 
-The link is a licence condition, not decoration: TVmaze artwork is CC BY-SA and
+The badge is a licence condition, not decoration: TVmaze artwork is CC BY-SA and
 the link back is how the attribution is met. A TVmaze poster displayed without
-it is the one failure here worth blocking a release for.
+its badge is the one failure here worth blocking a release for. The preview link
+is a convenience and could be moved tomorrow; it does not discharge the
+obligation, and its presence on a TVmaze poster is not a substitute for the
+badge.
 
 **An `Other` section is the finding worth reporting.** It means the poster
 source returned a `source` slug this build does not recognise, which is the

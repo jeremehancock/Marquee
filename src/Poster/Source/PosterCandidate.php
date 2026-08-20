@@ -18,15 +18,32 @@ namespace App\Poster\Source;
 final class PosterCandidate
 {
     /**
-     * @param ?string $page the supplying service's own page for this work, when
-     *                      that service's licence requires a link back to it.
-     *                      Absent otherwise, which is most candidates. It is the
-     *                      *presence of this address* that obliges the interface
-     *                      to show a credit link — never which service supplied
-     *                      the candidate — so a service added upstream that owes
-     *                      a link back is credited with no change here. For a
-     *                      season this addresses the season's own page, which is
-     *                      not the show's; the two are not interchangeable.
+     * The two fields below look alike and are not. Keeping them apart is the
+     * whole point:
+     *
+     * - `page` is **provenance** — where this poster came from. Showing it is a
+     *   product decision, ours to make and ours to revisit.
+     * - `attributionRequired` is an **obligation** — the supplying service's
+     *   licence compels the link to be rendered. Not ours to revisit.
+     *
+     * Nearly every candidate carries a `page`; only a few are marked. Treating
+     * the address as the trigger would assert a licence condition about artwork
+     * that carries none, and would leave the real obligation indistinguishable
+     * from decoration — so the next change that thins the links would have
+     * nothing stopping it dropping the one that counts.
+     *
+     * @param ?string $page the supplying service's own page for this work. For a
+     *                      season this is the season's own page where the service
+     *                      publishes one, and its series page where it does not,
+     *                      so two candidates for one work may legitimately
+     *                      disagree. Optional: a service with no resolvable page
+     *                      omits it rather than guessing.
+     * @param bool $attributionRequired whether that service's licence requires
+     *                                  the link be shown wherever the poster is.
+     *                                  Never conditioned on which service
+     *                                  supplied the candidate, so a service
+     *                                  licensed this way later is credited with
+     *                                  no change here.
      */
     public function __construct(
         public readonly string $url,
@@ -37,6 +54,7 @@ final class PosterCandidate
         public readonly ?string $language = null,
         public readonly ?float $score = null,
         public readonly ?string $page = null,
+        public readonly bool $attributionRequired = false,
     ) {
     }
 

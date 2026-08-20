@@ -243,26 +243,32 @@
                                                 <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
                                                      :class="loaded ? 'is-loaded' : ''"
                                                      @load="loaded = true" @error="loaded = true"
-                                                     @click="openPreview(poster.url, 'find', null, '', poster.page)" data-tooltip="Click to preview">
-                                                {# Credit link, shown when the poster source sent an address for the
-                                                   supplying service's own page. Some of the artwork here is licensed
-                                                   on terms discharged by linking back from where the image is shown,
-                                                   so this is an obligation and not an embellishment — a candidate that
-                                                   carries the address must not be displayed without it.
+                                                     @click="openPreview(poster.url, 'find', null, '', poster.page, section.label)" data-tooltip="Click to preview">
+                                                {# The required credit, shown on a candidate whose supplying service's
+                                                   licence compels the link. That artwork must not be displayed
+                                                   without it, so this badge is the obligation and not an
+                                                   embellishment.
 
-                                                   **The trigger is `poster.page` and nothing else.** Not
-                                                   `source === 'tvmaze'` — the payload deliberately carries no source,
-                                                   because the service decides which of its providers owe a link and a
-                                                   name test here would have to be reopened for the next one. TVmaze is
-                                                   simply the only one populating it today.
+                                                   **The trigger is `poster.attributionRequired` and nothing else.**
+
+                                                   Not `poster.page` — nearly every candidate carries one of those,
+                                                   and binding to it would put a licence-driven control on artwork
+                                                   whose licence asks for nothing, while leaving the real obligation
+                                                   indistinguishable from decoration. The provenance link belongs in
+                                                   the preview, where a user is looking at one poster; see the viewer.
+
+                                                   Not `source === 'tvmaze'` either — the payload deliberately carries
+                                                   no source, because the service decides which of its providers are
+                                                   licensed this way and a name test would have to be reopened for the
+                                                   next one. TVmaze is simply the only one marked today.
 
                                                    A sibling of the image rather than a wrapper: the image carries the
                                                    click that opens the preview, and wrapping it in an anchor would put
                                                    every candidate one stray press away from leaving the app. @click.stop
                                                    keeps the two apart in the other direction. Omitted entirely when
-                                                   there is no address — never rendered disabled, since a control that
-                                                   cannot exist has no state to announce. #}
-                                                <a class="find-item__credit" x-show="poster.page" x-cloak
+                                                   unmarked — never rendered disabled, since a control that cannot
+                                                   exist has no state to announce. #}
+                                                <a class="find-item__credit" x-show="poster.attributionRequired" x-cloak
                                                    :href="poster.page" target="_blank" rel="noopener"
                                                    @click.stop
                                                    :aria-label="'Open this poster\'s page on ' + section.label"
@@ -299,19 +305,27 @@
                  @load="preview.loaded = true" @error="preview.loaded = true">
         </div>
         <div class="viewer__bar">
-            {# The same credit the results grid carries, repeated here because this
-               covers the grid entirely: a user inspecting a poster full screen is
-               looking at the image with the grid's link hidden behind it, and the
-               obligation follows the image rather than the screen it started on.
+            {# Where this poster came from. Shown for any candidate the source gave
+               an address for, which is nearly all of them — this is provenance, and
+               offering it is a product decision rather than a licence one.
+
+               So the wording names the service and what the link opens, and says
+               nothing about attribution or licensing. Most posters reaching this
+               point are under no such condition, and a licence-flavoured phrase
+               here would claim one on artwork that carries none.
+
+               A candidate whose licence *does* compel the link is credited by the
+               badge on the poster itself (see the find grid). That such a candidate
+               also lands here is a consequence of it carrying an address, not the
+               mechanism — this element is not what discharges the obligation, and
+               removing it would not release anyone from one.
 
                Above the actions, not among them. It is not a choice about this
                poster — the row below is — and it stays put through the confirm
-               step, which swaps that row out from under it. Keyed on the address
-               alone, exactly as in the grid. #}
+               step, which swaps that row out from under it. #}
             <a class="viewer__credit" x-show="preview.page" x-cloak
-               :href="preview.page" target="_blank" rel="noopener">
-                View this poster's source page
-            </a>
+               :href="preview.page" target="_blank" rel="noopener"
+               x-text="preview.service ? 'View on ' + preview.service : 'View source page'"></a>
             <div class="viewer__actions" x-show="!preview.confirming">
                 <button type="button" class="btn btn--accent" @click="preview.confirming = true">Use this poster</button>
                 <button type="button" class="btn" @click="closePreview()">Close</button>

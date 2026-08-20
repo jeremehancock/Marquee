@@ -864,7 +864,7 @@
                 // from may have been cleared by the time it is posted.
                 // `applying` is the in-flight flag for the final "Change poster"
                 // confirm, driving the progress overlay and the disabled button.
-                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '' },
+                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '', service: '' },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -1353,12 +1353,20 @@
                 // actually gets posted, kept apart from `src` because `src` is a
                 // proxy address for display and names nothing the server can act
                 // on directly.
-                // `page` is the supplying service's own page for the work, passed
-                // only by the Find Posters call site and only when the poster
-                // source sent one. The other three tabs preview an address the
-                // user supplied or artwork Plex holds, neither of which carries
-                // a credit obligation, so they pass nothing and take the default.
-                openPreview: function (src, source, file, token, page) {
+                // `page` is the supplying service's own page for the work, and
+                // `service` is that service's display name — both passed only by
+                // the Find Posters call site. The other three tabs preview an
+                // address the user supplied or artwork Plex holds, neither of
+                // which has a service to name, so they pass nothing and take the
+                // defaults.
+                //
+                // The name is passed in rather than looked up. The candidate's
+                // provider slug is deliberately not in the payload (see
+                // ChangePosterController), and resolving one here would be the
+                // first place the browser learned a provider — undoing the reason
+                // it is withheld. What is passed is the section's own label,
+                // which the server already resolved.
+                openPreview: function (src, source, file, token, page, service) {
                     this._revokePreviewSrc();
                     this.preview = {
                         open: true,
@@ -1370,11 +1378,12 @@
                         file: file || null,
                         token: token || '',
                         page: page || '',
+                        service: service || '',
                     };
                 },
                 closePreview: function () {
                     this._revokePreviewSrc();
-                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '' };
+                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '', service: '' };
                 },
                 // A blob URL holds its Blob alive until it is revoked, so an
                 // upload preview that is merely replaced or closed would leak the

@@ -1983,7 +1983,14 @@ h1 {
    to open the preview. Sized as a 28px target rather than to the glyph: this is
    tapped on a phone, inside a cell only ~130px wide, and a link the width of an
    arrow would be missed as often as hit. Its own backdrop because it sits on an
-   image of unknown colour and has to stay legible on all of them. */
+   image of unknown colour and has to stay legible on all of them.
+
+   A control this assertive is only affordable because it is rare — it appears on
+   the licensed subset, not on every candidate. What keeps it rare is the
+   template binding it to attributionRequired; binding it to the poster's source
+   page instead would put one of these on all ~189 results of a show search. The
+   provenance link that every candidate may have is .viewer__credit, in the
+   preview, where there is one poster and room for words. */
 .find-item__credit {
     position: absolute;
     inset-block-end: 6px;
@@ -1995,20 +2002,33 @@ h1 {
     width: 28px;
     height: 28px;
     border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--bg) 72%, transparent);
-    color: var(--text);
-    font-size: 13px;
+    /* Opaque, on the elevated tone with the clearer border — the same treatment
+       .card__actions gives its buttons over the hover overlay, and for the same
+       reason: a translucent control over an image of unknown colour reads as
+       half-there. It was translucent here at first and the result was a control
+       users could neither see nor deliberately avoid, which for a link that
+       leaves the application is the wrong way round.
+
+       This is also what the token contract requires — legibility must not depend
+       on the blur — so there is no blur left to depend on. */
+    background: var(--surface-2);
+    border: 1px solid #4b515b;
+    box-shadow: var(--elev-1);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
     line-height: 1;
     text-decoration: none;
-    backdrop-filter: blur(4px);
     transition:
         background var(--dur-base) var(--ease-standard),
+        border-color var(--dur-base) var(--ease-standard),
         color var(--dur-base) var(--ease-standard);
 }
 
 .find-item__credit:hover,
 .find-item__credit:focus-visible {
     background: var(--accent);
+    border-color: var(--accent);
     color: var(--bg);
     text-decoration: none;
 }

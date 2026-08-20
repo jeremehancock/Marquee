@@ -22,6 +22,12 @@ use Throwable;
  * TVmaze is television only. It reports `no_data` for every movie and every
  * collection, which is that search's expected answer and not a failure — see
  * interpret(), which is why nothing there enumerates the providers map.
+ *
+ * Two poster fields are easily confused. `page` is where the poster came from,
+ * and nearly every candidate has one; `attribution_required` marks the few whose
+ * licence compels that link to be shown. The endpoint sent only the licensed
+ * subset a `page` at one point, which made presence and obligation the same
+ * thing — they are not, and candidates() keeps them apart deliberately.
  */
 final class PosteriaApiPosterSource implements PosterSource
 {
@@ -314,6 +320,12 @@ final class PosteriaApiPosterSource implements PosterSource
                 language: $this->str($poster['language'] ?? null),
                 score: $this->float($poster['score'] ?? null),
                 page: $this->str($poster['page'] ?? null),
+                // Identity with `true`, never truthiness. The field is sent only
+                // when it is true and omitted otherwise, so anything else is a
+                // value this client did not expect — and this is the one flag
+                // here whose misreading is a licence failure rather than a
+                // cosmetic one. A JSON "false" is a truthy string in PHP.
+                attributionRequired: ($poster['attribution_required'] ?? null) === true,
             );
         }
 

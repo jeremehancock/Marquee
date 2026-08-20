@@ -7,22 +7,30 @@ namespace App\Tests\Unit\Asset;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The credit link shown on a candidate whose supplying service requires one.
+ * The two links a Find Posters candidate can carry, and the fact that they are
+ * not the same link.
  *
- * Some of the artwork Find Posters returns is licensed on terms discharged by
- * linking back to the service from where the image is shown, and the poster
- * source signals that per poster by sending a `page` address. Showing that link
- * is an obligation: artwork carrying the address must not be displayed without
- * it.
+ * - The **required credit** is a badge on the poster in the results grid, shown
+ *   when the poster source marks a candidate as requiring attribution. Some of
+ *   the artwork Find Posters returns is licensed on terms discharged only by
+ *   linking back from where the image is shown, and marked artwork must not be
+ *   displayed without it. Not our decision to make.
+ * - The **provenance link** sits in the full-screen preview and is shown for any
+ *   candidate the source gave an address for, which is nearly all of them. It is
+ *   a product decision, and could be moved or dropped tomorrow.
  *
- * Both places the link appears are drawn by Alpine from JSON, so no rendering
- * assertion can reach them — the markup is the only artefact a test can hold. It
- * is held here for the same reason DisabledStateTest holds its bindings: the
- * failure is silent, and the fix for a silent failure is to write it down
- * somewhere that fails.
+ * Keeping them apart is what this file is for. They were briefly the same thing:
+ * the endpoint once sent an address only on the licensed subset, so presence and
+ * obligation coincided. They no longer do, and the collapse is easy to
+ * reintroduce because the two controls look related and sit a few lines apart.
  *
- * What this cannot catch is a *new* surface that displays a candidate without
- * its credit. There are two today.
+ * Both are drawn by Alpine from JSON, so no rendering assertion can reach them —
+ * the markup is the only artefact a test can hold. It is held here for the same
+ * reason DisabledStateTest holds its bindings: the failure is silent, and the fix
+ * for a silent failure is to write it down somewhere that fails.
+ *
+ * What this cannot catch is a *new* surface that displays a marked candidate
+ * without its credit. There are two surfaces today.
  */
 final class PosterCreditLinkTest extends TestCase
 {
@@ -54,22 +62,115 @@ final class PosterCreditLinkTest extends TestCase
         return (string) preg_replace('/\{#.*?#\}/s', '', $this->gallery());
     }
 
-    public function testTheGridCellCreditsACandidateThatCarriesAPage(): void
+    /**
+     * One link's opening tag, by class. Fails rather than returning nothing when
+     * the element is missing, so a test that has lost its subject says so instead
+     * of passing against an empty string.
+     */
+    private function openingTag(string $class): string
+    {
+        $found = preg_match('/<a class="' . preg_quote($class, '/') . '".*?>/s', $this->markup(), $m);
+
+        self::assertSame(1, $found, 'Expected one <a class="' . $class . '"> in the gallery markup.');
+
+        return $m[0];
+    }
+
+    /**
+     * The Alpine condition that decides whether that link is shown.
+     */
+    private function condition(string $class): string
+    {
+        $found = preg_match('/x-show="([^"]+)"/', $this->openingTag($class), $m);
+
+        self::assertSame(1, $found, 'The ' . $class . ' link must be shown conditionally.');
+
+        return $m[1];
+    }
+
+    public function testTheGridBadgeCreditsAMarkedCandidate(): void
     {
         $markup = $this->markup();
 
         self::assertStringContainsString('class="find-item__credit"', $markup);
-        self::assertStringContainsString('x-show="poster.page"', $markup);
+        self::assertStringContainsString('x-show="poster.attributionRequired"', $markup);
+        // The marking says a credit is owed; the address says where it points.
         self::assertStringContainsString(':href="poster.page"', $markup);
     }
 
-    public function testTheFullScreenPreviewCreditsItToo(): void
+    /**
+     * **The guard this file exists for.**
+     *
+     * Nearly every candidate now carries a source address, so a badge bound to
+     * one would appear on all ~189 results of a show search — asserting a licence
+     * condition over TMDB, TheTVDB and fanart.tv artwork that carries none, and
+     * leaving the real obligation indistinguishable from decoration.
+     *
+     * That is not hypothetical: it is what this code did before the contract
+     * separated the two fields, and it stayed compliant only by over-attributing.
+     * The negative assertion is what makes reintroducing it fail rather than pass
+     * quietly.
+     */
+    public function testTheGridBadgeIsNotBoundToTheSourceAddress(): void
+    {
+        self::assertStringNotContainsString(
+            'x-show="poster.page"',
+            $this->openingTag('find-item__credit'),
+            'The required credit must be bound to the attribution marking, never to the presence of '
+            . 'a source address — nearly every candidate has one of those.',
+        );
+    }
+
+    public function testTheFullScreenPreviewOffersProvenanceForAnyCandidateWithAnAddress(): void
     {
         $markup = $this->markup();
 
         self::assertStringContainsString('class="viewer__credit"', $markup);
         self::assertStringContainsString('x-show="preview.page"', $markup);
         self::assertStringContainsString(':href="preview.page"', $markup);
+    }
+
+    /**
+     * The two controls read different conditions, and that difference is the
+     * design rather than an accident of how they were written.
+     *
+     * Collapsing them either way is a defect: one condition on both means the
+     * badge returns to every poster, or the preview link vanishes from the three
+     * quarters of candidates that are unmarked.
+     */
+    public function testTheTwoLinksAreDrivenByDifferentConditions(): void
+    {
+        self::assertNotSame(
+            $this->condition('find-item__credit'),
+            $this->condition('viewer__credit'),
+            'The required credit and the provenance link must not share a condition.',
+        );
+    }
+
+    /**
+     * The provenance link names the service and what it opens, and says nothing
+     * about licensing.
+     *
+     * It is shown on candidates from every source, and most of those are under no
+     * attribution condition at all — so wording like "Attribution required" or
+     * "CC BY-SA" here would be a licence claim Marquee has no basis to make. The
+     * words are asserted, not just their absence, because the risk is someone
+     * later making this copy "more informative".
+     */
+    public function testTheProvenanceWordingMakesNoLicenceClaim(): void
+    {
+        $credit = $this->openingTag('viewer__credit');
+
+        self::assertStringContainsString("'View on '", $credit);
+
+        foreach (['attribution', 'licen', 'CC BY', 'required', 'must'] as $claim) {
+            self::assertStringNotContainsStringIgnoringCase(
+                $claim,
+                $credit,
+                'The provenance link is shown on candidates under no attribution condition, so its '
+                . 'wording must not state or imply that one exists.',
+            );
+        }
     }
 
     /**
@@ -174,18 +275,46 @@ final class PosterCreditLinkTest extends TestCase
     }
 
     /**
-     * Only Find Posters passes a page. The other three tabs preview an address
-     * the user supplied or artwork Plex holds, neither of which carries a credit
-     * obligation, and the default keeps them from inheriting one.
+     * Only Find Posters passes a page and a service name. The other three tabs
+     * preview an address the user supplied or artwork Plex holds, neither of
+     * which has a supplying service to name, and the defaults keep them from
+     * inheriting one.
      */
     public function testOnlyTheFoundCandidatePassesAPageIntoThePreview(): void
     {
         $markup = $this->markup();
 
         self::assertMatchesRegularExpression(
-            '/openPreview\(poster\.url, \x27find\x27,[^)]*poster\.page\)/',
+            '/openPreview\(poster\.url, \x27find\x27,[^)]*poster\.page, section\.label\)/',
             $markup,
-            'The Find Posters grid must hand the candidate page to the preview.',
+            'The Find Posters grid must hand the candidate page and its section label to the preview.',
+        );
+    }
+
+    /**
+     * The service name reaches the preview by being passed in, never by being
+     * resolved in the browser.
+     *
+     * The candidate's provider slug is deliberately withheld from the payload, so
+     * a lookup here would be the first place the page learned a provider — and
+     * would hand whoever writes it the map that makes keying the credit on a
+     * service name a one-line change. What is passed is the section's label,
+     * which the server already resolved.
+     */
+    public function testThePreviewIsToldTheServiceNameRatherThanResolvingIt(): void
+    {
+        $script = $this->script();
+
+        self::assertMatchesRegularExpression(
+            '/openPreview: function \([^)]*service\)/',
+            $script,
+            'openPreview() must accept the service name as an argument.',
+        );
+
+        self::assertMatchesRegularExpression(
+            '/closePreview: function \(\) \{.*?service: \x27\x27.*?\}/s',
+            $script,
+            'closePreview() must clear the service name with the rest of the preview state.',
         );
     }
 }

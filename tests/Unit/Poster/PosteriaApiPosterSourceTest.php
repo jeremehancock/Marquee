@@ -684,26 +684,119 @@ final class PosteriaApiPosterSourceTest extends TestCase
     }
 
     /**
-     * The page is read as given, with no inspection of who supplied it. A source
-     * slug this build has never heard of still gets its link back.
+     * The marking is read as given, with no inspection of who supplied it. A
+     * source slug this build has never heard of is still marked as requiring
+     * attribution if the service says so.
      *
      * This is the parsing half of the guard; the payload half lives in the
      * controller test. Together they are what fails if the credit is ever
      * narrowed to a provider check — which would be untrue to the contract (the
-     * service decides which providers owe a link) and would need reopening for
-     * every provider added after this one.
+     * service decides which of its providers are licensed this way) and would
+     * need reopening for every provider added after this one.
      */
-    public function testAPageIsParsedWhoeverSuppliedThePoster(): void
+    public function testAttributionIsMarkedWhoeverSuppliedThePoster(): void
     {
         $response = $this->ok([[
             'url' => 'https://img/new.jpg',
             'source' => 'some-service-added-later',
             'page' => 'https://example.test/credit-me',
+            'attribution_required' => true,
         ]]);
 
         $result = $this->source([$response])->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
 
+        self::assertTrue($result->candidates[0]->attributionRequired);
         self::assertSame('https://example.test/credit-me', $result->candidates[0]->page);
+    }
+
+    /**
+     * A page is not a marking. Nearly every candidate carries an address now, and
+     * treating that as the obligation would claim a licence condition over
+     * artwork that carries none — as well as making the real obligation
+     * indistinguishable from the rest.
+     *
+     * This is the assertion that fails if the two are ever collapsed back into
+     * one field or one condition.
+     */
+    public function testCarryingAPageDoesNotMarkACandidateAsRequiringAttribution(): void
+    {
+        $response = $this->ok([[
+            'url' => 'https://image.tmdb.org/t/p/original/x.jpg',
+            'source' => 'tmdb',
+            'page' => 'https://www.themoviedb.org/tv/1396',
+        ]]);
+
+        $result = $this->source([$response])->find(new PosterQuery('Breaking Bad', PlexMediaType::Show));
+
+        self::assertSame('https://www.themoviedb.org/tv/1396', $result->candidates[0]->page);
+        self::assertFalse($result->candidates[0]->attributionRequired);
+    }
+
+    /**
+     * The flag is read on identity with boolean true, never on truthiness.
+     *
+     * The service sends it only when it is true and omits it otherwise, so any
+     * other value is one this client did not expect — and the safe reading of an
+     * unexpected value is "not marked", since the alternative is claiming a
+     * licence condition nobody asserted. PHP makes the loose reading actively
+     * dangerous here: the string "false" is truthy.
+     *
+     * @return list<array{mixed, bool}>
+     */
+    public static function attributionValues(): array
+    {
+        return [
+            [true, true],
+            // The wire form for "not marked" is absence, covered by the null case.
+            [null, false],
+            ['false', false],
+            ['true', false],
+            [1, false],
+            [0, false],
+            ['', false],
+        ];
+    }
+
+    #[DataProvider('attributionValues')]
+    public function testTheAttributionFlagIsReadStrictly(mixed $value, bool $expected): void
+    {
+        $poster = ['url' => 'https://img/a.jpg', 'source' => 'tvmaze'];
+        if ($value !== null) {
+            $poster['attribution_required'] = $value;
+        }
+
+        $result = $this->source([$this->ok([$poster])])->find(new PosterQuery('Breaking Bad', PlexMediaType::Show));
+
+        self::assertSame($expected, $result->candidates[0]->attributionRequired);
+    }
+
+    /**
+     * An obligation has to have somewhere to point. A marked candidate with no
+     * address would render as a link to nothing, so the pairing is asserted here
+     * rather than left to the template to cope with.
+     *
+     * Every marked candidate the live endpoint returns carries a page, so this
+     * pins a property of the data at the boundary where it enters the system.
+     */
+    public function testAMarkedCandidateCarriesAPageToPointAt(): void
+    {
+        $response = $this->ok([[
+            'url' => 'https://static.tvmaze.com/uploads/images/original_untouched/501/1253519.jpg',
+            'source' => 'tvmaze',
+            'page' => 'https://www.tvmaze.com/shows/169/breaking-bad',
+            'attribution_required' => true,
+        ]]);
+
+        $result = $this->source([$response])->find(new PosterQuery('Breaking Bad', PlexMediaType::Show));
+
+        foreach ($result->candidates as $candidate) {
+            if ($candidate->attributionRequired) {
+                self::assertNotNull(
+                    $candidate->page,
+                    'A candidate marked as requiring attribution must carry the address that credit links to.',
+                );
+            }
+        }
     }
 
     /**

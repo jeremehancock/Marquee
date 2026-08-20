@@ -114,65 +114,109 @@ it.
 
 ## ADDED Requirements
 
-### Requirement: A candidate that carries a link back to its service is credited with one
-The poster source reports, for some candidates, the address of the supplying
-service's own page for that work. Wherever such a candidate is displayed,
-Marquee SHALL offer a visible control that opens that address in a new browsing
-context.
+### Requirement: A candidate marked as requiring attribution is always visibly credited
+The poster source marks the candidates whose supplying service's licence requires
+a link back to that service. Wherever such a candidate is displayed, Marquee
+SHALL offer a visible control that opens that candidate's source page in a new
+browsing context.
 
-This is an attribution obligation, not a convenience. Some of the artwork the
-source returns is licensed on terms that are satisfied by linking back to the
-service from where the image is shown. A credit that a user cannot see or cannot
-activate — a tooltip, or a mention on some other screen — does not discharge it
-for the image in front of them. If a link cannot be offered for a candidate that
-carries the address, its artwork SHALL NOT be shown at all.
+This is an obligation, not a product decision. Some of the artwork the source
+returns is licensed on terms satisfied only by linking back to the service from
+where the image is shown. A credit a user cannot see or cannot activate — a
+tooltip, or a mention on some other screen — does not discharge it for the image
+in front of them. If the link cannot be offered for a marked candidate, its
+artwork SHALL NOT be shown at all.
 
-The obligation attaches to the **presence of the address on the candidate**, and
-SHALL NOT be conditioned on which service supplied it. The source decides which
-of its services owe a link back; a service added later that owes one SHALL be
-credited without a change to Marquee.
+The obligation attaches to **the marking**, and SHALL NOT be conditioned on
+anything else. In particular it SHALL NOT be conditioned on the candidate merely
+carrying a source address — most candidates do, and most are unmarked — nor on
+which service supplied it. The poster source decides which of its services are
+licensed this way; a service added later under the same licence SHALL be credited
+with no change to Marquee.
 
-A candidate that carries no such address SHALL show no link and SHALL leave no
-empty space or inert control where one would be — the link is absent, not
-disabled.
+The control for a marked candidate SHALL be distinguishable in the system from
+any link offered for other reasons, so that changing how Marquee presents
+optional links cannot remove a required one.
 
-The link SHALL NOT take over the candidate's own action. Activating the
-candidate SHALL still open the full-screen preview exactly as it does for a
-candidate with no link, and the link SHALL be reachable by keyboard.
+The link SHALL NOT take over the candidate's own action. Activating the candidate
+SHALL still open the full-screen preview exactly as it does for an unmarked one,
+and the link SHALL be reachable by keyboard.
 
-#### Scenario: A candidate with a link back shows it in the results grid
-- **WHEN** a user views Find Posters results containing a candidate that carries
-  a link to its service's page
-- **THEN** that candidate shows a control that opens the address in a new
+#### Scenario: A marked candidate is credited in the results grid
+- **WHEN** a user views Find Posters results containing a candidate the poster
+  source marked as requiring attribution
+- **THEN** that candidate shows a control that opens its source page in a new
   browsing context, leaving Marquee's page in place
 
-#### Scenario: The link is offered in the full-screen preview too
-- **WHEN** a user opens the full-screen preview of a candidate that carries a
-  link to its service's page
-- **THEN** the preview offers a control that opens that address in a new
-  browsing context
+#### Scenario: A marked candidate is credited in the full-screen preview too
+- **WHEN** a user opens the full-screen preview of a marked candidate
+- **THEN** the preview offers a control that opens that candidate's source page
+  in a new browsing context
 
-#### Scenario: A candidate with no link back shows none
-- **WHEN** a user views a candidate the poster source reported no link for
+#### Scenario: Carrying a source address does not by itself require a credit
+- **WHEN** a user views a candidate that carries a source address but was not
+  marked as requiring attribution
+- **THEN** no required-attribution control is shown for it, and no disabled or
+  empty control is left in its place
+
+#### Scenario: The credit never blocks choosing the poster
+- **WHEN** a user activates a marked candidate
+- **THEN** the full-screen preview opens as it does for any other candidate, and
+  the link opens only when the link itself is activated
+
+#### Scenario: Crediting does not depend on the service's name
+- **WHEN** the poster source returns a marked candidate from a service Marquee
+  does not recognise
+- **THEN** the candidate is still credited, because the marking alone determines
+  that a credit is owed
+
+### Requirement: A candidate's source page may be offered as provenance
+The poster source reports, for most candidates, the address of the supplying
+service's own page for the work. Marquee MAY offer a control that opens that
+address, for candidates whether marked as requiring attribution or not, wherever
+doing so helps a user judge where a poster came from.
+
+Where such a control is offered for an **unmarked** candidate, its wording SHALL
+read as plain provenance — naming the service and what the link opens — and SHALL
+NOT state or imply that a licence requires it. Marquee SHALL NOT assert a licence
+condition about artwork whose licence makes none.
+
+Offering this control SHALL NOT be relied on to satisfy the attribution
+obligation for a marked candidate. That a marked candidate also carries a source
+address is a property of the data and not a guarantee of the system; removing or
+relocating the provenance control SHALL leave the required credit in place.
+
+A candidate carrying no source address SHALL show no such control, and SHALL
+leave no empty space or inert control where one would be. A candidate without an
+address is valid: a service with no resolvable page for a work omits it rather
+than guessing.
+
+#### Scenario: An unmarked candidate can still show where it came from
+- **WHEN** a user opens the full-screen preview of a candidate that carries a
+  source address but is not marked as requiring attribution
+- **THEN** a control is offered that opens that address in a new browsing context
+
+#### Scenario: Provenance wording makes no licence claim
+- **WHEN** a provenance control is shown for an unmarked candidate
+- **THEN** its wording names the service and what the link opens, and states
+  nothing about attribution, licensing, or a requirement
+
+#### Scenario: A candidate with no source address shows no control
+- **WHEN** the poster source returns a candidate with no source address
 - **THEN** no link control is shown for it, and no disabled or empty control is
   left in its place
 
-#### Scenario: The link never blocks choosing the poster
-- **WHEN** a user activates a candidate that carries a link
-- **THEN** the full-screen preview opens as it does for any other candidate, and
-  the link is activated only when the link itself is activated
-
-#### Scenario: Crediting does not depend on the service's name
-- **WHEN** the poster source returns a candidate carrying a link back from a
-  service Marquee does not recognise
-- **THEN** the link is still shown, because the address alone determines that one
-  is owed
-
-#### Scenario: A season's link is the season's own page
-- **WHEN** a user views a candidate for a season that carries a link, and one for
-  that season's show
+#### Scenario: A season's link is the page the source gave for that candidate
+- **WHEN** a user views a candidate for a season, and one for that season's show
 - **THEN** each link opens the page the poster source gave for that candidate,
   rather than one address standing in for both
+
+#### Scenario: Two candidates for one work may link to different pages
+- **WHEN** a season's results include candidates from a service that publishes a
+  season page and from one that publishes only a series page
+- **THEN** each candidate links to the page its own service gave, and the
+  difference is presented as-is rather than reconciled, suppressed, or reported
+  as an error
 
 ### Requirement: A service that does not cover a media type is not reported as a failure
 The poster source names, on every result, the state of each service it consulted.

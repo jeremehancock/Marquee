@@ -17,14 +17,24 @@ credit link.
 - TVmaze is **television only**. On a movie or a collection it reports that it
   has no data, and that is a normal outcome: the results stay clean, with no
   error and no warning, exactly as they read today.
-- A candidate that arrives with a **link back to the supplying service's own
-  page** now shows that link, both in the results grid and in the full-screen
-  preview. This is a licence obligation, not an embellishment — TVmaze artwork
-  is licensed CC BY-SA and attribution is discharged by linking back from where
-  the image is shown.
-- The link is driven by **the presence of the address on the candidate**, never
-  by which service supplied it, so a future service with the same obligation is
+- Every candidate now arrives with a **link to the supplying service's own page
+  for the work**. That is provenance — useful, and ours to present as we see
+  fit. It is offered in the full-screen preview, where a user is looking at one
+  poster and may want to know where it came from.
+- Separately, a candidate may arrive **marked as requiring attribution**. That
+  marking is the supplying service saying its licence obliges us to render the
+  link. TVmaze is licensed CC BY-SA and is the only source marked today. A
+  marked candidate carries a link badge on the poster itself, everywhere the
+  poster is shown.
+- **The two are not the same thing and are not driven by the same field.** A
+  link we choose to show is a product decision; a link we are required to show
+  is not, and only the second may never be removed. The obligation is driven by
+  the marking alone — never by the presence of an address, and never by which
+  service supplied the candidate — so a future service under the same licence is
   credited without another release.
+- Wording on an unmarked candidate's link reads as plain provenance ("View on
+  TMDB"), never as a licence notice, so Marquee never asserts a licence
+  condition about artwork that carries none.
 
 Not breaking. No new setting, no new credential, no change to how Marquee signs
 its requests, and no change to the Plex Posters tab.
@@ -38,24 +48,28 @@ None. This extends existing behaviour.
 ### Modified Capabilities
 
 - `poster-sources`: Find Posters groups candidates into **four** labelled
-  sections rather than three, in a fixed order ending with TVmaze. Adds a
-  requirement that a candidate carrying a link back to its service's page shows
-  that link wherever the candidate is displayed. Records that a service
-  reporting no data for a media type it does not cover is a normal result and
-  is never surfaced as an error or a warning.
+  sections rather than three, in a fixed order ending with TVmaze. Adds two
+  separate requirements — one obliging a visible credit on any candidate the
+  source marks as requiring attribution, and one permitting a neutrally worded
+  provenance link on any candidate carrying a source address, which must not be
+  relied on to satisfy the first. Records that a service reporting no data for a
+  media type it does not cover is a normal result and is never surfaced as an
+  error or a warning.
 - `application-shell`: the provider attribution credits **four** services rather
-  than three, adding TVmaze last.
+  than three, adding TVmaze last, and states that crediting a service in the
+  footer does not credit any particular poster it supplied.
 
 ## Impact
 
-- **Poster source client** — `PosteriaApiPosterSource` (endpoint path, and the
-  new link-back field on a parsed candidate), `PosterCandidate`,
-  `PosterProvider`. The provider enum is closed, so without its new case the
-  v2 candidates would land under the existing `Other` heading rather than a
-  named one.
+- **Poster source client** — `PosteriaApiPosterSource` (endpoint path, plus the
+  source page and the attribution marking on a parsed candidate),
+  `PosterCandidate`, `PosterProvider`. The provider enum is closed, so without
+  its new case the v2 candidates would land under the existing `Other` heading
+  rather than a named one.
 - **Find Posters payload and UI** — `ChangePosterController::findPosters()`
-  carries the link through; `templates/gallery.html.twig` and
-  `public/assets/gallery.js` render it in the grid cell and the preview.
+  carries both fields through; `templates/gallery.html.twig` and
+  `public/assets/gallery.js` render the obligation as a badge on the poster and
+  the provenance as a link in the preview.
 - **Attribution** — `templates/partials/_attribution.html.twig`, a new local
   logo asset under `public/assets/providers/`, and its sizing class in
   `app.css`.

@@ -25,8 +25,10 @@ of that order; the section order follows it.
 
 This footer credit stands for the set of services Marquee draws on. It does not
 discharge an attribution a licence attaches to an individual image — that is
-carried by the per-candidate link back to the supplying service's page, which is
-specified under `poster-sources`. The two coexist: neither replaces the other.
+carried, for the subset of candidates the poster source marks as requiring it, by
+the per-candidate credit specified under `poster-sources`. The two coexist:
+neither replaces the other, and crediting a service here SHALL NOT be treated as
+having credited any particular poster it supplied.
 
 #### Scenario: Page footer credits the providers
 

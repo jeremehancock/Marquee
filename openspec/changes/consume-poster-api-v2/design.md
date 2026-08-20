@@ -19,20 +19,47 @@ endpoint on 2026-08-20:
 | No `X-Client-Info` | 401 `unauthorized` — identical to v1 |
 | Unresolvable title | 404 `no_match` — identical to v1 |
 
-Two additive response fields matter:
+Three additive response fields matter:
 
 - **`tvmaze` as a `providers` key and a poster `source`.**
-- **`page`** — an absolute URL to the supplying service's own page for the work,
-  present only on posters from a service whose licence requires a link back.
-  Today only TVmaze populates it.
+- **`page`** — an absolute URL to the supplying service's own page for the work.
+- **`attribution_required`** — `true` on a poster whose source licence obliges
+  the link to be rendered.
 
 TVmaze poster objects carry **no `language` and no `score`**, and a TVmaze
 *season* poster additionally carries **no `width` or `height`**. Nothing may
 assume an optional field is present.
 
-The licence is the reason `page` exists. TVmaze data is CC BY-SA; attribution is
-discharged by linking back from within the application. The field is designed so
-a compliant client needs no hardcoded knowledge of any provider.
+### The contract revision of 2026-08-20
+
+`page` and `attribution_required` did not arrive together. The endpoint first
+sent `page` on the licensed subset only, and this change was built against that:
+the address's *presence* was the obligation. Both halves of that are now false,
+and the correction is what the later decisions below record.
+
+Re-probed live, same day:
+
+| Probe | Result |
+| --- | --- |
+| Show, per source | `page` on **all** — tmdb 103/103, thetvdb 45/45, fanart.tv 15/15, tvmaze 26/26 |
+| `attribution_required` | **tvmaze only**, 26/26; **absent** on all others — never present-and-false |
+| Season | tmdb `/tv/1396/season/2`, thetvdb `/series/breaking-bad/seasons/official/2`, tvmaze `/seasons/754/…` |
+| Season, fanart.tv | `/series/81189/` — **no season page, falls back to the series** |
+| Movie | no tvmaze section; `attribution_required` absent from every poster |
+
+So the two fields now carry genuinely different meanings:
+
+- **`page` is provenance.** Where this poster came from. Showing it is good
+  product and our decision to make.
+- **`attribution_required` is an obligation.** The source's licence says the
+  link must be rendered. TVmaze is CC BY-SA. Not our decision.
+
+Everything else is unchanged: same path, header, parameters, failure codes,
+`providers` vocabulary, and TVmaze behaviour on movies and collections.
+
+Two posters in one response may legitimately carry **different** `page` URLs for
+the same work — the fanart.tv season fallback above is exactly that. It is
+correct, and must not be read as a defect or de-duplicated away.
 
 Current state in this repo, established by reading it:
 
@@ -45,10 +72,17 @@ Current state in this repo, established by reading it:
 - `PosteriaApiPosterSource::interpret()` branches only on `success` and
   `code === 'partial'`. The `providers` map is read by `providers()` for logging
   and deliberately never enumerated.
-- `ChangePosterController::findPosters()` maps a candidate to `{url, thumb}`
-  only. `page` currently has no route to the browser.
+- `ChangePosterController::findPosters()` mapped a candidate to `{url, thumb}`
+  only; the first implementation added `page`, and this revision adds the
+  marking beside it. `source` is not published and must not be.
 - `templates/partials/_attribution.html.twig` is the single definition of the
   credited provider set, rendered into both footers.
+
+The first implementation of this change is already committed (`3c1df2f`) and
+green in CI, but not archived. It is **still licence-compliant** under the
+revised contract — binding the badge to `page` over-attributes rather than
+under-attributes, which is the safe direction to be wrong in. So this revision is
+a correction of expressed intent under no time pressure, not an incident.
 
 ## Goals / Non-Goals
 
@@ -57,10 +91,12 @@ Current state in this repo, established by reading it:
 - Find Posters searches v2, gaining TVmaze artwork — most valuably for seasons,
   where TVmaze frequently holds the only image.
 - TVmaze appears as a named, ordered section rather than under `Other`.
-- A candidate carrying `page` is credited with a visible, activatable link
-  wherever it is displayed, satisfying CC BY-SA.
-- The crediting mechanism is **generic** — keyed on the field, not the service —
-  so a future source owing a link back needs no Marquee release.
+- A candidate **marked as requiring attribution** is credited with a visible,
+  activatable link wherever it is displayed, satisfying CC BY-SA.
+- A candidate carrying a source page **may** be offered a provenance link, worded
+  so it never reads as a licence claim.
+- The crediting mechanism is **generic** — keyed on the marking, not the service
+  — so a future source under the same licence needs no Marquee release.
 - Tolerance of unknown `providers` keys and unknown poster fields is preserved,
   not replaced.
 
@@ -133,11 +169,33 @@ The label needs no shortening. Headings are upper-cased in CSS; `TVMAZE` reads a
 one word, unlike `THETVDB`, which is why TheTVDB is shortened to `TVDB` and
 TVmaze is not.
 
-### Decision 5 — `page` is a nullable field on `PosterCandidate`, parsed with the existing helper
+### Decision 5 — `page` is nullable; `attributionRequired` is a plain bool
 
 Add `public readonly ?string $page = null` as the last constructor parameter, and
 parse it in `candidates()` with the existing `str()` helper — which already
 returns `null` for a non-string or an empty string. No new validation.
+
+**`page` stays optional even though every source populates it today.** The
+contract says a source with no resolvable identifier omits it rather than
+guessing, so a candidate without one is valid and the nullable type is not
+defensive padding.
+
+Add `public readonly bool $attributionRequired = false` alongside it — **not**
+nullable. The field is never sent present-and-false: it is `true` or it is
+absent, so absence means false and there is no third state to model. A nullable
+bool would invite `?? true` somewhere and turn a missing field into an
+obligation.
+
+Parse it **strictly**, on identity with boolean `true`:
+
+```php
+attributionRequired: ($poster['attribution_required'] ?? null) === true,
+```
+
+Not truthiness. A JSON `"false"` and a `0` are both truthy and falsy in the wrong
+directions in PHP, and this flag decides whether a licence condition is met — the
+one place in this client where a loose comparison could produce a compliance
+failure rather than a cosmetic one.
 
 The field is added **last** so the existing positional construction sites and
 tests keep compiling; every call in the codebase uses named arguments anyway.
@@ -149,56 +207,105 @@ poster carries no `width` or `height` either. The existing `int()`/`float()`/
 required for the missing fields** — this is verification work, not implementation
 work, and the tasks treat it that way.
 
-### Decision 6 — The link is keyed on the field, never on the source
+### Decision 6 — The obligation is keyed on the marking, never on the address and never on the source
 
-`findPosters()` adds `page` to each poster in the section payload, and both
-render sites test *the presence of the value*:
+`findPosters()` adds **both** `page` and `attributionRequired` to each poster in
+the section payload. The obligation tests the marking:
 
 ```
-poster.page ? render the link : render nothing
+poster.attributionRequired ? render the required link : render nothing
 ```
 
-Never `poster.source === 'tvmaze'` — indeed `source` is not in the payload at
-all and must not be added, since the browser deliberately never learns a provider
-name (the section label and order arrive pre-resolved from the server, which is
-what lets a new provider ship as a server-side change).
+Never `poster.page` — that is now every poster, so keying on it would assert a
+licence condition about artwork that carries none, and would leave the real
+obligation indistinguishable from decoration.
 
-This is what makes a future service owing a link back work with no client
-release, and it is the specified behaviour, not an optimisation.
+Never `poster.source === 'tvmaze'` either. `source` is still not in the payload
+and must not be added: the browser deliberately never learns a provider name (the
+section label and order arrive pre-resolved from the server, which is what lets a
+new provider ship as a server-side change). Keeping it out is also the cheapest
+structural guard against someone re-keying the obligation onto a service name,
+since doing so would take a payload change first.
 
-### Decision 7 — The link renders in both the grid cell and the preview
+Both negatives matter and they fail differently. Keying on the address
+over-attributes — safe, but it makes the obligation invisible in the code, so the
+next change that thins the links has nothing to stop it dropping the one that
+counts. Keying on the service under-attributes the moment a second source is
+licensed the same way, and does so silently, because the posters still render.
 
-**Grid cell.** A small link affordance inside `figure.find-item`, over the
-thumbnail. The constraint is that the cell's `<img>` carries
-`@click="openPreview(poster.url, 'find')"`, so the link must not swallow that
-press. It is a sibling `<a>` positioned over a corner of the frame, with
-`target="_blank" rel="noopener"` and `@click.stop` so activating the link does
-not also open the preview. It carries a real accessible name (not a bare glyph),
-and is keyboard-reachable — an `<a href>` is in the tab order by construction.
+### Decision 7 — The badge is the obligation; the preview link is the provenance
 
-**Preview.** A link in `.viewer__bar`, alongside the Use/Close actions. This
-requires carrying `page` into the preview state: `openPreview()` gains a `page`
-argument, defaulted to `''`, set on the state object and cleared by
-`closePreview()` like every other preview field. The Find Posters call site
-passes `poster.page`; the URL, upload and Plex call sites pass nothing and get
-the default.
+Two surfaces, two different conditions, and the split is the whole point.
 
-*Alternative considered:* preview only. Rejected — most TVmaze artwork is seen by
-scrolling the grid, and a user who never opens a poster would see the image with
-no credit, which is precisely the case the licence governs.
+**Grid cell badge — `attributionRequired`.** A small link affordance inside
+`figure.find-item`, over a corner of the thumbnail. The cell's `<img>` carries
+`@click="openPreview(...)"`, so the badge is a sibling `<a>` with `@click.stop`
+and `target="_blank" rel="noopener"`, a real accessible name rather than a bare
+glyph, and keyboard reach by construction. `:href` is still `poster.page` — the
+marking says a link is owed, the address says where to.
+
+This is the obligation surface, and binding it to the marking restores the
+sparsity it was designed and styled for. Under the superseded contract it fired
+on a minority; under the current one, bound to `page`, it would appear on **all
+~189 candidates** of a show search — a 28px corner control on every cell, which
+is both visual noise and a false licence claim on three sources out of four.
+
+**Preview link — `page`.** A link in `.viewer__bar` reading **"View on
+\<source\>"**. Shown for any candidate with an address, marked or not, because
+this is where a user is looking at a single poster and asking where it came from.
+
+`openPreview()` gains `page` **and** a source-label argument, both defaulted to
+`''`, set on the preview state and cleared by `closePreview()` like every other
+field. The label is passed from the section the candidate came from — it must not
+be derived from a slug in the browser, which would teach the page a provider name
+and undo Decision 6's structural guard. The URL, upload and Plex call sites pass
+neither and take the defaults.
+
+**A marked candidate is credited in the preview too, as a consequence and not as
+the mechanism.** Every attribution-required poster observed carries a `page`, so
+the provenance link covers it. That is a fact about the data, not a guarantee in
+the code — which is exactly why the tests pin the obligation independently at the
+parse level and on the badge binding. If the provenance link were ever removed as
+a product decision, the badge must still be there, and nothing about that
+decision may reach the badge.
+
+*Alternative considered:* preview only, for both. Rejected — most artwork is seen
+by scrolling the grid, and a user who never opens a poster would see marked
+artwork with no credit, which is precisely the case the licence governs.
+
+*Alternative considered:* keep the badge on every poster and restyle it lighter.
+Rejected: the obligation and the decoration become visually and structurally
+identical, which is the state Decision 6 exists to prevent.
 
 *Alternative considered:* one link in the section heading. Rejected on a fact
-from the live endpoint: a season's `page` points at the **season's** page
-(`/seasons/754/…`), not the show's (`/shows/169/…`), so one heading link cannot
-stand for the posters beneath it. The field is per-poster by design.
+from the live endpoint: within a single season result the sources disagree about
+where they point — tmdb and thetvdb and tvmaze each link to the season, fanart.tv
+falls back to its series page. One heading link cannot stand for the posters
+beneath it. The field is per-poster by design.
 
-**The link is omitted, never disabled.** A candidate with no `page` renders no
-control at all. This sidesteps the `aria-disabled` rule in CLAUDE.md rather than
-engaging it: there is no state in which the control exists but is unavailable, so
-there is nothing to announce. The rule still applies if a later change introduces
-such a state.
+**Both links are omitted, never disabled.** A candidate with nothing to link to
+renders no control at all. This sidesteps the `aria-disabled` rule in CLAUDE.md
+rather than engaging it: there is no state in which the control exists but is
+unavailable, so there is nothing to announce. The rule still applies if a later
+change introduces such a state.
 
-### Decision 8 — TVmaze joins the footer credit, preserving the order invariant
+### Decision 8 — The shipped copy was already neutral, so there is no copy fix
+
+Worth recording because the obvious hazard of this contract revision did not
+land. When `page` became universal, any attribution-flavoured wording on the link
+would have started asserting a licence condition on TMDB, fanart.tv and TheTVDB
+posters, where it is simply false.
+
+The shipped markup reads `'View on ' + section.label`, `'Open this poster's page
+on ' + section.label`, and "View this poster's source page". No "CC BY-SA", no
+"Attribution required", no "Required by licence" anywhere. Nothing needs
+correcting — the preview wording changes to "View on \<source\>" only for
+consistency with the badge, not to fix a claim.
+
+The constraint is now written into the spec so it holds for wording added later:
+an unmarked candidate's link reads as provenance, never as a licence notice.
+
+### Decision 9 — TVmaze joins the footer credit, preserving the order invariant
 
 The `application-shell` spec requires the provider list be defined in exactly one
 place and credited in the footer; the `poster-sources` spec requires the section
@@ -220,7 +327,7 @@ the row's space before the image decodes, as the other three do.
 
 Link target: `https://www.tvmaze.com/`.
 
-### Decision 9 — The narrow-screen credit row is allowed to wrap
+### Decision 10 — The narrow-screen credit row is allowed to wrap
 
 `app.css` carries a load-bearing comment on the drawer footer: at 320px the three
 logos plus gaps come to ~278px against the ~288px the tray leaves, and "sizing up
@@ -241,7 +348,7 @@ floor at that width, so a fourth mark would be squeezed below it.
 to mislead the next reader. It is exactly the kind of silent doc drift CLAUDE.md
 calls out.
 
-### Decision 10 — `no_data` needs no new suppression logic, only a test
+### Decision 11 — `no_data` needs no new suppression logic, only a test
 
 `interpret()` already branches solely on `success` and `code === 'partial'`, and
 `providers()` reads the map without enumerating it. A movie search returning
@@ -265,11 +372,24 @@ key. That is a log line, not a user-facing surface, and its value is diagnostic.
   the path change are in one commit, and by `PosterProviderTest`'s existing
   `cases() === inSectionOrder()` assertion.
 
-- **The generic `page` link is harder to review than a TVmaze-specific one** —
+- **The generic marking is harder to review than a TVmaze-specific one** —
   nothing on screen says "this exists for TVmaze". Mitigated by stating the
   reasoning in the spec requirement and in the template comment, and by a test
-  that feeds a `page` on a **non-TVmaze** candidate and asserts the link renders.
-  That test is the guard against someone "simplifying" it to a source check.
+  that marks a **non-TVmaze** candidate and asserts the badge renders. That test
+  is the guard against someone "simplifying" it to a source check.
+
+- **The badge and the preview link look related but are not**, and the next
+  person to touch them will reasonably assume one condition governs both.
+  Mitigated by pinning the badge's binding by name in
+  `PosterCreditLinkTest` — asserting it reads `attributionRequired` and
+  specifically does **not** read `page` — so collapsing the two fails loudly
+  rather than quietly relaxing a licence condition.
+
+- **A marked candidate arriving with no `page` would be an obligation with
+  nowhere to point.** Not observed, and arguably incoherent on the service's
+  part, but the client must not render a dead or empty link. Mitigated by
+  asserting the pairing at the parse level, so the failure surfaces in a test
+  rather than as a broken anchor.
 
 - **The grid link competes with the cell's click-to-preview target**, especially
   on touch. Mitigated by `@click.stop`, a corner placement clear of the centre,
@@ -285,7 +405,7 @@ key. That is a log line, not a user-facing surface, and its value is diagnostic.
   `width`/`height` on a candidate breaks. Mitigated by the existing nullable
   helpers, plus an explicit test using the real season response shape.
 
-- **The footer credit row grows to two lines on a small phone** (Decision 9),
+- **The footer credit row grows to two lines on a small phone** (Decision 10),
   taking vertical space in the drawer. Accepted as the better of two bad options.
 
 - **The logo is a third-party trademark committed to the repo.** Same basis as
@@ -306,6 +426,13 @@ whole change is about an external contract:
 3. A **movie** — no TVmaze section, and **no error or warning banner**.
 4. A **collection** — same as the movie case.
 5. The footer, on desktop and in the phone drawer, credits four providers.
+6. **The badge is sparse.** On a show, only the TVmaze section's posters carry
+   the corner badge; TMDB, TheTVDB and fanart.tv candidates carry none. A badge
+   on every cell means the obligation is still bound to the address.
+7. **The preview credits every poster.** Opening a TMDB candidate offers "View on
+   TMDB"; opening a TVmaze one offers its link and the badge was there too.
+8. **A season's links disagree, correctly.** In one season result, the fanart.tv
+   candidate's link goes to the series page while the others go to the season.
 
 Rollback: revert the commit. `PATH` returns to v1, which is still serving. There
 is no persisted state to unwind.
@@ -316,7 +443,8 @@ None blocking. The three questions raised in the handover are settled above:
 
 - v1 fallback → Decision 1, cut over outright.
 - Stored base path / migration → Decision 2, nothing is stored.
-- Where the link belongs → Decision 7, grid cell and preview.
+- Where the link belongs → Decision 7, badge for the obligation, preview link for
+  provenance.
 
 One item is deferred rather than open: `MEMORY.md` records an existing finding
 that no dialog in the app manages focus. The preview gains a link in its action

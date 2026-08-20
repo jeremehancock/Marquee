@@ -137,4 +137,136 @@ poster into the `Other` section (design Decision 4).
 - [ ] 7.5 Hand off to `/ship`. Do **not** archive until the `:dev` image has been
       validated against the live endpoint — the four searches in 6.2 plus the
       footer on both desktop and the phone drawer, and the grid link tapped on a
-      real touch device to confirm it does not steal the cell's press.
+      real touch device to confirm it does not steal the cell's press. **Blocked
+      on group 8:** the contract changed after groups 1-7 shipped, so validating
+      the current `:dev` image would validate superseded behaviour.
+
+## 8. Contract revision: split provenance from obligation
+
+Groups 1-7 were built against a contract where `page` was sent only on the
+licensed subset, which made its presence the obligation. The endpoint now sends
+`page` on **every** poster and carries the obligation in a separate
+`attribution_required` field. Groups 1-7 are left checked: that work happened and
+most of it still stands.
+
+The shipped code is **still licence-compliant** — it over-attributes rather than
+under-attributes. What is wrong is the intent it expresses: a badge designed for
+a minority now fires on all ~189 candidates of a show search, and nothing in the
+code records which link may never be removed. No deadline pressure.
+
+- [x] 8.1 Add `public readonly bool $attributionRequired = false` to
+      `PosterCandidate`, after `$page`. **Not** nullable — the field is never
+      sent present-and-false, so absence means false and there is no third state.
+      Extend the docblock with the provenance/obligation split: `page` is where
+      the poster came from, this is whether the licence compels the link.
+- [x] 8.2 Parse it in `PosteriaApiPosterSource::candidates()` **strictly**, on
+      identity with boolean `true`:
+      `($poster['attribution_required'] ?? null) === true`. Not truthiness —
+      this is the one flag in the client where a loose comparison could cause a
+      compliance failure rather than a cosmetic one. Leave `page` parsing alone.
+- [x] 8.3 Update the class docblock's note about `page`, which currently says it
+      is sent only where a licence requires a link back. That is no longer true.
+- [x] 8.4 Add `'attributionRequired' => $c->attributionRequired` to the payload in
+      `ChangePosterController::findPosters()`, beside `page`. `source` still must
+      **not** be published — keeping it out is the structural guard against
+      someone re-keying the obligation onto a service name. Update the comment
+      above the mapping, which currently explains the old single-field rule.
+- [x] 8.5 Move the grid badge's binding in `templates/gallery.html.twig` from
+      `x-show="poster.page"` to `x-show="poster.attributionRequired"`. Keep
+      `:href="poster.page"`, `@click.stop`, `target`/`rel`, the accessible name,
+      and omission-not-disabling. Rewrite the template comment: it currently
+      states the superseded rule at length and would otherwise be the most
+      misleading text in the file.
+- [x] 8.6 Give `openPreview()` a source-label parameter alongside `page`, both
+      defaulting to `''`, cleared in `closePreview()` with the rest. Pass
+      `section.label` from the Find Posters call site. The label must be passed,
+      never derived from a slug in the browser — deriving it would teach the page
+      a provider name and undo 8.4.
+- [x] 8.7 Change the preview credit's copy to **"View on \<source\>"**, bound to
+      `preview.page` so it covers every candidate with an address. Note in the
+      comment that a marked candidate is credited here as a *consequence* of
+      carrying an address, not as the mechanism — the badge is the mechanism.
+- [x] 8.8 Review `.find-item__credit` now that it is sparse again. It was sized
+      and positioned for exactly this, so expect no change; confirm rather than
+      assume. Check `.viewer__credit` still fits the longer "View on \<source\>"
+      wording at narrow widths.
+
+## 9. Contract revision tests
+
+- [x] 9.1 `PosteriaApiPosterSourceTest`: `attribution_required: true` parses to
+      true; the field absent parses to false; and a non-boolean truthy value
+      (`"false"`, `1`, `"yes"`) does **not** turn it on. That last case is the
+      point of parsing on identity.
+- [x] 9.2 `PosteriaApiPosterSourceTest`: rewrite
+      `testAPageIsParsedWhoeverSuppliedThePoster` for the new field — a candidate
+      marked by a service this build does not know still parses as marked.
+- [x] 9.3 `PosteriaApiPosterSourceTest`: assert a marked candidate always carries
+      a `page`, so the obligation can never render as a link to nothing.
+- [x] 9.4 `ChangePosterTest`: the payload carries `attributionRequired`, still
+      carries no `source`, and a marked candidate with an unknown slug keeps both
+      its marking and its place in the `Other` section.
+- [x] 9.5 `PosterCreditLinkTest`: change the grid assertions from
+      `x-show="poster.page"` to `x-show="poster.attributionRequired"`, and add
+      the **negative** — the badge's binding must not name `page`. Collapsing the
+      two conditions has to fail loudly.
+- [x] 9.6 `PosterCreditLinkTest`: keep
+      `testTheCreditIsNotConditionedOnWhichServiceSuppliedThePoster` as-is. It
+      still guards the right thing and needs no edit.
+- [x] 9.7 `PosterCreditLinkTest`: assert the preview link stays bound to
+      `preview.page` and that the two surfaces read different conditions — the
+      regression this whole group exists to prevent.
+
+## 10. Contract revision docs
+
+- [x] 10.1 **`CLAUDE.md` first.** The bullet added in 6.4 says the condition is
+      `page`'s presence. That is now wrong, and it is the most misleading stale
+      line in the repo because the file loads into every session. Rewrite it to
+      key on `attribution_required` and state the provenance/obligation split.
+- [x] 10.2 `docs/testing.md`: the credit-link checks assume a link only on TVmaze
+      posters. Split them — the **badge** is TVmaze-only, the **preview link** is
+      on every poster. The line "Posters from the other three services carry
+      **no** link at all" is now wrong for the preview and must be corrected. Add
+      the season check where fanart.tv links to the series while the others link
+      to the season, so a tester does not report it as a bug.
+- [x] 10.3 `README.md`: the FAQ answer "What's the small link on some posters?"
+      describes the sparse case only. Cover both — a source link available on
+      posters generally, and the always-present credit on sources that require it.
+- [x] 10.4 `openspec/config.yaml`: check the poster-sources capability line, which
+      mentions "the per-candidate link back a source's licence may require", still
+      reads correctly against the split.
+
+## 11. Contract revision gates
+
+- [x] 11.1 `composer test`, `composer stan`, `composer cs` — all three green.
+- [x] 11.2 `openspec validate consume-poster-api-v2 --strict`.
+- [ ] 11.3 Back to `/ship`, which will commit this revision on top of `3c1df2f`
+      and rebuild `:dev` before the validation in 7.5 can mean anything.
+
+## 12. The badge could not be seen
+
+Reported from the `:dev` image: the credit badge is hard to see, and a control
+that cannot be seen cannot be deliberately avoided — which for a link that leaves
+the application is the wrong way round. Two causes, one of them a plain defect.
+
+- [x] 12.1 **Root cause: `color: var(--text)` — a token this project has never
+      had.** The badge was the only reference to it in the whole stylesheet, so
+      the declaration was dropped and the glyph fell back to an inherited colour.
+      Replace with `var(--ink)`.
+- [x] 12.2 Second cause: the badge was translucent (`color-mix` of `--bg` at 72%
+      plus a blur) over artwork of unknown colour. Draw it opaque on `--surface-2`
+      with the `#4b515b` border and `--elev-1`, which is the treatment
+      `.card__actions` already gives its buttons over the hover overlay for
+      exactly this reason. This is also what the `visual-design` spec requires —
+      legibility SHALL NOT depend on the blur.
+- [x] 12.3 Strengthen the glyph: 15px and weight 600, up from a 13px regular `↗`
+      that was thin enough to lose against a busy poster. Keep the 28px target and
+      the corner position — the aim is a control that is unmistakable, not one
+      that competes with the artwork.
+- [x] 12.4 Carry the border into the hover/focus state so the shape does not
+      change on interaction.
+- [x] 12.5 **Close the gap that let 12.1 through.** Add
+      `testEveryTokenReadIsATokenDeclared` to `DesignTokenContractTest`: every
+      `var(--x)` in `app.css` must name a token declared somewhere in it. Scoped
+      component properties (the alert variants' own `--alert-hue` and friends)
+      are legitimate, so the check is stylesheet-wide rather than `:root`-only.
+      Verify it fails against the original typo before trusting it.

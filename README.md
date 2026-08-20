@@ -446,11 +446,21 @@ A service that returned nothing for an item is left out rather than shown empty.
 It only covers television. On a movie or a collection its section is simply
 absent — that's the expected result, not a failure, so nothing is reported.
 
-**What's the small link on some posters?**
-A few services ask to be linked back to when their artwork is used, so posters
-from those services carry a link to their own page for that show or season.
-You'll see it on the poster in the results and again in the full-screen preview.
-It opens in a new tab; it doesn't choose the poster.
+**What are the links on Find Posters results?**
+There are two, and they're not the same thing.
+
+Open any candidate full screen and you'll find a link to the service it came
+from — "View on TMDB", "View on fanart.tv" and so on. That's just provenance, in
+case you want to see the artwork in its original context.
+
+Separately, a few services licence their artwork on terms that require Marquee to
+link back whenever it shows the image. Those posters carry a small link badge in
+the corner of the poster itself, in the results grid. Today that's TVmaze. The
+badge opens in a new tab and doesn't choose the poster — tapping the poster still
+previews it as usual.
+
+So: a link in the preview means "here's where this came from", and a badge on the
+poster means "the licence says this credit has to be here".
 
 **I want a poster back that I used to have**
 Use **Plex Posters**. Plex keeps every poster ever uploaded to an item and never

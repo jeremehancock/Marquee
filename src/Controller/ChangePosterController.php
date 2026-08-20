@@ -296,14 +296,18 @@ final class ChangePosterController
         // renders whatever it is handed, in the order handed, and never learns a
         // provider name. Adding a provider is a change on this side only.
         //
-        // `page` is the supplying service's own page for the work, sent only
-        // when that service's licence requires a link back to it. The browser
-        // shows the credit link on *the presence of this address* and on nothing
-        // else — which is why `source` stays off the payload even though it
-        // would be the obvious way to spot a TVmaze poster. Keying the credit on
-        // a provider name would put one here, teach the page a provider for the
-        // first time, and make the next service that owes a link back a client
-        // release rather than a server one.
+        // Two fields, two different jobs. `page` is the supplying service's own
+        // page for the work and nearly every candidate has one, so the browser
+        // offers it as provenance. `attributionRequired` marks the few whose
+        // licence compels that link to be rendered, and is the only thing the
+        // required credit is keyed on.
+        //
+        // `source` stays off the payload, even though it would be the obvious
+        // way to spot a TVmaze poster. Keying the credit on a provider name
+        // would teach the page a provider for the first time and make the next
+        // service licensed this way a client release rather than a server one —
+        // and withholding the slug is what makes writing that check take a
+        // payload change first, rather than a one-line edit in a template.
         $sections = array_map(
             static fn (PosterSection $s): array => [
                 'label' => $s->label,
@@ -312,6 +316,7 @@ final class ChangePosterController
                         'url' => $c->url,
                         'thumb' => $c->displayUrl(),
                         'page' => $c->page,
+                        'attributionRequired' => $c->attributionRequired,
                     ],
                     $s->candidates,
                 ),

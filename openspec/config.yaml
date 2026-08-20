@@ -51,6 +51,9 @@ context: |
       endpoint; the version lives in PosteriaApiPosterSource::PATH and nowhere
       else, so it is never stored and never migrated. TVmaze is television only
       and reports no data for movies and collections, which is not a failure.
+      Posters carry a `page` (where they came from — nearly all have one) and,
+      separately, `attribution_required` (whether the licence compels that link
+      to be shown — TVmaze only today). The two are not interchangeable.
 
   Capability map. Every capability has a spec in openspec/specs/; a change
   MUST target one of these rather than inventing a capability named after the
@@ -71,8 +74,9 @@ context: |
     - poster-sources      (candidate posters to change to: Plex Posters, the
                            artwork the connected server already holds for an
                            item; and Find Posters via posteria.app:
-                           TMDB/fanart.tv/TheTVDB/TVmaze, plus the per-candidate
-                           link back a source's licence may require)
+                           TMDB/fanart.tv/TheTVDB/TVmaze, plus a candidate's
+                           source page and the separate marking that says its
+                           licence requires that link be shown)
     - auto-import         (scheduled cron import, per-type toggles, exclusions)
     - orphan-detection    (detect + delete orphaned posters)
     - poster-wall         (full-screen rotating wall, random batches)

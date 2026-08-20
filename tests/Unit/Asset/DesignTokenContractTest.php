@@ -111,6 +111,55 @@ final class DesignTokenContractTest extends TestCase
     }
 
     /**
+     * Every token the stylesheet *reads* is one the stylesheet declares.
+     *
+     * The tests around this one check that rules draw from the scales. This
+     * checks the other direction, and it catches a quieter failure: a `var()`
+     * naming a token that does not exist. CSS does not complain — the declaration
+     * is simply dropped, and the property falls back to whatever it inherits.
+     *
+     * That produces something *nearly* right, which is the problem. A colour that
+     * inherits the body text colour looks deliberate until it is used somewhere
+     * the inherited value is wrong, and nothing in review distinguishes
+     * `var(--ink)` from `var(--inck)`. This was not hypothetical: the Find Posters
+     * credit badge shipped reading `var(--text)`, a token this project has never
+     * had, and the symptom was a control users could not see.
+     *
+     * Fallback forms — `var(--x, ...)` — are deliberately still required to name a
+     * real token. A fallback is for a value that may legitimately be unset at
+     * runtime, which no token in this stylesheet ever is; here it would only mask
+     * the same typo.
+     *
+     * Declared *anywhere*, not only in `:root`. The alert variants each set their
+     * own `--alert-hue`, `--alert-ink` and `--alert-glyph` on the component, which
+     * is the point of a scoped custom property and not a contract violation. What
+     * this looks for is a name that appears nowhere at all — `testEveryScaleIsDeclared`
+     * is what holds the shared scales to `:root`.
+     */
+    public function testEveryTokenReadIsATokenDeclared(): void
+    {
+        $css = $this->declarations();
+
+        preg_match_all('/var\(\s*(--[a-z0-9-]+)/i', $css, $matches);
+
+        $missing = [];
+        foreach (array_unique($matches[1]) as $token) {
+            if (preg_match('/' . preg_quote($token, '/') . '\s*:/', $css) !== 1) {
+                $missing[] = $token;
+            }
+        }
+
+        sort($missing);
+
+        self::assertSame(
+            [],
+            $missing,
+            'These tokens are read but declared nowhere, so every declaration using them is '
+            . 'silently dropped and the property falls back to what it inherits: ' . implode(', ', $missing),
+        );
+    }
+
+    /**
      * Depth is the token the eye notices going wrong first, and the one most
      * easily written by hand: any plausible-looking `box-shadow` renders.
      */
