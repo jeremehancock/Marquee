@@ -76,13 +76,18 @@ None.
 ### Modified Capabilities
 
 - `poster-sources`: the mechanism by which the Plex Posters tab explains an
-  unlinked poster. The requirement's intent is unchanged and its title survives
-  verbatim — the tab is still always present and still states why it has
-  nothing. What changes is that it states it by opening to an explanation rather
-  than by refusing with a tooltip, so the explanation is not conditional on the
-  input device. The scenario asserting a disabled tab cannot be opened is
-  replaced; the guarantee it protected — that no request is made to Plex — is
-  kept and restated.
+  unlinked poster. The requirement's intent is unchanged — the tab is still
+  always present and still states why it has nothing. What changes is that it
+  states it by opening to an explanation rather than by refusing with a tooltip,
+  so the explanation is not conditional on the input device.
+
+  Expressed as a removal and an addition rather than a modification, because one
+  scenario loses its subject rather than changing: "A disabled tab cannot be
+  opened" cannot be edited into truth once there is no disabled tab. The
+  guarantee inside it — that an unlinked poster causes no request to Plex — is
+  kept and restated. The replacement is named "The tab **opens** and explains
+  itself when a poster has no Plex item"; the one added word is the whole of what
+  changed.
 - `application-shell`: the tooltip requirement gains the clause its own safety
   sentence assumed. It already says suppressing tooltips must not remove
   information a touch user needs, but discharges that with *"remains usable and

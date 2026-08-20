@@ -75,12 +75,21 @@
 
 ## 6. Validate on the `:dev` image
 
+**Shipped on 6.4 alone. 6.1–6.3 were not performed, deliberately.** They need a
+poster with no `plex_items` row, and there is no user-facing way to make one —
+posters enter only through import and import always writes the mapping, so the
+repro is a hand-edit of `marquee.sqlite`. That was judged not worth doing against
+live data for this change. The touch path is therefore reasoned rather than
+observed: it follows from the panel being ordinary rendered markup with no
+pointer gate, which is the whole substance of the change. Anyone who reaches an
+unlinked poster before it is checked is the first to see it work.
+
 - [ ] 6.1 On a phone, open the change-poster dialog for a poster with no Plex
-      item. The Plex Posters tab opens and states the reason. This is the whole
-      change; it cannot be verified any other way.
+      item. The Plex Posters tab opens and states the reason. **Not performed.**
 - [ ] 6.2 On the same poster, confirm no request to `plex-posters` is made when
-      the tab is opened.
+      the tab is opened. **Not performed** — pinned in source by
+      `DisabledStateTest::testAnUnlinkedPosterIsNeverAskedAboutAtThePointOfAsking`.
 - [ ] 6.3 Move between an unlinked poster and a linked one. The tab strip and
-      the dialog keep their shape.
-- [ ] 6.4 On a pointer device, confirm the tab no longer shows a tooltip and no
+      the dialog keep their shape. **Not performed.**
+- [x] 6.4 On a pointer device, confirm the tab no longer shows a tooltip and no
       longer draws itself as unavailable.

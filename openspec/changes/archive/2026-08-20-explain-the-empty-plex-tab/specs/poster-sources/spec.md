@@ -1,6 +1,32 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: The tab explains itself when a poster has no Plex item
+**Reason**: The requirement's intent is kept and its mechanism replaced, which
+cannot be expressed as a modification because one of its scenarios ceases to
+have a subject. "A disabled tab cannot be opened" asserted that activating the
+switched-off tab made no request to Plex and left the dialog where it was. After
+this change there is no switched-off tab to activate, so the scenario is not
+edited but retired — while the guarantee inside it, that an unlinked poster
+causes no request to Plex, is kept and restated in the requirement that replaces
+this one.
+
+The mechanism had to go because it could not reach every user. The tab stated
+its reason through a hint, and hints are a hovering-fine-pointer affordance by
+design, so a touch user met a dimmed tab and silence — the requirement's own
+words, "with an explanation that it is not linked to a Plex item", were true on a
+laptop and false on a phone.
+
+**Migration**: Replaced by "The tab opens and explains itself when a poster has
+no Plex item", which keeps the tab present for every poster and its shape steady
+from poster to poster, and keeps the no-request guarantee — but has the tab open
+and state its reason in the panel rather than refuse and state it in a hint. The
+one word added to the name is the whole of what changed. No stored data, route,
+or payload changes; a poster with no linked Plex item is unaffected except that
+its reason now reaches every device.
+
+## ADDED Requirements
+
+### Requirement: The tab opens and explains itself when a poster has no Plex item
 A poster with no linked Plex item has no posters to list. The Plex Posters tab
 SHALL still be shown for such a poster — rather than being hidden — and SHALL be
 openable, stating when opened that the poster is not linked to a Plex item.
