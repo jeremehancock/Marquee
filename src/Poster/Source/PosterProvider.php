@@ -22,6 +22,7 @@ enum PosterProvider: string
     case Tmdb = 'tmdb';
     case TheTvdb = 'thetvdb';
     case Fanart = 'fanart.tv';
+    case Tvmaze = 'tvmaze';
 
     /**
      * What the user is shown.
@@ -32,6 +33,11 @@ enum PosterProvider: string
      * footer still credits the service by its own brand — it is a logo there, so
      * the two never appear as conflicting words on screen.
      *
+     * `Tvmaze` gets no such treatment, and the contrast is the point: uppercased
+     * it is "TVMAZE", still one readable word. Only a name whose camel case is
+     * carrying the reading is shortened, so this is not a general rule about
+     * long names.
+     *
      * The case *name* tracks the wire slug; only this tracks the user.
      */
     public function label(): string
@@ -40,14 +46,15 @@ enum PosterProvider: string
             self::Tmdb => 'TMDB',
             self::TheTvdb => 'TVDB',
             self::Fanart => 'fanart.tv',
+            self::Tvmaze => 'TVmaze',
         };
     }
 
     /**
      * The order sections appear in, which is the same for every item.
      *
-     * **This is the order the provider attribution credits the same three
-     * services in** (`templates/partials/_attribution.html.twig`, required by the
+     * **This is the order the provider attribution credits those same services
+     * in** (`templates/partials/_attribution.html.twig`, required by the
      * `application-shell` spec). The match is deliberate: two orderings of one set
      * of names in one product must not disagree. Reorder the footer and this
      * follows it.

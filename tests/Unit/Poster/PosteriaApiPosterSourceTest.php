@@ -103,7 +103,7 @@ final class PosteriaApiPosterSourceTest extends TestCase
         $source = $this->source([$this->ok([['url' => 'https://img/a.jpg']])]);
         $source->find(new PosterQuery('The Matrix', PlexMediaType::Movie, year: 1999));
 
-        self::assertStringStartsWith('https://posteria.app/marquee/api/v1/posters?', $this->sentUri());
+        self::assertStringStartsWith('https://posteria.app/marquee/api/v2/posters?', $this->sentUri());
         self::assertSame(
             ['q' => 'The Matrix', 'type' => 'movie', 'year' => '1999'],
             $this->sentQuery(),
@@ -613,6 +613,7 @@ final class PosteriaApiPosterSourceTest extends TestCase
             'height' => 3000,
             'language' => 'en',
             'score' => 8.2,
+            'page' => 'https://example.test/works/1',
         ]]);
 
         $result = $this->source([$response])->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
@@ -625,13 +626,15 @@ final class PosteriaApiPosterSourceTest extends TestCase
         self::assertSame(3000, $candidate->height);
         self::assertSame('en', $candidate->language);
         self::assertSame(8.2, $candidate->score);
+        self::assertSame('https://example.test/works/1', $candidate->page);
         self::assertSame('https://img/a-thumb.jpg', $candidate->displayUrl());
     }
 
     /**
      * Absence is the common case, not an edge case: fanart.tv supplies no thumb,
      * width or height; TheTVDB no score; and TMDB itself omits score and
-     * language on a large share of its own posters.
+     * language on a large share of its own posters. Most candidates carry no
+     * page either — it is sent only where a licence requires the link back.
      */
     public function testAbsentFieldsStayNullAndDisplayUrlFallsBackToUrl(): void
     {
@@ -644,7 +647,95 @@ final class PosteriaApiPosterSourceTest extends TestCase
         self::assertNull($candidate->height);
         self::assertNull($candidate->language);
         self::assertNull($candidate->score);
+        self::assertNull($candidate->page);
         self::assertSame('https://img/fanart.jpg', $candidate->displayUrl());
+    }
+
+    /**
+     * The real shape of a TVmaze season poster, taken from the live v2 endpoint:
+     * a url, a thumb, a source and a page, and **nothing else**. No dimensions,
+     * no language, no score.
+     *
+     * It is the thinnest candidate any service returns, so it is the one that
+     * finds an assumption that a candidate carries more than a url. The page is
+     * the season's own address, which is not the show's — the two differ, and a
+     * single link cannot stand in for both.
+     */
+    public function testParsesATvmazeSeasonPosterWhichCarriesOnlyAUrlThumbAndPage(): void
+    {
+        $response = $this->ok([[
+            'url' => 'https://static.tvmaze.com/uploads/images/original_untouched/405/1012792.jpg',
+            'thumb' => 'https://static.tvmaze.com/uploads/images/medium_portrait/405/1012792.jpg',
+            'source' => 'tvmaze',
+            'page' => 'https://www.tvmaze.com/seasons/754/breaking-bad-season-2',
+        ]]);
+
+        $result = $this->source([$response])->find(
+            new PosterQuery('Breaking Bad', PlexMediaType::Season, seasonNumber: 2),
+        );
+        $candidate = $result->candidates[0];
+
+        self::assertSame('tvmaze', $candidate->source);
+        self::assertSame('https://www.tvmaze.com/seasons/754/breaking-bad-season-2', $candidate->page);
+        self::assertNull($candidate->width);
+        self::assertNull($candidate->height);
+        self::assertNull($candidate->language);
+        self::assertNull($candidate->score);
+    }
+
+    /**
+     * The page is read as given, with no inspection of who supplied it. A source
+     * slug this build has never heard of still gets its link back.
+     *
+     * This is the parsing half of the guard; the payload half lives in the
+     * controller test. Together they are what fails if the credit is ever
+     * narrowed to a provider check — which would be untrue to the contract (the
+     * service decides which providers owe a link) and would need reopening for
+     * every provider added after this one.
+     */
+    public function testAPageIsParsedWhoeverSuppliedThePoster(): void
+    {
+        $response = $this->ok([[
+            'url' => 'https://img/new.jpg',
+            'source' => 'some-service-added-later',
+            'page' => 'https://example.test/credit-me',
+        ]]);
+
+        $result = $this->source([$response])->find(new PosterQuery('The Matrix', PlexMediaType::Movie));
+
+        self::assertSame('https://example.test/credit-me', $result->candidates[0]->page);
+    }
+
+    /**
+     * A television-only service answering a movie search reports `no_data`, and
+     * the endpoint does **not** mark the response partial — verified against the
+     * live v2 endpoint, where a movie comes back `success: true` with no `code`
+     * at all and `tvmaze: no_data` in the providers map.
+     *
+     * That has to read to the user exactly as it did before the service existed:
+     * an ordinary result, no warning line. It already does, because nothing here
+     * inspects the providers map — it is logged, never branched on. This test
+     * exists to keep it that way. **Do not make it pass by adding a case for
+     * `no_data`**: that would put a provider name in the client for the first
+     * time and make the next partial-coverage service a code change.
+     */
+    public function testAServiceReportingNoDataDoesNotMakeTheResultPartial(): void
+    {
+        $response = $this->ok(
+            [['url' => 'https://img/a.jpg', 'source' => 'tmdb']],
+            ['providers' => [
+                'tmdb' => 'ok',
+                'tvmaze' => 'no_data',
+                'fanart.tv' => 'ok',
+                'thetvdb' => 'ok',
+            ]],
+        );
+
+        $result = $this->source([$response])->find(new PosterQuery('Inception', PlexMediaType::Movie, year: 2010));
+
+        self::assertSame(PosterSearchOutcome::Ok, $result->outcome);
+        self::assertNotSame(PosterSearchOutcome::Partial, $result->outcome);
+        self::assertCount(1, $result->candidates);
     }
 
     public function testCandidatesWithoutAUrlAreSkipped(): void

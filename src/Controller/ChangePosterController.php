@@ -295,6 +295,15 @@ final class ChangePosterController
         // Sections rather than a flat list, each already labelled: the page
         // renders whatever it is handed, in the order handed, and never learns a
         // provider name. Adding a provider is a change on this side only.
+        //
+        // `page` is the supplying service's own page for the work, sent only
+        // when that service's licence requires a link back to it. The browser
+        // shows the credit link on *the presence of this address* and on nothing
+        // else — which is why `source` stays off the payload even though it
+        // would be the obvious way to spot a TVmaze poster. Keying the credit on
+        // a provider name would put one here, teach the page a provider for the
+        // first time, and make the next service that owes a link back a client
+        // release rather than a server one.
         $sections = array_map(
             static fn (PosterSection $s): array => [
                 'label' => $s->label,
@@ -302,6 +311,7 @@ final class ChangePosterController
                     static fn (PosterCandidate $c): array => [
                         'url' => $c->url,
                         'thumb' => $c->displayUrl(),
+                        'page' => $c->page,
                     ],
                     $s->candidates,
                 ),

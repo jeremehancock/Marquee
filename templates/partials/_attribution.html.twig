@@ -5,9 +5,18 @@
 
    Mediux is deliberately absent: the poster source returns no artwork from it.
 
+   The order here is the order Find Posters sections its results in, and the two
+   must not disagree — this credit is the definition and PosterProvider follows
+   it. TVmaze is last in both.
+
+   This credits the *set of services* Marquee draws on. It is not the credit a
+   licence attaches to an individual image: that is the per-candidate link in the
+   Find Posters grid and preview, driven by the address the poster source sends
+   with the poster. Neither stands in for the other.
+
    Each logo carries its intrinsic width/height so the footer reserves the row's
    space before the images decode; the displayed size comes from the per-provider
-   classes in app.css, which normalise three very different aspect ratios into one
+   classes in app.css, which normalise four very different aspect ratios into one
    row. #}
 <div class="attribution">
     <p class="attribution__label">Posters provided by:</p>
@@ -23,6 +32,10 @@
         <a href="https://fanart.tv/" target="_blank" rel="noopener" title="fanart.tv">
             <img class="attribution__logo attribution__logo--fanart" src="{{ asset('/assets/providers/fanart.png') }}"
                  alt="fanart.tv" width="303" height="61">
+        </a>
+        <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" title="TVmaze">
+            <img class="attribution__logo attribution__logo--tvmaze" src="{{ asset('/assets/providers/tvmaze.png') }}"
+                 alt="TVmaze" width="253" height="80">
         </a>
     </div>
 </div>

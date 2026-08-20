@@ -243,7 +243,30 @@
                                                 <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
                                                      :class="loaded ? 'is-loaded' : ''"
                                                      @load="loaded = true" @error="loaded = true"
-                                                     @click="openPreview(poster.url, 'find')" data-tooltip="Click to preview">
+                                                     @click="openPreview(poster.url, 'find', null, '', poster.page)" data-tooltip="Click to preview">
+                                                {# Credit link, shown when the poster source sent an address for the
+                                                   supplying service's own page. Some of the artwork here is licensed
+                                                   on terms discharged by linking back from where the image is shown,
+                                                   so this is an obligation and not an embellishment — a candidate that
+                                                   carries the address must not be displayed without it.
+
+                                                   **The trigger is `poster.page` and nothing else.** Not
+                                                   `source === 'tvmaze'` — the payload deliberately carries no source,
+                                                   because the service decides which of its providers owe a link and a
+                                                   name test here would have to be reopened for the next one. TVmaze is
+                                                   simply the only one populating it today.
+
+                                                   A sibling of the image rather than a wrapper: the image carries the
+                                                   click that opens the preview, and wrapping it in an anchor would put
+                                                   every candidate one stray press away from leaving the app. @click.stop
+                                                   keeps the two apart in the other direction. Omitted entirely when
+                                                   there is no address — never rendered disabled, since a control that
+                                                   cannot exist has no state to announce. #}
+                                                <a class="find-item__credit" x-show="poster.page" x-cloak
+                                                   :href="poster.page" target="_blank" rel="noopener"
+                                                   @click.stop
+                                                   :aria-label="'Open this poster\'s page on ' + section.label"
+                                                   :data-tooltip="'View on ' + section.label">↗</a>
                                             </div>
                                         </figure>
                                     </template>
@@ -276,6 +299,19 @@
                  @load="preview.loaded = true" @error="preview.loaded = true">
         </div>
         <div class="viewer__bar">
+            {# The same credit the results grid carries, repeated here because this
+               covers the grid entirely: a user inspecting a poster full screen is
+               looking at the image with the grid's link hidden behind it, and the
+               obligation follows the image rather than the screen it started on.
+
+               Above the actions, not among them. It is not a choice about this
+               poster — the row below is — and it stays put through the confirm
+               step, which swaps that row out from under it. Keyed on the address
+               alone, exactly as in the grid. #}
+            <a class="viewer__credit" x-show="preview.page" x-cloak
+               :href="preview.page" target="_blank" rel="noopener">
+                View this poster's source page
+            </a>
             <div class="viewer__actions" x-show="!preview.confirming">
                 <button type="button" class="btn btn--accent" @click="preview.confirming = true">Use this poster</button>
                 <button type="button" class="btn" @click="closePreview()">Close</button>

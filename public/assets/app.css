@@ -649,9 +649,10 @@ body {
     text-decoration: none;
 }
 
-/* The three marks have very different aspect ratios (TMDB is a wide wordmark,
-   TheTVDB is nearly square, fanart.tv sits between), so each gets the height
-   that makes them read as one row. Width follows from the intrinsic ratio. */
+/* The four marks have very different aspect ratios (TMDB is a wide wordmark at
+   7.6:1, TheTVDB is nearly square at 1.9:1, fanart.tv and TVmaze sit between at
+   5:1 and 3.2:1), so each gets the height that makes them read as one row.
+   Width follows from the intrinsic ratio. */
 .attribution__logo {
     display: block;
     width: auto;
@@ -667,6 +668,10 @@ body {
 
 .attribution__logo--fanart {
     height: 28px;
+}
+
+.attribution__logo--tvmaze {
+    height: 22px;
 }
 
 .panel {
@@ -1972,6 +1977,42 @@ h1 {
     cursor: zoom-in;
 }
 
+/* The credit link on a candidate whose service requires one (see the template).
+   Bottom-trailing corner, so it clears both .find-item__badge — which holds the
+   opposite corner — and the middle of the thumbnail, which is where a user aims
+   to open the preview. Sized as a 28px target rather than to the glyph: this is
+   tapped on a phone, inside a cell only ~130px wide, and a link the width of an
+   arrow would be missed as often as hit. Its own backdrop because it sits on an
+   image of unknown colour and has to stay legible on all of them. */
+.find-item__credit {
+    position: absolute;
+    inset-block-end: 6px;
+    inset-inline-end: 6px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1;
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+    transition:
+        background var(--dur-base) var(--ease-standard),
+        color var(--dur-base) var(--ease-standard);
+}
+
+.find-item__credit:hover,
+.find-item__credit:focus-visible {
+    background: var(--accent);
+    color: var(--bg);
+    text-decoration: none;
+}
+
 /* Shared by both tabs that stack grids under their own headings: Plex Posters
    (two fixed groups) and Find Posters (one section per supplying service).
    Scrolling belongs to the stack rather than to each grid — independently
@@ -2503,11 +2544,34 @@ h1 {
 .viewer__bar {
     flex: 0 0 auto;
     display: flex;
-    /* Bottom-anchor the actions so the button row stays put when the confirm
-       step adds its question line above the buttons. */
-    align-items: flex-end;
-    justify-content: center;
+    /* A column since the credit line stacks above the actions. Bottom-anchoring
+       the actions — so the button row stays put when the confirm step adds its
+       question line above the buttons — is `justify-content` in this direction,
+       and centring is `align-items`; both were the other property when this was
+       a row. */
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
     min-height: 96px;
+}
+
+/* The credit for a poster whose source requires a link back. Deliberately not
+   styled as a .btn: it leaves the app, while every button in this bar acts on
+   the poster, and one that looked like the others would be pressed by someone
+   meaning to choose it. Sits above the action row and outlasts the confirm step,
+   so it never changes the bar's height while the user is deciding — that motion
+   would move the image they are deciding about. */
+.viewer__credit {
+    color: var(--ink);
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.viewer__credit:hover,
+.viewer__credit:focus-visible {
+    color: var(--accent);
 }
 
 .viewer__actions {
@@ -2861,10 +2925,17 @@ h1 {
         display: none;
     }
 
-    /* The tray is narrower than the page, so the row is tightened enough to stay
-       on one line down to a 320px phone — the three logos plus their gaps come to
-       ~278px against the ~288px the tray leaves inside its padding. Sizing up
-       from here wraps fanart.tv onto a second line. */
+    /* The tray is narrower than the page — roughly 288px inside its padding on a
+       320px phone — and four logos no longer fit across it: at these heights they
+       come to ~305px before gaps. They are therefore allowed to wrap, which
+       .attribution__logos already does gracefully (flex-wrap plus a centred main
+       axis), giving a tidy two-by-two block rather than one squeezed line.
+
+       That is the deliberate trade. Shrinking them enough to hold one line was
+       tried when there were three and fanart.tv already set the floor there;
+       a fourth mark below that height is a smudge, and an illegible credit
+       credits nobody. Vertical space in the drawer footer is the cheaper thing
+       to spend. */
     .attribution__logos {
         gap: 14px;
     }
@@ -2879,6 +2950,10 @@ h1 {
 
     .attribution__logo--fanart {
         height: 22px;
+    }
+
+    .attribution__logo--tvmaze {
+        height: 18px;
     }
 
     /* Tabs become a native-style bottom tab bar: pinned to the bottom, always

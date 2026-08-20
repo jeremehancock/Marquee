@@ -121,6 +121,19 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   test can catch a *new* service reaching for the shared client, which is why
   this is written down. There is one such caller today, and adding a second is a
   spec change to `poster-editing`, not a wiring decision.
+- **A Find Posters candidate carrying a `page` address must be displayed with a
+  visible link to it, and the condition is the field's presence — never
+  `source == "tvmaze"`.** The address is how the poster source says *this
+  poster's licence requires a link back*; TVmaze is CC BY-SA and is merely the
+  only service populating it today. A name test would be uncredited artwork the
+  moment the service adds another, and it would fail silently, because the
+  posters still render. This is also why `source` is deliberately absent from the
+  find-posters payload: publishing it is the first step of writing the check the
+  wrong way. `PosterCreditLinkTest` pins both surfaces that exist and asserts no
+  provider name appears in the markup, but it cannot catch a *new* surface that
+  shows a candidate without its credit — same hazard shape as the bullet above,
+  same reason it is here. Adding a third such surface means rendering the link
+  there too, not deciding it does not apply.
 - **A control is switched off with `aria-disabled`, never the `disabled`
   attribute, and every such binding needs a guard at the action.** The attribute
   drops a control out of the tab order, so a keyboard user is not told it is

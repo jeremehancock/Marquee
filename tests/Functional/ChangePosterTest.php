@@ -155,7 +155,7 @@ final class ChangePosterTest extends AppTestCase
     }
 
     /**
-     * @return array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool}
+     * @return array{sections: list<array{label: string, posters: list<array{url: string, thumb: string, page: string|null}>}>, error: string|null, partial: bool}
      */
     private function findPosters(FakePosterSource $source): array
     {
@@ -170,7 +170,7 @@ final class ChangePosterTest extends AppTestCase
         $payload = json_decode((string) $response->getBody(), true);
         self::assertIsArray($payload);
 
-        /** @var array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool} $payload */
+        /** @var array{sections: list<array{label: string, posters: list<array{url: string, thumb: string, page: string|null}>}>, error: string|null, partial: bool} $payload */
         return $payload;
     }
 
@@ -178,9 +178,9 @@ final class ChangePosterTest extends AppTestCase
      * Every candidate across every section, in the order the page will show
      * them.
      *
-     * @param array{sections: list<array{label: string, posters: list<array{url: string, thumb: string}>}>, error: string|null, partial: bool} $payload
+     * @param array{sections: list<array{label: string, posters: list<array{url: string, thumb: string, page: string|null}>}>, error: string|null, partial: bool} $payload
      *
-     * @return list<array{url: string, thumb: string}>
+     * @return list<array{url: string, thumb: string, page: string|null}>
      */
     private function allPosters(array $payload): array
     {
@@ -208,12 +208,12 @@ final class ChangePosterTest extends AppTestCase
         self::assertSame([
             [
                 'label' => 'TMDB',
-                'posters' => [['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a-t.jpg']],
+                'posters' => [['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a-t.jpg', 'page' => null]],
             ],
             [
                 'label' => 'fanart.tv',
                 // No thumb from fanart.tv, so the grid image falls back to the full URL.
-                'posters' => [['url' => 'https://img/b.jpg', 'thumb' => 'https://img/b.jpg']],
+                'posters' => [['url' => 'https://img/b.jpg', 'thumb' => 'https://img/b.jpg', 'page' => null]],
             ],
         ], $payload['sections']);
     }
@@ -223,9 +223,10 @@ final class ChangePosterTest extends AppTestCase
      * the next, so it is pinned against a source that returns them in another
      * order entirely.
      */
-    public function testFindPostersSectionsAreOrderedTmdbThenTheTvdbThenFanart(): void
+    public function testFindPostersSectionsAreOrderedTmdbThenTheTvdbThenFanartThenTvmaze(): void
     {
         $source = $this->fakeSource(PosterSearchResult::found([
+            new PosterCandidate('https://img/tvmaze.jpg', source: 'tvmaze'),
             new PosterCandidate('https://img/fanart.jpg', source: 'fanart.tv'),
             new PosterCandidate('https://img/tvdb.jpg', source: 'thetvdb'),
             new PosterCandidate('https://img/tmdb.jpg', source: 'tmdb'),
@@ -234,7 +235,7 @@ final class ChangePosterTest extends AppTestCase
         $payload = $this->findPosters($source);
 
         self::assertSame(
-            ['TMDB', 'TVDB', 'fanart.tv'],
+            ['TMDB', 'TVDB', 'fanart.tv', 'TVmaze'],
             array_column($payload['sections'], 'label'),
         );
     }
@@ -242,6 +243,11 @@ final class ChangePosterTest extends AppTestCase
     /**
      * The label is resolved server-side so the page never has to know a provider
      * name — and the slug never reaches it.
+     *
+     * This is asserted with a whole-poster comparison on purpose. The credit link
+     * is driven by `page` alone, and the cheapest way to break that would be to
+     * publish `source` "just for the link" — which this fails on, whether or not
+     * anyone remembers why.
      */
     public function testFindPostersDoesNotPublishTheSourceSlug(): void
     {
@@ -251,7 +257,38 @@ final class ChangePosterTest extends AppTestCase
 
         $payload = $this->findPosters($source);
 
-        self::assertSame(['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a.jpg'], $payload['sections'][0]['posters'][0]);
+        self::assertSame(
+            ['url' => 'https://img/a.jpg', 'thumb' => 'https://img/a.jpg', 'page' => null],
+            $payload['sections'][0]['posters'][0],
+        );
+    }
+
+    /**
+     * The link back reaches the page, and it does so for any supplying service.
+     *
+     * The candidate here is attributed to a service this build does not know, so
+     * it lands in the trailing "Other" section — and is still credited. That is
+     * the whole contract: the poster source decides which of its providers owe a
+     * link back and says so per poster, and Marquee honours the address without
+     * an opinion about who sent it.
+     *
+     * The pair of assertions is the point. A credit narrowed to a provider check
+     * would keep the first and lose the second.
+     */
+    public function testFindPostersPublishesThePageForAnySupplyingService(): void
+    {
+        $source = $this->fakeSource(PosterSearchResult::found([
+            new PosterCandidate('https://img/known.jpg', source: 'tvmaze', page: 'https://www.tvmaze.com/shows/169'),
+            new PosterCandidate('https://img/later.jpg', source: 'some-service-added-later', page: 'https://example.test/credit-me'),
+            new PosterCandidate('https://img/none.jpg', source: 'tmdb'),
+        ]));
+
+        $payload = $this->findPosters($source);
+
+        self::assertSame(
+            [null, 'https://www.tvmaze.com/shows/169', 'https://example.test/credit-me'],
+            array_column($this->allPosters($payload), 'page'),
+        );
     }
 
     public function testFindPostersPassesTheStoredYearAndType(): void

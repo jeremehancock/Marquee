@@ -864,7 +864,7 @@
                 // from may have been cleared by the time it is posted.
                 // `applying` is the in-flight flag for the final "Change poster"
                 // confirm, driving the progress overlay and the disabled button.
-                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '' },
+                preview: { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '' },
                 sortOpen: false,
                 importOpen: false,
                 importLoading: false,
@@ -1353,7 +1353,12 @@
                 // actually gets posted, kept apart from `src` because `src` is a
                 // proxy address for display and names nothing the server can act
                 // on directly.
-                openPreview: function (src, source, file, token) {
+                // `page` is the supplying service's own page for the work, passed
+                // only by the Find Posters call site and only when the poster
+                // source sent one. The other three tabs preview an address the
+                // user supplied or artwork Plex holds, neither of which carries
+                // a credit obligation, so they pass nothing and take the default.
+                openPreview: function (src, source, file, token, page) {
                     this._revokePreviewSrc();
                     this.preview = {
                         open: true,
@@ -1364,11 +1369,12 @@
                         source: source,
                         file: file || null,
                         token: token || '',
+                        page: page || '',
                     };
                 },
                 closePreview: function () {
                     this._revokePreviewSrc();
-                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '' };
+                    this.preview = { open: false, src: '', loaded: false, confirming: false, applying: false, source: '', file: null, token: '', page: '' };
                 },
                 // A blob URL holds its Blob alive until it is revoked, so an
                 // upload preview that is merely replaced or closed would leak the

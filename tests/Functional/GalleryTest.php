@@ -983,7 +983,14 @@ final class GalleryTest extends AppTestCase
 
         // Every control in the preview drives the shared state, and the candidate
         // grid is one of three callers that opens it rather than the only one.
-        self::assertStringContainsString('@click="openPreview(poster.url, \'find\')"', $body);
+        // It is the only one passing a page, since it is the only one showing
+        // artwork whose service may require a link back — the trailing arguments
+        // are matched loosely so that stays a fact about this call rather than
+        // about the signature's length.
+        self::assertMatchesRegularExpression(
+            '/@click="openPreview\(poster\.url, \x27find\x27,[^"]*\)"/',
+            $body,
+        );
         self::assertStringContainsString('@click="applyPreview()"', $body);
         // Backdrop, stage, Escape and Close: every way out closes only the
         // preview, leaving the dialog that opened it standing.
