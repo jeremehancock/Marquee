@@ -488,6 +488,21 @@ the per-candidate credit specified under `poster-sources`. The two coexist:
 neither replaces the other, and crediting a service here SHALL NOT be treated as
 having credited any particular poster it supplied.
 
+Each logo link SHALL name its provider through the shared custom tooltip and
+SHALL NOT carry a native `title`, so the hint the credit offers is drawn in the
+application's own tooltip rather than the browser's. This is the same rule the
+`Consistent custom tooltips` requirement states for the application as a whole;
+it is restated here because this credit is where a native tooltip most recently
+survived, and because the hosts are links whose only content is an image, where
+a `title` is easy to reintroduce as if it were the accessible name. It is not:
+the link's accessible name SHALL come from the logo's alternative text, so it is
+exposed to assistive technology and on touch devices, where no tooltip is shown.
+The tooltip SHALL name the provider it links to, and the two SHALL NOT disagree.
+
+The hint each logo carries is a genuine hint rather than a repetition of visible
+text — a logo is a mark, not a readable name — so it SHALL be shown whenever its
+device qualifies, without any truncation condition.
+
 #### Scenario: Page footer credits the providers
 
 - **WHEN** any HTML page is rendered
@@ -526,6 +541,37 @@ having credited any particular poster it supplied.
 - **WHEN** the order the footer credits its providers in is compared with the
   order the Find Posters tab shows its sections in
 - **THEN** the two are the same
+
+#### Scenario: Hovering a logo shows the app's tooltip
+
+- **WHEN** a user on a hover-capable pointer device hovers a provider's logo in
+  either footer
+- **THEN** the shared themed tooltip is shown naming that provider
+- **AND** no native browser tooltip appears alongside it
+
+#### Scenario: A logo link carries no native title
+
+- **WHEN** the attribution is rendered
+- **THEN** none of its logo links carries a `title` attribute
+
+#### Scenario: A logo link keeps its accessible name without a title
+
+- **WHEN** assistive technology reports a provider's logo link, on any device
+- **THEN** it announces that provider's name, taken from the logo's alternative
+  text rather than from a tooltip
+
+#### Scenario: The tooltip and the accessible name agree
+
+- **WHEN** a provider's tooltip text is compared with the name its link exposes
+  to assistive technology
+- **THEN** the two name the same provider
+
+#### Scenario: Touch shows no tooltip and loses nothing
+
+- **WHEN** a user on a touch device taps a provider's logo
+- **THEN** no tooltip is shown
+- **AND** the link still opens that provider's website, and its accessible name
+  is unaffected
 
 ### Requirement: App-wide mobile actions menu
 The shared layout SHALL provide an app-wide **actions** menu for small screens so

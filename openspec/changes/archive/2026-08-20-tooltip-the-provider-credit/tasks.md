@@ -32,8 +32,8 @@
 - [x] 3.2 Check `README.md`, `docs/` and `CLAUDE.md` for staleness. Nothing
   user-facing changes in wording or behavior beyond the tooltip's appearance;
   if no edit is warranted, say so explicitly rather than inventing one.
-- [ ] 3.3 On a desktop browser, hover each of the four logos in the page footer
+- [x] 3.3 On a desktop browser, hover each of the four logos in the page footer
   and confirm the themed bubble appears with no native tooltip behind it.
-- [ ] 3.4 Narrow the window until the drawer replaces the page footer, open it,
+- [x] 3.4 Narrow the window until the drawer replaces the page footer, open it,
   and confirm the tooltip paints above the drawer rather than behind it.
-- [ ] 3.5 Tab to each logo link and confirm the tooltip appears on focus.
+- [x] 3.5 Tab to each logo link and confirm the tooltip appears on focus.

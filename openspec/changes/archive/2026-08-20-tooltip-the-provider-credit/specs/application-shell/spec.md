@@ -23,6 +23,13 @@ The order the providers are credited in SHALL be the order the Find Posters tab
 sections them in, and the two SHALL NOT disagree. This credit is the definition
 of that order; the section order follows it.
 
+This footer credit stands for the set of services Marquee draws on. It does not
+discharge an attribution a licence attaches to an individual image — that is
+carried, for the subset of candidates the poster source marks as requiring it, by
+the per-candidate credit specified under `poster-sources`. The two coexist:
+neither replaces the other, and crediting a service here SHALL NOT be treated as
+having credited any particular poster it supplied.
+
 Each logo link SHALL name its provider through the shared custom tooltip and
 SHALL NOT carry a native `title`, so the hint the credit offers is drawn in the
 application's own tooltip rather than the browser's. This is the same rule the
