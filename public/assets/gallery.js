@@ -1269,6 +1269,19 @@
                 // partial, so there is one message line and no notice line.
                 loadPlexPosters: function () {
                     var self = this;
+                    // A poster with no Plex item has no item to ask about, and the
+                    // dialog already knows the answer — so asking could only spend a
+                    // round trip to be told what it started with, or fail for an
+                    // unrelated reason and report "Could not reach Plex" in place of
+                    // the real one.
+                    //
+                    // The tab's own click expression checks this too, and the
+                    // duplication is deliberate rather than untidy. What must not
+                    // happen is a request, so the refusal belongs where the request
+                    // is made; the inline expression is the fragile half, one edit
+                    // away from dropping its half of the condition while looking
+                    // correct. This one cannot be bypassed by a new caller.
+                    if (!this.change.linked) { return; }
                     this.plexPosters = { loading: true, error: '', uploaded: [], available: [] };
                     fetch('/library/' + this.change.category + '/plex-posters?filename=' + encodeURIComponent(this.change.filename),
                         { headers: { Accept: 'application/json' }, credentials: 'same-origin' })

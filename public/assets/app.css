@@ -2475,20 +2475,28 @@ h1 {
     border-bottom-color: var(--accent);
 }
 
-/* Off. The tab strip cannot say this as loudly as .btn can, and the reason is
-   structural rather than an omission: an available-but-inactive tab already sits
-   at --muted, so the off state has no tier of its own to drop into. What is left
-   is a further step down from muted, the cursor, and the absence of any response
-   to the pointer.
+/* Off — and drawn for nobody. No tab in the application is switched off: the one
+   that was, Plex Posters on a poster with no Plex item, is now an ordinary tab
+   that opens to say so. These rules are kept anyway, for the reason .btn:disabled
+   is kept with no caller either — a tab switched off later must not arrive with no
+   treatment at all, which is the whole point of stating it once here rather than
+   at whichever control next needs it.
 
-   It is thin, and the strip leans on the tooltip and on the panel to carry the
-   reason — which is what the comment at the call site in gallery.html.twig has
-   always claimed, and what was not true of the appearance until now. On touch,
-   where there is no tooltip and no hover, the dimming is doing the work alone.
-   That gap is known and is not solved here.
+   What that tab will inherit, and what it owes on top:
 
-   No `pointer-events: none`, for the same reason as .btn: it would take the
-   tooltip with it, and the tooltip is the only explanation this control has. */
+   The strip cannot say this as loudly as .btn can, and the reason is structural
+   rather than an omission — an available-but-inactive tab already sits at --muted,
+   so the off state has no tier of its own to drop into. What is left is a further
+   step down from muted, the cursor, and the absence of any response to the
+   pointer. On touch none of the last two exist, so this reduces to opacity alone,
+   which is the one thing the off state is required not to be carried by. A tab
+   switched off here therefore owes a signal that is not a further step down from
+   muted, and owes its reason to what the panel says rather than to a hint —
+   tooltips are pointer-only by design, so a reason attached to a switched-off
+   control is a reason half the devices never receive.
+
+   No `pointer-events: none`, for the same reason as .btn: it makes the element
+   non-hit-testable, and that takes `cursor: not-allowed` with it. */
 .modal__tabs button:disabled,
 .modal__tabs button[aria-disabled='true'] {
     opacity: 0.5;
