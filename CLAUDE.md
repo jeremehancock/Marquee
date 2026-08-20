@@ -155,6 +155,18 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   *new* control added without its guard — the same shape of hazard as the bullet
   above, and the same reason it is written here. The appearance is stated once on
   `.btn`; don't restyle it per control.
+  - **A switched-off control never carries its reason in a tooltip.** Tooltips
+    are hover-and-fine-pointer only by design, so a reason attached to one is a
+    reason no touch user ever receives — a dimmed control and silence. This was
+    the Plex Posters tab for a year: switched off for a poster with no Plex item,
+    explaining itself in a `data-tooltip` and in a panel the off tab would not
+    open. The fix was not a second channel but the realisation that the tab was
+    never unavailable — it was **empty**, like a search that matched nothing, so
+    it opens and says so. Prefer that reading before reaching for a way to
+    explain a refusal: a control with nothing to offer and a reason to give is
+    usually an empty destination, not a dead one. `DisabledStateTest` fails any
+    control that binds both `aria-disabled` and `data-tooltip`, but it cannot
+    catch a control that explains itself nowhere at all.
 
 ## Docker
 

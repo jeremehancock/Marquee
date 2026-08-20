@@ -134,6 +134,12 @@
     <div class="modal" x-show="change.open" x-cloak {{ tx.dialog() }}
          @keydown.escape.window="if (!confirm.open && !preview.open) change.open = false" style="display:none">
         <div class="modal__backdrop" @click="change.open = false"></div>
+        {# The width is a property of the tab, not of the poster. On Plex Posters for
+           a poster with no Plex item that means a wide dialog around one sentence,
+           which looks like an oversight and is not: making it depend on the poster
+           would trade a strip that keeps its shape for a panel that does not, and
+           the dialog would resize as the user moved between an unlinked poster and a
+           linked one. Same argument as the tab itself, one level up. #}
         <div class="modal__panel" :class="(change.tab === 'find' || change.tab === 'plex') ? 'modal__panel--wide' : ''"
              role="dialog" aria-modal="true" aria-label="Change poster">
             {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
@@ -149,20 +155,26 @@
                 <div class="modal__tabs">
                     <button type="button" :class="change.tab === 'upload' ? 'is-active' : ''" @click="change.tab = 'upload'">Upload</button>
                     <button type="button" :class="change.tab === 'url' ? 'is-active' : ''" @click="change.tab = 'url'">From URL</button>
-                    {# Shown for every poster, switched off for one with no Plex item, so the
-                       strip keeps its shape from poster to poster. Hiding it would leave a
-                       user who learned where the tab sits finding it gone with no reason
-                       given. Off carries its reason in the tooltip and in the panel.
+                    {# Shown for every poster, and openable for every poster, so the strip
+                       keeps its shape from poster to poster. Hiding it would leave a user
+                       who learned where the tab sits finding it gone with no reason given.
 
-                       aria-disabled rather than disabled: the attribute would take the tab
-                       out of the tab order, so a keyboard user would not be told the tab is
-                       unavailable — they would not be told it exists. The cost is that the
-                       click still fires, which is why the handler tests change.linked itself
-                       rather than trusting the attribute to enforce anything. #}
+                       A poster with no Plex item does not make this tab unavailable — it
+                       makes it empty, in the same sense as a search that matched nothing.
+                       That distinction is the whole reason the tab opens: an unavailable
+                       control can only state its reason through the affordances of the
+                       device in hand, and this app's hints are pointer-only by design (see
+                       app.js), so the reason never reached a touch user at all. The panel
+                       has no such gate. The reason lives there, in the words the server
+                       uses for the same case, and reaches every device.
+
+                       So the guard moved rather than went: it now sits on the request, not
+                       on the tab switch, because what must not happen for an unlinked
+                       poster is a call to Plex — not a change of tab. loadPlexPosters()
+                       repeats the check at the point the request is made; see the note
+                       there for why both. #}
                     <button type="button" :class="change.tab === 'plex' ? 'is-active' : ''"
-                            :aria-disabled="change.linked ? 'false' : 'true'"
-                            :data-tooltip="change.linked ? null : 'This poster is not linked to a Plex item.'"
-                            @click="if (change.linked) { change.tab = 'plex'; if (!plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters(); }">Plex Posters</button>
+                            @click="change.tab = 'plex'; if (change.linked && !plexPosters.uploaded.length && !plexPosters.available.length && !plexPosters.loading) loadPlexPosters()">Plex Posters</button>
                     <button type="button" :class="change.tab === 'find' ? 'is-active' : ''"
                             @click="change.tab = 'find'; if (!finder.sections.length && !finder.loading) findPosters()">Find Posters</button>
                 </div>
@@ -190,12 +202,29 @@
                    accumulates a long tail, and the uploads are the user's own history —
                    the reason to come here at all. #}
                 <div x-show="change.tab === 'plex'">
-                    <p class="stats" x-show="plexPosters.loading">Reading posters from Plex…</p>
-                    <p class="alert" x-show="plexPosters.error && !plexPosters.loading" x-text="plexPosters.error"></p>
-                    <p class="stats" x-show="!plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.available.length)">
+                    {# Why the tab has nothing, for a poster with no Plex item. Not an
+                       outcome of a request — no request is made, because whether the
+                       poster is linked is known from the card before the dialog opens.
+                       It is drawn as the request's own empty outcomes are drawn, because
+                       it is the same kind of answer: the tab has nothing, and here is why.
+
+                       Worded exactly as ChangePosterController words PlexPosterOutcome
+                       ::NotLinked, and that is not tidiness. change.linked comes from the
+                       card and can go stale — an orphan cleanup or a re-import between
+                       page render and dialog open — and when it does the request goes and
+                       the server answers this same case. The two paths must say the same
+                       sentence, or the user gets a different reason for the same fact.
+
+                       Everything below is gated on change.linked so an unlinked poster
+                       cannot also read as loading, as failed, or as having asked Plex and
+                       come back empty-handed. #}
+                    <p class="alert" x-show="!change.linked">This poster is not linked to a Plex item.</p>
+                    <p class="stats" x-show="change.linked && plexPosters.loading">Reading posters from Plex…</p>
+                    <p class="alert" x-show="change.linked && plexPosters.error && !plexPosters.loading" x-text="plexPosters.error"></p>
+                    <p class="stats" x-show="change.linked && !plexPosters.loading && !plexPosters.error && (plexPosters.uploaded.length || plexPosters.available.length)">
                         Tap a poster to preview it.
                     </p>
-                    <div class="poster-groups" x-show="!plexPosters.loading && !plexPosters.error">
+                    <div class="poster-groups" x-show="change.linked && !plexPosters.loading && !plexPosters.error">
                         {{ _self.plex_group('Uploaded to Plex', 'plexPosters.uploaded') }}
                         {{ _self.plex_group('Offered by Plex', 'plexPosters.available') }}
                     </div>

@@ -235,8 +235,17 @@ final class DisabledStateTest extends TestCase
 
     /**
      * `pointer-events: none` would refuse the click with no handler change at all,
-     * which is exactly why it will be proposed. It also silences the tooltip on the
-     * Plex Posters tab, which is the only thing that explains why that tab is off.
+     * which is exactly why it will be proposed.
+     *
+     * It also makes the element non-hit-testable, and `cursor: not-allowed` needs
+     * hit testing — so the two cannot both take effect, and the shortcut silently
+     * deletes a signal the design requires an off control to give. The tap lands on
+     * whatever sits behind the control, too.
+     *
+     * That is the durable reason, and it is stated rather than illustrated on
+     * purpose. This assertion was first justified by a tooltip it would have
+     * silenced, on a control that no longer exists — a justification anchored to one
+     * call site outlives the call site by exactly as long as nobody reads it.
      */
     public function testTheOffStateDoesNotSuppressPointerEvents(): void
     {
@@ -247,8 +256,8 @@ final class DisabledStateTest extends TestCase
                 'pointer-events: none',
                 $body,
                 sprintf(
-                    '%s silences the pointer, and with it the tooltip that carries the reason. '
-                    . 'Refusing the action belongs in the handler.',
+                    '%s makes the control non-hit-testable, which takes `cursor: not-allowed` '
+                    . 'with it. Refusing the action belongs in the handler.',
                     $selector
                 )
             );
@@ -283,11 +292,6 @@ final class DisabledStateTest extends TestCase
     public static function switchedOffControls(): array
     {
         return [
-            'Plex Posters tab' => [
-                'gallery.html.twig',
-                ":aria-disabled=\"change.linked ? 'false' : 'true'\"",
-                '@click="if (change.linked)',
-            ],
             'Cancel, under a running change' => [
                 'gallery.html.twig',
                 ":aria-disabled=\"preview.applying ? 'true' : 'false'\"",
@@ -320,6 +324,106 @@ final class DisabledStateTest extends TestCase
             $source,
             'aria-disabled announces; it does not enforce. Every binding needs a guard '
             . 'at the action, or the control is pressable while reading as dead.'
+        );
+    }
+
+    /**
+     * A switched-off control may not keep its reason in a tooltip.
+     *
+     * Tooltips are a hovering-fine-pointer affordance by design, so this pattern is
+     * pointer-only by construction: the control refuses, the reason is attached, and
+     * a touch user gets a dimmed control and silence. It is the shape of the defect
+     * rather than an instance of one — every element matching it is wrong, whatever
+     * the reason says.
+     *
+     * Checked on the element itself rather than on the file, because a tooltip
+     * elsewhere in the same template is nobody's business here. The invariant is
+     * that the control which refuses does not also carry the explanation.
+     *
+     * Every occurrence of the binding, not the first: `preview.applying` switches off
+     * two buttons that sit next to each other, so stopping at the first would check
+     * "Change poster" twice and "Cancel" never — a data set that names one control
+     * and inspects another is worse than no data set, because it reports as coverage.
+     *
+     * It cannot catch a control that carries no explanation anywhere, which is the
+     * other half of the same requirement and is not testable from source.
+     */
+    #[DataProvider('switchedOffControls')]
+    public function testNoSwitchedOffControlKeepsItsReasonInATooltip(
+        string $template,
+        string $binding,
+        string $guard
+    ): void {
+        $source = $this->template($template);
+
+        $at = strpos($source, $binding);
+        self::assertIsInt($at, 'Expected to find ' . $binding . ' in ' . $template);
+
+        while ($at !== false) {
+            // The element's own tag: back to the '<' that opens it, forward to the
+            // '>' that ends it. Attributes cannot nest, so this is the whole control
+            // and nothing of its neighbours.
+            $open = strrpos(substr($source, 0, $at), '<');
+            self::assertIsInt($open);
+            $close = strpos($source, '>', $at);
+            self::assertIsInt($close);
+
+            self::assertStringNotContainsString(
+                'data-tooltip',
+                substr($source, $open, $close - $open + 1),
+                'A switched-off control cannot explain itself through a tooltip: tooltips '
+                . 'are suppressed on touch, so the reason reaches a pointer user and nobody '
+                . 'else. Put it where the control leads, or beside it.'
+            );
+
+            $at = strpos($source, $binding, $close);
+        }
+    }
+
+    /**
+     * The tab this file used to list, asserted from the other side.
+     *
+     * A poster with no Plex item does not make the tab unavailable — it makes it
+     * empty, and an empty tab opens and says so. The distinction is the reason the
+     * reason now reaches a phone at all, and it is one refactor away from being
+     * undone by someone restoring what looks like a missing guard.
+     */
+    public function testThePlexPostersTabIsEmptyRatherThanSwitchedOff(): void
+    {
+        $source = $this->template('gallery.html.twig');
+
+        self::assertStringNotContainsString(
+            ':aria-disabled="change.linked',
+            $source,
+            'The Plex Posters tab is not switched off for an unlinked poster. Switched off, '
+            . 'its reason could only be told to a pointer user.'
+        );
+        self::assertStringContainsString(
+            '<p class="alert" x-show="!change.linked">This poster is not linked to a Plex item.</p>',
+            $source,
+            'The tab must state why it has nothing, in the panel, where no device is excluded.'
+        );
+    }
+
+    /**
+     * The guarantee that survived the tab being opened: an unlinked poster does not
+     * cause a request to Plex. It moved from the control to the request, which is
+     * where it belongs — what must not happen is the call, not the change of tab.
+     *
+     * Pinned in the function rather than in the inline @click expression because the
+     * expression is the half that can be edited into looking correct while having
+     * dropped its share of the condition.
+     */
+    public function testAnUnlinkedPosterIsNeverAskedAboutAtThePointOfAsking(): void
+    {
+        $path = dirname(__DIR__, 3) . '/public/assets/gallery.js';
+        $source = file_get_contents($path);
+        self::assertIsString($source);
+
+        self::assertStringContainsString(
+            'if (!this.change.linked) { return; }',
+            $source,
+            'loadPlexPosters must refuse a poster with no Plex item where the request is made.'
         );
     }
 
