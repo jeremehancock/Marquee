@@ -153,11 +153,19 @@ and the link SHALL be reachable by keyboard.
 - **THEN** the preview offers a control that opens that candidate's source page
   in a new browsing context
 
-#### Scenario: Carrying a source address does not by itself require a credit
+#### Scenario: Carrying a source address does not by itself oblige a credit
 - **WHEN** a user views a candidate that carries a source address but was not
   marked as requiring attribution
-- **THEN** no required-attribution control is shown for it, and no disabled or
-  empty control is left in its place
+- **THEN** any link shown for it is one Marquee offers by choice, and removing it
+  would leave the system in conformance — whereas removing the link from a marked
+  candidate would not
+
+#### Scenario: Marked and unmarked credits may look the same
+- **WHEN** a marked candidate and an unmarked one are shown side by side, each
+  with a link to its source page
+- **THEN** the two may be presented identically, and the requirement is satisfied
+  by the marked candidate's link being present rather than by its being
+  distinguished on screen
 
 #### Scenario: The credit never blocks choosing the poster
 - **WHEN** a user activates a marked candidate
@@ -192,8 +200,9 @@ address is valid: a service with no resolvable page for a work omits it rather
 than guessing.
 
 #### Scenario: An unmarked candidate can still show where it came from
-- **WHEN** a user opens the full-screen preview of a candidate that carries a
-  source address but is not marked as requiring attribution
+- **WHEN** a user views a candidate that carries a source address but is not
+  marked as requiring attribution, either in the results or in the full-screen
+  preview
 - **THEN** a control is offered that opens that address in a new browsing context
 
 #### Scenario: Provenance wording makes no licence claim

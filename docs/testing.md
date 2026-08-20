@@ -230,43 +230,41 @@ responses partial. If a movie search ever shows a warning line mentioning
 missing results, *that* is the finding — it means something started reading the
 providers map.
 
-**Two different links, and telling them apart is the test.** Every service now
-reports where a poster came from, but only some licence their artwork on terms
-requiring that link be shown. Marquee renders those two facts differently on
-purpose, so checking that only one of them is everywhere is the point.
-
-| Where | Which posters | What it is |
-| --- | --- | --- |
-| Corner badge on the poster, in the results grid | **TVmaze only** | The licence-required credit |
-| Link under the full-screen preview | **Every** poster, all four services | Plain provenance — "View on TMDB" |
+**Every candidate links back to where it came from**, in two places: a corner
+badge on the poster in the results grid, and a line under the full-screen
+preview. Both open the supplying service's own page for that show, season or
+film, in a new tab.
 
 Check all of these:
 
-- In a show's results, the corner badge appears on **TVmaze posters only**. A
-  badge on TMDB, TheTVDB or fanart.tv posters means the credit has been bound to
-  the wrong thing — it is claiming a licence condition those services do not
-  impose. **A badge on every poster is the specific regression to watch for.**
-- The corner badge opens TVmaze in a new tab.
+- Every poster with a source page carries the corner badge — TMDB, TheTVDB,
+  fanart.tv and TVmaze alike. **TVmaze posters must never be the only ones
+  without it.**
+- The badge opens that service's page in a new tab.
 - **The badge is plainly visible against every poster**, including bright and
   busy artwork — it reads as a control sitting on top of the image, with its own
   edge, not as part of it. It shipped once too faint to see, which made it a link
   out of the application that users could not deliberately avoid.
+- It should not overwhelm the grid either. At ~189 badges in a show search they
+  should read as a control on each poster, not as the page's dominant texture.
 - Tapping the poster itself still opens the preview — the badge must not swallow
   that press, which is worth checking on a real phone and not only a mouse.
 - Opening **any** poster full screen offers a link naming its service. A TMDB
   poster reads "View on TMDB". It must **not** read as a licence notice —
   wording like "attribution required" on a TMDB poster is simply false.
 - On a **season**, the TVmaze badge goes to the *season's* page, not the show's.
-- Also on a **season**: the fanart.tv poster's preview link goes to the
-  **series** page while TMDB's and TheTVDB's go to the season. fanart.tv has no
-  season page. **That disagreement is correct — do not report it as a bug.**
+- Also on a **season**: the fanart.tv poster's link goes to the **series** page
+  while TMDB's and TheTVDB's go to the season. fanart.tv has no season page.
+  **That disagreement is correct — do not report it as a bug.**
 
-The badge is a licence condition, not decoration: TVmaze artwork is CC BY-SA and
-the link back is how the attribution is met. A TVmaze poster displayed without
-its badge is the one failure here worth blocking a release for. The preview link
-is a convenience and could be moved tomorrow; it does not discharge the
-obligation, and its presence on a TVmaze poster is not a substitute for the
-badge.
+**Not every one of these links is optional, even though they look alike.** TVmaze
+artwork is CC BY-SA, and its link back is how the attribution is met — a TVmaze
+poster shown without one is the failure here worth blocking a release for. The
+rest are provenance, shown because it is useful. The two are told apart in the
+code, not on screen: the badge's condition names the marking, and a marked
+badge carries `data-attribution-required="true"` in the DOM. So if a future
+change makes these links optional or moves them, **the TVmaze ones still have to
+be somewhere the poster is shown.**
 
 **An `Other` section is the finding worth reporting.** It means the poster
 source returned a `source` slug this build does not recognise, which is the

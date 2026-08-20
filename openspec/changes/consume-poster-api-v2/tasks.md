@@ -270,3 +270,42 @@ the application is the wrong way round. Two causes, one of them a plain defect.
       component properties (the alert variants' own `--alert-hue` and friends)
       are legitimate, so the check is stylesheet-wide rather than `:root`-only.
       Verify it fails against the original typo before trusting it.
+
+## 13. The badge goes on every poster
+
+Decided on the `:dev` image, once the badge was visible enough to judge: the
+link back is useful on every candidate, not only the licensed ones. That is a
+product call and it reverses the split in group 8 — but only for *where the
+badge appears*, never for what the licence requires.
+
+- [x] 13.1 Change the badge's condition to
+      `poster.attributionRequired || poster.page`. **The first clause is not
+      redundant** — `poster.page` alone renders identically today, and the whole
+      point of group 8 was that the obligation must survive a later decision to
+      drop the provenance badge. Named first so it reads as "always when
+      required, also when we have somewhere to point".
+- [x] 13.2 Add `:data-attribution-required` to the badge. The two are drawn
+      identically — the licence asks that the link be shown, not that it be shown
+      differently — so this is where the distinction lives when the pixels
+      cannot carry it.
+- [x] 13.3 Rewrite the template comment, which argued at length for the badge
+      being bound to the marking alone.
+- [x] 13.4 Rewrite the `.find-item__credit` CSS comment. It justified an
+      assertive control on the grounds that it was rare; it is now on nearly
+      every candidate, and the justification is the opposite one — quiet at rest,
+      accent only on hover, so ~189 of them read as controls rather than as the
+      grid's texture.
+- [x] 13.5 `PosterCreditLinkTest`: replace the "not bound to the address"
+      assertion, which is now false by design, with one that the condition still
+      *names* the marking and names it first. Add the DOM-marker assertion. Keep
+      the provider-name guard untouched.
+- [x] 13.6 Docs: `README.md` and `docs/testing.md` both described a badge that
+      appears only on TVmaze. Rewrite both around one badge on everything, with
+      the licence point kept as the reason some of them are not optional.
+- [x] 13.7 `CLAUDE.md`: the bullet said the credit is keyed on the marking and
+      nothing else. Restate it as the two-clause condition and say why the first
+      clause cannot be dropped.
+- [x] 13.8 Spec: the scenario asserting an unmarked candidate shows no control is
+      now false. Restate it as the real invariant — an unmarked candidate's link
+      is one Marquee could remove and stay in conformance, a marked one's is not
+      — and add that the two may look identical.

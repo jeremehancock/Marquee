@@ -245,32 +245,44 @@
                                                      @load="loaded = true" @error="loaded = true"
                                                      @click="openPreview(poster.url, 'find', null, '', poster.page, section.label)" data-tooltip="Click to preview">
                                                 {# The required credit, shown on a candidate whose supplying service's
-                                                   licence compels the link. That artwork must not be displayed
-                                                   without it, so this badge is the obligation and not an
-                                                   embellishment.
+                                                   licence compels the link, and on any other candidate the source
+                                                   gave a page for. Both open where the poster came from, and they
+                                                   are drawn identically — the licence asks that the link be shown,
+                                                   not that it be shown differently from every other link.
 
-                                                   **The trigger is `poster.attributionRequired` and nothing else.**
+                                                   **`attributionRequired` is named first, and that is not
+                                                   decoration.**
 
-                                                   Not `poster.page` — nearly every candidate carries one of those,
-                                                   and binding to it would put a licence-driven control on artwork
-                                                   whose licence asks for nothing, while leaving the real obligation
-                                                   indistinguishable from decoration. The provenance link belongs in
-                                                   the preview, where a user is looking at one poster; see the viewer.
+                                                   Read the condition as two clauses that cannot be collapsed:
+                                                   *always* when the licence requires it, *also* when we simply have
+                                                   somewhere to point. The second clause is a product decision and
+                                                   could be dropped tomorrow; the first cannot. Writing it this way
+                                                   means dropping the provenance badge leaves
+                                                   `x-show="poster.attributionRequired"` behind rather than removing
+                                                   the credit that may not go. Reducing this to `poster.page` alone
+                                                   would render identically today and lose that, silently.
 
-                                                   Not `source === 'tvmaze'` either — the payload deliberately carries
-                                                   no source, because the service decides which of its providers are
-                                                   licensed this way and a name test would have to be reopened for the
-                                                   next one. TVmaze is simply the only one marked today.
+                                                   `data-attribution-required` carries the same fact into the DOM, so
+                                                   the distinction survives somewhere a reader can see it even though
+                                                   both badges look alike.
+
+                                                   Not `source === 'tvmaze'` in either clause — the payload
+                                                   deliberately carries no source, because the service decides which
+                                                   of its providers are licensed this way and a name test would have
+                                                   to be reopened for the next one. TVmaze is simply the only one
+                                                   marked today.
 
                                                    A sibling of the image rather than a wrapper: the image carries the
                                                    click that opens the preview, and wrapping it in an anchor would put
                                                    every candidate one stray press away from leaving the app. @click.stop
                                                    keeps the two apart in the other direction. Omitted entirely when
-                                                   unmarked — never rendered disabled, since a control that cannot
-                                                   exist has no state to announce. #}
-                                                <a class="find-item__credit" x-show="poster.attributionRequired" x-cloak
+                                                   there is nothing to point at — never rendered disabled, since a
+                                                   control that cannot exist has no state to announce. #}
+                                                <a class="find-item__credit"
+                                                   x-show="poster.attributionRequired || poster.page" x-cloak
                                                    :href="poster.page" target="_blank" rel="noopener"
                                                    @click.stop
+                                                   :data-attribution-required="poster.attributionRequired ? 'true' : 'false'"
                                                    :aria-label="'Open this poster\'s page on ' + section.label"
                                                    :data-tooltip="'View on ' + section.label">↗</a>
                                             </div>

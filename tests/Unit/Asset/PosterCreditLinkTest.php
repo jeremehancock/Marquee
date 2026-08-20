@@ -10,19 +10,25 @@ use PHPUnit\Framework\TestCase;
  * The two links a Find Posters candidate can carry, and the fact that they are
  * not the same link.
  *
- * - The **required credit** is a badge on the poster in the results grid, shown
- *   when the poster source marks a candidate as requiring attribution. Some of
- *   the artwork Find Posters returns is licensed on terms discharged only by
+ * - The **required credit** must appear wherever a marked poster is shown. Some
+ *   of the artwork Find Posters returns is licensed on terms discharged only by
  *   linking back from where the image is shown, and marked artwork must not be
  *   displayed without it. Not our decision to make.
- * - The **provenance link** sits in the full-screen preview and is shown for any
- *   candidate the source gave an address for, which is nearly all of them. It is
- *   a product decision, and could be moved or dropped tomorrow.
+ * - The **provenance link** is offered for any candidate the source gave an
+ *   address for, which is nearly all of them. It is a product decision, and could
+ *   be moved or dropped tomorrow.
  *
- * Keeping them apart is what this file is for. They were briefly the same thing:
- * the endpoint once sent an address only on the licensed subset, so presence and
- * obligation coincided. They no longer do, and the collapse is easy to
- * reintroduce because the two controls look related and sit a few lines apart.
+ * They are drawn the same and in the same places — a badge on the poster in the
+ * grid, a link under the full-screen preview — because the licence asks that the
+ * link be shown, not that it be shown differently. So the distinction survives in
+ * the *conditions* and in a `data-` attribute rather than in the pixels, and that
+ * is what this file holds.
+ *
+ * The reason to hold it: presence and obligation were briefly the same fact, when
+ * the endpoint sent an address only on the licensed subset. They no longer are,
+ * but a condition covering both still renders identically to one covering only
+ * the address — so the collapse costs nothing visible and loses the obligation
+ * entirely.
  *
  * Both are drawn by Alpine from JSON, so no rendering assertion can reach them —
  * the markup is the only artefact a test can hold. It is held here for the same
@@ -90,34 +96,74 @@ final class PosterCreditLinkTest extends TestCase
 
     public function testTheGridBadgeCreditsAMarkedCandidate(): void
     {
-        $markup = $this->markup();
+        $badge = $this->openingTag('find-item__credit');
 
-        self::assertStringContainsString('class="find-item__credit"', $markup);
-        self::assertStringContainsString('x-show="poster.attributionRequired"', $markup);
+        self::assertStringContainsString('poster.attributionRequired', $this->condition('find-item__credit'));
         // The marking says a credit is owed; the address says where it points.
-        self::assertStringContainsString(':href="poster.page"', $markup);
+        self::assertStringContainsString(':href="poster.page"', $badge);
+    }
+
+    /**
+     * The badge is also offered as provenance, on any candidate with an address.
+     *
+     * That is a product decision — it puts a link on nearly every result — and it
+     * is deliberately the *second* clause of the condition. See the test below for
+     * why the order is load-bearing.
+     */
+    public function testTheGridBadgeIsAlsoOfferedForProvenance(): void
+    {
+        self::assertStringContainsString('poster.page', $this->condition('find-item__credit'));
     }
 
     /**
      * **The guard this file exists for.**
      *
-     * Nearly every candidate now carries a source address, so a badge bound to
-     * one would appear on all ~189 results of a show search — asserting a licence
-     * condition over TMDB, TheTVDB and fanart.tv artwork that carries none, and
-     * leaving the real obligation indistinguishable from decoration.
+     * The badge is shown on nearly every candidate, so the two reasons it can
+     * appear are indistinguishable on screen — which is fine, since the licence
+     * asks that the link be shown, not that it be shown differently. What is not
+     * fine is the obligation vanishing from the code, because then the next
+     * change to how optional links are presented takes the required one with it
+     * and nothing says so.
      *
-     * That is not hypothetical: it is what this code did before the contract
-     * separated the two fields, and it stayed compliant only by over-attributing.
-     * The negative assertion is what makes reintroducing it fail rather than pass
-     * quietly.
+     * `poster.page` alone would render identically today. This asserts the
+     * condition still names the marking, so removing the provenance clause leaves
+     * the credit behind instead of deleting it.
+     *
+     * Not hypothetical: keying solely on the address is what this code did before
+     * the source separated the two fields, and it stayed compliant only by
+     * over-attributing — which is luck, not design.
      */
-    public function testTheGridBadgeIsNotBoundToTheSourceAddress(): void
+    public function testTheGridBadgeStillNamesTheObligation(): void
     {
-        self::assertStringNotContainsString(
-            'x-show="poster.page"',
+        $condition = $this->condition('find-item__credit');
+
+        self::assertStringContainsString(
+            'attributionRequired',
+            $condition,
+            'The badge condition must name the attribution marking even while it also shows for '
+            . 'provenance. Reducing it to the source address renders the same today and silently '
+            . 'discards the one credit that may never be removed.',
+        );
+
+        self::assertStringStartsWith(
+            'poster.attributionRequired',
+            $condition,
+            'The obligation is the first clause: "always when required, also when we have a page". '
+            . 'Reversed, it reads as an afterthought and invites being tidied away.',
+        );
+    }
+
+    /**
+     * Both badges look alike, so the distinction lives in the DOM instead — the
+     * one place a reader, a test, or a future stylesheet can still find it.
+     */
+    public function testTheMarkedBadgeIsIdentifiableInTheDom(): void
+    {
+        self::assertStringContainsString(
+            ':data-attribution-required="poster.attributionRequired',
             $this->openingTag('find-item__credit'),
-            'The required credit must be bound to the attribution marking, never to the presence of '
-            . 'a source address — nearly every candidate has one of those.',
+            'A badge shown for a licence reason must be distinguishable from one shown for a '
+            . 'product reason, even when the two are drawn identically.',
         );
     }
 
@@ -131,12 +177,13 @@ final class PosterCreditLinkTest extends TestCase
     }
 
     /**
-     * The two controls read different conditions, and that difference is the
-     * design rather than an accident of how they were written.
+     * The grid badge and the preview link read their own conditions.
      *
-     * Collapsing them either way is a defect: one condition on both means the
-     * badge returns to every poster, or the preview link vanishes from the three
-     * quarters of candidates that are unmarked.
+     * They cover nearly the same candidates now, which is exactly when someone
+     * decides one flag would do for both. It would not: the badge has to keep
+     * naming the obligation, and the preview link is pure provenance with nothing
+     * required of it. Sharing a condition would tie a licence credit to a
+     * decision about how previews look.
      */
     public function testTheTwoLinksAreDrivenByDifferentConditions(): void
     {
