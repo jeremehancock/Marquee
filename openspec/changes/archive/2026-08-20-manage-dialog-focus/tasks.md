@@ -97,20 +97,20 @@
       only because it declares the role, which no test can enforce for an
       overlay that declares nothing.
 - [x] 5.3 `openspec validate manage-dialog-focus --strict`.
-- [ ] 5.4 **Keyboard pass against the `:dev` image — the only step that proves
+- [x] 5.4 **Keyboard pass against the `:dev` image — the only step that proves
       any of this works, since the suite cannot.** On the gallery: Tab to a
       poster, open Change poster, confirm focus lands in the dialog and its name
       is announced; Tab past the last control and confirm it wraps; Escape and
       confirm focus returns to the card.
-- [ ] 5.5 `:dev` pass, nesting: from the change dialog open a preview, press
+- [x] 5.5 `:dev` pass, nesting: from the change dialog open a preview, press
       "Use this poster", and confirm focus is not thrown to the top of the
       document when the action row is replaced; Escape and confirm focus returns
       into the change dialog with it still open.
-- [ ] 5.6 `:dev` pass, close paths: dismiss overlays by backdrop, by close
+- [x] 5.6 `:dev` pass, close paths: dismiss overlays by backdrop, by close
       button, and by swipe on a phone, and confirm focus returns each time.
-- [ ] 5.7 `:dev` pass, removed origin: delete a poster from the actions tray and
+- [x] 5.7 `:dev` pass, removed origin: delete a poster from the actions tray and
       confirm focus lands in the results region rather than at the top of the
       document.
-- [ ] 5.8 `:dev` pass, the trays: open import, orphans and settings and confirm
+- [x] 5.8 `:dev` pass, the trays: open import, orphans and settings and confirm
       focus lands in each while its body is still loading, and that the fetched
       contents are reachable by tabbing forward once they arrive.
