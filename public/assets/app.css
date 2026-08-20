@@ -649,9 +649,10 @@ body {
     text-decoration: none;
 }
 
-/* The three marks have very different aspect ratios (TMDB is a wide wordmark,
-   TheTVDB is nearly square, fanart.tv sits between), so each gets the height
-   that makes them read as one row. Width follows from the intrinsic ratio. */
+/* The four marks have very different aspect ratios (TMDB is a wide wordmark at
+   7.6:1, TheTVDB is nearly square at 1.9:1, fanart.tv and TVmaze sit between at
+   5:1 and 3.2:1), so each gets the height that makes them read as one row.
+   Width follows from the intrinsic ratio. */
 .attribution__logo {
     display: block;
     width: auto;
@@ -667,6 +668,28 @@ body {
 
 .attribution__logo--fanart {
     height: 28px;
+}
+
+.attribution__logo--tvmaze {
+    height: 22px;
+}
+
+/* Optical correction, not a spacing change: the gap either side of TVmaze is the
+   same 22px as every other, and it does not look it.
+
+   The mark opens with a full-height bracket rule — about 1.6px wide once scaled —
+   followed by internal space before the "T". Measured on the asset, the
+   letterforms start 16 of 253 columns in, which is ~4.4px at this height. The eye
+   reads a logo as starting where its letters start, so those 4.4px are counted as
+   part of the gap rather than part of the mark. fanart.tv makes it worse by
+   ending in light grey ".TV": two faint edges facing each other, and a
+   metrically-correct gap that reads wide.
+
+   So the run-in is subtracted back. Anything that changes the TVmaze height must
+   rescale this with it — the offset is a proportion of the mark, not a constant.
+   Do not "fix" it by restoring a uniform gap; uniform is what looked wrong. */
+.attribution__logos a:has(.attribution__logo--tvmaze) {
+    margin-inline-start: -4px;
 }
 
 .panel {
@@ -1972,6 +1995,66 @@ h1 {
     cursor: zoom-in;
 }
 
+/* The credit link on a candidate whose service requires one (see the template).
+   Bottom-trailing corner, so it clears both .find-item__badge — which holds the
+   opposite corner — and the middle of the thumbnail, which is where a user aims
+   to open the preview. Sized as a 28px target rather than to the glyph: this is
+   tapped on a phone, inside a cell only ~130px wide, and a link the width of an
+   arrow would be missed as often as hit. Its own backdrop because it sits on an
+   image of unknown colour and has to stay legible on all of them.
+
+   It appears on nearly every candidate — anything the source gave a page for —
+   so it has to hold its own against a wall of artwork without becoming the thing
+   the eye lands on. That is why it is small, cornered and quiet in its resting
+   state, and only takes the accent on hover or focus: at ~189 of them in a show
+   search, anything louder would read as the grid's dominant texture rather than
+   as a control on each poster.
+
+   The badge shown because a licence requires it is drawn identically to the one
+   shown as provenance; the distinction is in the template's condition and in
+   data-attribution-required, not in the paint. */
+.find-item__credit {
+    position: absolute;
+    inset-block-end: 6px;
+    inset-inline-end: 6px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-xs);
+    /* Opaque, on the elevated tone with the clearer border — the same treatment
+       .card__actions gives its buttons over the hover overlay, and for the same
+       reason: a translucent control over an image of unknown colour reads as
+       half-there. It was translucent here at first and the result was a control
+       users could neither see nor deliberately avoid, which for a link that
+       leaves the application is the wrong way round.
+
+       This is also what the token contract requires — legibility must not depend
+       on the blur — so there is no blur left to depend on. */
+    background: var(--surface-2);
+    border: 1px solid #4b515b;
+    box-shadow: var(--elev-1);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    transition:
+        background var(--dur-base) var(--ease-standard),
+        border-color var(--dur-base) var(--ease-standard),
+        color var(--dur-base) var(--ease-standard);
+}
+
+.find-item__credit:hover,
+.find-item__credit:focus-visible {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    text-decoration: none;
+}
+
 /* Shared by both tabs that stack grids under their own headings: Plex Posters
    (two fixed groups) and Find Posters (one section per supplying service).
    Scrolling belongs to the stack rather than to each grid — independently
@@ -2503,11 +2586,34 @@ h1 {
 .viewer__bar {
     flex: 0 0 auto;
     display: flex;
-    /* Bottom-anchor the actions so the button row stays put when the confirm
-       step adds its question line above the buttons. */
-    align-items: flex-end;
-    justify-content: center;
+    /* A column since the credit line stacks above the actions. Bottom-anchoring
+       the actions — so the button row stays put when the confirm step adds its
+       question line above the buttons — is `justify-content` in this direction,
+       and centring is `align-items`; both were the other property when this was
+       a row. */
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
     min-height: 96px;
+}
+
+/* The credit for a poster whose source requires a link back. Deliberately not
+   styled as a .btn: it leaves the app, while every button in this bar acts on
+   the poster, and one that looked like the others would be pressed by someone
+   meaning to choose it. Sits above the action row and outlasts the confirm step,
+   so it never changes the bar's height while the user is deciding — that motion
+   would move the image they are deciding about. */
+.viewer__credit {
+    color: var(--ink);
+    font-size: 13px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.viewer__credit:hover,
+.viewer__credit:focus-visible {
+    color: var(--accent);
 }
 
 .viewer__actions {
@@ -2861,10 +2967,19 @@ h1 {
         display: none;
     }
 
-    /* The tray is narrower than the page, so the row is tightened enough to stay
-       on one line down to a 320px phone — the three logos plus their gaps come to
-       ~278px against the ~288px the tray leaves inside its padding. Sizing up
-       from here wraps fanart.tv onto a second line. */
+    /* The tray is narrower than the page — roughly 288px inside its padding on a
+       320px phone — and four logos no longer fit across it: with gaps they come
+       to ~349px against the ~278px the first three occupy. They are therefore
+       allowed to wrap, which .attribution__logos already does (flex-wrap plus a
+       centred main axis). At 320px that puts TMDB, TVDB and fanart.tv on one line
+       and TVmaze centred beneath them; a little more width and all four share a
+       line again.
+
+       That is the deliberate trade. Shrinking them enough to hold one line was
+       tried when there were three and fanart.tv already set the floor there;
+       a fourth mark below that height is a smudge, and an illegible credit
+       credits nobody. Vertical space in the drawer footer is the cheaper thing
+       to spend. */
     .attribution__logos {
         gap: 14px;
     }
@@ -2879,6 +2994,20 @@ h1 {
 
     .attribution__logo--fanart {
         height: 22px;
+    }
+
+    .attribution__logo--tvmaze {
+        height: 18px;
+    }
+
+    /* The same optical run-in, rescaled: 16/253 of an 18px mark is ~3.6px.
+
+       It earns its place on the wider phones where all four marks still share a
+       line (they total ~349px). At the narrowest, TVmaze wraps alone and the
+       offset merely shifts a centred item by half of itself — 1.5px, which
+       nobody sees, and not worth a query to switch off. */
+    .attribution__logos a:has(.attribution__logo--tvmaze) {
+        margin-inline-start: -3px;
     }
 
     /* Tabs become a native-style bottom tab bar: pinned to the bottom, always

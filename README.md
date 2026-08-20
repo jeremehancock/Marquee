@@ -431,15 +431,34 @@ Plex Posters shows what your own server already has for that item. Find Posters
 searches the internet for something new.
 
 **Why is "Find Posters" split into sections?**
-Each section is one of the services the search draws from — TMDB, TVDB and
-fanart.tv — with a count of what that service returned. They're not
+Each section is one of the services the search draws from — TMDB, TVDB,
+fanart.tv and TVmaze — with a count of what that service returned. They're not
 interchangeable: fanart.tv is where textless artwork tends to be, TMDB carries
-the most language variants, and TVDB has a show's own artwork. The sections
-are always in the same order, so once you know where your preferred service sits
-it stays there. Whichever one you want, results within a section are still
-ranked best-first.
+the most language variants, TVDB has a show's own artwork, and TVmaze is worth
+checking on a season, where it often holds an image none of the others do. The
+sections are always in the same order, so once you know where your preferred
+service sits it stays there. Whichever one you want, results within a section are
+still ranked best-first.
 
 A service that returned nothing for an item is left out rather than shown empty.
+
+**Why does TVmaze never appear on a movie?**
+It only covers television. On a movie or a collection its section is simply
+absent — that's the expected result, not a failure, so nothing is reported.
+
+**What's the small link in the corner of each result?**
+It opens that service's own page for the show, season or film — TMDB, TheTVDB,
+fanart.tv or TVmaze — so you can see the artwork in context before you commit to
+it. The same link appears under the full-screen preview, reading "View on TMDB"
+and so on.
+
+It opens in a new tab and doesn't choose the poster; tapping the poster still
+previews it as usual.
+
+For most services this is just a convenience. For some it isn't optional: TVmaze
+licenses its artwork under CC BY-SA, which asks that Marquee link back wherever it
+shows the image. Those links look the same as the rest, but they're the ones that
+have to be there.
 
 **I want a poster back that I used to have**
 Use **Plex Posters**. Plex keeps every poster ever uploaded to an item and never

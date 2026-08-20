@@ -194,8 +194,12 @@ final class PreviewApplyProgressTest extends TestCase
             preg_match_all('/URL\.revokeObjectURL/', $source),
             'Revoking belongs in one helper, called when the preview closes or is replaced.'
         );
+        // The parameter list is matched loosely on purpose: what this pins is
+        // that the revoke is the *first* statement, not how many arguments the
+        // function has grown. Spelling the list out here made adding one a
+        // failure in a test about object URLs, which taught nothing.
         self::assertMatchesRegularExpression(
-            '/openPreview: function \(src, source, file, token\) \{\s*this\._revokePreviewSrc\(\);/',
+            '/openPreview: function \([^)]*\) \{\s*this\._revokePreviewSrc\(\);/',
             $source,
             'Opening a preview must release the object URL it replaces.'
         );

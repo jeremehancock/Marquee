@@ -24,6 +24,7 @@ final class PosterProviderTest extends TestCase
         self::assertSame('tmdb', PosterProvider::Tmdb->value);
         self::assertSame('thetvdb', PosterProvider::TheTvdb->value);
         self::assertSame('fanart.tv', PosterProvider::Fanart->value);
+        self::assertSame('tvmaze', PosterProvider::Tvmaze->value);
     }
 
     /**
@@ -31,23 +32,34 @@ final class PosterProviderTest extends TestCase
      * CSS, where the full name collapses to "THETVDB" and loses the camel case
      * that makes it readable. The footer's attribution still carries the real
      * brand, as a logo, so no two spellings meet as words on screen.
+     *
+     * TVmaze is asserted in full for the contrast: it is no shorter than
+     * TheTVDB, and it is not abbreviated, because "TVMAZE" survives the
+     * uppercasing as one readable word. The rule is about camel case carrying
+     * the reading, not about length.
      */
     public function testEachProviderIsLabelledForTheHeadingItAppearsIn(): void
     {
         self::assertSame('TMDB', PosterProvider::Tmdb->label());
         self::assertSame('TVDB', PosterProvider::TheTvdb->label());
         self::assertSame('fanart.tv', PosterProvider::Fanart->label());
+        self::assertSame('TVmaze', PosterProvider::Tvmaze->label());
     }
 
     /**
      * Fixed, and the same for every item — that consistency is the whole point of
      * the feature. It is also the order the provider attribution credits these
-     * three in; the two must not drift apart.
+     * services in; the two must not drift apart.
      */
     public function testSectionOrderIsFixed(): void
     {
         self::assertSame(
-            [PosterProvider::Tmdb, PosterProvider::TheTvdb, PosterProvider::Fanart],
+            [
+                PosterProvider::Tmdb,
+                PosterProvider::TheTvdb,
+                PosterProvider::Fanart,
+                PosterProvider::Tvmaze,
+            ],
             PosterProvider::inSectionOrder(),
         );
     }

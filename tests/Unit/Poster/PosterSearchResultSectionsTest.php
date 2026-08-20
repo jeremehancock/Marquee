@@ -61,16 +61,34 @@ final class PosterSearchResultSectionsTest extends TestCase
     public function testSectionOrderIsFixedRegardlessOfArrivalOrder(): void
     {
         $result = $this->sectionsFor([
+            $this->candidate('https://img/tvmaze.jpg', 'tvmaze'),
             $this->candidate('https://img/fanart.jpg', 'fanart.tv'),
             $this->candidate('https://img/tvdb.jpg', 'thetvdb'),
             $this->candidate('https://img/tmdb.jpg', 'tmdb'),
         ]);
 
-        self::assertSame(['TMDB', 'TVDB', 'fanart.tv'], $this->labels($result));
+        self::assertSame(['TMDB', 'TVDB', 'fanart.tv', 'TVmaze'], $this->labels($result));
     }
 
     /**
-     * The source ranks across all three services at once and that order carries
+     * TVmaze is the last named service, so an unrecognised one has to sort after
+     * it — not merely after the three that predate it. The trailing section is
+     * defined as following *every* named section, and adding a provider is
+     * exactly the moment that could quietly stop being true.
+     */
+    public function testTheTrailingSectionFollowsEveryNamedServiceIncludingTheLast(): void
+    {
+        $result = $this->sectionsFor([
+            $this->candidate('https://img/new.jpg', 'mediux'),
+            $this->candidate('https://img/tvmaze.jpg', 'tvmaze'),
+            $this->candidate('https://img/tmdb.jpg', 'tmdb'),
+        ]);
+
+        self::assertSame(['TMDB', 'TVmaze', PosterSection::OTHER], $this->labels($result));
+    }
+
+    /**
+     * The source ranks across all four services at once and that order carries
      * real information, so whatever grouping costs, it must not cost this too.
      */
     public function testOrderWithinASectionIsTheOrderTheSourceReturned(): void

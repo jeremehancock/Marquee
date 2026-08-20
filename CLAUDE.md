@@ -121,6 +121,28 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   test can catch a *new* service reaching for the shared client, which is why
   this is written down. There is one such caller today, and adding a second is a
   spec change to `poster-editing`, not a wiring decision.
+- **A Find Posters candidate's `page` and its `attribution_required` are two
+  different facts, and only the second compels anything.** `page` is where the
+  poster came from — nearly every candidate has one, and showing it is a product
+  decision. `attribution_required` marks the few whose licence obliges that link
+  to be rendered wherever the poster is; TVmaze is CC BY-SA and is the only
+  service marked today. The grid badge is shown for **either** reason — its
+  condition is `poster.attributionRequired || poster.page`, in that order — and
+  the two are drawn identically, because the licence asks that the link be shown,
+  not that it be shown differently. **The first clause is not redundant.** It is
+  what survives if the provenance badge is ever dropped as a product decision;
+  reducing the condition to `poster.page` renders identically today and silently
+  discards the one credit that may never go. Never key it on
+  `source == "tvmaze"` either — that loses the credit the moment a second source
+  is licensed the same way, which is why `source` is deliberately absent from the
+  find-posters payload: publishing it is the first step of writing the check the
+  wrong way. A marked badge also carries `data-attribution-required="true"`, so
+  the distinction exists somewhere findable when the pixels are identical.
+  `PosterCreditLinkTest` pins the condition's shape and clause order and asserts
+  no provider name appears in the markup — but it cannot catch a *new* surface
+  that shows a marked candidate without its credit. Same hazard shape as the
+  bullet above, same reason it is here. Adding a third such surface means
+  rendering the credit there too, not deciding it does not apply.
 - **A control is switched off with `aria-disabled`, never the `disabled`
   attribute, and every such binding needs a guard at the action.** The attribute
   drops a control out of the tab order, so a keyboard user is not told it is

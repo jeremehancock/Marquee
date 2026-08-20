@@ -11,16 +11,33 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Finds posters via the posteria.app Marquee API (TMDB / fanart.tv / TheTVDB).
+ * Finds posters via the posteria.app Marquee API (TMDB / fanart.tv / TheTVDB /
+ * TVmaze).
  *
  * The endpoint resolves the query to a single work and returns only that work's
  * artwork, already de-duplicated and ranked best-first. This class does not
  * filter, re-order or de-duplicate what it receives; it only maps the response
  * onto a PosterSearchResult so the reason for an empty result survives.
+ *
+ * TVmaze is television only. It reports `no_data` for every movie and every
+ * collection, which is that search's expected answer and not a failure — see
+ * interpret(), which is why nothing there enumerates the providers map.
+ *
+ * Two poster fields are easily confused. `page` is where the poster came from,
+ * and nearly every candidate has one; `attribution_required` marks the few whose
+ * licence compels that link to be shown. The endpoint sent only the licensed
+ * subset a `page` at one point, which made presence and obligation the same
+ * thing — they are not, and candidates() keeps them apart deliberately.
  */
 final class PosteriaApiPosterSource implements PosterSource
 {
-    private const PATH = '/marquee/api/v1/posters';
+    /**
+     * The endpoint, version included. **This constant is the only place the API
+     * version appears.** It is not a setting and never has been:
+     * `POSTER_SOURCE_URL` supplies the host alone, so moving between versions is
+     * a code change with nothing stored to migrate.
+     */
+    private const PATH = '/marquee/api/v2/posters';
 
     public function __construct(
         private readonly ClientInterface $http,
@@ -302,6 +319,13 @@ final class PosteriaApiPosterSource implements PosterSource
                 height: $this->int($poster['height'] ?? null),
                 language: $this->str($poster['language'] ?? null),
                 score: $this->float($poster['score'] ?? null),
+                page: $this->str($poster['page'] ?? null),
+                // Identity with `true`, never truthiness. The field is sent only
+                // when it is true and omitted otherwise, so anything else is a
+                // value this client did not expect — and this is the one flag
+                // here whose misreading is a licence failure rather than a
+                // cosmetic one. A JSON "false" is a truthy string in PHP.
+                attributionRequired: ($poster['attribution_required'] ?? null) === true,
             );
         }
 

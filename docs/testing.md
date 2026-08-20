@@ -203,13 +203,68 @@ Open **Change poster → Find Posters** on two or three items with good coverage
 
 | Check | Expected |
 | --- | --- |
-| Section order | **TMDB**, then **TVDB**, then **fanart.tv** — the same order every time, and the same order as the provider logos in the footer |
+| Section order | **TMDB**, then **TVDB**, then **fanart.tv**, then **TVmaze** — the same order every time, and the same order as the provider logos in the footer |
 | Section headings | Each names its service and carries a count of its own candidates |
 | Total | There is none, by design — only per-section counts |
 | A service with no artwork for the item | No heading, no empty gap |
 | Scrolling a long section | The heading stays pinned while its own posters pass behind it, and leaves with them |
 | An **Other** section | Should never appear. If it does, the source has added a provider — see below |
 | Applying a candidate | Works identically from any section |
+
+### The v2 endpoint and TVmaze
+
+Marquee calls the poster source's **v2** endpoint, which adds TVmaze as a fourth
+service. TVmaze covers **television only**, so the four media types are four
+different checks — and two of them pass by showing nothing.
+
+| Search | Expected |
+| --- | --- |
+| A **show** | A **TVmaze** section, last, typically 14-45 candidates |
+| A **season** | A **TVmaze** section holding **one** poster — often artwork no other service has, which is the main reason the service is here |
+| A **movie** | **No TVmaze section, and no error or warning.** This is the pass condition |
+| A **collection** | Same as a movie — absent and silent |
+
+**A movie showing no TVmaze section is correct, not a bug.** The service reports
+`no_data` for every movie and collection, and the endpoint does not mark those
+responses partial. If a movie search ever shows a warning line mentioning
+missing results, *that* is the finding — it means something started reading the
+providers map.
+
+**Every candidate links back to where it came from**, in two places: a corner
+badge on the poster in the results grid, and a line under the full-screen
+preview. Both open the supplying service's own page for that show, season or
+film, in a new tab.
+
+Check all of these:
+
+- Every poster with a source page carries the corner badge — TMDB, TheTVDB,
+  fanart.tv and TVmaze alike. **TVmaze posters must never be the only ones
+  without it.**
+- The badge opens that service's page in a new tab.
+- **The badge is plainly visible against every poster**, including bright and
+  busy artwork — it reads as a control sitting on top of the image, with its own
+  edge, not as part of it. It shipped once too faint to see, which made it a link
+  out of the application that users could not deliberately avoid.
+- It should not overwhelm the grid either. At ~189 badges in a show search they
+  should read as a control on each poster, not as the page's dominant texture.
+- Tapping the poster itself still opens the preview — the badge must not swallow
+  that press, which is worth checking on a real phone and not only a mouse.
+- Opening **any** poster full screen offers a link naming its service. A TMDB
+  poster reads "View on TMDB". It must **not** read as a licence notice —
+  wording like "attribution required" on a TMDB poster is simply false.
+- On a **season**, the TVmaze badge goes to the *season's* page, not the show's.
+- Also on a **season**: the fanart.tv poster's link goes to the **series** page
+  while TMDB's and TheTVDB's go to the season. fanart.tv has no season page.
+  **That disagreement is correct — do not report it as a bug.**
+
+**Not every one of these links is optional, even though they look alike.** TVmaze
+artwork is CC BY-SA, and its link back is how the attribution is met — a TVmaze
+poster shown without one is the failure here worth blocking a release for. The
+rest are provenance, shown because it is useful. The two are told apart in the
+code, not on screen: the badge's condition names the marking, and a marked
+badge carries `data-attribution-required="true"` in the DOM. So if a future
+change makes these links optional or moves them, **the TVmaze ones still have to
+be somewhere the poster is shown.**
 
 **An `Other` section is the finding worth reporting.** It means the poster
 source returned a `source` slug this build does not recognise, which is the
@@ -221,7 +276,8 @@ one case added to `App\Poster\Source\PosterProvider` — no client change.
 — shortened because headings are uppercased and "THETVDB" is unreadable. It only
 appears when `TVDB_API_KEY` is set on posteria.app; without it the service
 reports that provider as `skipped` and simply returns fewer candidates. An absent
-TVDB section is not, on its own, a Marquee bug.
+TVDB section is not, on its own, a Marquee bug. **TVmaze** is not shortened, and
+the contrast is deliberate: "TVMAZE" is still one readable word uppercased.
 
 ---
 

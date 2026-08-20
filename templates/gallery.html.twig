@@ -243,7 +243,48 @@
                                                 <img class="find-item__img" :src="poster.thumb" alt="" loading="lazy"
                                                      :class="loaded ? 'is-loaded' : ''"
                                                      @load="loaded = true" @error="loaded = true"
-                                                     @click="openPreview(poster.url, 'find')" data-tooltip="Click to preview">
+                                                     @click="openPreview(poster.url, 'find', null, '', poster.page, section.label)" data-tooltip="Click to preview">
+                                                {# The required credit, shown on a candidate whose supplying service's
+                                                   licence compels the link, and on any other candidate the source
+                                                   gave a page for. Both open where the poster came from, and they
+                                                   are drawn identically — the licence asks that the link be shown,
+                                                   not that it be shown differently from every other link.
+
+                                                   **`attributionRequired` is named first, and that is not
+                                                   decoration.**
+
+                                                   Read the condition as two clauses that cannot be collapsed:
+                                                   *always* when the licence requires it, *also* when we simply have
+                                                   somewhere to point. The second clause is a product decision and
+                                                   could be dropped tomorrow; the first cannot. Writing it this way
+                                                   means dropping the provenance badge leaves
+                                                   `x-show="poster.attributionRequired"` behind rather than removing
+                                                   the credit that may not go. Reducing this to `poster.page` alone
+                                                   would render identically today and lose that, silently.
+
+                                                   `data-attribution-required` carries the same fact into the DOM, so
+                                                   the distinction survives somewhere a reader can see it even though
+                                                   both badges look alike.
+
+                                                   Not `source === 'tvmaze'` in either clause — the payload
+                                                   deliberately carries no source, because the service decides which
+                                                   of its providers are licensed this way and a name test would have
+                                                   to be reopened for the next one. TVmaze is simply the only one
+                                                   marked today.
+
+                                                   A sibling of the image rather than a wrapper: the image carries the
+                                                   click that opens the preview, and wrapping it in an anchor would put
+                                                   every candidate one stray press away from leaving the app. @click.stop
+                                                   keeps the two apart in the other direction. Omitted entirely when
+                                                   there is nothing to point at — never rendered disabled, since a
+                                                   control that cannot exist has no state to announce. #}
+                                                <a class="find-item__credit"
+                                                   x-show="poster.attributionRequired || poster.page" x-cloak
+                                                   :href="poster.page" target="_blank" rel="noopener"
+                                                   @click.stop
+                                                   :data-attribution-required="poster.attributionRequired ? 'true' : 'false'"
+                                                   :aria-label="'Open this poster\'s page on ' + section.label"
+                                                   :data-tooltip="'View on ' + section.label">↗</a>
                                             </div>
                                         </figure>
                                     </template>
@@ -276,6 +317,27 @@
                  @load="preview.loaded = true" @error="preview.loaded = true">
         </div>
         <div class="viewer__bar">
+            {# Where this poster came from. Shown for any candidate the source gave
+               an address for, which is nearly all of them — this is provenance, and
+               offering it is a product decision rather than a licence one.
+
+               So the wording names the service and what the link opens, and says
+               nothing about attribution or licensing. Most posters reaching this
+               point are under no such condition, and a licence-flavoured phrase
+               here would claim one on artwork that carries none.
+
+               A candidate whose licence *does* compel the link is credited by the
+               badge on the poster itself (see the find grid). That such a candidate
+               also lands here is a consequence of it carrying an address, not the
+               mechanism — this element is not what discharges the obligation, and
+               removing it would not release anyone from one.
+
+               Above the actions, not among them. It is not a choice about this
+               poster — the row below is — and it stays put through the confirm
+               step, which swaps that row out from under it. #}
+            <a class="viewer__credit" x-show="preview.page" x-cloak
+               :href="preview.page" target="_blank" rel="noopener"
+               x-text="preview.service ? 'View on ' + preview.service : 'View source page'"></a>
             <div class="viewer__actions" x-show="!preview.confirming">
                 <button type="button" class="btn btn--accent" @click="preview.confirming = true">Use this poster</button>
                 <button type="button" class="btn" @click="closePreview()">Close</button>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Poster\Source\PosterProvider;
 use App\Tests\AppTestCase;
 
 final class ApplicationShellTest extends AppTestCase
@@ -17,11 +18,17 @@ final class ApplicationShellTest extends AppTestCase
      */
     private const FOOTERS = ['<footer class="footer">', '<div class="menu__footer"'];
 
-    /** @var list<string> */
+    /**
+     * In the order the footer credits them, which is also the order Find Posters
+     * sections its results in — see testCreditOrderMatchesTheSectionOrder.
+     *
+     * @var list<string>
+     */
     private const PROVIDERS = [
         'https://www.themoviedb.org/',
         'https://www.thetvdb.com/',
         'https://fanart.tv/',
+        'https://www.tvmaze.com/',
     ];
 
 
@@ -571,9 +578,50 @@ final class ApplicationShellTest extends AppTestCase
     {
         // The templates reference these by path, so a missing file is a broken
         // image in production but nothing a rendering assertion would catch.
-        foreach (['tmdb.svg', 'tvdb.png', 'fanart.png'] as $logo) {
+        foreach (['tmdb.svg', 'tvdb.png', 'fanart.png', 'tvmaze.png'] as $logo) {
             self::assertFileExists(\dirname(__DIR__, 2) . '/public/assets/providers/' . $logo);
         }
+    }
+
+    /**
+     * The footer credit and the Find Posters section order are two renderings of
+     * one list, and the specs require they never disagree: `application-shell`
+     * makes this credit the definition, and `poster-sources` makes the section
+     * order follow it.
+     *
+     * Until now that agreement was prose in two spec files and a docblock on
+     * PosterProvider::inSectionOrder(). It is cheap to break — the enum and this
+     * template are nowhere near each other, and adding a provider to one is a
+     * complete-looking change on its own. So it is asserted.
+     *
+     * Matching is by position, not by presence: the failure this exists for is a
+     * provider credited in the wrong place, which a set comparison would pass.
+     */
+    public function testCreditOrderMatchesTheSectionOrder(): void
+    {
+        $app = $this->makeSignedInApp();
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        preg_match(
+            '#' . preg_quote(self::FOOTERS[0], '#') . '(.*?)<a [^>]*>Marquee</a>#s',
+            $body,
+            $m,
+        );
+
+        preg_match_all('#<a href="(https://[^"]+)"[^>]*>\s*<img class="attribution__logo#s', $m[1] ?? '', $links);
+
+        self::assertSame(
+            self::PROVIDERS,
+            $links[1],
+            'The footer must credit the providers in the declared order.',
+        );
+
+        self::assertSame(
+            \count(PosterProvider::inSectionOrder()),
+            \count($links[1]),
+            'The footer credits a different number of providers than Find Posters sections its results into. '
+            . 'One of the two gained a provider without the other.',
+        );
     }
 
     public function testHeaderBrandMarkDrawsTheSameShapesAsTheLogoAsset(): void
