@@ -134,7 +134,7 @@ poster into the `Other` section (design Decision 4).
 - [x] 7.3 `composer cs` — PHP-CS-Fixer dry-run clean (`composer cs:fix` to
       apply).
 - [x] 7.4 `openspec validate consume-poster-api-v2 --strict`.
-- [ ] 7.5 Hand off to `/ship`. Do **not** archive until the `:dev` image has been
+- [x] 7.5 Hand off to `/ship`. Do **not** archive until the `:dev` image has been
       validated against the live endpoint — the four searches in 6.2 plus the
       footer on both desktop and the phone drawer, and the grid link tapped on a
       real touch device to confirm it does not steal the cell's press. **Blocked
@@ -239,7 +239,7 @@ code records which link may never be removed. No deadline pressure.
 
 - [x] 11.1 `composer test`, `composer stan`, `composer cs` — all three green.
 - [x] 11.2 `openspec validate consume-poster-api-v2 --strict`.
-- [ ] 11.3 Back to `/ship`, which will commit this revision on top of `3c1df2f`
+- [x] 11.3 Back to `/ship`, which will commit this revision on top of `3c1df2f`
       and rebuild `:dev` before the validation in 7.5 can mean anything.
 
 ## 12. The badge could not be seen
