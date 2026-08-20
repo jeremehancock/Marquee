@@ -574,6 +574,94 @@ final class ApplicationShellTest extends AppTestCase
         }
     }
 
+    /**
+     * The credit is where the browser's native tooltip last survived: every other
+     * hint in the app moved to the shared themed bubble, and these four links kept
+     * `title=` until they were converted. That makes them the likely place for it
+     * to come back — and these hosts invite the mistake, because a link whose only
+     * content is an image looks like it needs a `title` to have a name at all. It
+     * does not: the name comes from the logo's `alt`.
+     *
+     * So three things are asserted together, over the rendered credit rather than
+     * a fixed list of four: every logo link offers the custom tooltip, none offers
+     * the native one, and each link's tooltip names the same provider its `alt`
+     * does. The absence check scans the whole block deliberately — the failure
+     * this exists for is a *fifth* provider added later with `title=` copied from
+     * an older example, which a per-provider assertion would sail past.
+     *
+     * What it cannot catch is an `aria-label` added to one of these links, which
+     * would silently override the `alt` and leave the real name unannounced. That
+     * is called out in the partial's own comment, where someone adding a provider
+     * will be reading.
+     */
+    public function testProviderLogosUseTheCustomTooltipAndNotTheNativeOne(): void
+    {
+        $body = (string) $this->get(
+            $this->makeSignedInApp(),
+            '/library/movies',
+        )->getBody();
+
+        foreach (self::FOOTERS as $open) {
+            // Same bounding as testBothFootersCreditThePosterProviders: from the
+            // footer's opening tag to the product-name link that follows the
+            // credit. Only the provider links sit between them.
+            preg_match(
+                '#' . preg_quote($open, '#') . '(.*?)<a [^>]*>Marquee</a>#s',
+                $body,
+                $m,
+            );
+            $credit = $m[1] ?? '';
+
+            self::assertDoesNotMatchRegularExpression(
+                '#<a[^>]*\stitle=#s',
+                $credit,
+                $open . ' must not give a provider logo a native title tooltip. '
+                . 'Hints are drawn by the shared custom tooltip everywhere in the app; '
+                . 'use data-tooltip, and let the logo\'s alt carry the accessible name.',
+            );
+
+            preg_match_all('#<a ([^>]*)>\s*<img ([^>]*)>\s*</a>#s', $credit, $links, PREG_SET_ORDER);
+
+            self::assertCount(
+                \count(self::PROVIDERS),
+                $links,
+                $open . ' must render one logo link per credited provider.',
+            );
+
+            foreach ($links as $link) {
+                // An attribute that is absent and one that is empty both land
+                // here as '', and both are the same failure with the same fix.
+                preg_match('#\bdata-tooltip="([^"]*)"#', $link[1], $m);
+                $tooltip = $m[1] ?? '';
+
+                preg_match('#\balt="([^"]*)"#', $link[2], $m);
+                $alt = $m[1] ?? '';
+
+                self::assertNotSame(
+                    '',
+                    $tooltip,
+                    $open . ' must name every provider through the custom tooltip, '
+                    . 'via a non-empty data-tooltip on its logo link.',
+                );
+
+                self::assertNotSame(
+                    '',
+                    $alt,
+                    $open . ' must give every provider logo alternative text, which is '
+                    . 'the link\'s accessible name.',
+                );
+
+                self::assertSame(
+                    $alt,
+                    $tooltip,
+                    $open . ' shows one provider a tooltip naming ' . $tooltip
+                    . ' on a logo whose accessible name is ' . $alt . '. '
+                    . 'The two address different readers but must name the same provider.',
+                );
+            }
+        }
+    }
+
     public function testProviderLogoAssetsExist(): void
     {
         // The templates reference these by path, so a missing file is a broken

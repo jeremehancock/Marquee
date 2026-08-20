@@ -17,23 +17,34 @@
    Each logo carries its intrinsic width/height so the footer reserves the row's
    space before the images decode; the displayed size comes from the per-provider
    classes in app.css, which normalise four very different aspect ratios into one
-   row. #}
+   row.
+
+   Each link names its provider twice, and the two are not interchangeable.
+   data-tooltip is the app's own tooltip, for someone looking straight at a mark
+   that may not spell its own name; alt is the link's accessible name, and is
+   what assistive technology announces and what a touch user's screen reader
+   reads — no tooltip is ever shown on touch. Keep the two in step; a test
+   asserts they agree. Never restore title= here: the shared tooltip replaces the
+   browser's everywhere in the app, and this credit was the last place it
+   survived. Never add an aria-label either, however tempting it looks on a link
+   whose only content is an image — it would override the alt text, leaving the
+   real name silently unannounced. #}
 <div class="attribution">
     <p class="attribution__label">Posters provided by:</p>
     <div class="attribution__logos">
-        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener" title="TMDB">
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener" data-tooltip="TMDB">
             <img class="attribution__logo attribution__logo--tmdb" src="{{ asset('/assets/providers/tmdb.svg') }}"
                  alt="TMDB" width="273" height="36">
         </a>
-        <a href="https://www.thetvdb.com/" target="_blank" rel="noopener" title="TheTVDB">
+        <a href="https://www.thetvdb.com/" target="_blank" rel="noopener" data-tooltip="TheTVDB">
             <img class="attribution__logo attribution__logo--tvdb" src="{{ asset('/assets/providers/tvdb.png') }}"
                  alt="TheTVDB" width="400" height="216">
         </a>
-        <a href="https://fanart.tv/" target="_blank" rel="noopener" title="fanart.tv">
+        <a href="https://fanart.tv/" target="_blank" rel="noopener" data-tooltip="fanart.tv">
             <img class="attribution__logo attribution__logo--fanart" src="{{ asset('/assets/providers/fanart.png') }}"
                  alt="fanart.tv" width="303" height="61">
         </a>
-        <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" title="TVmaze">
+        <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" data-tooltip="TVmaze">
             <img class="attribution__logo attribution__logo--tvmaze" src="{{ asset('/assets/providers/tvmaze.png') }}"
                  alt="TVmaze" width="253" height="80">
         </a>
