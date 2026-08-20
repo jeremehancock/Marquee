@@ -72,7 +72,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   the toolbar, and the tab bar are translucent, so your posters stay visible
   passing behind them; dialogs, trays, buttons, and poster cards all animate
   rather than snap. If your system asks for reduced motion, Marquee drops the
-  movement and keeps the progress indicators.
+  movement and keeps the progress indicators. Every dialog and tray works from
+  the keyboard: opening one moves focus into it, Tab stays inside it, and
+  closing it puts you back where you were.
 - **Installable PWA** — add it to your phone or desktop home screen.
 
 ## Quick start (Docker Compose)

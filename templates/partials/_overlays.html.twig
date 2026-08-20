@@ -9,7 +9,7 @@
 <div class="modal" x-show="confirm.open" x-cloak {{ tx.dialog() }}
      @keydown.escape.window="confirm.open = false" style="display:none">
     <div class="modal__backdrop" @click="confirm.open = false"></div>
-    <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm">
+    <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true" aria-label="Confirm" tabindex="-1">
         {# Grab handle: hidden on desktop, the drag-to-dismiss target on a phone.
            It must be a real element, not a pseudo-element, because touch can only
            target elements — and it must be a *different* element from the panel's
@@ -44,7 +44,7 @@
 <div class="sheet" x-show="sheet.open" x-cloak {{ tx.tray() }}
      @keydown.escape.window="if (!confirm.open) closeSheet()" style="display:none">
     <div class="sheet__backdrop" @click="closeSheet()"></div>
-    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Poster actions">
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Poster actions" tabindex="-1">
         <div class="sheet__grip"><span class="sheet__handle"></span></div>
         <div class="sheet__head">
             <span class="sheet__title" x-text="sheet.title"></span>
@@ -57,7 +57,21 @@
    loads — it is a real element, not the ::before the cards use, because a
    full-screen image is sized by its own dimensions and has no frame to fill.
    Both it and the fade are driven by viewerLoaded, which view() clears on every
-   open; see overlayComponent in gallery.js. #}
+   open; see overlayComponent in gallery.js.
+
+   Declares no `role="dialog"`, and that is a decision rather than an oversight —
+   DialogFocusTest pins it. The focus manager takes its subjects from that
+   attribute, and this overlay holds nothing to focus: a poster with `alt=""`, no
+   controls, and no close affordance beyond clicking anywhere or pressing Escape.
+   Moving focus here would move it nowhere, and keeping it here would keep it on
+   an element the user cannot act on.
+
+   That is not the same as saying this overlay is fine. A keyboard user meets an
+   unannounced image that Escape happens to dismiss, and a screen reader user
+   meets nothing at all. Fixing it means giving it a name and a visible close
+   control, which changes what is on the screen — a poster-library decision, not
+   a focus one. Until that is made, leaving the attribute off is what keeps the
+   manager honest about having nowhere to put focus. #}
 <div class="viewer" x-show="viewer" x-cloak @click="viewer = null"
      @keydown.escape.window="viewer = null" style="display:none">
     <div class="viewer__stage">

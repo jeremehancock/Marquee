@@ -140,8 +140,12 @@
            would trade a strip that keeps its shape for a panel that does not, and
            the dialog would resize as the user moved between an unlinked poster and a
            linked one. Same argument as the tab itself, one level up. #}
+        {# `tabindex="-1"` on every dialog panel: the focus manager moves focus
+           here on open, so the panel's own name is announced and the user tabs
+           forward through its contents in order. Negative, so it takes focus
+           programmatically without joining the tab order itself. #}
         <div class="modal__panel" :class="(change.tab === 'find' || change.tab === 'plex') ? 'modal__panel--wide' : ''"
-             role="dialog" aria-modal="true" aria-label="Change poster">
+             role="dialog" aria-modal="true" aria-label="Change poster" tabindex="-1">
             {# Grab handle: hidden on desktop, the drag-to-dismiss target on a
                phone. A real element rather than a pseudo-element so touch can
                actually target it — see _overlays.html.twig. #}
@@ -331,7 +335,19 @@
        candidate, a pasted URL, or the picked file rendered from the user's own
        device. Nothing here has posted anything yet — applyPreview() is the first
        and only request. #}
+    {# Declared a dialog on the root rather than on an inner panel, because this
+       overlay has no inner panel: the stage and the action bar are siblings, and
+       the root is the only element that contains both. So one element is the
+       backdrop, the dialog, and the focus target at once. That is unusual and it
+       is correct — see the focus manager in gallery.js, which resolves a visible
+       overlay's dialog as descendant-or-self for exactly this case.
+
+       The role is new. This overlay has always behaved as a modal — backdrop,
+       Escape, its own controls — while declaring nothing, which is why the two
+       aria-disabled controls in the bar below were unreachable by keyboard: the
+       manager had no way to know there was a dialog here to move focus into. #}
     <div class="viewer viewer--preview" x-show="preview.open" x-cloak
+         role="dialog" aria-modal="true" aria-label="Preview poster" tabindex="-1"
          @click.self="closePreview()"
          @keydown.escape.window="closePreview()" style="display:none">
         {# The stage now covers the space beside the image, so it has to close the
@@ -416,7 +432,7 @@
     <div class="sheet" x-show="sortOpen" x-cloak {{ tx.tray() }}
          @keydown.escape.window="sortOpen = false" style="display:none">
         <div class="sheet__backdrop" @click="sortOpen = false"></div>
-        <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Sort order">
+        <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Sort order" tabindex="-1">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Sort</span></div>
             <div class="sheet__body menu__body">
@@ -430,7 +446,7 @@
     <div class="sheet" x-show="importOpen" x-cloak {{ tx.tray() }}
          @keydown.escape.window="closeImport()" style="display:none">
         <div class="sheet__backdrop" @click="closeImport()"></div>
-        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex">
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Import from Plex" tabindex="-1">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Import from Plex</span></div>
             <div class="sheet__body">
@@ -446,7 +462,7 @@
     <div class="sheet" x-show="orphansOpen" x-cloak {{ tx.tray() }}
          @keydown.escape.window="closeOrphans()" style="display:none">
         <div class="sheet__backdrop" @click="closeOrphans()"></div>
-        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Orphaned posters">
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Orphaned posters" tabindex="-1">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Orphaned posters</span></div>
             <div class="sheet__body" x-ref="orphansBody" data-nested-scope>
@@ -467,7 +483,7 @@
     <div class="sheet" x-show="settingsOpen" x-cloak {{ tx.tray() }}
          @keydown.escape.window="closeSettings()" style="display:none">
         <div class="sheet__backdrop" @click="closeSettings()"></div>
-        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1">
             <div class="sheet__grip"><span class="sheet__handle"></span></div>
             <div class="sheet__head"><span class="sheet__title">Settings</span></div>
             <div class="sheet__body" x-ref="settingsBody" data-nested-scope>

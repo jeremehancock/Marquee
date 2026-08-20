@@ -388,6 +388,287 @@
         schedule();
     }());
 
+    // ---- Keyboard focus while an overlay is open ----
+    // An overlay that opens without taking focus is unusable by keyboard: focus
+    // stays on the page behind the backdrop, where it cannot be seen, so reaching
+    // the overlay's first control means tabbing the whole page first and tabbing
+    // again leaves by the far side. This moves focus in on open, keeps it inside
+    // while open, and hands it back on close.
+    //
+    // The second consumer of the same signal the scroll lock above uses, and for
+    // the same reason: open state is spread across galleryUI, orphansPage and the
+    // standalone menuOpen scope, and the trays inject further overlays at runtime,
+    // so there is nothing to watch but the DOM. Read that block's comments first —
+    // they explain why both `style` and `class` are watched and why the cost of
+    // watching the whole subtree is affordable.
+    //
+    // A separate observer rather than a shared one. The two consumers want
+    // different answers — the lock wants a boolean, this wants a stack — and the
+    // lock's block is correct, subtle, and the thing that makes the page scroll
+    // properly on iOS. Doubling a cost that block already argues is one comparison
+    // per frame is the better trade against editing it to serve two callers.
+    //
+    // What this deliberately does not do is mark the page behind an overlay
+    // `inert`. Every overlay except the teleported actions tray is a *descendant*
+    // of the content it covers — there is no "page minus overlays" element to
+    // inert — so having one means teleporting every overlay to <body> first. That
+    // is a DOM reshuffle worth its own change; `aria-modal="true"`, already on
+    // every managed panel, carries the assistive-technology side until then.
+    (function () {
+        // The same roots the scroll lock watches. What makes one of them a
+        // *dialog* is the role it declares, not its class — see nextDialog().
+        var OVERLAY = '.sheet, .modal, .viewer';
+
+        // Everything that can hold focus. Filtered further in focusablesIn():
+        // this selector is about kind, not about whether a given element is
+        // currently available.
+        var FOCUSABLE = 'a[href], area[href], button, input, select, textarea,'
+            + ' iframe, audio[controls], video[controls], [contenteditable="true"], [tabindex]';
+
+        // Open overlays, innermost last. Each entry is the dialog panel and the
+        // ancestor chain that held focus when it opened. Push on appearing, pop on
+        // disappearing: arrival order is the only thing that describes which
+        // overlay the user reached last. Markup order does not — the shared
+        // confirm is declared before the tray that raises it — and neither does
+        // z-index, which is a static value per class.
+        var stack = [];
+        var queued = false;
+
+        function top() {
+            return stack.length ? stack[stack.length - 1] : null;
+        }
+
+        // The dialog an open overlay root stands for, or null if it is not one.
+        // Descendant-or-self because the preview overlay declares the role on its
+        // own root: it has no inner panel, its stage and action bar being
+        // siblings. Everything else declares it on the panel inside.
+        //
+        // Keyed on the attribute rather than a list held here, so an overlay added
+        // later is managed by being marked up correctly rather than by being
+        // registered — including one injected into a tray at runtime, which is how
+        // the orphans confirmation arrives. The fullscreen poster viewer declares
+        // no role and is skipped by the same rule, which is deliberate: it holds
+        // no focusable content, so there is nowhere to put focus. See the note in
+        // _overlays.html.twig.
+        function nextDialog(root) {
+            if (root.style.display === 'none') { return null; }
+            // A closing overlay is not open. x-transition keeps it displayed for
+            // the length of its leave animation, and waiting that out would hold
+            // focus inside a dialog the user has already dismissed — the same
+            // reason the scroll lock releases on this class rather than on
+            // `display: none` arriving several frames later.
+            if (root.classList.contains('overlay-closing')) { return null; }
+            if (root.matches('[role="dialog"]')) { return root; }
+            return root.querySelector('[role="dialog"]');
+        }
+
+        function openDialogs() {
+            var roots = document.querySelectorAll(OVERLAY);
+            var found = [];
+            for (var i = 0; i < roots.length; i++) {
+                var dialog = nextDialog(roots[i]);
+                if (dialog) { found.push(dialog); }
+            }
+            return found;
+        }
+
+        function held(dialog) {
+            for (var i = 0; i < stack.length; i++) {
+                if (stack[i].dialog === dialog) { return true; }
+            }
+            return false;
+        }
+
+        // Where focus was when an overlay opened, remembered as a chain rather
+        // than a single element: the origin is often gone by the time it is
+        // wanted. Deleting a poster removes the card whose button opened the tray,
+        // deleting an orphan removes its row. Restoring then walks up to the
+        // nearest ancestor still in the document, so the user resumes near where
+        // they were instead of at the top of the page.
+        //
+        // Stops short of <body>. An origin of <body> is what a touch tap leaves
+        // behind, and "restore to the body" is the failure this whole block
+        // exists to end, so an empty chain restores nothing and leaves focus
+        // alone.
+        function chainFor(node) {
+            var chain = [];
+            while (node && node !== document.body && node !== document.documentElement) {
+                chain.push(node);
+                node = node.parentElement;
+            }
+            return chain;
+        }
+
+        // Focus without moving the page. While an overlay is open the body is
+        // pinned by the scroll lock above, so an unguarded focus scroll would
+        // fight it.
+        //
+        // A surviving ancestor is not necessarily focusable — #results is a plain
+        // div — so an element that refuses focus is given a negative tabindex and
+        // asked again. Negative, so it never joins the tab order. `tabindex` is
+        // not in the observer's attribute filter, so writing it here cannot
+        // schedule a pass.
+        //
+        // The attribute is taken back if it did not help, and that is not
+        // tidiness. An element also refuses focus while it is hidden, and a
+        // chain walks past plenty of those; a negative tabindex left behind on a
+        // button that was merely hidden at the time would drop it out of the tab
+        // order for good, once the page showed it again. That is precisely the
+        // failure this block exists to end, and it would be self-inflicted.
+        function focus(node) {
+            node.focus({ preventScroll: true });
+            if (document.activeElement === node) { return true; }
+
+            var had = node.hasAttribute('tabindex');
+            if (!had) { node.setAttribute('tabindex', '-1'); }
+            node.focus({ preventScroll: true });
+            if (document.activeElement === node) { return true; }
+
+            if (!had) { node.removeAttribute('tabindex'); }
+            return false;
+        }
+
+        function restore(chain) {
+            for (var i = 0; i < chain.length; i++) {
+                if (chain[i].isConnected && focus(chain[i])) { return; }
+            }
+        }
+
+        // What Tab can reach inside a dialog, recomputed on every press rather
+        // than cached: tray bodies arrive over the network long after the tray
+        // opens, and Alpine builds and tears down the Find Posters and Plex
+        // Posters grids while the dialog stands.
+        //
+        // `getClientRects()` rather than a class check, matching the tooltip's
+        // test in app.js — it is true to what is actually painted, so a control
+        // hidden by x-show, by x-cloak, or by a media query is excluded whichever
+        // rule did the hiding. That is also what keeps a tray's own injected
+        // confirmation out of the tray's tab ring while it is shut.
+        //
+        // `disabled` is excluded; `aria-disabled` is not, and must not be. A
+        // switched-off control staying reachable is the whole point of how this
+        // application marks them — see the note on the change dialog's buttons.
+        function focusablesIn(dialog) {
+            var all = dialog.querySelectorAll(FOCUSABLE);
+            var out = [];
+            for (var i = 0; i < all.length; i++) {
+                var el = all[i];
+                if (el.disabled) { continue; }
+                if (el.getAttribute('tabindex') === '-1') { continue; }
+                if (!el.getClientRects().length) { continue; }
+                out.push(el);
+            }
+            return out;
+        }
+
+        function sync() {
+            queued = false;
+            var open = openDialogs();
+
+            // Close before open, topmost first, so a dismissal hands focus back
+            // before anything else claims it.
+            for (var i = stack.length - 1; i >= 0; i--) {
+                if (open.indexOf(stack[i].dialog) === -1) {
+                    restore(stack.splice(i, 1)[0].origin);
+                }
+            }
+
+            for (var j = 0; j < open.length; j++) {
+                if (held(open[j])) { continue; }
+                stack.push({ dialog: open[j], origin: chainFor(document.activeElement) });
+                // The panel itself, not the first control inside it. Three of the
+                // trays fetch their body after opening and are still showing
+                // "Loading…" at this moment, so there is no first control to
+                // move to; and the panel's own aria-label is what names the
+                // overlay to a screen reader. Tabbing forward from here reaches
+                // the contents in order, including the ones that arrive later.
+                focus(open[j]);
+            }
+        }
+
+        function schedule() {
+            if (queued) { return; }
+            queued = true;
+            window.requestAnimationFrame(sync);
+        }
+
+        // Keep focus inside the topmost overlay. Capture phase, for the reason
+        // app.js gives its pointerdown listener: the interception has to happen
+        // whether or not something downstream stops propagation.
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Tab') { return; }
+            var entry = top();
+            if (!entry) { return; }
+
+            var dialog = entry.dialog;
+            var items = focusablesIn(dialog);
+            var active = document.activeElement;
+
+            // A dialog with nothing to tab to — a tray still loading its body.
+            // Hold focus on the panel rather than letting Tab walk out of it.
+            if (!items.length) {
+                e.preventDefault();
+                focus(dialog);
+                return;
+            }
+
+            var first = items[0];
+            var last = items[items.length - 1];
+
+            if (!dialog.contains(active)) {
+                e.preventDefault();
+                focus(e.shiftKey ? last : first);
+            } else if (e.shiftKey && (active === first || active === dialog)) {
+                // Backwards off the front, or backwards off the panel, which
+                // sits ahead of everything inside it.
+                e.preventDefault();
+                focus(last);
+            } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                focus(first);
+            }
+            // Anything else is a move between two controls inside the dialog,
+            // which the browser already gets right.
+        }, true);
+
+        // Catch focus that leaves without anyone pressing Tab. This is not a
+        // theoretical case: x-show hides the preview's action row the moment
+        // `preview.confirming` flips, and hiding a *focused* element hands its
+        // focus to the document — so a keyboard user pressing "Use this poster"
+        // is standing on exactly the element that disappears. From the document,
+        // their next Tab would resume at the top of the page, outside the
+        // overlay. Same failure `draw-the-disabled-state` fixed for the
+        // `disabled` attribute, reappearing through another door.
+        //
+        // Driven from focusout rather than focusin because there is no focusin to
+        // read in that case — nothing received the focus that was dropped. Read
+        // on the next tick, by which time the browser has settled on the new
+        // activeElement.
+        document.addEventListener('focusout', function () {
+            if (!stack.length) { return; }
+            window.setTimeout(recover, 0);
+        });
+
+        function recover() {
+            var entry = top();
+            if (!entry) { return; }
+            // Focus that left the page entirely — the address bar, another
+            // window — is the user's to move, not this block's to take back.
+            if (!document.hasFocus()) { return; }
+            var active = document.activeElement;
+            if (active && active !== document.body && entry.dialog.contains(active)) { return; }
+            focus(entry.dialog);
+        }
+
+        new MutationObserver(schedule).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['style', 'class'],
+            childList: true,
+            subtree: true,
+        });
+        schedule();
+    }());
+
     // ---- Return to the top on a page change ----
     // Paging swaps the grid in place, so the browser never performs a navigation
     // and never resets the scroll position. The pagination control sits below the

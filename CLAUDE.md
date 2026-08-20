@@ -167,6 +167,24 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     usually an empty destination, not a dead one. `DisabledStateTest` fails any
     control that binds both `aria-disabled` and `data-tooltip`, but it cannot
     catch a control that explains itself nowhere at all.
+- **An overlay is managed for focus because it declares `role="dialog"` and
+  `tabindex="-1"`, and nothing else makes it so.** The focus manager in
+  `gallery.js` finds its subjects by that attribute — deliberately, so an overlay
+  injected into a tray at runtime is managed and a registry never has to be kept.
+  The cost is that an overlay added *without* the role is not managed and looks
+  no different: it opens, and a keyboard user is left on the page behind the
+  backdrop with no way in. `DialogFocusTest` fails a declared dialog missing its
+  `tabindex`, and pins the manager against being rewritten around a list of panel
+  classes — but it cannot catch a new overlay that declares nothing at all. Same
+  hazard shape as the two bullets above, same reason it is written here.
+  - The fullscreen poster viewer declares no role **on purpose** — it holds
+    nothing focusable, so there is nowhere to put focus. A test pins that. It is
+    not an invitation to leave the attributes off the next one.
+  - The page behind an open overlay is not `inert`, and that is not an oversight
+    either: every overlay but the teleported actions tray is a *descendant* of
+    the content it covers, so there is nothing to mark. `aria-modal="true"`
+    carries it. Adding `inert` means teleporting the overlays to `<body>` first —
+    a change, not a wiring decision.
 
 ## Docker
 

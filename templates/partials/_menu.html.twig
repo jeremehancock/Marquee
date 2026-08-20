@@ -29,7 +29,7 @@
 <div class="sheet" x-show="menuOpen" x-cloak {{ tx.tray() }}
      @keydown.escape.window="menuOpen = false" style="display:none">
     <div class="sheet__backdrop" @click="menuOpen = false"></div>
-    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Actions">
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="Actions" tabindex="-1">
         <div class="sheet__grip"><span class="sheet__handle"></span></div>
         <div class="sheet__head">
             {# "Actions", not "Menu": these are things to do, not places to go, and

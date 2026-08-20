@@ -2364,6 +2364,28 @@ h1 {
     z-index: 55;
 }
 
+/* The focus manager moves focus onto the dialog panel itself when an overlay
+   opens (see gallery.js), so the panel's name is announced and the user tabs
+   forward through its contents. Suppress the ring that would otherwise draw
+   around the whole panel.
+
+   Not a general opt-out of focus indication, and deliberately narrow. This
+   stylesheet has no global focus rule — every indicator is scoped to a control
+   — so without a rule here the browser's own default ring applies. It would
+   appear in exactly the case that matters, too: Chrome propagates
+   :focus-visible to a programmatically focused element when the element that
+   held focus before it matched, which is what happens when a keyboard user
+   presses the button that opens the dialog.
+
+   The selector requires both attributes together, a combination only a dialog
+   panel carries, so it cannot reach a control. A panel is announced, not
+   operated; "Keyboard focus is as visible as hover" is a promise about
+   interactive elements, and this is not one. */
+[role='dialog'][tabindex='-1']:focus,
+[role='dialog'][tabindex='-1']:focus-visible {
+    outline: none;
+}
+
 /* Dimmed and blurred, not merely dimmed. Dimming alone leaves the page legible
    behind the dialog and it keeps competing for attention; blurring pushes it
    back to texture while still showing the user where they were. */
