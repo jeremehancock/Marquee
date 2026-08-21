@@ -72,6 +72,60 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * The phone tray's link list, isolated the same way and for the same reason as
+     * the header: both placements render the same macro, so an assertion made
+     * against the whole body cannot say which one satisfied it.
+     */
+    private function menuTray(string $body): string
+    {
+        $matched = preg_match('#<div class="sheet__body menu__body".*?\n\s*</div>#s', $body, $m);
+        self::assertSame(1, $matched, 'The menu tray must render its link list.');
+
+        return $m[0];
+    }
+
+    /**
+     * The support ask, from its overlay root to the end of the teleport wrapper.
+     *
+     * Bounded by `</template>` rather than a closing div: the partial nests two
+     * levels of its own, and a regex cannot count nesting. The wrapper is the
+     * reliable edge here because this is the only teleported overlay the layout
+     * renders — the menu tray, the other one, is teleported from _menu.html.twig,
+     * which closes before this include begins.
+     */
+    private function supportOverlay(string $body, string $path): string
+    {
+        $matched = preg_match('#<div class="modal" x-show="supportOpen".*?</template>#s', $body, $m);
+        self::assertSame(1, $matched, 'The layout must render the support ask on ' . $path . '.');
+
+        return $m[0];
+    }
+
+    /**
+     * The opening tag of the Support Development entry inside one placement.
+     *
+     * preg_match_all rather than preg_match, so "rendered once" is asserted rather
+     * than assumed: a duplicate entry is exactly what a macro edit that adds a
+     * branch instead of replacing one produces, and the first match would look
+     * correct.
+     */
+    private function supportEntry(string $fragment, string $placement): string
+    {
+        $matched = preg_match_all(
+            '#<(?:a|button|span)\b[^<>]*aria-label="Support Development"[^<>]*>#s',
+            $fragment,
+            $m,
+        );
+        self::assertSame(
+            1,
+            $matched,
+            sprintf('Support Development must be rendered exactly once in %s.', $placement),
+        );
+
+        return $m[0][0];
+    }
+
+    /**
      * The bar: the header's navigation with the overflow menu's contents removed,
      * so an assertion that a link is on the bar cannot be satisfied by the same
      * link sitting inside the menu.
@@ -269,11 +323,10 @@ final class ApplicationShellTest extends AppTestCase
             '/library/movies',
         )->getBody();
 
-        $matched = preg_match('#<div class="sheet__body menu__body".*?\n\s*</div>#s', $body, $m);
-        self::assertSame(1, $matched, 'The menu tray must render its link list.');
+        $tray = $this->menuTray($body);
 
-        self::assertStringContainsString('>Import from Plex</span>', $m[0]);
-        self::assertStringContainsString('>Support Development</span>', $m[0]);
+        self::assertStringContainsString('>Import from Plex</span>', $tray);
+        self::assertStringContainsString('>Support Development</span>', $tray);
 
         // The desktop split does not reach the tray. A phone has a full-width row
         // per entry and no width problem to answer, so all six stay one flat list —
@@ -289,10 +342,148 @@ final class ApplicationShellTest extends AppTestCase
         ] as $label) {
             self::assertStringContainsString(
                 'aria-label="' . $label . '"',
-                $m[0],
+                $tray,
                 sprintf('%s must still be in the phone tray after the desktop split.', $label),
             );
         }
+    }
+
+    /**
+     * Support Development is the one secondary action that is not a destination:
+     * it opens the support ask over the current page. So it has to be a real
+     * control in both placements.
+     *
+     * An `<a>` with no href is neither focusable nor announced as anything, and an
+     * `<a href="#">` announces a destination it does not have — either would leave
+     * a keyboard user with an entry they can see and cannot reach. The visible
+     * presentation is unchanged, because .btn.nav-item already dresses a
+     * non-anchor; Log out is a form-submit control wearing the same classes.
+     */
+    public function testSupportDevelopmentIsAControlRatherThanALink(): void
+    {
+        $body = (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody();
+
+        foreach ([
+            'the header overflow menu' => $this->overflowMenu($body),
+            'the phone actions tray' => $this->menuTray($body),
+        ] as $placement => $fragment) {
+            $tag = $this->supportEntry($fragment, $placement);
+
+            self::assertStringStartsWith(
+                '<button',
+                $tag,
+                sprintf('Support Development must be a button in %s.', $placement),
+            );
+            self::assertStringNotContainsString(
+                'href=',
+                $tag,
+                sprintf('Support Development must carry no href in %s.', $placement),
+            );
+            self::assertStringContainsString(
+                'supportOpen = true',
+                $tag,
+                sprintf('Support Development must open the ask from %s.', $placement),
+            );
+            // The label may shorten with the header; what is announced may not.
+            self::assertStringContainsString('aria-label="Support Development"', $tag);
+        }
+    }
+
+    /**
+     * The reach that made this worth doing. The overlay's content is fixed text
+     * and one fixed link, so unlike the Import, Orphans and Settings trays it
+     * needs no fetch and has no page-level fallback to navigate to — which is
+     * only true if it is declared in the layout rather than in the gallery. The
+     * cheapest way to get this wrong is to put the partial in the wrong template,
+     * and the gallery would still look correct.
+     */
+    public function testTheSupportAskRendersOnEveryPageWithNavigation(): void
+    {
+        $app = $this->makeSignedInApp();
+
+        foreach (['/library/movies', '/plex', '/orphans'] as $path) {
+            $overlay = $this->supportOverlay((string) $this->get($app, $path)->getBody(), $path);
+
+            self::assertStringContainsString(
+                'aria-label="Support development"',
+                $overlay,
+                sprintf('The support ask must be named on %s.', $path),
+            );
+            self::assertStringContainsString(
+                'Hard drive fund',
+                $overlay,
+                sprintf('The support ask must carry its call to action on %s.', $path),
+            );
+        }
+    }
+
+    /**
+     * The ask holds exactly one way out of the app. That is the point of moving it
+     * in-app: the pitch is read here, and only the payment page — which genuinely
+     * is elsewhere — opens a tab. A second outbound link would quietly restore the
+     * detour this change removed.
+     */
+    public function testTheSupportAskHoldsOneOutboundLink(): void
+    {
+        $overlay = $this->supportOverlay(
+            (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody(),
+            '/library/movies',
+        );
+
+        self::assertSame(
+            1,
+            substr_count($overlay, 'href="http'),
+            'The support ask must hold exactly one outbound link — the payment page.',
+        );
+        self::assertStringContainsString(
+            'href="https://www.buymeacoffee.com/jeremehancock"',
+            $overlay,
+        );
+        // A new tab, and one that cannot reach back into the opener.
+        self::assertStringContainsString('target="_blank"', $overlay);
+        self::assertStringContainsString('rel="noopener"', $overlay);
+    }
+
+    /**
+     * The behaviour being removed, asserted as an absence.
+     *
+     * A stray copy of the old link is invisible: it renders as a nav item that
+     * looks exactly like the new one and silently keeps sending people to the
+     * website. Nothing else fails when one survives, which is the whole reason
+     * this is a test rather than a grep done once.
+     *
+     * Twig comments are stripped first — the support partial's own header
+     * explains at length what it replaced, and says the address to do it.
+     */
+    public function testNoTemplateLinksToTheProjectSupportPage(): void
+    {
+        $root = dirname(__DIR__, 2) . '/templates';
+        $found = [];
+
+        /** @var iterable<\SplFileInfo> $files */
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
+
+        foreach ($files as $file) {
+            if (!$file->isFile() || !str_ends_with($file->getFilename(), '.twig')) {
+                continue;
+            }
+
+            $source = file_get_contents($file->getPathname());
+            self::assertIsString($source, $file->getPathname() . ' must be readable.');
+
+            $markup = (string) preg_replace('/\{#.*?#\}/s', '', $source);
+
+            if (str_contains($markup, 'getmarquee.now/#support')) {
+                $found[] = substr($file->getPathname(), strlen($root) + 1);
+            }
+        }
+
+        self::assertSame(
+            [],
+            $found,
+            'The support ask opens in place; no template may still link to the '
+            . 'project\'s support page.',
+        );
     }
 
     public function testSignInScreenRendersNoSecondaryNavigation(): void

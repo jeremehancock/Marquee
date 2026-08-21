@@ -43,7 +43,16 @@
            and the ⋯ menu; a phone has a full-width row per entry and no width
            problem to answer, so here they stay one flat list in the order they
            always had. #}
-        <div class="sheet__body menu__body" @click="menuOpen = false">
+        {# Focus goes back to the button that opened this, for the reason the ⋯
+           panel's matching handler in layout.html.twig sets out at length: this
+           tray is hidden on the flush after the handler, and hiding a focused
+           element hands its focus to the body, which is what the focus manager
+           reads a frame later to decide where an overlay should return focus to.
+           Half these entries now open another overlay rather than navigating —
+           Support Development, and Import/Orphans/Settings via their trays — so
+           the difference is whether dismissing that overlay leaves the keyboard
+           user here or at the top of the page. #}
+        <div class="sheet__body menu__body" @click="menuOpen = false; $refs.menuTrigger.focus()">
             {{ nav.bar_links(nav_current|default('')) }}
             {{ nav.overflow_links(nav_current|default(''), signed_in()) }}
             {% if signed_in() %}

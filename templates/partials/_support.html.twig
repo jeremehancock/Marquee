@@ -1,0 +1,75 @@
+{# The support ask, as an overlay over the page you are already on.
+
+   This used to be a link to getmarquee.now/#support in a new tab. The ask is one
+   mark, one heading, one paragraph and one button — small enough to answer where
+   it is made, and small enough that a page load spent on it is one the user did
+   not ask for. The Buy Me a Coffee button is the only thing here that still
+   leaves the app, because the payment page genuinely is elsewhere.
+
+   A `.modal`, not a `.modal` and a `.sheet`. "Centred dialog on a pointer screen,
+   app-style tray on a phone" is not two components in this stylesheet — it is
+   what `.modal` already is: the `@media (max-width: 640px)` block docks the panel
+   to the bottom edge, restores the grab handle, hides the × and re-points the
+   entrance, and initSheetGestures in gallery.js already claims `.modal__head` as
+   a drag target. Rendering a second copy for narrow screens would duplicate the
+   copy and hand the focus manager two dialogs to choose between.
+
+   Teleported to <body>, for the reason written up at length in _menu.html.twig
+   and just as load-bearing here. This partial is included inside
+   `<header class="topbar">`, because that is where the `supportOpen` scope lives;
+   the header carries `backdrop-filter`, and that makes an element a containing
+   block for its fixed-position descendants. Without the teleport this overlay's
+   `position: fixed; inset: 0` resolves against the header's own box and the whole
+   thing renders squashed into the height of the bar that opened it. It looks
+   correct on a desktop viewport either way, which is exactly why this is written
+   down rather than left to be rediscovered.
+
+   Not in _overlays.html.twig, which is the other place a shared overlay could
+   plausibly live. That file binds against the overlay component mixed into a
+   page's own Alpine root (galleryUI, orphansPage) and is included only by pages
+   that have one. This overlay binds against the layout's nav scope and has to
+   render on every page that draws navigation — including the ones that include no
+   _overlays.html.twig at all. #}
+{% import 'partials/_icons.html.twig' as icons %}
+{% import 'partials/_transitions.html.twig' as tx %}
+
+<template x-teleport="body">
+<div class="modal" x-show="supportOpen" x-cloak {{ tx.dialog() }}
+     @keydown.escape.window="supportOpen = false" style="display:none">
+    {# Closing on click is what makes the phone gesture work as well as the tap:
+       a completed drag-to-dismiss synthesises a click on this element rather than
+       reaching for a component's method — see initSheetGestures in gallery.js. #}
+    <div class="modal__backdrop" @click="supportOpen = false"></div>
+    {# The default width, not --narrow. That variant is 380px and exists for a
+       confirmation, which is one line of question and two buttons; this is a
+       paragraph, and at 380px it sets to six lines with a ragged right. The 440px
+       default takes it to five and reads as a card rather than a column. #}
+    <div class="modal__panel" role="dialog" aria-modal="true"
+         aria-label="Support development" tabindex="-1">
+        {# Hidden on desktop, the drag target on a phone. Must be a real element
+           and a different one from the scrolling body; see the note in
+           _overlays.html.twig. #}
+        <div class="sheet__grip"><span class="sheet__handle"></span></div>
+        <div class="modal__head">
+            <h2>Support development</h2>
+            <button type="button" class="modal__close" @click="supportOpen = false"
+                    aria-label="Close">&times;</button>
+        </div>
+        <div class="modal__body support-ask">
+            {# The same heart the Support Development entry wears, larger. Drawn
+               from the shared icon set rather than ported from the site, so it is
+               one glyph in one drawing style. #}
+            <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 24) }}</span>
+            <p class="support-ask__text">
+                Marquee is free and always will be. If it earned a spot in your setup, you can
+                throw a few dollars at ongoing development &mdash; or, let's be honest, at another
+                hard drive for my Plex server that I absolutely need and can definitely justify.
+            </p>
+            <a class="btn btn--accent support-ask__cta"
+               href="https://www.buymeacoffee.com/jeremehancock" target="_blank" rel="noopener">
+                Hard drive fund
+            </a>
+        </div>
+    </div>
+</div>
+</template>

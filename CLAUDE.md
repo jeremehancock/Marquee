@@ -185,6 +185,19 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     the content it covers, so there is nothing to mark. `aria-modal="true"`
     carries it. Adding `inert` means teleporting the overlays to `<body>` first —
     a change, not a wiring decision.
+  - **A control that closes its own menu and opens an overlay has to move focus
+    to something still on screen before the menu hides.** Alpine hides on the
+    flush *after* the handler, and hiding a focused element hands its focus to
+    `<body>` — which the manager reads a frame later to record where to put focus
+    back, and an origin chain rooted at the body is the one case it declines to
+    restore, that being what a touch tap leaves behind. So the overlay opens
+    correctly, focus lands in it correctly, and dismissing it drops the keyboard
+    user at the top of the page. Nothing errors, and the pointer path looks
+    perfect. Both menus that do this today — the desktop ⋯ panel and the phone
+    actions tray — call `$refs.<their>Trigger.focus()` first, and
+    `DialogFocusTest` pins both along with the refs they name. It cannot catch a
+    third menu wired without it, which is the same hazard shape as the bullet
+    above and the same reason this is here.
 
 ## Docker
 

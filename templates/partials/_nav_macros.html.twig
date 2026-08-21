@@ -22,8 +22,18 @@
 
    `current` names the destination being viewed. That item renders as a span
    rather than an anchor: a link pointing at the page you are already on is the
-   thing being avoided, and removing the href is what actually removes it. #}
-{% macro item(key, href, label, short, current, external = false) %}
+   thing being avoided, and removing the href is what actually removes it.
+
+   `action` is the other way an entry can end: not a destination at all, but an
+   Alpine expression run in the enclosing scope. Support Development is the one
+   entry that takes it — it opens an overlay over the current page. Such an entry
+   renders as a real <button>, and that is not cosmetic. An <a> with no href is
+   neither focusable nor announced as anything, and an <a href="#"> announces a
+   destination and dirties the URL; either would leave a keyboard user with an
+   entry the sighted user can see and they cannot reach. The classes are unchanged
+   because .btn.nav-item already dresses a non-anchor — logout_link() below is a
+   form-submit control wearing exactly these. #}
+{% macro item(key, href, label, short, current, external = false, action = '') %}
     {% import 'partials/_icons.html.twig' as icons %}
     {% set body %}
         <span class="nav-ico" aria-hidden="true">{{ icons.icon(key, 20) }}</span>
@@ -33,7 +43,12 @@
     {# data-tooltip-collapsed keeps the bubble silent while a label is on screen,
        so it only names the action in the narrow band where the header is down to
        icons alone. #}
-    {% if key == current %}
+    {% if action %}
+        {# No `current` branch: an entry that opens an overlay has no page to be
+           on, so there is nothing for `current` to match. #}
+        <button type="button" class="btn nav-item" @click="{{ action }}" aria-label="{{ label }}"
+                data-tooltip="{{ label }}" data-tooltip-collapsed>{{ body }}</button>
+    {% elseif key == current %}
         <span class="btn nav-item nav-item--current" aria-current="page" aria-label="{{ label }}"
               data-tooltip="{{ label }}" data-tooltip-collapsed>{{ body }}</span>
     {% else %}
@@ -71,9 +86,12 @@
 
 {% macro overflow_links(current = '', signed_in = false) %}
     {{ _self.item('settings', '/settings', 'Settings', 'Settings', current) }}
-    {# Not part of the poster workflow, so it sits last among the destinations.
-       Opens the project's support page in a new tab, like Poster Wall. #}
-    {{ _self.item('support', 'https://getmarquee.now/#support', 'Support Development', 'Support', current, true) }}
+    {# Not part of the poster workflow, so it sits last among the destinations —
+       and it is no longer a destination at all. It used to open the project's
+       support page in a new tab, like Poster Wall; it now opens the ask itself
+       over the current page. `supportOpen` is declared on the topnav scope in
+       layout.html.twig, which encloses both placements of this group. #}
+    {{ _self.item('support', '', 'Support Development', 'Support', current, false, 'supportOpen = true') }}
     {# Last, and gated: it ends the session rather than going anywhere. The gate is
        an argument rather than the caller's `{% verbatim %}{% if %}{% endverbatim %}`
        so that "which links are in this group" is answered in exactly one place —
@@ -107,7 +125,10 @@
    Defined here, beside the group, because it exists to keep that control marked as
    the current page while the entry that says so is hidden behind a click. A list
    maintained anywhere else would drift from the group the first time either moved.
-   Log out is absent deliberately: it is an action with no page to be on.
+   Log out is absent deliberately: it is an action with no page to be on. So is
+   Support Development, for the same reason since it became an overlay — leaving
+   it in this list would invite a `nav_current` of 'support' that marked the ⋯
+   control as the current page for something that is not a page.
 
    It emits the class rather than answering yes/no, and that is not a stylistic
    choice. A Twig macro returns a `Markup` object, and an object is always truthy in
@@ -115,7 +136,7 @@
    class on every page, marking the control current everywhere. Printing the answer
    sidesteps the cast entirely. #}
 {% macro overflow_current_class(current = '') %}
-    {{- current in ['settings', 'support'] ? ' nav-item--current' : '' -}}
+    {{- current == 'settings' ? ' nav-item--current' : '' -}}
 {% endmacro %}
 
 {# The Plex connection, as a status rather than a destination.

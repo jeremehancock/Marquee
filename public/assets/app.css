@@ -2530,6 +2530,58 @@ h1 {
     color: var(--muted);
 }
 
+/* The support ask, inside the dialog that holds it (partials/_support.html.twig).
+   A centred column: the heart on a soft accent tile, the copy, and one accented
+   button. Ported in shape from the project site's support card and re-expressed
+   in this application's tokens rather than in its colours — the site is not
+   themed by this stylesheet, and a hard-coded rgba() lifted from it would be the
+   one surface here that does not move when a token does.
+
+   Nothing in this block is width-conditional, and nothing needs to be. The
+   dialog is already a centred panel above 640px and a bottom-docked tray below
+   it; a centred column is the right arrangement in both, and the button stretches
+   to the panel either way. */
+.support-ask {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: 6px;
+}
+
+.support-ask__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    /* The accent at its glass weight, over the raised surface rather than the
+       panel's, so the tile reads as sitting on the dialog instead of tinting it. */
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    color: var(--accent);
+}
+
+.support-ask__text {
+    margin: 14px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+/* Stretched rather than centred at its intrinsic width. A single call to action
+   in a narrow dialog reads as the dialog's answer when it spans it, and this is
+   also what the mobile block gives every other dialog's actions — so the phone
+   presentation matches its neighbours without a second rule. */
+.support-ask__cta {
+    align-self: stretch;
+    margin-top: 20px;
+    padding: 12px;
+    /* .btn is inline-block, so this — not a flex property — is what centres the
+       label once the button has been stretched. Matches how the mobile block
+       centres .modal__actions .btn for the same reason. */
+    text-align: center;
+}
+
 /* Fullscreen viewer */
 .viewer {
     position: fixed;
