@@ -2531,18 +2531,22 @@ h1 {
 }
 
 /* The support ask, inside the dialog that holds it (partials/_support.html.twig).
-   The heart on a soft accent tile beside the heading, then the copy, then one
-   accented button — everything on the same left axis the rest of the application's
-   dialogs use. Ported in shape from the project site's support card and
-   re-expressed in this application's tokens rather than in its colours: the site
-   is not themed by this stylesheet, and a hard-coded rgba() lifted from it would
-   be the one surface here that does not move when a token does.
+   The heart on a soft accent tile beside the heading, then the copy centred under
+   it, then one accented button across the panel. Ported in shape from the project
+   site's support card and re-expressed in this application's tokens rather than in
+   its colours: the site is not themed by this stylesheet, and a hard-coded rgba()
+   lifted from it would be the one surface here that does not move when a token
+   does.
 
-   The site centres its version, and that was tried here first. It does not
-   survive the move: the site's card has no title bar, so its heading is the top
-   of the composition, while a dialog's heading sits in a left-aligned head beside
-   the close button. Centring only the mark and the copy under that left-aligned
-   head gives the panel two axes and leaves the mark belonging to neither.
+   The copy is centred and the head is not, which is a deliberate pairing rather
+   than an oversight. What made the first attempt at this panel fail was a *mark*
+   centred beneath a left-aligned head — it sat between the heading it named and
+   the copy it introduced and belonged to neither. Binding the mark to the heading
+   is what fixed that, and it is what makes centring the copy safe now: the head is
+   one settled unit, so the copy below it is free to be its own. A block of prose
+   and a full-width button under a titled head is the shape of an announcement,
+   which is what this is. Do not "restore consistency" by moving the mark back
+   under the head — that is the arrangement this replaced.
 
    Nothing in this block is width-conditional, and nothing needs to be. The button
    stretches to the panel at both widths, which is also what the mobile block gives
@@ -2550,6 +2554,7 @@ h1 {
 .support-ask {
     display: flex;
     flex-direction: column;
+    text-align: center;
 }
 
 /* The heading and its mark as one unit, so the mark cannot drift away from the

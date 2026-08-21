@@ -445,6 +445,39 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * The mark belongs to the heading, not to the space above the copy.
+     *
+     * This is the one part of the panel's composition that is load-bearing rather
+     * than taste. A mark on its own line beneath the head sits between the heading
+     * it names and the copy it introduces and reads as belonging to neither — the
+     * project site gets away with it only because its card has no title bar, so
+     * its heading is the top of the composition and the mark above it is the
+     * card's crown. An overlay has no such position to put one in.
+     *
+     * Asserted as containment inside the `<h2>` rather than as source order, so
+     * moving the mark back out fails here whatever it is restyled to look like.
+     */
+    public function testTheSupportMarkIsPartOfTheHeading(): void
+    {
+        $overlay = $this->supportOverlay(
+            (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody(),
+            '/library/movies',
+        );
+
+        $matched = preg_match('#<h2\b[^<>]*>(.*?)</h2>#s', $overlay, $m);
+        self::assertSame(1, $matched, 'The support ask must render a heading.');
+
+        self::assertStringContainsString(
+            'support-ask__mark',
+            $m[1],
+            'The heart belongs inside the heading. On its own line beneath the head it '
+            . 'sits between the heading it names and the copy it introduces, and reads '
+            . 'as belonging to neither.',
+        );
+        self::assertStringContainsString('Support development', $m[1]);
+    }
+
+    /**
      * Contributing closes the ask.
      *
      * The payment page opens alongside the current page rather than replacing it,
