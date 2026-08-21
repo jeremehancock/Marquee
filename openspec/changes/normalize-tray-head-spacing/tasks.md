@@ -69,7 +69,7 @@
 - [x] 5.3 Check `README.md`, `docs/`, and `CLAUDE.md` for staleness. Expected
       outcome is that nothing user-facing changed and no edit is needed; say so
       explicitly rather than inventing one.
-- [ ] 5.4 Build the `:dev` image and open every tray in sequence on a phone —
+- [x] 5.4 Build the `:dev` image and open every tray in sequence on a phone —
       Sort, Import from Plex, Orphaned posters, Settings, Actions, Poster
       actions, Change poster, a confirmation, and Support development. The
       titles should land in the same place each time, and the heart should no
