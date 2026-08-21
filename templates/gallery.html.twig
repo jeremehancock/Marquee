@@ -60,6 +60,7 @@
      @gallery:import.window="openImport()"
      @gallery:orphans.window="openOrphans()"
      @gallery:settings.window="openSettings()"
+     @gallery:connect.window="openConnect()"
      @gallery:done.window="change.open = false">
 
     {% if flash %}
@@ -496,6 +497,30 @@
                     <div class="spinner"></div>
                     <p><strong>Saving settings&hellip;</strong></p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {# Connection tray (phone): the Plex connection status opens this instead of
+       navigating. Its body is the /connect page content, fetched on every open for
+       a sharper reason than the settings tray's — that screen asks the Plex server
+       its name when it renders, and the connection itself can have gone since the
+       gallery behind this was drawn. See openConnect in gallery.js.
+
+       Disconnecting from here is the one tray action that deliberately navigates.
+       The form is a plain POST with no `js-mutate` class, so neither delegated
+       handler touches it, and the browser follows its redirect to /connect. That is
+       the point: disconnecting is what the connection gate turns a user away for,
+       so closing back onto the gallery would strand them on a page that is about to
+       bounce them anyway — without the confirmation. #}
+    <div class="sheet" x-show="connectOpen" x-cloak {{ tx.tray() }}
+         @keydown.escape.window="closeConnect()" style="display:none">
+        <div class="sheet__backdrop" @click="closeConnect()"></div>
+        <div class="sheet__panel sheet__panel--tall" role="dialog" aria-modal="true" aria-label="Plex Connection" tabindex="-1">
+            <div class="sheet__grip"><span class="sheet__handle"></span></div>
+            <div class="sheet__head"><span class="sheet__title">Plex Connection</span></div>
+            <div class="sheet__body" x-ref="connectBody" data-nested-scope>
+                <p class="stats" x-show="connectLoading">Loading…</p>
             </div>
         </div>
     </div>

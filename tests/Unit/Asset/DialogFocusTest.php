@@ -171,13 +171,13 @@ final class DialogFocusTest extends TestCase
      * whole file into a test that passes by examining nothing — the one way a
      * tripwire fails silently.
      *
-     * Ten is what the application declares today: five in the gallery, the
+     * Eleven is what the application declares today: six in the gallery, the
      * preview, two confirms, the poster actions tray and the menu tray. Raise it
-     * when an eleventh is added; never lower it to make a failure go away.
+     * when a twelfth is added; never lower it to make a failure go away.
      */
     public function testThereAreDialogsToExamine(): void
     {
-        self::assertGreaterThanOrEqual(10, count($this->dialogTags()));
+        self::assertGreaterThanOrEqual(11, count($this->dialogTags()));
     }
 
     /**
@@ -323,6 +323,7 @@ final class DialogFocusTest extends TestCase
             'Import from Plex' => ['Import from Plex'],
             'Orphaned posters' => ['Orphaned posters'],
             'Settings' => ['Settings'],
+            'Plex Connection' => ['Plex Connection'],
             'Poster actions' => ['Poster actions'],
             'Support development' => ['Support development'],
         ];

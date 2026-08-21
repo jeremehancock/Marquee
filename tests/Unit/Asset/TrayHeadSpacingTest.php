@@ -13,8 +13,9 @@ use PHPUnit\Framework\TestCase;
  * Every tray in Marquee slides up from the bottom edge wearing the same grab
  * handle, so a user reads them as one component appearing in one way. They are
  * built from two lineages that share nothing else. `.sheet__panel` is a tray at
- * every width — Sort, Import from Plex, Orphaned posters, Settings, Actions,
- * Poster actions — and heads itself with `.sheet__head` and a `.sheet__title`
+ * every width — Sort, Import from Plex, Orphaned posters, Settings, Plex
+ * Connection, Actions, Poster actions — and heads itself with
+ * `.sheet__head` and a `.sheet__title`
  * span. `.modal__panel` is a centred dialog above 640px and a tray below it —
  * Change poster, the confirmations, Support development — and heads itself with
  * `.modal__head` and an `<h2>`. The two head rules are 400 lines apart and

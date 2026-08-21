@@ -169,11 +169,22 @@
         <span class="conn-dot conn-dot--{{ connected ? 'ok' : 'off' }}" aria-hidden="true"></span>
         <span class="conn-status__name" aria-hidden="true">{{ name }}</span>
     {% endset %}
+    {# data-connect is the tray bridge, and it goes on the anchor branch only. The
+       bridge cancels a navigation and dispatches an event instead, so the thing it
+       intercepts has to have been going somewhere: the current-page span has no
+       href, and marking it would offer the tray as the way to a screen you are
+       already looking at.
+
+       This macro draws the status in both placements — the desktop header bar and
+       the phone actions tray — so the attribute reaches the desktop one too. That
+       is how data-import, data-orphans and data-settings already behave, and it
+       costs nothing: the bridge in gallery.js gates on isTouch() and on the page
+       carrying a gallery, so on a pointer screen this stays an ordinary link. #}
     {% if current == 'connect' %}
         <span class="conn-status conn-status--current" aria-current="page"
               aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</span>
     {% else %}
-        <a class="conn-status" href="/connect"
+        <a class="conn-status" href="/connect" data-connect
            aria-label="{{ label }}" data-tooltip="{{ label }}">{{ body }}</a>
     {% endif %}
 {% endmacro %}

@@ -687,18 +687,22 @@
     }
 
     // ---- Secondary destinations -> trays (phone) ----
-    // On a touch device the "Import from Plex", "Orphans" and "Settings" links open
-    // in a tray over the gallery instead of navigating, but only on a page that
-    // actually has the gallery (and its trays). Elsewhere, and on pointer devices,
-    // they navigate normally.
+    // On a touch device the "Import from Plex", "Orphans" and "Settings" links and
+    // the Plex connection status open in a tray over the gallery instead of
+    // navigating, but only on a page that actually has the gallery (and its trays).
+    // Elsewhere, and on pointer devices, they navigate normally.
+    //
+    // The fallback is the anchor's own href, which is what makes this cheap: an
+    // intercepted link that finds no tray to open is just a link.
     var TRAY_LINKS = {
         'data-import': 'gallery:import',
         'data-orphans': 'gallery:orphans',
         'data-settings': 'gallery:settings',
+        'data-connect': 'gallery:connect',
     };
 
     document.addEventListener('click', function (e) {
-        var link = e.target.closest('a[data-import], a[data-orphans], a[data-settings]');
+        var link = e.target.closest('a[data-import], a[data-orphans], a[data-settings], a[data-connect]');
         if (!link) { return; }
         if (!isTouch() || !document.querySelector('[data-gallery]')) { return; }
         for (var attr in TRAY_LINKS) {
@@ -1158,6 +1162,14 @@
                 settingsOpen: false,
                 settingsLoading: false,
                 settingsSaving: false,
+                // No `connectLoaded` either, and for a sharper reason than the
+                // settings tray's: /connect asks the Plex server its name when it
+                // renders, and the connection can be gone since the gallery behind
+                // the tray was drawn. Adding the flag by analogy with the import
+                // tray — the one tray that is genuinely fetched once — would pin
+                // both to whatever they were the first time the tray was opened.
+                connectOpen: false,
+                connectLoading: false,
 
                 // Fetch a page's content and drop it into a tray, re-initialising
                 // Alpine on the fragment so its own wiring (the import stepper, the
@@ -1432,6 +1444,47 @@
                     this.settingsOpen = false;
                     this.settingsSaving = false;
                     if (this.$refs.settingsBody) { this.$refs.settingsBody.innerHTML = ''; }
+                },
+
+                // Open the connection tray. The whole /connect page is reused inside
+                // it, the same way the import, orphans and settings trays reuse
+                // theirs — the connection status was the last entry in the navigation
+                // that charged a page load and a "Back to gallery" link for a glance.
+                //
+                // Fetched on every open. That screen calls the connection status's
+                // refresh, which asks the Plex server what it is called, and the
+                // connection can have been forgotten in another tab since this page
+                // was drawn. See the note on `connectLoaded` above for why there is
+                // no caching flag to be tidied in here later.
+                //
+                // Nothing is bound on the fetched fragment, and that is not an
+                // oversight. Its one action — the Disconnect form — is a plain POST
+                // that must navigate (see the tray's markup in gallery.html.twig),
+                // and its other possible state, the signed-out sign-in panel, carries
+                // its own `plexConnection()` component that _injectTray's
+                // Alpine.initTree binds like any other fragment. That component ends
+                // a completed sign-in by setting window.location, so it needs nothing
+                // from the tray either.
+                openConnect: function () {
+                    var self = this;
+                    this.connectOpen = true;
+                    if (this.connectLoading) { return; }
+                    this.connectLoading = true;
+                    this._loadTray('/connect', 'connectBody')
+                        .catch(function () {
+                            self.$refs.connectBody.innerHTML =
+                                '<p class="alert" role="alert">Could not load the Plex connection. Open the <a href="/connect">connection page</a> instead.</p>';
+                        })
+                        .finally(function () { self.connectLoading = false; });
+                },
+
+                // Closing discards the loaded body, as the settings tray does. What
+                // it reports is stale the moment it is dismissed, and leaving it in
+                // the DOM means a reopen shows the previous connection state for as
+                // long as the new fetch takes.
+                closeConnect: function () {
+                    this.connectOpen = false;
+                    if (this.$refs.connectBody) { this.$refs.connectBody.innerHTML = ''; }
                 },
 
                 // Route the loaded form's submit through saveSettings. Called again

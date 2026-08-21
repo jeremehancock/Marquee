@@ -115,8 +115,8 @@ final class GalleryTest extends AppTestCase
 
         // Both presentations, not just whichever the macro was last edited for:
         // the gallery renders dialogs (change poster, confirm, support) and trays
-        // (sort, import, orphans, settings, menu, poster actions) from the same
-        // page.
+        // (sort, import, orphans, settings, connection, menu, poster actions) from
+        // the same page.
         self::assertSame(
             3,
             substr_count($body, 'class="modal" x-show'),
@@ -126,11 +126,11 @@ final class GalleryTest extends AppTestCase
             . 'to the orphans page.',
         );
         self::assertSame(
-            6,
+            7,
             substr_count($body, 'class="sheet" x-show'),
-            'The gallery renders six trays — sort, import, orphans, settings, the '
-            . 'actions menu and the poster action sheet; each needs the transition '
-            . 'macro.',
+            'The gallery renders seven trays — sort, import, orphans, settings, the '
+            . 'Plex connection, the actions menu and the poster action sheet; each '
+            . 'needs the transition macro.',
         );
     }
 
