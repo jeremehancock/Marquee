@@ -13,20 +13,20 @@
 
 ## 2. Verify in the running tray
 
-- [ ] 2.1 Open Change Poster → Find Posters at a phone width for a title with
+- [x] 2.1 Open Change Poster → Find Posters at a phone width for a title with
   enough candidates to overflow, and confirm one scrollbar, one scroller, and
   the last row reachable and tappable.
-- [ ] 2.2 Repeat on Plex Posters for an item whose offered artwork runs long,
+- [x] 2.2 Repeat on Plex Posters for an item whose offered artwork runs long,
   and confirm the end of the last group is reachable.
-- [ ] 2.3 Repeat at a short viewport height, where the fixed chrome takes a
+- [x] 2.3 Repeat at a short viewport height, where the fixed chrome takes a
   larger share, and confirm nothing is clipped there either.
-- [ ] 2.4 Confirm the group headings still pin while their own group is on
+- [x] 2.4 Confirm the group headings still pin while their own group is on
   screen and leave with it, now against the tray head. Check both tabs — Plex
   Posters can show two headings in quick succession.
-- [ ] 2.5 Confirm the drag-to-dismiss gesture and backdrop tap still dismiss the
+- [x] 2.5 Confirm the drag-to-dismiss gesture and backdrop tap still dismiss the
   tray, and that a flick reaching the end of the contents does not scroll the
   gallery behind it or trigger pull-to-refresh.
-- [ ] 2.6 Confirm the desktop dialog is unchanged: the grouped stack still
+- [x] 2.6 Confirm the desktop dialog is unchanged: the grouped stack still
   scrolls at its 62vh cap and its headings still pin inside it.
 
 ## 3. Pin the decision in the asset tripwires
