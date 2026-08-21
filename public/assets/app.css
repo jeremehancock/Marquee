@@ -2531,31 +2531,46 @@ h1 {
 }
 
 /* The support ask, inside the dialog that holds it (partials/_support.html.twig).
-   A centred column: the heart on a soft accent tile, the copy, and one accented
-   button. Ported in shape from the project site's support card and re-expressed
-   in this application's tokens rather than in its colours — the site is not
-   themed by this stylesheet, and a hard-coded rgba() lifted from it would be the
-   one surface here that does not move when a token does.
+   The heart on a soft accent tile beside the heading, then the copy, then one
+   accented button — everything on the same left axis the rest of the application's
+   dialogs use. Ported in shape from the project site's support card and
+   re-expressed in this application's tokens rather than in its colours: the site
+   is not themed by this stylesheet, and a hard-coded rgba() lifted from it would
+   be the one surface here that does not move when a token does.
 
-   Nothing in this block is width-conditional, and nothing needs to be. The
-   dialog is already a centred panel above 640px and a bottom-docked tray below
-   it; a centred column is the right arrangement in both, and the button stretches
-   to the panel either way. */
+   The site centres its version, and that was tried here first. It does not
+   survive the move: the site's card has no title bar, so its heading is the top
+   of the composition, while a dialog's heading sits in a left-aligned head beside
+   the close button. Centring only the mark and the copy under that left-aligned
+   head gives the panel two axes and leaves the mark belonging to neither.
+
+   Nothing in this block is width-conditional, and nothing needs to be. The button
+   stretches to the panel at both widths, which is also what the mobile block gives
+   every other dialog's actions. */
 .support-ask {
     display: flex;
     flex-direction: column;
+}
+
+/* The heading and its mark as one unit, so the mark cannot drift away from the
+   words it belongs to. .modal__head h2 already clears the margin and sets the
+   size; this only adds the row. */
+.support-ask__title {
+    display: flex;
     align-items: center;
-    text-align: center;
-    padding-top: 6px;
+    gap: 10px;
 }
 
 .support-ask__mark {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-lg);
+    /* Fixed, and never allowed to shrink: it shares a flex row with a heading, and
+       a squashed tile draws a heart as an ellipse. */
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
     /* The accent at its glass weight, over the raised surface rather than the
        panel's, so the tile reads as sitting on the dialog instead of tinting it. */
     background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));

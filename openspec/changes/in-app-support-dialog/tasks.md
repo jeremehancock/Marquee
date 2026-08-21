@@ -42,3 +42,13 @@
 - [x] 6.2 `composer stan`
 - [x] 6.3 `composer cs` (`composer cs:fix` if it reports)
 - [x] 6.4 Drove the rendered page in headless Chromium with Alpine and `gallery.js` live: the entry is a `<button>` with no `href`; activating it opens the dialog; focus lands on the panel (`inside=true`); Escape closes it; focus returns to the ⋯ trigger. The counterfactual was measured too — with `$refs.moreTrigger.focus()` removed the same run ends on `<body>`, which is what task 2.6 was added for and what `testAMenuThatOpensAnOverlayHandsFocusBackToItsTrigger` now pins. Left for the user's `:dev` validation: the touch drag-to-dismiss, which needs real touch events.
+
+## 7. Revision after review
+
+- [x] 7.1 The heart read as orphaned between a left-aligned title bar and centred body text — three alignment anchors. Rebuilt four candidates against the real stylesheet and put them to the user; chose the mark bound to the heading, everything on one left axis.
+- [x] 7.2 "Hard drive fund" now dismisses the overlay on its way out, matching how the actions tray treats Poster Wall. Without it the user returns from the payment tab to a dialog still asking.
+- [x] 7.3 Delta spec updated: the mark is presented with the heading rather than above the copy, and contributing dismisses the ask — one new scenario each.
+- [x] 7.4 Design decision 7 records why the site's centred composition does not survive the move, so it is not re-centred later for fidelity; 7a covers the dismissal.
+- [x] 7.5 `testContributingDismissesTheSupportAsk` pins the handler on the link's own tag, not on the overlay — the close button and backdrop carry the same handler and would satisfy a looser check.
+- [x] 7.6 Re-rendered at 1280px and 390px; gates re-run green (1089 tests).
+

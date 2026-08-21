@@ -50,22 +50,35 @@
            and a different one from the scrolling body; see the note in
            _overlays.html.twig. #}
         <div class="sheet__grip"><span class="sheet__handle"></span></div>
+        {# The mark sits inside the heading rather than above the copy, and that is
+           the whole composition. Centred under a left-aligned title bar it belonged
+           to neither — the title was on one axis, the mark and the copy on another,
+           and it read as floating. Bound to the heading it is one unit, everything
+           lines up left, and the dialog matches the title-left / ×-right shape every
+           other dialog and tray in the application already has. #}
         <div class="modal__head">
-            <h2>Support development</h2>
+            <h2 class="support-ask__title">
+                {# The same heart the Support Development entry wears. Drawn from the
+                   shared icon set rather than ported from the site, so it is one
+                   glyph in one drawing style. #}
+                <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 20) }}</span>
+                Support development
+            </h2>
             <button type="button" class="modal__close" @click="supportOpen = false"
                     aria-label="Close">&times;</button>
         </div>
         <div class="modal__body support-ask">
-            {# The same heart the Support Development entry wears, larger. Drawn
-               from the shared icon set rather than ported from the site, so it is
-               one glyph in one drawing style. #}
-            <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 24) }}</span>
             <p class="support-ask__text">
                 Marquee is free and always will be. If it earned a spot in your setup, you can
                 throw a few dollars at ongoing development &mdash; or, let's be honest, at another
                 hard drive for my Plex server that I absolutely need and can definitely justify.
             </p>
-            <a class="btn btn--accent support-ask__cta"
+            {# Dismisses on the way out, like every other new-tab destination in the
+               application — the menu tray closes itself when Poster Wall is chosen
+               for the same reason. The ask has been answered; leaving it standing
+               over the page means the user comes back from the payment tab to a
+               dialog still asking. #}
+            <a class="btn btn--accent support-ask__cta" @click="supportOpen = false"
                href="https://www.buymeacoffee.com/jeremehancock" target="_blank" rel="noopener">
                 Hard drive fund
             </a>

@@ -445,6 +445,36 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * Contributing closes the ask.
+     *
+     * The payment page opens alongside the current page rather than replacing it,
+     * so an overlay left standing is one the user comes back from paying to find
+     * still asking them to pay. The application already treats new-tab
+     * destinations this way — the actions tray dismisses itself when Poster Wall
+     * is chosen.
+     *
+     * Asserted on the link's own tag rather than on the overlay, because the
+     * close button and the backdrop carry the same handler and would satisfy a
+     * looser check.
+     */
+    public function testContributingDismissesTheSupportAsk(): void
+    {
+        $overlay = $this->supportOverlay(
+            (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody(),
+            '/library/movies',
+        );
+
+        $matched = preg_match('#<a\b[^<>]*support-ask__cta[^<>]*>#s', $overlay, $m);
+        self::assertSame(1, $matched, 'The support ask must render its call to action.');
+
+        self::assertStringContainsString(
+            'supportOpen = false',
+            $m[0],
+            'Choosing "Hard drive fund" must dismiss the ask on its way out.',
+        );
+    }
+
+    /**
      * The behaviour being removed, asserted as an absence.
      *
      * A stray copy of the old link is invisible: it renders as a nav item that

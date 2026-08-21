@@ -171,15 +171,32 @@ include no `_overlays.html.twig` at all.
 ### 7. Presentation: `.support-ask` block inside the panel
 
 New CSS, ported in spirit from the site's `.support` block but expressed in this
-app's tokens (`--accent`, `--surface-2`, `--muted`, `--radius-*`). Centred column:
-heart mark in a soft accent-tinted tile, `<h2>`, one `.stats`-toned paragraph, one
-`.btn.btn--accent` sized to the full panel width on a phone the way the mobile
-block already sizes `.modal__actions .btn`. The heading is `<h2>` inside
-`.modal__head` alongside the existing `.modal__close`, matching the confirm
-dialog's structure, so `aria-label` on the panel and the visible heading agree.
+app's tokens (`--accent`, `--surface-2`, `--muted`, `--radius-*`). Everything on
+one left axis: the heart on a soft accent-tinted tile **inside** the `<h2>`, in
+`.modal__head` alongside the existing `.modal__close`; then a `.stats`-toned
+paragraph; then one `.btn.btn--accent` stretched to the panel, the way the mobile
+block already sizes `.modal__actions .btn`.
 
-The heart comes from `icons.icon('support')` — the same glyph the nav entry wears,
-at a larger size — not the site's own path. One icon set, one drawing style.
+**The site's centred composition was built first and rejected on sight.** It does
+not survive the move, and the reason generalises: the site's card has no title
+bar, so its heading is the top of the composition and the mark above it reads as
+the card's crown. A dialog's heading lives in a left-aligned head beside the close
+control — so centring only the mark and the copy underneath gives the panel two
+axes, and the mark, sitting between a left-aligned title and centred text, belongs
+to neither. Binding it to the heading fixes it: one unit, one axis, and the same
+title-left / ×-right shape every other dialog and tray in the app already has.
+Don't re-centre it for fidelity to the site.
+
+The heart comes from `icons.icon('support')` — the same glyph the nav entry wears —
+not the site's own path. One icon set, one drawing style.
+
+### 7a. The call to action dismisses the overlay
+
+`@click="supportOpen = false"` on the link itself, alongside its `target="_blank"`.
+The payment page opens *alongside* the current page rather than replacing it, so
+without this the user returns from contributing to find the dialog still asking
+them to contribute. The application already does this for new-tab destinations —
+the actions tray closes itself when Poster Wall is chosen.
 
 ### 8. What the tests have to become
 

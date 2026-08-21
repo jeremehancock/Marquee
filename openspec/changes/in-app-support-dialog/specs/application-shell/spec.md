@@ -22,6 +22,19 @@ single accented button labelled "Hard drive fund" linking to the project's Buy M
 Coffee page. That button SHALL open in a new browsing context — the payment page is
 genuinely elsewhere, and it is the only thing in the overlay that leaves the app.
 
+The mark SHALL be presented with the heading rather than as an element of its own
+above the copy. The project site centres its version of this ask, but the site's
+card has no title bar and its heading is therefore the top of the composition;
+an overlay's heading sits in a head beside the close control, so a mark centred
+beneath that head belongs to neither the heading it names nor the copy it sits
+above.
+
+Activating the button SHALL also dismiss the overlay. The payment page opens
+alongside the current page rather than replacing it, so an overlay left standing
+is one the user returns from their contribution to find still asking for it. This
+matches how the application already treats a destination that opens in a new
+browsing context: the actions tray dismisses itself when Poster Wall is chosen.
+
 The overlay SHALL use the application's shared dialog presentation and therefore
 SHALL take the two forms that presentation already gives: on a pointer/desktop
 screen a centred dialog with its own close control, and on a narrow screen an
@@ -52,6 +65,14 @@ and returns to the control that opened it when it closes.
   project's support copy, and a "Hard drive fund" button
 - **AND** that button links to the project's Buy Me a Coffee page and opens it in a
   new browsing context
+- **AND** the mark is presented with the heading rather than as a separate element
+  above the copy
+
+#### Scenario: Contributing dismisses the ask
+
+- **WHEN** a user activates the "Hard drive fund" button
+- **THEN** the payment page opens in a new browsing context
+- **AND** the overlay closes rather than remaining over the page behind it
 
 #### Scenario: Presented as a dialog on desktop and a tray on a phone
 
