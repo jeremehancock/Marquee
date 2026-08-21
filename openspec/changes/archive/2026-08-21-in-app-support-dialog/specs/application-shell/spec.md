@@ -103,9 +103,7 @@ and returns to the control that opened it when it closes.
 - **WHEN** they dismiss it
 - **THEN** focus returns to the control they opened it from
 
-## MODIFIED Requirements
-
-### Requirement: App-wide mobile actions menu
+### Requirement: App-wide mobile actions menu and its destinations
 The shared layout SHALL provide an app-wide **actions** menu for small screens so
 that the application's secondary actions are reachable from every authenticated
 page without crowding the content. The menu's entries are predominantly actions
@@ -256,6 +254,8 @@ of the viewport than the menu's occasional use justifies.
   which overrides the navigation region)
 - **THEN** no menu control is shown
 
+## MODIFIED Requirements
+
 ### Requirement: Secondary navigation in the desktop page header
 On a pointer/desktop screen the shared layout SHALL present the application's
 secondary navigation — Poster Wall, Import from Plex, Orphans, Settings, Support
@@ -404,3 +404,27 @@ the content region they occupy.
 - **WHEN** a user on a pointer/desktop-width screen scrolls down a page
 - **THEN** the header and its actions scroll out of view rather than remaining
   pinned to the viewport
+
+## REMOVED Requirements
+
+### Requirement: App-wide mobile actions menu
+
+**Reason**: Superseded by "App-wide mobile actions menu and its destinations",
+above, which carries every one of its paragraphs and scenarios forward with two
+exceptions. Its scenario "Support Development opens the project's support page"
+asserted that `https://getmarquee.now/#support` opens in a new browsing context,
+and that behaviour no longer exists in any weaker form — Support Development now
+opens an overlay over the current page, so the scenario is replaced by "Support
+Development opens the support ask in place" rather than amended. Its opening
+paragraph counted two entries that open a new browsing context; there is one.
+
+The rename is what makes the removal expressible: a requirement re-stated under
+its own name cannot drop a scenario, by design, so that a partial re-statement
+cannot silently lose one. This one is not partial, and the new name is the more
+accurate of the two — the body has always described both the menu and what each
+entry opens, and what changed is exactly the latter.
+
+**Migration**: None for users. The menu holds the same six entries in the same
+order under the same names, and only Support Development behaves differently.
+Anything asserting the `getmarquee.now/#support` href, or that the entry is an
+anchor carrying `target="_blank"`, asserts behaviour that no longer exists.
