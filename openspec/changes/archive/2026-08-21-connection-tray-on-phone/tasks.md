@@ -70,11 +70,11 @@
 
 ## 6. Validation
 
-- [ ] 6.1 Build and run the `:dev` image and check by hand on a phone: the status
+- [x] 6.1 Build and run the `:dev` image and check by hand on a phone: the status
   in the actions tray opens the connection tray over the gallery; the tray
   swipes, backdrops and Escapes away; reopening it re-fetches; Disconnect leaves
   for `/connect` and shows its confirmation.
-- [ ] 6.2 Check the fallbacks by hand: on a pointer/desktop screen the status
+- [x] 6.2 Check the fallbacks by hand: on a pointer/desktop screen the status
   still navigates, and on `/plex`, `/orphans` and `/settings` — pages with no
   gallery — it navigates there too.
-- [ ] 6.3 Do not archive until the user has validated the `:dev` image.
+- [x] 6.3 Do not archive until the user has validated the `:dev` image.
