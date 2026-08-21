@@ -634,8 +634,10 @@ poster search service.
 
 Marquee is free and self-hosted, and it stays that way. If it has been useful to
 you and you'd like to help keep it maintained, you can support development at
-[getmarquee.now/#support](https://getmarquee.now/#support). Feedback and bug
-reports are just as welcome.
+[getmarquee.now/#support](https://getmarquee.now/#support), or from inside the app
+itself — **Support Development**, behind the **⋯** menu in the header, opens the
+same ask over the page you are on rather than sending you to the website.
+Feedback and bug reports are just as welcome.
 
 ## AI Disclosure
 

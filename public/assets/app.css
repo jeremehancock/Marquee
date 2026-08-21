@@ -2530,6 +2530,100 @@ h1 {
     color: var(--muted);
 }
 
+/* The support ask, inside the dialog that holds it (partials/_support.html.twig).
+   A head of three: the heart at the left edge, the heading centred, the close at
+   the right. Then the copy, left. Then one accented button across the panel.
+   Ported in shape from the project site's support card and re-expressed in this
+   application's tokens rather than in its colours: the site is not themed by this
+   stylesheet, and a hard-coded rgba() lifted from it would be the one surface here
+   that does not move when a token does.
+
+   One rule here is load-bearing and the rest is taste, and it is worth keeping
+   them apart. **The mark belongs on the heading's row.** The first build put it on
+   its own line beneath the head, above the copy, where it sat between the heading
+   it named and the text it introduced and belonged to neither. The site gets away
+   with that only because its card has no title bar: its heading is the top of the
+   composition, so a mark above it reads as the card's crown. An overlay's heading
+   lives in a head beside a close control, so there is no crown position to put one
+   in. Where on that row the mark sits — beside the words or out at the edge — and
+   which blocks of text are centred are both taste, and both have changed since.
+   Don't reason from them; don't put the mark back below the head.
+
+   Nothing in this block is width-conditional, and nothing needs to be. The button
+   stretches to the panel at both widths, which is also what the mobile block gives
+   every other dialog's actions. */
+.support-ask {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Mark left, heading centred, close right — a grid rather than the flex row
+   .modal__head otherwise is.
+
+   `1fr auto 1fr` is what makes the heading *actually* centred rather than merely
+   between the other two. The outer tracks are equal by definition, so the middle
+   one lands on the panel's centre line whatever the mark and the close measure —
+   and they do not measure the same: a 40px tile against a text glyph. The obvious
+   flex alternatives both fail on that. `space-between` centres the heading in the
+   gap left over, which is off by half the difference; taking the mark and the
+   close out of flow instead fixes the widths but breaks the vertical, because an
+   absolutely positioned child resolves against the padding box while its in-flow
+   siblings centre in the content box — and the mobile block gives this head
+   2px of padding above and 12px below, so the heading would sit 5px low there.
+
+   It also survives the phone on its own. The close is `display: none` at that
+   width, but its track is not: the third `1fr` stays, so the heading stays
+   centred and the mobile block needs nothing. */
+.support-ask__head {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+}
+
+.support-ask__title {
+    justify-self: center;
+}
+
+.support-ask__head .modal__close {
+    justify-self: end;
+}
+
+.support-ask__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Fixed, and never allowed to shrink: it shares a flex row with a heading, and
+       a squashed tile draws a heart as an ellipse. */
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    /* The accent at its glass weight, over the raised surface rather than the
+       panel's, so the tile reads as sitting on the dialog instead of tinting it. */
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+    color: var(--accent);
+}
+
+.support-ask__text {
+    margin: 14px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+/* Stretched rather than centred at its intrinsic width. A single call to action
+   in a narrow dialog reads as the dialog's answer when it spans it, and this is
+   also what the mobile block gives every other dialog's actions — so the phone
+   presentation matches its neighbours without a second rule. */
+.support-ask__cta {
+    align-self: stretch;
+    margin-top: 20px;
+    padding: 12px;
+    /* .btn is inline-block, so this — not a flex property — is what centres the
+       label once the button has been stretched. Matches how the mobile block
+       centres .modal__actions .btn for the same reason. */
+    text-align: center;
+}
+
 /* Fullscreen viewer */
 .viewer {
     position: fixed;

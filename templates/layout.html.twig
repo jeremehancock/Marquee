@@ -49,7 +49,23 @@
                secondary navigation stays reachable on a phone; only the Log out
                link is gated on being signed in. The sign-in screen overrides this
                block to empty, because nothing behind it is reachable yet. #}
-            <div class="topnav" x-data="{ menuOpen: false, moreOpen: false }">
+            {# `supportOpen` sits beside the two menu flags rather than in any
+               page's own Alpine root, and that placement is the whole mechanism:
+               this is the one scope present on every page that draws navigation,
+               and both placements of the Support Development entry — the desktop
+               ⋯ panel below and the teleported phone tray — are inside it. So one
+               overlay serves both, with nothing to register and no per-page
+               fallback to arrange.
+
+               Deliberately not the data-attribute bridge Import, Orphans and
+               Settings use (see the `gallery:*` dispatch in gallery.js). Those
+               are anchors that must still navigate on a page whose Alpine root
+               holds no tray for them. This overlay's content is static and is
+               declared in the layout, so it is present wherever the entry is —
+               routing it through that bridge would add an interception layer to
+               solve a problem it does not have, and would leave a live external
+               href behind as the "fallback" this replaced. #}
+            <div class="topnav" x-data="{ menuOpen: false, moreOpen: false, supportOpen: false }">
                 {# The secondary actions live here rather than in any one page's
                    content, so they are reachable from every page that draws
                    navigation — the reach the tray already gives a phone. Import
@@ -89,11 +105,25 @@
 
                            Escape is bound on the panel as well as the trigger
                            because focus moves into the panel as soon as it is
-                           opened from the keyboard. #}
+                           opened from the keyboard.
+
+                           Choosing an entry hands focus back to the trigger for a
+                           different reason than Escape does, and it is not
+                           cosmetic. Alpine hides this panel on the flush after the
+                           handler, and hiding a *focused* element hands its focus
+                           to the document body — the failure the focus manager in
+                           gallery.js exists to end. Support Development opens an
+                           overlay rather than navigating, so there is a moment
+                           after this that cares: the manager reads
+                           `document.activeElement` on the next frame to remember
+                           where to put focus back, and `<body>` means it puts it
+                           nowhere. Moving focus to the trigger first, while the
+                           panel is still shown, is what gives it something to
+                           remember. Harmless for the entries that do navigate. #}
                         <div class="navmenu__panel menu__body" x-show="moreOpen" x-cloak
                              role="menu" aria-label="More actions"
                              @keydown.escape="moreOpen = false; $refs.moreTrigger.focus()"
-                             @click="moreOpen = false" style="display:none">
+                             @click="moreOpen = false; $refs.moreTrigger.focus()" style="display:none">
                             {{ nav.overflow_links(nav_current|default(''), signed_in()) }}
                         </div>
                     </div>
@@ -107,11 +137,15 @@
                    Support open new tabs, and Log out is an action. A hamburger would
                    promise the edge-anchored navigation drawer this menu deliberately
                    isn't. The same mark names the desktop overflow above. #}
-                <button type="button" class="menu-btn" @click="menuOpen = true"
+                <button type="button" class="menu-btn" x-ref="menuTrigger" @click="menuOpen = true"
                         aria-label="Actions" aria-haspopup="true">
                     {{ nav.overflow_glyph(24) }}
                 </button>
                 {% include 'partials/_menu.html.twig' %}
+                {# The Support Development entry in both groups above opens this
+                   rather than navigating. Teleported to <body> for the same
+                   containing-block reason the tray is — see the partial. #}
+                {% include 'partials/_support.html.twig' %}
             </div>
         {% endblock %}
     </header>

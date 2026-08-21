@@ -114,14 +114,16 @@ final class GalleryTest extends AppTestCase
         }
 
         // Both presentations, not just whichever the macro was last edited for:
-        // the gallery renders dialogs (change poster, confirm) and trays (sort,
-        // import, orphans, settings, menu, poster actions) from the same page.
+        // the gallery renders dialogs (change poster, confirm, support) and trays
+        // (sort, import, orphans, settings, menu, poster actions) from the same
+        // page.
         self::assertSame(
-            2,
+            3,
             substr_count($body, 'class="modal" x-show'),
-            'The gallery renders two dialogs — change poster and the shared '
-            . 'confirmation; each needs the transition macro. The third dialog in '
-            . 'the application belongs to the orphans page.',
+            'The gallery renders three dialogs — change poster, the shared '
+            . 'confirmation, and the support ask from the layout; each needs the '
+            . 'transition macro. The remaining dialog in the application belongs '
+            . 'to the orphans page.',
         );
         self::assertSame(
             6,
@@ -387,7 +389,10 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('data-sort="date_added"', $head);
         self::assertStringContainsString('class="tab ', $head);
 
-        foreach (['/wall', '/plex', '/orphans', 'getmarquee.now/#support'] as $href) {
+        // Support Development is absent from this list because it is no longer an
+        // href anywhere — it opens an overlay. Asserting its absence here would
+        // pass for the wrong reason.
+        foreach (['/wall', '/plex', '/orphans'] as $href) {
             self::assertStringNotContainsString(
                 'href="' . $href . '"',
                 $head,

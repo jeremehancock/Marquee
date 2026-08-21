@@ -52,6 +52,7 @@ final class DialogFocusTest extends TestCase
         'orphans.html.twig',
         'partials/_menu.html.twig',
         'partials/_overlays.html.twig',
+        'partials/_support.html.twig',
     ];
 
     private function root(): string
@@ -323,6 +324,7 @@ final class DialogFocusTest extends TestCase
             'Orphaned posters' => ['Orphaned posters'],
             'Settings' => ['Settings'],
             'Poster actions' => ['Poster actions'],
+            'Support development' => ['Support development'],
         ];
     }
 
@@ -447,5 +449,62 @@ final class DialogFocusTest extends TestCase
                 )
             );
         }
+    }
+
+    /**
+     * The two menus that open an overlay hand focus to their own trigger before
+     * they close.
+     *
+     * This looks like a tidy-up and is not. Both menus hide themselves on the
+     * flush after the click, and hiding a *focused* element hands its focus to
+     * the document body; the manager reads `document.activeElement` a frame later
+     * to decide where to put focus back when the overlay is dismissed, and it
+     * declines to restore an origin chain rooted at the body — deliberately, that
+     * being what a touch tap leaves behind. So the sequence without these calls
+     * is: open Support Development from the keyboard, land in the dialog
+     * correctly, press Escape, and be left on the body with the next Tab
+     * resuming at the top of the page. Measured, not reasoned: removing the ⋯
+     * panel's call moves the post-dismissal `activeElement` from the trigger to
+     * `<body>`.
+     *
+     * The trigger refs are asserted alongside the calls because an `$refs` name
+     * that resolves to nothing fails silently — `undefined.focus()` throws inside
+     * an Alpine handler and takes the menu-closing with it.
+     *
+     * @return array<string, array{string, string, string}>
+     */
+    public static function overlayOpeningMenus(): array
+    {
+        return [
+            'desktop overflow menu' => ['layout.html.twig', 'navmenu__panel menu__body', 'moreTrigger'],
+            'phone actions tray' => ['partials/_menu.html.twig', 'sheet__body menu__body', 'menuTrigger'],
+        ];
+    }
+
+    #[DataProvider('overlayOpeningMenus')]
+    public function testAMenuThatOpensAnOverlayHandsFocusBackToItsTrigger(
+        string $template,
+        string $container,
+        string $ref,
+    ): void {
+        $tag = $this->tagMatching('/<div class="' . preg_quote($container, '/') . '"[^<>]*>/s', $template);
+
+        self::assertStringContainsString(
+            '$refs.' . $ref . '.focus()',
+            $tag,
+            sprintf(
+                'Choosing an entry in %s must move focus to its trigger before the menu '
+                . 'hides, or the focus manager has only the body to remember.',
+                $container
+            )
+        );
+
+        // The ref itself, wherever the trigger is declared. Both triggers live in
+        // layout.html.twig; the tray is a partial of it and shares its scope.
+        self::assertStringContainsString(
+            'x-ref="' . $ref . '"',
+            $this->markup('layout.html.twig'),
+            sprintf('$refs.%s must resolve to a control in the topbar scope.', $ref)
+        );
     }
 }
