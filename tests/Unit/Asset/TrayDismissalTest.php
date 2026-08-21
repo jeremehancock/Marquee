@@ -195,6 +195,25 @@ final class TrayDismissalTest extends TestCase
         );
     }
 
+    /**
+     * Containment is necessary and is not sufficient, and the difference is worth
+     * stating here because this is the test a reader lands on when wondering
+     * whether a tray's scrolling is fully accounted for.
+     *
+     * These assertions say a flick that reaches the end of a scroller stops
+     * there. They say nothing about whether everything the tray holds can be
+     * reached in the first place. Nest one scroller inside another and the two
+     * combine badly: containment stops the gesture at the inner region's end
+     * instead of handing the rest to the outer one, so whatever the outer region
+     * holds beyond the inner box becomes unreachable — which is exactly how the
+     * last row of Find Posters went missing on a phone while every assertion
+     * below still passed.
+     *
+     * So poster-library excludes nesting outright and separately requires a
+     * tray's contents to be reachable in full. PosterGroupsTest::
+     * testTheTrayBodyOwnsTheScrollOnAPhone pins the one case that exists today;
+     * neither test can catch a new nested scroller introduced elsewhere.
+     */
     public function testTrayScrollersContainTheirOverscroll(): void
     {
         $css = $this->stylesheet();

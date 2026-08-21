@@ -3285,6 +3285,36 @@ h1 {
         overflow-y: visible;
     }
 
+    /* The same reset, one level up, and the pair has to stay a pair.
+       Overrides `.poster-groups`'s `max-height: 62vh` / `overflow-y: auto`.
+
+       That cap is not a duplicate of the one above: it was MOVED here from
+       `.find-grid` when the grouped stack was introduced, because a sticky
+       heading can only travel inside its own scroll container and the headings
+       had to pin across a whole stack of grids rather than inside one. The
+       desktop rule was relocated; this mobile counterpart was not, and went on
+       resetting the element that no longer scrolled. So the reasoning in the
+       comment above survived the move and its coverage did not — which is the
+       whole bug, not a detail of it.
+
+       What that left was two scrollers in one tray, and containment made it
+       worse rather than better: `overscroll-behavior: contain` on the inner one
+       stops a flick at the end of the candidates instead of handing the rest to
+       `.modal__body`, so the ~130px of grid that the panel clips could not be
+       reached by the only gesture anyone would try. A dead second scrollbar sat
+       next to the live one. The tray body is the scroller; nothing inside it
+       may be a second one.
+
+       The cap stays on the base rule on purpose. Above 640px `.modal__body`
+       has no `overflow` at all — the rule 130 lines below is its only one — so
+       there the stack IS the scroller and the sticky headings depend on it.
+       The two presentations own the scroll at different levels; what must not
+       happen is both at once. PosterGroupsTest pins both halves together. */
+    .poster-groups {
+        max-height: none;
+        overflow-y: visible;
+    }
+
     /* Infinite scroll replaces pagination on a phone. */
     .pagination {
         display: none;

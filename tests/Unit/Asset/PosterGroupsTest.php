@@ -44,11 +44,55 @@ final class PosterGroupsTest extends TestCase
         return (string) preg_replace('#/\*.*?\*/#s', '', $source);
     }
 
+    /**
+     * The phone rules live in one `@media (max-width: 640px)` block at the end
+     * of the stylesheet, so it can restyle components defined above it at equal
+     * specificity.
+     *
+     * Sliced from the comment-stripped source, never the raw file: the prose
+     * above the mobile block names that very query while explaining where it
+     * lives, and slicing on the raw text would cut at the sentence instead.
+     */
+    private function mobileBlock(): string
+    {
+        $css = $this->declarations();
+        $start = strpos($css, '@media (max-width: 640px) {');
+        self::assertIsInt($start, 'The mobile block must remain a single @media (max-width: 640px) section.');
+
+        return substr($css, $start);
+    }
+
+    /**
+     * Everything before the mobile block — the rules as a pointer device sees
+     * them.
+     */
+    private function desktopScope(): string
+    {
+        $css = $this->declarations();
+        $start = strpos($css, '@media (max-width: 640px) {');
+        self::assertIsInt($start, 'The mobile block must remain a single @media (max-width: 640px) section.');
+
+        return substr($css, 0, $start);
+    }
+
     private function rule(string $selector): string
+    {
+        return $this->ruleIn($this->declarations(), $selector);
+    }
+
+    /**
+     * The declarations of one rule within a given scope.
+     *
+     * Scoping matters for any selector the stylesheet states twice. `.poster-groups`
+     * is one: it carries the scroll on a pointer device and gives it up at tray
+     * widths, so an unscoped search silently returns whichever comes first and a
+     * test could pass while asserting against the wrong presentation entirely.
+     */
+    private function ruleIn(string $css, string $selector): string
     {
         $matched = preg_match(
             '/(?<![\w.-])' . preg_quote($selector, '/') . '\s*\{([^{}]*)\}/',
-            $this->declarations(),
+            $css,
             $m,
         );
         self::assertSame(1, $matched, sprintf('"%s" must remain findable in app.css.', $selector));
@@ -99,18 +143,64 @@ final class PosterGroupsTest extends TestCase
      * own `max-height` and `overflow` — which it must retain for the ungrouped
      * case — each grid scrolls separately and every heading pins to its own tiny
      * box instead of the panel.
+     *
+     * Scoped to the desktop rules deliberately. The stack gives this scroll up
+     * at tray widths; see the mobile counterpart below, which is the other half
+     * of the same decision.
      */
     public function testTheGroupStackOwnsTheScrollAndNotTheGridsInsideIt(): void
     {
-        $container = $this->rule('.poster-groups');
+        $container = $this->ruleIn($this->desktopScope(), '.poster-groups');
 
         self::assertMatchesRegularExpression('/max-height:\s*\d/', $container);
         self::assertMatchesRegularExpression('/overflow-y:\s*auto/', $container);
 
-        $nested = $this->rule('.poster-groups .find-grid');
+        $nested = $this->ruleIn($this->desktopScope(), '.poster-groups .find-grid');
 
         self::assertMatchesRegularExpression('/max-height:\s*none/', $nested);
         self::assertMatchesRegularExpression('/overflow:\s*visible/', $nested);
+    }
+
+    /**
+     * The other half of the rule above, and the two only make sense together:
+     * exactly one thing scrolls the grouped candidates, and which thing it is
+     * depends on the presentation.
+     *
+     * In the dialog the stack scrolls, because `.modal__body` has no `overflow`
+     * of its own above 640px. In the tray `.modal__body` IS the scroller, so a
+     * stack that kept its `62vh` cap becomes a second scroller nested in the
+     * first — which is not merely redundant, it is unreachable content. The
+     * inner scroller's `overscroll-behavior: contain` stops a flick at the end
+     * of the candidates rather than handing the remainder to the tray body, so
+     * the grid the panel clips below its edge cannot be scrolled to by the one
+     * gesture anyone makes. The last row of Find Posters simply went missing,
+     * and a dead second scrollbar sat beside the live one.
+     *
+     * That is why poster-library requires a tray's contents to be reachable in
+     * full, and why it excludes nesting rather than only requiring containment:
+     * containment is what makes the outer region unreachable.
+     *
+     * The cap is `vh`-relative while the tray's handle, head, tab strip and
+     * safe-area inset are fixed pixels, so the shortfall grows as the viewport
+     * shrinks. A cap merely tuned smaller would still clip on some phone; the
+     * reset is not a tuning.
+     */
+    public function testTheTrayBodyOwnsTheScrollOnAPhone(): void
+    {
+        $container = $this->ruleIn($this->mobileBlock(), '.poster-groups');
+
+        self::assertMatchesRegularExpression(
+            '/max-height:\s*none/',
+            $container,
+            'A vh-relative cap inside a tray whose body already scrolls puts the '
+            . 'last row below the panel edge, where no gesture reaches it.',
+        );
+        self::assertDoesNotMatchRegularExpression(
+            '/overflow(-y)?:\s*(auto|scroll)/',
+            $container,
+            'The tray body is the scroller; the group stack must not be a second '
+            . 'one nested inside it.',
+        );
     }
 
     /**
