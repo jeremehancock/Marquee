@@ -171,41 +171,45 @@ include no `_overlays.html.twig` at all.
 ### 7. Presentation: `.support-ask` block inside the panel
 
 New CSS, ported in spirit from the site's `.support` block but expressed in this
-app's tokens (`--accent`, `--surface-2`, `--muted`, `--radius-*`): the heart on a
-soft accent-tinted tile **inside** the `<h2>`, the heading centred in
-`.modal__head` with `.modal__close` taken out of flow at the right edge; then a
-`.stats`-toned paragraph, left; then one `.btn.btn--accent` stretched to the panel,
-the way the mobile block already sizes `.modal__actions .btn`.
+app's tokens (`--accent`, `--surface-2`, `--muted`, `--radius-*`). `.modal__head`
+becomes a three-track grid — the heart on a soft accent-tinted tile at the left
+edge, the `<h2>` centred, `.modal__close` at the right. Then a `.stats`-toned
+paragraph, left. Then one `.btn.btn--accent` stretched to the panel, the way the
+mobile block already sizes `.modal__actions .btn`.
 
-This took three passes. The distinction they converged on is the part worth
-keeping.
+This took four passes, and what they converged on is a line rather than a layout.
 
-**What failed was a centred mark, not a centred heading.** The first build put the
-heart on its own line beneath the head, above the copy — where it sat between the
-heading it named and the text it introduced and belonged to neither. The site gets
-away with that arrangement because its card has no title bar: its heading *is* the
-top of the composition, so the mark above it reads as the card's crown. An
-overlay's heading lives in a head beside a close control, so there is no crown
-position to put a mark in.
+**One rule is load-bearing: the mark belongs on the heading's row.** The first
+build put it on its own line beneath the head, above the copy — where it sat
+between the heading it named and the text it introduced and belonged to neither.
+The site gets away with that arrangement because its card has no title bar: its
+heading *is* the top of the composition, so the mark above it reads as the card's
+crown. An overlay's heading lives in a head beside a close control, so there is no
+crown position to put a mark in.
 
-**Binding the mark into the heading is the fix, and it is also what lets the
-heading centre.** The two move as one piece, so there is no arrangement in which
-the mark is stranded from its words. The copy beneath stays left: a centred
-heading over left-set prose is the shape of an announcement, and centring the
-paragraph as well was tried and reverted — it makes the panel a poster and the
-ragged edges on both sides cost more than the symmetry buys.
+**Everything else here is taste, and most of it has already changed.** The mark sat
+beside the words before it sat at the edge; the copy was centred for one commit and
+is left again; the heading was left before it was centred. None of that is
+reasoning anyone should build on later.
 
-So: **the mark's placement is load-bearing; the alignments are taste.** Don't
-collapse them into one rule. Moving the mark out from the heading is the
-arrangement all of this replaced, and `testTheSupportMarkIsPartOfTheHeading` fails
-if it happens. Re-aligning either block of text is merely a different opinion, and
-no test speaks to it.
+`testTheSupportMarkSitsOnTheHeadingRow` is scoped to the rule and not to the
+arrangement, deliberately. An earlier version asserted the mark was inside the
+`<h2>` — true at the time, but that was one arrangement mistaken for the
+constraint, and it failed the very next change for no good reason. It now asserts
+the mark is in the head and absent from the body, so any arrangement within the
+head passes and only dropping it back below fails.
 
-The close button is positioned rather than balanced with a left-hand spacer,
-because a spacer only centres the heading while the two are the same width — and
-on a phone the close is hidden entirely, so the pairing would have to be undone in
-the mobile block. Out of flow, the heading is centred at both widths and the
-mobile block needs nothing.
+The grid is `1fr auto 1fr`, which is what makes the heading *actually* centred
+rather than merely between its neighbours: the outer tracks are equal by
+definition, so the middle lands on the panel's centre line whatever the mark and
+the close measure — and they do not measure the same. Both flex alternatives fail
+on that. `space-between` centres the heading in the space left over, off by half
+the difference. Taking the mark and close out of flow fixes the horizontal but
+breaks the vertical, because an absolutely positioned child resolves against the
+padding box while its in-flow siblings centre in the content box, and the mobile
+block gives this head 2px above and 12px below. The grid also survives the phone
+unaided: the close is `display: none` there, but its track is not, so the heading
+stays centred and the mobile block needs nothing.
 
 The heart comes from `icons.icon('support')` — the same glyph the nav entry wears —
 not the site's own path. One icon set, one drawing style.

@@ -50,19 +50,20 @@
            and a different one from the scrolling body; see the note in
            _overlays.html.twig. #}
         <div class="sheet__grip"><span class="sheet__handle"></span></div>
-        {# The mark sits inside the heading rather than above the copy, and that is
-           the whole composition. On its own line beneath the head it belonged to
-           neither the heading it named nor the copy it introduced, and read as
-           floating. Bound to the heading it is one piece, so the two centre
-           together and the mark can never drift from its words. #}
+        {# Three things on one row: the mark at the left edge, the heading centred
+           between them, the close at the right.
+
+           What matters is that the mark is on this row at all. The first build put
+           it on its own line beneath this head, above the copy — where it sat
+           between the heading it named and the text it introduced and read as
+           belonging to neither. Anything that keeps it in the head is fine;
+           anything that drops it back below is the arrangement that failed. #}
         <div class="modal__head support-ask__head">
-            <h2 class="support-ask__title">
-                {# The same heart the Support Development entry wears. Drawn from the
-                   shared icon set rather than ported from the site, so it is one
-                   glyph in one drawing style. #}
-                <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 20) }}</span>
-                Support development
-            </h2>
+            {# The same heart the Support Development entry wears. Drawn from the
+               shared icon set rather than ported from the site, so it is one glyph
+               in one drawing style. #}
+            <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 20) }}</span>
+            <h2 class="support-ask__title">Support development</h2>
             <button type="button" class="modal__close" @click="supportOpen = false"
                     aria-label="Close">&times;</button>
         </div>

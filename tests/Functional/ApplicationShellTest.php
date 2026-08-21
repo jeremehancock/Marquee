@@ -445,36 +445,49 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
-     * The mark belongs to the heading, not to the space above the copy.
+     * The mark belongs on the heading's row, not on its own line beneath it.
      *
      * This is the one part of the panel's composition that is load-bearing rather
-     * than taste. A mark on its own line beneath the head sits between the heading
-     * it names and the copy it introduces and reads as belonging to neither — the
-     * project site gets away with it only because its card has no title bar, so
-     * its heading is the top of the composition and the mark above it is the
-     * card's crown. An overlay has no such position to put one in.
+     * than taste, and the test is scoped to exactly that. A mark below the head
+     * sits between the heading it names and the copy it introduces and reads as
+     * belonging to neither — the project site gets away with it only because its
+     * card has no title bar, so its heading is the top of the composition and the
+     * mark above it is the card's crown. An overlay has no such position.
      *
-     * Asserted as containment inside the `<h2>` rather than as source order, so
-     * moving the mark back out fails here whatever it is restyled to look like.
+     * Where on the row it sits, and which blocks of text are centred, are taste
+     * and have both changed since. An earlier version of this test asserted the
+     * mark was inside the `<h2>`, which was one such arrangement mistaken for the
+     * rule; it is asserted against the head and the body instead, so any
+     * arrangement within the head passes and only dropping it back below fails.
      */
-    public function testTheSupportMarkIsPartOfTheHeading(): void
+    public function testTheSupportMarkSitsOnTheHeadingRow(): void
     {
         $overlay = $this->supportOverlay(
             (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody(),
             '/library/movies',
         );
 
-        $matched = preg_match('#<h2\b[^<>]*>(.*?)</h2>#s', $overlay, $m);
-        self::assertSame(1, $matched, 'The support ask must render a heading.');
+        $matched = preg_match('#<div class="modal__head.*?</div>#s', $overlay, $head);
+        self::assertSame(1, $matched, 'The support ask must render a head.');
 
         self::assertStringContainsString(
             'support-ask__mark',
-            $m[1],
-            'The heart belongs inside the heading. On its own line beneath the head it '
-            . 'sits between the heading it names and the copy it introduces, and reads '
-            . 'as belonging to neither.',
+            $head[0],
+            'The heart belongs on the heading row. On its own line beneath it, the mark '
+            . 'sits between the heading it names and the copy it introduces and reads as '
+            . 'belonging to neither.',
         );
-        self::assertStringContainsString('Support development', $m[1]);
+        self::assertStringContainsString('Support development', $head[0]);
+
+        // And nowhere else. Rendering it in the body as well would put a second
+        // mark back in the position this exists to keep empty.
+        $matched = preg_match('#<div class="modal__body support-ask">.*#s', $overlay, $body);
+        self::assertSame(1, $matched, 'The support ask must render a body.');
+        self::assertStringNotContainsString(
+            'support-ask__mark',
+            $body[0],
+            'The heart must not also appear above the copy.',
+        );
     }
 
     /**

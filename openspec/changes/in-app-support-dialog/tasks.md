@@ -52,6 +52,7 @@
 - [x] 7.5 `testContributingDismissesTheSupportAsk` pins the handler on the link's own tag, not on the overlay — the close button and backdrop carry the same handler and would satisfy a looser check.
 - [x] 7.6 Re-rendered at 1280px and 390px; gates re-run green (1089 tests).
 - [x] 7.7 Heading centred with its mark, copy left. First read as "centre the copy" and corrected — the ask was the title. `.modal__close` is taken out of flow at the right edge rather than balanced by a spacer, so the heading centres at both widths and the mobile block, where the close is hidden, needs nothing.
-- [x] 7.8 `testTheSupportMarkIsPartOfTheHeading` pins the load-bearing half, asserting containment inside the `<h2>` rather than source order, so the mark cannot be moved back out under any restyling.
+- [x] 7.8 `testTheSupportMarkSitsOnTheHeadingRow` pins the load-bearing half — the mark is in the head and absent from the body. Retargeted from an earlier version that asserted containment inside the `<h2>`: true at the time, but that was one arrangement mistaken for the rule, and it failed the next change for no good reason.
 - [x] 7.9 Design decision 7 rewritten a second time to match: the mark's placement is load-bearing and pinned by a test; the alignments are taste and pinned by nothing. Centring the paragraph as well was tried and reverted.
+- [x] 7.10 Head rebuilt as a `1fr auto 1fr` grid: heart at the left edge, heading centred, close right. The outer tracks are equal by definition, so the heading lands on the panel's centre line despite a 40px tile facing a text glyph — verified at 1280px (title midpoint 640 in a 420–860 panel) and 390px (194.5 in a 0–390 tray). Both flex alternatives were rejected in the CSS comment with the reason each fails.
 

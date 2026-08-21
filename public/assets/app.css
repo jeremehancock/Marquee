@@ -2531,25 +2531,23 @@ h1 {
 }
 
 /* The support ask, inside the dialog that holds it (partials/_support.html.twig).
-   A centred heading with its heart beside it, then the copy, then one accented
-   button across the panel. Ported in shape from the project site's support card
-   and re-expressed in this application's tokens rather than in its colours: the
-   site is not themed by this stylesheet, and a hard-coded rgba() lifted from it
-   would be the one surface here that does not move when a token does.
+   A head of three: the heart at the left edge, the heading centred, the close at
+   the right. Then the copy, left. Then one accented button across the panel.
+   Ported in shape from the project site's support card and re-expressed in this
+   application's tokens rather than in its colours: the site is not themed by this
+   stylesheet, and a hard-coded rgba() lifted from it would be the one surface here
+   that does not move when a token does.
 
-   The *heading* is centred; the copy under it is not. That pairing is deliberate,
-   and the distinction it rests on is what makes this panel work. What failed in
-   the first build was a centred **mark** — a heart on its own line beneath a
-   left-aligned head, sitting between the heading it named and the copy it
-   introduced, belonging to neither. The site gets away with that only because its
-   card has no title bar: its heading is the top of the composition, so a mark
-   above it reads as the card's crown.
-
-   Binding the mark into the heading is what fixed that, and it is what lets the
-   heading centre as one piece — mark and words together, never one without the
-   other. Do not "restore consistency" by centring the copy to match the heading,
-   and above all do not move the mark back out under the head: that is the
-   arrangement this replaced.
+   One rule here is load-bearing and the rest is taste, and it is worth keeping
+   them apart. **The mark belongs on the heading's row.** The first build put it on
+   its own line beneath the head, above the copy, where it sat between the heading
+   it named and the text it introduced and belonged to neither. The site gets away
+   with that only because its card has no title bar: its heading is the top of the
+   composition, so a mark above it reads as the card's crown. An overlay's heading
+   lives in a head beside a close control, so there is no crown position to put one
+   in. Where on that row the mark sits — beside the words or out at the edge — and
+   which blocks of text are centred are both taste, and both have changed since.
+   Don't reason from them; don't put the mark back below the head.
 
    Nothing in this block is width-conditional, and nothing needs to be. The button
    stretches to the panel at both widths, which is also what the mobile block gives
@@ -2559,32 +2557,35 @@ h1 {
     flex-direction: column;
 }
 
-/* The heading centred while the close button stays at the right edge.
+/* Mark left, heading centred, close right — a grid rather than the flex row
+   .modal__head otherwise is.
 
-   The close is taken out of flow rather than balanced with a matching spacer on
-   the left, because a spacer only centres the heading while the two are the same
-   width — and on a phone the close is hidden entirely, so any such pairing would
-   have to be undone in the mobile block. Out of flow, the heading is centred in
-   the panel at both widths and the mobile block needs nothing. */
+   `1fr auto 1fr` is what makes the heading *actually* centred rather than merely
+   between the other two. The outer tracks are equal by definition, so the middle
+   one lands on the panel's centre line whatever the mark and the close measure —
+   and they do not measure the same: a 40px tile against a text glyph. The obvious
+   flex alternatives both fail on that. `space-between` centres the heading in the
+   gap left over, which is off by half the difference; taking the mark and the
+   close out of flow instead fixes the widths but breaks the vertical, because an
+   absolutely positioned child resolves against the padding box while its in-flow
+   siblings centre in the content box — and the mobile block gives this head
+   2px of padding above and 12px below, so the heading would sit 5px low there.
+
+   It also survives the phone on its own. The close is `display: none` at that
+   width, but its track is not: the third `1fr` stays, so the heading stays
+   centred and the mobile block needs nothing. */
 .support-ask__head {
-    position: relative;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+}
+
+.support-ask__title {
+    justify-self: center;
 }
 
 .support-ask__head .modal__close {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-}
-
-/* The heading and its mark as one unit, so the mark cannot drift away from the
-   words it belongs to — and so centring the heading centres both. .modal__head h2
-   already clears the margin and sets the size; this only adds the row. */
-.support-ask__title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    justify-self: end;
 }
 
 .support-ask__mark {
