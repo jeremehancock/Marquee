@@ -66,9 +66,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   it in a dashboard — the banner text stays readable down to a small tile.
 - **Fast, modern UI** — search as you type, background updates without full page
   reloads, and a mobile experience built around trays: an actions menu, importing,
-  orphans, settings and a full-size poster action sheet all open over the gallery
-  rather than taking you away from it, with search and sort pinned to the top as
-  you scroll. On a phone the header,
+  orphans, settings, your Plex connection and a full-size poster action sheet all
+  open over the gallery rather than taking you away from it, with search and sort
+  pinned to the top as you scroll. On a phone the header,
   the toolbar, and the tab bar are translucent, so your posters stay visible
   passing behind them; dialogs, trays, buttons, and poster cards all animate
   rather than snap. If your system asks for reduced motion, Marquee drops the
@@ -516,9 +516,9 @@ to do.
 **Does it work on mobile?**
 Yes. Marquee is responsive and installable as a PWA. On a phone the gallery stays
 front and center: the secondary actions live behind the **⋯** Actions menu, and
-importing, orphans and settings all open as trays over the gallery rather than
-navigating away from it. Search and sort stay pinned to the top while you scroll,
-and tapping a poster opens a full-size action sheet.
+importing, orphans, settings and your Plex connection all open as trays over the
+gallery rather than navigating away from it. Search and sort stay pinned to the
+top while you scroll, and tapping a poster opens a full-size action sheet.
 
 ## Security considerations
 

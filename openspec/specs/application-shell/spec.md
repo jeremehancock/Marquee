@@ -578,11 +578,11 @@ The shared layout SHALL provide an app-wide **actions** menu for small screens s
 that the application's secondary actions are reachable from every authenticated
 page without crowding the content. The menu's entries are predominantly actions
 rather than in-place navigation destinations: on a narrow screen Import from Plex,
-Orphans, Settings and Support Development open as trays over the current page,
-Poster Wall opens in a new browsing context, and Log out is an action. The
-trigger's glyph SHALL therefore signify an overflow / "more actions" affordance
-rather than a hamburger, which conventionally promises an edge-anchored navigation
-drawer the menu does not provide.
+Orphans, Settings, the Plex connection and Support Development open as trays over
+the current page, Poster Wall opens in a new browsing context, and Log out is an
+action. The trigger's glyph SHALL therefore signify an overflow / "more actions"
+affordance rather than a hamburger, which conventionally promises an
+edge-anchored navigation drawer the menu does not provide.
 
 Settings SHALL open as a tray on a narrow screen rather than navigating to its own
 page, in the same presentation Import from Plex and Orphans use — the taller tray
@@ -609,6 +609,23 @@ errors against the same fields the page would show, without reloading anything.
 of that page and not a replacement for it: a pointer/desktop screen, a direct link,
 and any page that cannot host the tray SHALL all continue to reach the settings
 screen by navigating to it.
+
+The connection screen SHALL open as a tray on a narrow screen on the same terms,
+in the same tall presentation, reached from the connection status rather than from
+a navigation entry — see "The Plex connection is shown as a status, not a
+destination". It is the entry a user touches most casually, because it is a
+reading rather than an errand, and it was the last one that charged a page load
+for a glance.
+
+Unlike the import tray, the connection tray SHALL be fetched on every open. What
+it reports decays: the connection screen asks the Plex server for its name, and
+the connection can be gone since the page behind the tray was rendered.
+
+Disconnecting from the connection tray SHALL navigate to the connection screen
+rather than resolving in place. Every other tray leaves a usable page behind it;
+this action does not, because it is what the connection gate turns a user away
+for. Following the form is what puts the user in front of the confirmation and
+the way back in.
 
 On a narrow screen the topbar SHALL present a single overflow menu control;
 activating it SHALL open a tray listing the secondary links (Poster Wall, Import
@@ -658,6 +675,25 @@ of the viewport than the menu's occasional use justifies.
 - **AND** the tray uses the taller presentation reserved for a tray holding a whole
   page
 
+#### Scenario: The connection opens as a tray from the actions tray
+- **WHEN** a user on a narrow screen chooses the Plex connection status from the
+  actions tray, on the gallery
+- **THEN** the actions tray dismisses and the connection screen opens as a tray
+  over the current page
+- **AND** the page behind it is not navigated away from
+- **AND** the tray uses the taller presentation reserved for a tray holding a whole
+  page, and dismisses by the same gestures as every other tray
+
+#### Scenario: The connection tray reports the connection as it is now
+- **WHEN** a user opens the connection tray, dismisses it, and opens it again
+- **THEN** the tray's contents are fetched afresh on each open rather than reused
+  from the first
+
+#### Scenario: Disconnecting from the tray leaves the gallery
+- **WHEN** a user disconnects from Plex from within the connection tray
+- **THEN** the browser navigates to the connection screen
+- **AND** the confirmation that the connection was forgotten is shown there
+
 #### Scenario: Saving from the settings tray reloads the page beneath it
 - **WHEN** a user saves valid settings from the settings tray
 - **THEN** the tray closes and the page is reloaded
@@ -676,6 +712,13 @@ of the viewport than the menu's occasional use justifies.
 - **THEN** the actions tray dismisses and the settings page is opened
 - **AND** this is the fallback rather than the ordinary case: Import from Plex and
   Orphans behave the same way on those pages
+
+#### Scenario: The connection opens as a page where no tray hosts it
+- **WHEN** a user on a narrow screen chooses the connection status on a page that
+  hosts no connection tray of its own, or a user on a pointer/desktop screen
+  chooses it anywhere
+- **THEN** the connection screen is opened by navigating to it
+- **AND** this is the same fallback Import from Plex, Orphans and Settings take
 
 #### Scenario: The settings page remains reachable in its own right
 - **WHEN** a user opens `/settings` directly, or reaches Settings from a
@@ -1377,6 +1420,19 @@ The status SHALL link to the connection screen, because that screen is the only
 place disconnecting is offered and removing the link would leave the action
 reachable only by typing a URL.
 
+On a narrow touch screen the status SHALL open that screen as a tray over the
+current page wherever a tray can host it, rather than navigating — the same
+treatment Import from Plex, Orphans and Settings receive, and specified with them
+under "App-wide mobile actions menu and its destinations". Reading which server
+Marquee is talking to is a glance, and it was the last entry in the navigation
+that charged a page load and a "Back to gallery" link for one. Where no tray can
+host it the status SHALL navigate to the screen as before, so the link is never
+inert.
+
+The status SHALL carry one destination and one meaning at every width: the tray
+is a second presentation of the connection screen, not a different place, and the
+status SHALL NOT offer to change the connection itself.
+
 It SHALL be presented differently from the navigation actions rather than as one
 more of them. Every action in that bar is a labelled control carrying a glyph, so
 a status wearing the same shape reads as another place to go — which is the thing
@@ -1389,7 +1445,9 @@ hidden.
 
 Reporting the status SHALL NOT contact Plex. It renders on every page, and a
 reachability probe there would stall the whole application whenever the server
-was down — the same reason the connection gate reads configuration only.
+was down — the same reason the connection gate reads configuration only. Opening
+the connection screen, as a page or as a tray, is a different matter: that screen
+exists to describe the connection, so it asks.
 
 The name it reports SHALL therefore be recorded when the connection is
 established, not looked up when it is displayed. The server names itself in the
@@ -1418,6 +1476,17 @@ connected rather than naming anything.
 #### Scenario: The status is the way to the connection screen
 - **WHEN** the status renders
 - **THEN** it links to the connection screen
+
+#### Scenario: The status opens the connection as a tray on a phone
+- **WHEN** a signed-in user on a narrow touch screen activates the status on a
+  page that can host the connection tray
+- **THEN** the connection screen opens as a tray over that page
+- **AND** the page behind it is not navigated away from
+
+#### Scenario: The status still navigates where no tray can host it
+- **WHEN** a signed-in user activates the status on a pointer/desktop screen, or
+  on a page that hosts no connection tray
+- **THEN** the browser navigates to the connection screen
 
 #### Scenario: The connection is not listed among the poster actions
 - **WHEN** the navigation renders
@@ -1692,3 +1761,4 @@ reason stated twice, in two places that can disagree.
 - **WHEN** a tooltip carries a hint or repeats text its host has visually
   truncated, rather than the reason a control is refusing
 - **THEN** it remains a tooltip and requires no device-independent duplicate
+

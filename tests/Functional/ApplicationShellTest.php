@@ -634,6 +634,50 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * On a phone the status opens the connection screen as a tray over the page
+     * rather than navigating to it, the way Import, Orphans and Settings do. The
+     * marking that arranges that rides on the status itself, because the
+     * connection is not a navigation item there is anywhere else to put it.
+     *
+     * Asserted on the rendered page rather than only on the macro: the header and
+     * the phone actions tray both draw the status from one macro, and the whole
+     * point of the marking living there is that it reaches both placements.
+     *
+     * @see \App\Tests\Unit\Asset\ConnectionTrayTest for the rest of the arrangement
+     */
+    public function testTheConnectionStatusCarriesTheTrayBridge(): void
+    {
+        $body = (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody();
+
+        // Both placements: the desktop header bar and the phone actions tray. On a
+        // pointer screen the bridge declines to act, so this costs the header
+        // nothing.
+        self::assertSame(
+            2,
+            substr_count($body, 'class="conn-status" href="/connect" data-connect'),
+            'The status is drawn in the header and in the actions tray; both must '
+            . 'carry the marking that opens the connection as a tray on a phone.',
+        );
+    }
+
+    /**
+     * The tray bridge cancels a navigation, so it belongs only on the form of the
+     * status that has one. On the connection screen the status renders as a span
+     * marking the current page — marking that would offer a tray as the route to
+     * the screen already on display, from an element with no href to fall back on
+     * where no tray exists.
+     */
+    public function testTheCurrentPageFormOfTheStatusCarriesNoTrayBridge(): void
+    {
+        $app = $this->makeSignedInApp();
+
+        $header = $this->header((string) $this->get($app, '/connect')->getBody());
+
+        self::assertStringContainsString('conn-status--current', $header);
+        self::assertStringNotContainsString('data-connect', $header);
+    }
+
+    /**
      * Colour is not the only signal: the accessible name states the condition
      * outright, so the status is not carried by a green dot alone.
      */
