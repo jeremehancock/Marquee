@@ -2968,9 +2968,25 @@ h1 {
     touch-action: none;
 }
 
+/* The same type as `.modal__head h2`, and that is the whole point of the rule.
+
+   A tray and a dialog docked to the bottom edge wear the same grab handle, so
+   they have to present their titles the same distance below it. Matching the
+   head padding is only half of that: the distance the eye measures runs to the
+   glyph, not to the top of the line box, so the title's half-leading is part of
+   it. At 16px/1.3 that leading is 2.4px and at 1.1rem/1.6 it is 5.28px — two
+   heads padded identically would still hold their titles 3px apart.
+
+   So `line-height` is inherited rather than set. Restoring an override here is
+   the edit most likely to undo this quietly, because it changes nothing about
+   the padding anyone would think to check. TrayHeadSpacingTest asserts both the
+   shared size and the absence of the override.
+
+   Still a <span>: whether tray titles want heading semantics is a live question,
+   but it is not this rule's to answer. */
 .sheet__title {
     font-weight: 600;
-    line-height: 1.3;
+    font-size: 1.1rem;
 }
 
 /* Tray buttons need to read as tappable cards against the sheet surface, which
@@ -3357,10 +3373,47 @@ h1 {
         display: none;
     }
 
+    /* The 14px above is .sheet__head's, deliberately. A dialog is a tray at this
+       width and wears the same grab handle, so it has to sit the same distance
+       below it — but the two rules are 400 lines apart and nothing else connects
+       them, so the number has to be kept in step by hand. It was 2px, which put a
+       dialog's title 9px closer to the handle than a tray's and made the two
+       families read as misaligned when opened one after the other.
+
+       TrayHeadSpacingTest asserts the two agree. */
     .modal__head {
         flex: 0 0 auto;
-        padding: 2px 18px 12px;
+        padding: 14px 18px 12px;
         touch-action: none;
+    }
+
+    /* One title line tall, so the 40px heart tile stops setting the height of
+       the head it sits in.
+
+       It used to. `.support-ask__head` is a `1fr auto 1fr` grid, and a grid row
+       sizes to its tallest occupant, so the tile — not the title — decided how
+       tall the row was, and the title centred 5.9px lower than a title in any
+       other tray. That is invisible from inside this head, which looks perfectly
+       balanced on its own; it only shows when the tray is opened after another
+       one. Any future head that adds an icon or a badge would do the same.
+
+       `1lh` resolves against the element it is written on, NOT against the grid
+       item holding the title — which is why `font-size` is declared here too.
+       Without it the head keeps the inherited 16px, `1lh` computes 25.6px
+       instead of 28.2px, and the row is 2.5px short: still wrong, still
+       plausible-looking in the source. The two declarations are one decision.
+
+       The tile keeps its 40px and overflows the row by 5.9px above and below,
+       centred on the line its heading occupies. 5.9px is less than the head's
+       14px of padding, so it clears the handle by 8.1px — where before it came
+       within 2px of it, close enough to read as a mistake.
+
+       Mobile only. The base rule still lets the tile size the row above 640px,
+       where this is a centred dialog rather than a tray; the rendered result is
+       the same tile centred against the same heading. */
+    .support-ask__head {
+        font-size: 1.1rem;
+        grid-template-rows: 1lh;
     }
 
     .modal__body {
