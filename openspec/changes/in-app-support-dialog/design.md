@@ -172,31 +172,40 @@ include no `_overlays.html.twig` at all.
 
 New CSS, ported in spirit from the site's `.support` block but expressed in this
 app's tokens (`--accent`, `--surface-2`, `--muted`, `--radius-*`): the heart on a
-soft accent-tinted tile **inside** the `<h2>`, in `.modal__head` alongside the
-existing `.modal__close`; then a `.stats`-toned paragraph centred under it; then
-one `.btn.btn--accent` stretched to the panel, the way the mobile block already
-sizes `.modal__actions .btn`.
+soft accent-tinted tile **inside** the `<h2>`, the heading centred in
+`.modal__head` with `.modal__close` taken out of flow at the right edge; then a
+`.stats`-toned paragraph, left; then one `.btn.btn--accent` stretched to the panel,
+the way the mobile block already sizes `.modal__actions .btn`.
 
-This took two passes and the distinction between them is the part worth keeping.
+This took three passes. The distinction they converged on is the part worth
+keeping.
 
-**What failed was a centred mark, not centred copy.** The first build put the
-heart on its own line beneath a left-aligned head, above centred copy — where it
-sat between the heading it named and the text it introduced and belonged to
-neither. The site gets away with that arrangement because its card has no title
-bar: its heading *is* the top of the composition, so the mark above it reads as
-the card's crown. An overlay's heading lives in a head beside a close control, so
-there is no crown position to put a mark in.
+**What failed was a centred mark, not a centred heading.** The first build put the
+heart on its own line beneath the head, above the copy — where it sat between the
+heading it named and the text it introduced and belonged to neither. The site gets
+away with that arrangement because its card has no title bar: its heading *is* the
+top of the composition, so the mark above it reads as the card's crown. An
+overlay's heading lives in a head beside a close control, so there is no crown
+position to put a mark in.
 
-**Binding the mark to the heading is the fix, and it is also what makes centred
-copy safe.** The head becomes one settled unit — mark and words, left, like every
-other dialog and tray in the app — and the copy beneath it is then free to be its
-own. A block of prose and a full-width button under a titled head is the shape of
-an announcement, which is what this is.
+**Binding the mark into the heading is the fix, and it is also what lets the
+heading centre.** The two move as one piece, so there is no arrangement in which
+the mark is stranded from its words. The copy beneath stays left: a centred
+heading over left-set prose is the shape of an announcement, and centring the
+paragraph as well was tried and reverted — it makes the panel a poster and the
+ragged edges on both sides cost more than the symmetry buys.
 
-So: the mark's placement is load-bearing and the copy's alignment is taste. Don't
-collapse them into one rule. Moving the mark back under the head is the
-arrangement this replaced; re-left-aligning the copy is merely a different
-opinion.
+So: **the mark's placement is load-bearing; the alignments are taste.** Don't
+collapse them into one rule. Moving the mark out from the heading is the
+arrangement all of this replaced, and `testTheSupportMarkIsPartOfTheHeading` fails
+if it happens. Re-aligning either block of text is merely a different opinion, and
+no test speaks to it.
+
+The close button is positioned rather than balanced with a left-hand spacer,
+because a spacer only centres the heading while the two are the same width — and
+on a phone the close is hidden entirely, so the pairing would have to be undone in
+the mobile block. Out of flow, the heading is centred at both widths and the
+mobile block needs nothing.
 
 The heart comes from `icons.icon('support')` — the same glyph the nav entry wears —
 not the site's own path. One icon set, one drawing style.

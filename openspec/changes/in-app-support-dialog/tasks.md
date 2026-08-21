@@ -51,6 +51,7 @@
 - [x] 7.4 Design decision 7 records why the site's centred composition does not survive the move, so it is not re-centred later for fidelity; 7a covers the dismissal.
 - [x] 7.5 `testContributingDismissesTheSupportAsk` pins the handler on the link's own tag, not on the overlay — the close button and backdrop carry the same handler and would satisfy a looser check.
 - [x] 7.6 Re-rendered at 1280px and 390px; gates re-run green (1089 tests).
-- [x] 7.7 Copy centred in both presentations, at the user's call. Safe now that the mark is bound to the heading — what failed before was a centred *mark* under a left-aligned head, not centred text. Design decision 7 rewritten to separate the two: the mark's placement is load-bearing, the copy's alignment is taste.
+- [x] 7.7 Heading centred with its mark, copy left. First read as "centre the copy" and corrected — the ask was the title. `.modal__close` is taken out of flow at the right edge rather than balanced by a spacer, so the heading centres at both widths and the mobile block, where the close is hidden, needs nothing.
 - [x] 7.8 `testTheSupportMarkIsPartOfTheHeading` pins the load-bearing half, asserting containment inside the `<h2>` rather than source order, so the mark cannot be moved back out under any restyling.
+- [x] 7.9 Design decision 7 rewritten a second time to match: the mark's placement is load-bearing and pinned by a test; the alignments are taste and pinned by nothing. Centring the paragraph as well was tried and reverted.
 
