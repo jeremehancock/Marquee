@@ -46,18 +46,26 @@
 
 ## 5. Validation (after `/ship` pushes `dev`; not part of `/opsx:apply`)
 
-- [ ] 5.1 Confirm the push-triggered CI run on `dev` is green and its annotation
-      no longer names `actions/checkout`
-- [ ] 5.2 Dispatch `docker-publish.yml` from the Actions tab against the `dev`
+- [x] 5.1 Confirm the push-triggered CI run on `dev` is green and its annotation
+      no longer names `actions/checkout` — run 32505785594 on 34331ba: both jobs
+      green, no annotations at all
+- [x] 5.2 Dispatch `docker-publish.yml` from the Actions tab against the `dev`
       ref, and confirm the run starts — proving the edited file parses and its
-      job-level `if:` evaluates
-- [ ] 5.3 In that run, read `steps.meta.outputs.tags` and confirm the `dev` and
+      job-level `if:` evaluates — run 32506329819, green end to end
+- [x] 5.3 In that run, read `steps.meta.outputs.tags` and confirm the `dev` and
       `sha-<short>` rows are correct and that no `latest` or version row appears
-- [ ] 5.4 Confirm the dispatch run's annotation names none of the six actions it
+      — resolved to exactly `:dev` and `:sha-34331ba`; the `latest` and `2.11.1`
+      rows both evaluated `enable=false`, and `context: git` still reported the
+      checked-out revision
+- [x] 5.4 Confirm the dispatch run's annotation names none of the six actions it
       ran, and record the release step's status as unknown rather than clean —
-      it does not run on a `dev` dispatch
-- [ ] 5.5 Pull `bozodev/marquee:dev` and confirm its `sha-<short>` tag matches
-      `dev` HEAD
+      it does not run on a `dev` dispatch — no annotations at all; the release
+      step reported `skipped`, so `softprops/action-gh-release@v3` remains
+      **unverified**, not clean
+- [x] 5.5 Pull `bozodev/marquee:dev` and confirm its `sha-<short>` tag matches
+      `dev` HEAD — pulled `:sha-34331ba`, manifest carries linux/amd64 +
+      linux/arm64, `/health` returned `{"status":"ok","app":"marquee"}`, and the
+      image revision label is `34331baa…`
 - [ ] 5.6 Merge to `main` **without** a `VERSION` bump, then confirm the
       resulting `main` publish is green, refreshes `:latest`, and skips the
       release step
