@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  * Connection, Actions, Poster actions — and heads itself with
  * `.sheet__head` and a `.sheet__title`
  * span. `.modal__panel` is a centred dialog above 640px and a tray below it —
- * Change poster, the confirmations, Support development — and heads itself with
+ * Change poster, the confirmations, Support Development — and heads itself with
  * `.modal__head` and an `<h2>`. The two head rules are 400 lines apart and
  * nothing in the stylesheet connects them.
  *

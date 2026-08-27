@@ -198,6 +198,35 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     `DialogFocusTest` pins both along with the refs they name. It cannot catch a
     third menu wired without it, which is the same hazard shape as the bullet
     above and the same reason this is here.
+- **A surface the interface offers *by name* is Title Case everywhere it is
+  named; everything else a user reads is sentence case.** The named surfaces are
+  Poster Wall, Import from Plex, Plex Connection, Plex Posters, Find Posters and
+  Support Development — one string each, in the nav entry, the tray or dialog
+  title, the page heading, the document title and the accessible name alike.
+  Everything else is sentence case: actions (Change poster, Send to Plex, Copy
+  URL, Save settings), confirmation titles (Delete poster?), form labels, section
+  headings (Presentation, Auto-import), positional names (First page, More
+  actions, Sort order). **A name and a description of the same destination are
+  both correct and are not a divergence** — nav says "Orphans", the page it opens
+  is headed "Orphaned posters", and each is used consistently in its own
+  register. A name inside a sentence keeps its Title Case; this governs naming,
+  not prose.
+  - The reason this holds almost everywhere is structural, not careful: every
+    label drawn at both widths is emitted once — nav entries from `item()`, sort
+    buttons from `control()`, card actions from `action_body()`, whose markup the
+    touch sheet *clones* rather than re-renders — so a mobile/desktop divergence
+    there is unrepresentable. Keep it that way; that is the real defence.
+  - Support Development is the one name stated in two files, because the overlay
+    is `_support.html.twig` and the entry that opens it is a call in
+    `_nav_macros.html.twig`. It drifted for exactly that reason — the overlay read
+    "Support development" one gesture after the entry read "Support Development".
+    `ApplicationShellTest` now compares the entry's label, the panel's
+    `aria-label` and the `<h2>` **to each other**, locating the entry by
+    `supportOpen = true` rather than by its name; asserting the literal on both
+    sides is the arrangement that let them drift. It cannot catch a new surface
+    named nothing like its opener, or a name cased in the wrong register to begin
+    with — same hazard shape as the bullets above, same reason this is written
+    down.
 
 ## Docker
 

@@ -325,7 +325,7 @@ final class DialogFocusTest extends TestCase
             'Settings' => ['Settings'],
             'Plex Connection' => ['Plex Connection'],
             'Poster actions' => ['Poster actions'],
-            'Support development' => ['Support development'],
+            'Support Development' => ['Support Development'],
         ];
     }
 
