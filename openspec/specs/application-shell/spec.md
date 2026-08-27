@@ -934,10 +934,19 @@ The overlay SHALL hold: a heart mark drawn from the application's icon set,
 matching the one the Support Development navigation entry already wears; a heading
 naming the surface; the project's support copy, stating that Marquee is free and
 always will be and inviting a contribution to ongoing development; and a single
-accented button labelled "Hard drive fund" linking to the project's Buy Me a
+accented button labelled "Buy me a coffee" linking to the project's Buy Me a
 Coffee page. That button SHALL open in a new browsing context — the payment page
 is genuinely elsewhere, and it is the only thing in the overlay that leaves the
 app.
+
+The button's label SHALL name where it goes. It previously read "Hard drive fund",
+a callback to the joke in the paragraph above it, which meant the one control in
+the overlay described the maintainer's motive rather than the user's next step —
+and a user who skipped the paragraph, as a user reading a dialog reasonably may,
+met a button that named nothing they could act on. The paragraph keeps the joke;
+the button does not carry it. This is an instance of the existing rule that a
+label states its action, not a fact peculiar to this overlay, and it is why the
+label is not free to drift back toward a private reference.
 
 The heading SHALL be the name the navigation entry uses — "Support Development" —
 and the overlay's accessible name SHALL be that same string. This is an instance
@@ -948,6 +957,11 @@ they are free to drift. They have drifted once. The overlay previously read
 which a keyboard user met as a different name announced one gesture after they
 chose the first. The agreement SHALL therefore be asserted by comparing the two
 rendered strings, not by quoting the expected spelling twice.
+
+The button's label is a different kind of string and is asserted differently. It
+is not a surface name, so it is sentence case and is stated in exactly one place —
+the overlay template — with nothing to agree with. Quoting it in a test is
+therefore safe in the way quoting the heading is not.
 
 The mark SHALL be presented with the heading rather than as an element of its own
 above the copy. The project site centres its version of this ask, but the site's
@@ -989,11 +1003,20 @@ and returns to the control that opened it when it closes.
 
 - **WHEN** the support overlay is open
 - **THEN** it shows the heart mark, the heading "Support Development", the
-  project's support copy, and a "Hard drive fund" button
+  project's support copy, and a "Buy me a coffee" button
 - **AND** that button links to the project's Buy Me a Coffee page and opens it in a
   new browsing context
 - **AND** the mark is presented with the heading rather than as a separate element
   above the copy
+
+#### Scenario: The button names its destination rather than the joke above it
+
+- **WHEN** the support overlay's call to action is read on its own, without the
+  paragraph above it
+- **THEN** its label says what activating it does — it names the payment
+  destination, not the maintainer's reason for asking
+- **AND** the label "Hard drive fund" no longer appears anywhere in the
+  application, its templates, or its tests
 
 #### Scenario: The overlay is named what the entry that opens it is named
 
@@ -1004,7 +1027,7 @@ and returns to the control that opened it when it closes.
 
 #### Scenario: Contributing dismisses the ask
 
-- **WHEN** a user activates the "Hard drive fund" button
+- **WHEN** a user activates the "Buy me a coffee" button
 - **THEN** the payment page opens in a new browsing context
 - **AND** the overlay closes rather than remaining over the page behind it
 
