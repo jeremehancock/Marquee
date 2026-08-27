@@ -1,11 +1,5 @@
 # Marquee
 
-> ⚠️ **Early Alpha — not ready for general use.** Marquee is under active
-> development. Things may change, break, or behave unexpectedly without notice.
-> Don't point it at a Plex library you aren't willing to experiment on, and keep
-> your own backups. Testing and feedback are very welcome — but treat it as
-> experimental for now.
-
 Marquee is a self-hosted web app for managing your Plex media posters — for
 Movies, TV Shows, TV Seasons, and Collections. Import every poster from Plex,
 then refine each one in place: upload your own art, paste an image URL, or pick a
@@ -289,8 +283,8 @@ To disconnect, or to move Marquee to a different Plex account, use
 
 #### Upgrading from a version that used `PLEX_TOKEN`
 
-**`PLEX_TOKEN` is no longer read.** Marquee is in alpha and this is a breaking
-change: one way to connect replaced two.
+**`PLEX_TOKEN` is no longer read.** Signing in to Plex from the app replaced it:
+one way to connect, rather than two.
 
 On first start after upgrading you will be redirected to the Plex Connection
 screen, which will tell you the variable is no longer used. Sign in there, then
@@ -638,6 +632,8 @@ you and you'd like to help keep it maintained, you can support development at
 itself — **Support Development**, behind the **⋯** menu in the header, opens the
 same ask over the page you are on rather than sending you to the website.
 Feedback and bug reports are just as welcome.
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/jeremehancock)
 
 ## AI Disclosure
 

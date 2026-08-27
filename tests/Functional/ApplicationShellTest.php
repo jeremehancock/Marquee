@@ -502,10 +502,24 @@ final class ApplicationShellTest extends AppTestCase
                 $overlay,
                 sprintf('The support ask must be named on %s.', $path),
             );
+            // A literal, unlike the heading two assertions up. That name is stated in
+            // two templates and is asserted by comparing the rendered strings to each
+            // other, because quoting it on both sides is what let it drift. This label
+            // is stated in exactly one file and has nothing to agree with, so the
+            // comparison style would only remove a check here.
             self::assertStringContainsString(
-                'Hard drive fund',
+                'Buy me a coffee',
                 $overlay,
                 sprintf('The support ask must carry its call to action on %s.', $path),
+            );
+            // The label the button used to wear. It named the joke in the paragraph
+            // above it rather than the destination, so a user who skimmed to the
+            // button — which is what a dialog invites — met a control naming nothing
+            // they could act on. The paragraph keeps the joke; the button does not.
+            self::assertStringNotContainsString(
+                'Hard drive fund',
+                $overlay,
+                sprintf('The old call to action must not survive anywhere in the ask on %s.', $path),
             );
         }
     }
@@ -609,7 +623,7 @@ final class ApplicationShellTest extends AppTestCase
         self::assertStringContainsString(
             'supportOpen = false',
             $m[0],
-            'Choosing "Hard drive fund" must dismiss the ask on its way out.',
+            'Choosing "Buy me a coffee" must dismiss the ask on its way out.',
         );
     }
 
