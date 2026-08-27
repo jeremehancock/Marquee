@@ -44,8 +44,20 @@
        confirmation, which is one line of question and two buttons; this is a
        paragraph, and at 380px it sets to six lines with a ragged right. The 440px
        default takes it to five and reads as a card rather than a column. #}
+    {# The name is stated here and again in the <h2> below, and both must match the
+       label on the entry that opens this — `item('support', …)` in
+       _nav_macros.html.twig. That entry lives in another file, so this is the one
+       name in the application that is not emitted once and drawn twice, and it is
+       the one name that drifted: this overlay read "Support development" while the
+       entry read "Support Development", which a keyboard user met as a different
+       name announced one gesture after they chose the first. Not deduplicated into
+       a variable — every other overlay spells its name out in both places, and one
+       file doing otherwise would be odd without being safer.
+       ApplicationShellTest compares all three rendered strings to each other rather
+       than to a literal, because a literal on each side is the arrangement that let
+       them drift in the first place. #}
     <div class="modal__panel" role="dialog" aria-modal="true"
-         aria-label="Support development" tabindex="-1">
+         aria-label="Support Development" tabindex="-1">
         {# Hidden on desktop, the drag target on a phone. Must be a real element
            and a different one from the scrolling body; see the note in
            _overlays.html.twig. #}
@@ -63,7 +75,7 @@
                shared icon set rather than ported from the site, so it is one glyph
                in one drawing style. #}
             <span class="support-ask__mark" aria-hidden="true">{{ icons.icon('support', 20) }}</span>
-            <h2 class="support-ask__title">Support development</h2>
+            <h2 class="support-ask__title">Support Development</h2>
             <button type="button" class="modal__close" @click="supportOpen = false"
                     aria-label="Close">&times;</button>
         </div>

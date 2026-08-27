@@ -390,6 +390,99 @@ final class ApplicationShellTest extends AppTestCase
     }
 
     /**
+     * The overlay is named what the entry that opens it is named.
+     *
+     * This is the one name in the application that is not emitted once and drawn
+     * twice. Every other label a user meets at both widths has a single source —
+     * the navigation entries from `item()` in _nav_macros.html.twig, the sort
+     * buttons from `control()` in _sort.html.twig, the card actions from
+     * `action_body()`, whose markup the touch action sheet clones rather than
+     * re-renders — so a mobile/desktop divergence in those is not merely absent but
+     * unrepresentable. The support ask escapes that: the overlay is declared in
+     * _support.html.twig and the entry that opens it is a call in
+     * _nav_macros.html.twig, and the name is a literal in each.
+     *
+     * So they drifted. The overlay read "Support development" while the entry read
+     * "Support Development" — one gesture apart, and a keyboard user met the second
+     * name announced the instant focus entered the dialog.
+     *
+     * **The three strings are compared to each other, never to a literal**, and the
+     * entry is located by the action it runs rather than by its name. Asserting
+     * `'Support Development'` on both sides would restate the expectation twice in
+     * one file, which is the arrangement that let the templates drift in the first
+     * place; and `supportEntry()` above cannot serve here, because it finds the
+     * entry *by* its aria-label and reading that back would be circular.
+     * `supportOpen = true` is the non-circular key: it is what makes this the entry
+     * that opens *this* overlay.
+     *
+     * What this cannot catch: a new overlay named nothing like the control that
+     * opens it, or a name cased in the wrong register to begin with. No test can.
+     * That is why the naming rule is written into the application-shell spec in
+     * prose as well as pinned here.
+     */
+    public function testTheSupportOverlayIsNamedWhatItsEntryIsNamed(): void
+    {
+        $body = (string) $this->get($this->makeSignedInApp(), '/library/movies')->getBody();
+
+        $overlay = $this->supportOverlay($body, '/library/movies');
+
+        $matched = preg_match('#<div class="modal__panel"[^<>]*>#s', $overlay, $m);
+        self::assertSame(1, $matched, 'The support ask must render a dialog panel.');
+        $panelName = $this->ariaLabel($m[0], 'the support overlay panel');
+
+        $matched = preg_match('#<h2 class="support-ask__title">(.*?)</h2>#s', $overlay, $m);
+        self::assertSame(1, $matched, 'The support ask must render a heading.');
+        $heading = trim($m[1]);
+
+        self::assertSame(
+            $panelName,
+            $heading,
+            'The support overlay announces one name and shows another. Both are stated '
+            . 'in _support.html.twig and neither is derived from the other.',
+        );
+
+        foreach ([
+            'the header overflow menu' => $this->overflowMenu($body),
+            'the phone actions tray' => $this->menuTray($body),
+        ] as $placement => $fragment) {
+            $matched = preg_match_all('#<button\b[^<>]*supportOpen = true[^<>]*>#s', $fragment, $m);
+            self::assertSame(
+                1,
+                $matched,
+                sprintf('Exactly one control must open the support ask in %s.', $placement),
+            );
+
+            self::assertSame(
+                $this->ariaLabel($m[0][0], $placement),
+                $heading,
+                sprintf(
+                    'The support ask is named one thing in %s and another once it opens. '
+                    . 'A user who activates that entry lands on a surface that names itself '
+                    . 'differently, and a keyboard user hears the second name announced as '
+                    . 'focus enters the dialog.',
+                    $placement,
+                ),
+            );
+        }
+    }
+
+    /**
+     * The accessible name declared on one rendered tag.
+     *
+     * Asserts the attribute is there rather than defaulting to an empty string: two
+     * surfaces that have both lost their names would otherwise compare equal and
+     * pass, which is the failure mode a same-ness assertion is most exposed to.
+     */
+    private function ariaLabel(string $tag, string $subject): string
+    {
+        $matched = preg_match('#\saria-label="([^"]*)"#', $tag, $m);
+        self::assertSame(1, $matched, sprintf('%s must declare an accessible name.', $subject));
+        self::assertNotSame('', $m[1], sprintf('%s must not be named the empty string.', $subject));
+
+        return $m[1];
+    }
+
+    /**
      * The reach that made this worth doing. The overlay's content is fixed text
      * and one fixed link, so unlike the Import, Orphans and Settings trays it
      * needs no fetch and has no page-level fallback to navigate to — which is
@@ -405,7 +498,7 @@ final class ApplicationShellTest extends AppTestCase
             $overlay = $this->supportOverlay((string) $this->get($app, $path)->getBody(), $path);
 
             self::assertStringContainsString(
-                'aria-label="Support development"',
+                'aria-label="Support Development"',
                 $overlay,
                 sprintf('The support ask must be named on %s.', $path),
             );
@@ -477,7 +570,7 @@ final class ApplicationShellTest extends AppTestCase
             . 'sits between the heading it names and the copy it introduces and reads as '
             . 'belonging to neither.',
         );
-        self::assertStringContainsString('Support development', $head[0]);
+        self::assertStringContainsString('Support Development', $head[0]);
 
         // And nowhere else. Rendering it in the body as well would put a second
         // mark back in the position this exists to keep empty.
