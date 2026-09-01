@@ -326,8 +326,8 @@ category change from another control, or a second drag beginning.
 
 Resolution SHALL run from a single routine that is safe to invoke repeatedly and
 that clears everything the gesture set — both panels' pinning, transforms and
-inline sizing, the page's horizontal containment, and any pending frame
-callback.
+inline sizing, the held document height, the gesture-live flag, and any pending
+frame callback.
 
 A drag takes both grids out of the document's scroller. Leaving that in place
 because a touch was cancelled by an incoming call gives the viewer a page that
@@ -356,6 +356,12 @@ cannot scroll, with nothing on screen to explain it.
 - **WHEN** a drag is in progress, at any offset, in either direction
 - **THEN** the document SHALL NOT gain horizontal scroll, and no part of the
   moving panels SHALL be reachable by scrolling sideways
+
+#### Scenario: Pinned and sticky chrome keeps its behaviour during a drag
+
+- **WHEN** a drag is in progress, having begun at any scroll position
+- **THEN** every element that was pinned or stuck to the viewport before the
+  gesture SHALL remain so for its duration, and SHALL NOT move or stop sticking
 
 ## MODIFIED Requirements
 

@@ -128,16 +128,37 @@ unrelated update, so every caller would need to know about it.
 ### 3. Both panels leave the scroller for the gesture's duration
 
 **Decision.** Pin both panels with `position: fixed`, at the box measured from
-`#results` before any style is written, and set the page to 0 in the same frame.
+`#results` before any style is written. Hold the document's height for the
+gesture's duration, and **do not scroll the page at all**.
 
 **Why.** The two categories scroll as one document, so with both in flow the
 incoming one cannot show its top while the outgoing shows where the viewer was.
-Pinning both — rather than only the outgoing one — is what makes an abandon
-possible: a page already reset to 0 has discarded the offset it must return to,
-so the captured offset stays the only record of where the viewer was. A fixed
-element contributes no scrollable overflow, so pinning both collapses the
-document to viewport height and the scroll position becomes irrelevant until
-teardown.
+Pinning both — rather than only the outgoing one — puts each at an explicit
+viewport coordinate: the outgoing keeps the position it already occupied, the
+incoming shows its own beginning. Both are `position: fixed`, so those are
+viewport coordinates and the page's scroll offset does not enter into either.
+
+**The first version scrolled the page to 0 here, and that was wrong.** It was
+carried over from Glimpse, where both tabs live in one scrolling context and the
+reset is what lets the incoming tab show its top. Marquee does not need it, and
+it cost twice: pinning the tallest element collapses the document, the browser
+clamps the scroll, and the sticky toolbar drops from the viewport top to its
+resting place under the header — vertical movement in a horizontal gesture,
+which is the exact complaint that removed the lift. Holding the height instead
+(the flow loses exactly the panel's height, so it goes back as padding) leaves
+the page untouched, and that in turn deletes the scroll restore on abandon:
+there is nothing to restore from a page that never moved.
+
+**Do not clip the root while a gesture is live.** The parked panel sits a full
+viewport to one side and invites it. It is unnecessary — fixed boxes contribute
+nothing to the document's scrollable overflow, so there is no sideways scroll to
+prevent — and ineffective, since the root cannot clip a box whose containing
+block is the viewport. It also breaks the page: `overflow-x: clip` on the root
+computes `overflow-y` to `auto`, because the spec pairs the axes, which makes
+the root a scroll container and silently stops `position: sticky` working in
+every descendant. This shipped, and the phone toolbar unstuck the moment a swipe
+began. Nothing throws; sticky just quietly stops. `TabSwipeTest` now fails any
+`is-swiping` rule that declares an overflow.
 
 **Two traps carried over from Glimpse**, both worth stating because neither is
 visible in review:

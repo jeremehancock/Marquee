@@ -356,6 +356,53 @@ final class TabSwipeTest extends TestCase
         );
     }
 
+    /**
+     * The gesture sets no overflow on the root, and adding one breaks sticky.
+     *
+     * A panel parked a viewport to one side invites clipping the root while the
+     * gesture is live. It is unnecessary — both panels are `position: fixed`, so
+     * they contribute nothing to the document's scrollable overflow and there is
+     * no sideways scroll to prevent — and it is ineffective, because an overflow
+     * on the root cannot clip a box whose containing block is the viewport.
+     *
+     * What it does do is break the page. `overflow-x: clip` on the root computes
+     * `overflow-y` to `auto`, because the spec pairs the axes; the root becomes a
+     * scroll container and `position: sticky` silently stops working in its
+     * descendants. The phone toolbar unstuck the instant a swipe began and
+     * scrolled away above the viewport — reported as the header disappearing
+     * mid-drag. Nothing throws, and it is invisible until someone scrolls down
+     * before swiping.
+     */
+    public function testTheGestureSetsNoOverflowOnTheRoot(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', $this->stylesheet());
+
+        preg_match_all('/^[ \t]*([^{}]*is-swiping[^{}]*)\{([^{}]*)\}/m', $css, $rules, PREG_SET_ORDER);
+
+        foreach ($rules as $rule) {
+            self::assertDoesNotMatchRegularExpression(
+                '/(^|[;{\s])overflow(-x|-y)?\s*:/',
+                $rule[2],
+                sprintf(
+                    'The rule "%s" declares an overflow. Clipping the root while a '
+                    . 'gesture is live is unnecessary (fixed panels create no '
+                    . 'scrollable overflow), ineffective (the root cannot clip them), '
+                    . 'and breaks position: sticky in every descendant — which is how '
+                    . 'the phone toolbar came to vanish mid-swipe.',
+                    trim($rule[1]),
+                ),
+            );
+        }
+
+        // The class still has to earn its place, or the flag is dead weight.
+        self::assertStringContainsString(
+            'will-change',
+            $this->rule('.is-swiping .swipe-shift'),
+            'The gesture-live flag exists to promote the moving panels to their own '
+            . 'layer. If that goes, remove the class rather than leaving it set.',
+        );
+    }
+
     public function testThePinnedRuleDoesNotDeclareItsOwnHorizontalBox(): void
     {
         $rule = $this->rule('.swipe-pinned');
@@ -596,7 +643,7 @@ final class TabSwipeTest extends TestCase
             'removeEventListener' => 'the transitionend listener',
             'removeChild' => 'the incoming panel',
             'swipe-pinned' => 'the pinning',
-            'is-swiping' => 'the horizontal containment',
+            'is-swiping' => 'the gesture-live flag on the root',
             'setupInfinite' => 'infinite scroll for whichever grid is now on screen',
         ] as $needle => $what) {
             self::assertStringContainsString(

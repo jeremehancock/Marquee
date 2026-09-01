@@ -1706,13 +1706,34 @@ h1 {
     margin-top: 0;
 }
 
-/* Only while a gesture is live, so a panel parked a viewport away is never
-   reachable by scrolling sideways. `clip` rather than `hidden`: `hidden` on an
-   ancestor makes it a scroll container, which would give the parked panel
-   somewhere to be scrolled to — the exact thing being prevented. */
-.is-swiping {
-    overflow-x: clip;
-}
+/* NO OVERFLOW CONTAINMENT HERE, and it must not be added back.
+
+   The parked panel sits a full viewport to one side, so the instinct is to clip
+   the root while a gesture is live. It is the wrong instinct twice over.
+
+   It is unnecessary. Both panels are `position: fixed`, so their containing
+   block is the viewport and they contribute nothing to the document's scrollable
+   overflow — a fixed box is not something the page can be scrolled to reveal.
+   There is no sideways scroll to prevent.
+
+   It is also ineffective, for the same reason: an `overflow` on the root cannot
+   clip a box whose containing block is the viewport rather than the root.
+
+   And it actively broke the page. `overflow-x: clip` on the root computes
+   `overflow-y` to `auto` — the spec pairs the axes, so a non-`visible` value on
+   one forces the other off `visible` — which makes the root a scroll container
+   and silently stops `position: sticky` working in its descendants. The phone
+   toolbar unstuck the moment a swipe began and scrolled away above the viewport,
+   reported as the header disappearing mid-drag. Nothing errors; sticky just
+   quietly stops.
+
+   `.is-swiping` still exists, on the root, carrying the `will-change` above and
+   nothing else. */
+
+/* The finger is off the glass, so the panels stop tracking it and animate home.
+
+   --dur-slow is the CAP, which is what belongs in the stylesheet: it is how long
+   a settle takes when there is a whole viewport still to cross. The actual
 
 /* The finger is off the glass, so the panels stop tracking it and animate home.
 
