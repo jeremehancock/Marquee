@@ -198,6 +198,37 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
     `DialogFocusTest` pins both along with the refs they name. It cannot catch a
     third menu wired without it, which is the same hazard shape as the bullet
     above and the same reason this is here.
+- **The category swipe refuses a touch by naming the surfaces it must not claim,
+  and changes category through exactly one routine.** A horizontal drag on the
+  gallery moves between adjacent categories; it pins both grids out of the
+  document's scroller and suppresses the browser's own handling for the life of
+  the touch. Two consequences are worth knowing before touching either area.
+  - **The gesture listens on the whole `document`, and that is why the refusal
+    list is the mechanism rather than a convenience.** Bound to the gallery root
+    it only covered as much of the screen as the grid happened to fill, so a
+    swipe in the blank space under a short search result did nothing. Listening
+    page-wide fixes that and puts every bar under the same listener, so each one
+    keeps its touches only by being named: `swipeRefused()` lists `.sheet`,
+    `.modal`, `.viewer`, `.overlay`, `.tabs`, `.toolbar` and `.topbar`. A **new
+    overlay or bar added without an entry there** is claimable — the drag starts
+    under the viewer's finger while a tray is open, pins the page, and they get
+    an overlay that will not scroll and a gallery sliding behind it. Nothing
+    errors. `TabSwipeTest` pins the entries that exist, that the check runs at
+    `touchstart`, and that the surface stays `document` — it cannot know about a
+    class invented later. The refusal shares `anyOverlayOpen()` with the page
+    scroll lock deliberately; a second reading of "is an overlay open" drifts,
+    and the two gestures live on opposite axes of the same touches.
+  - `switchCategory()` is the **only** way to change category, used by the tab
+    tap and the swipe's commit alike. It owes seven things — the active tab, the
+    results, the title, a history entry, the carried-over search, the scroll
+    position, and infinite scroll re-armed — and two paths that must agree about
+    seven things will stop agreeing. A test pins that the commit calls it and
+    that only one definition exists, but not that a *third* caller is added
+    correctly.
+  - The neighbour cache is an optimisation and must stay one: the gesture is
+    fully correct with it permanently empty. Never let a held copy become the
+    only record of anything, and never add a `sort` key to it — sort changes do a
+    full page load, which takes the whole cache with it.
 - **A surface the interface offers *by name* is Title Case everywhere it is
   named; everything else a user reads is sentence case.** The named surfaces are
   Poster Wall, Import from Plex, Plex Connection, Plex Posters, Find Posters and

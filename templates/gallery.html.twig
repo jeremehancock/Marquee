@@ -104,9 +104,29 @@
             {# The only clear control lives with the filtered-state summary in
                #results — the toolbar is never swapped by a no-reload update, so a
                clear link here would go stale the moment the results change. #}
+            {# For the same reason the placeholder NAMES NO CATEGORY. It read
+               "Search Movies…" and kept saying so on every other tab, because
+               switching category rewrites #results and never this. It was true
+               once, on the view the page happened to load with, and wrong from
+               the first tab change onward — which the swipe made constant rather
+               than introduced.
+
+               Naming the view here cannot be fixed by choosing better wording;
+               anything view-dependent in the toolbar is stale by construction. It
+               is also not needed: the view is already named where it is
+               re-rendered, in the filtered-state summary above the grid ("3
+               matches for “dune” in Movies"), which is the requirement that asked
+               for it. This now matches the accessible name, which has always been
+               plain "Search".
+
+               `action` and the sort links below are view-dependent too and stay
+               that way: both are only followed with JavaScript off, where there
+               is no no-reload switching to go stale against. The JS paths
+               deliberately rebuild from window.location.pathname instead — see
+               the sort branch in gallery.js. #}
             <form class="search" method="get" action="{{ base }}" role="search">
                 <input type="search" name="q" value="{{ query }}" autocomplete="off"
-                       placeholder="Search {{ view.label }}…" aria-label="Search">
+                       placeholder="Search…" aria-label="Search">
             </form>
             {% set sort_q = query is not empty ? '&q=' ~ query|url_encode : '' %}
             {# Phone-only affordance: opens the sort tray. The inline .sort group
@@ -122,9 +142,18 @@
         </div>
     </div>
 
+    {# #results is the swap target for every no-reload update — search, paging,
+       a mutation's re-render, and the category swipe's commit — all through
+       setResults() in gallery.js. Its id and its position here are load-bearing;
+       the swipe's incoming panel is a SIBLING inserted beside it for the length
+       of a gesture and removed after, precisely so that none of those callers
+       has to know the gesture exists. #}
     <div id="results">
         {% include 'partials/gallery_results.html.twig' %}
     </div>
+
+    {# Cloned by the swipe when its neighbour cache misses. Inert until then. #}
+    <template id="swipe-placeholder">{% include 'partials/_swipe_placeholder.html.twig' %}</template>
 
     {# Change poster modal #}
     {# Escape unwinds one layer at a time. This dialog, the confirm dialog and the

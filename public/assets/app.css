@@ -1630,6 +1630,146 @@ h1 {
     transition: opacity var(--dur-fast) var(--ease-standard);
 }
 
+/* ---- The category swipe (touch only) ----
+
+   A horizontal drag on the gallery moves between adjacent categories. The
+   outgoing grid is #results itself; the incoming one is .swipe-pane, a sibling
+   that exists only for the length of a gesture. Both are taken out of the
+   scroller and translated together, a viewport apart, so one replaces the other
+   rather than covering it.
+
+   NO LIFT, NO SCALE, NO SCRIM, and that is a decision rather than an omission.
+   The sibling app this gesture comes from shipped a 0.94 scale about the centre
+   of the viewport as "depth"; on a tall phone that drops the top row about 23px
+   the instant the gesture is claimed, uneased, before anything has slid
+   anywhere. It reads as the page glitching and it is the first thing anyone
+   notices. The dim went with it: without a scale the two panels are each a full
+   viewport wide and sit edge to edge, so no gap between them ever opens and a
+   scrim behind them could never render.
+
+   Everything positional is written inline by gallery.js from a measured box —
+   see .is-swiping below for why that is not optional. */
+.swipe-shift {
+    /* The offset the gesture writes each frame, declared here at rest so a panel
+       carrying the class before the first move renders unmoved rather than
+       dropping the transform entirely. translate3d, so the panel gets its own
+       layer and a frame costs a composite rather than a paint. */
+    --swipe-x: 0px;
+    transform: translate3d(var(--swipe-x), 0, 0);
+}
+
+.is-swiping .swipe-shift {
+    will-change: transform;
+}
+
+/* Pinned out of the scroller for the gesture's duration.
+
+   Both panels leave the document, not just the outgoing one. The two categories
+   scroll as one document, so with either still in flow the incoming grid cannot
+   show its top while the outgoing shows where the viewer was. Pinning both is
+   also what makes an abandon possible: a page already reset to 0 has thrown away
+   the offset it has to return to, so the captured offset stays the only record
+   of where the viewer was.
+
+   NO `left`, NO `right`, NO `width` HERE — ON PURPOSE. A fixed element does not
+   inherit .container's padding, so pinning to the viewport edges widens the grid
+   by both gutters the moment a thumb lands and narrows it again on release. The
+   gesture writes top/left/width inline from the box it measured while the panel
+   was still in flow, which is the only way the panel keeps the geometry it
+   already had. A grid that changes size when a thumb lands is the same complaint
+   as one that drops; do not "tidy" this by adding the positioning back. */
+.swipe-pinned {
+    position: fixed;
+    z-index: 1;
+    margin: 0;
+}
+
+/* The panel's first child keeps its margin OUTSIDE the panel, as it had it in
+   flow.
+
+   #results is a plain div with no border, padding or formatting context of its
+   own, so its first child's top margin (.stats carries 8px) collapses through it
+   and sits above its border box. The measured rect is therefore exactly where
+   that text starts. Pinning the panel ends the collapse — an out-of-flow box
+   never collapses margins with its children — so without this the 8px reappears
+   INSIDE the panel and the whole grid drops by it the instant a thumb lands.
+
+   Zeroing it here reproduces the collapsed state exactly, so the panel is
+   pinned where it was and its content stays where it was. Nothing at rest is
+   affected: this rule only ever applies to a panel mid-gesture.
+
+   Same family as the missing left/right above — an out-of-flow element not
+   inheriting the geometry it had in flow — and the reason both are written down:
+   a grid that moves vertically when you drag it sideways is the exact complaint
+   that got the lift removed, and neither cause is visible in the markup. */
+.swipe-pinned > :first-child {
+    margin-top: 0;
+}
+
+/* NO OVERFLOW CONTAINMENT HERE, and it must not be added back.
+
+   The parked panel sits a full viewport to one side, so the instinct is to clip
+   the root while a gesture is live. It is the wrong instinct twice over.
+
+   It is unnecessary. Both panels are `position: fixed`, so their containing
+   block is the viewport and they contribute nothing to the document's scrollable
+   overflow — a fixed box is not something the page can be scrolled to reveal.
+   There is no sideways scroll to prevent.
+
+   It is also ineffective, for the same reason: an `overflow` on the root cannot
+   clip a box whose containing block is the viewport rather than the root.
+
+   And it actively broke the page. `overflow-x: clip` on the root computes
+   `overflow-y` to `auto` — the spec pairs the axes, so a non-`visible` value on
+   one forces the other off `visible` — which makes the root a scroll container
+   and silently stops `position: sticky` working in its descendants. The phone
+   toolbar unstuck the moment a swipe began and scrolled away above the viewport,
+   reported as the header disappearing mid-drag. Nothing errors; sticky just
+   quietly stops.
+
+   `.is-swiping` still exists, on the root, carrying the `will-change` above and
+   nothing else. */
+
+/* The finger is off the glass, so the panels stop tracking it and animate home.
+
+   --dur-slow is the CAP, which is what belongs in the stylesheet: it is how long
+   a settle takes when there is a whole viewport still to cross. The actual
+
+/* The finger is off the glass, so the panels stop tracking it and animate home.
+
+   --dur-slow is the CAP, which is what belongs in the stylesheet: it is how long
+   a settle takes when there is a whole viewport still to cross. The actual
+   duration is shorter for a drag released most of the way over, so the gesture
+   overrides `transition-duration` INLINE per release — a drag let go at 95%
+   should cross the last sliver quickly rather than spend a full slow duration on
+   it. gallery.js reads this same token for its cap, so the two cannot drift.
+
+   Written as an inline duration rather than through a bespoke custom property on
+   purpose. A `var(--swipe-settle, …)` would need declaring somewhere to satisfy
+   the token contract, and every place it could be declared makes its own
+   fallback unreachable — a live declaration that can never fire, which this
+   stylesheet has been bitten by before.
+
+   Present only during the settle. While the finger is down there is no
+   transition at all, which is why the app-wide reduced-motion rule lands exactly
+   where it should: that rule clamps transition-duration with !important, so it
+   beats the inline override and flattens this settle, while the tracked offset
+   above is not a transition and is untouched. The panels still follow the finger
+   under reduced motion, because the viewer is the one moving them. */
+.swipe-settling {
+    transition: transform var(--dur-slow) var(--ease-standard);
+}
+
+/* The incoming panel before its results have arrived: the grid's own metrics
+   with the app's spinner in them, so a cache miss is the same gesture with a
+   quiet middle rather than a different one. */
+.swipe-placeholder {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 64px 0;
+}
+
 .card {
     margin: 0;
 }

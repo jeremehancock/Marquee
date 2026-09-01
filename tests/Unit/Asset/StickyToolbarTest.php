@@ -392,4 +392,53 @@ final class StickyToolbarTest extends TestCase
             . 'or its sticky range collapses to the wrapper\'s own height.',
         );
     }
+
+    /**
+     * Nothing the pinned toolbar renders may name the current view.
+     *
+     * The toolbar sits outside #results, and every no-reload update — search,
+     * paging, a mutation's re-render, a tab tap, a swipe — rewrites #results and
+     * nothing else. So anything view-dependent drawn here is correct exactly
+     * once, for whichever view the page happened to load with, and wrong from the
+     * first category change onward.
+     *
+     * The search field said "Search Movies…" and went on saying it on every other
+     * tab. That is not a wording problem and cannot be fixed by better wording:
+     * the staleness is structural. The view is already named where it IS
+     * re-rendered — the filtered-state summary above the grid, "3 matches for
+     * “dune” in Movies" — which is what the search capability's "Filtered view is
+     * clearly indicated" requirement actually asks for.
+     *
+     * Scoped to what the user reads. `action` on the form and the sort links keep
+     * their view-dependent URLs deliberately: those are followed only with
+     * JavaScript off, where there is no no-reload switching for them to go stale
+     * against, and the JS paths rebuild from window.location.pathname instead.
+     */
+    public function testThePinnedSearchFieldNamesNoCategory(): void
+    {
+        $path = dirname(__DIR__, 3) . '/templates/gallery.html.twig';
+        $template = file_get_contents($path);
+        self::assertIsString($template, 'gallery.html.twig must be readable at ' . $path);
+
+        self::assertSame(
+            1,
+            preg_match('/<input[^>]*type="search"[^>]*>/s', $template, $m),
+            'The gallery must render exactly one search field.',
+        );
+
+        self::assertSame(
+            1,
+            preg_match('/placeholder="([^"]*)"/', $m[0] ?? '', $placeholder),
+            'The search field must carry a placeholder.',
+        );
+
+        self::assertStringNotContainsString(
+            '{{',
+            $placeholder[1] ?? '',
+            'The search placeholder must not interpolate anything. The toolbar is '
+            . 'never re-rendered by a no-reload update, so a placeholder naming the '
+            . 'current view is correct only until the first category change — which '
+            . 'is how it came to read "Search Movies…" on every tab.',
+        );
+    }
 }

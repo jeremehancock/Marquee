@@ -62,7 +62,9 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   reloads, and a mobile experience built around trays: an actions menu, importing,
   orphans, settings, your Plex connection and a full-size poster action sheet all
   open over the gallery rather than taking you away from it, with search and sort
-  pinned to the top as you scroll. On a phone the header,
+  pinned to the top as you scroll. Swipe left or right anywhere on the grid to
+  move between categories — the next one follows your thumb and you can change
+  your mind halfway. On a phone the header,
   the toolbar, and the tab bar are translucent, so your posters stay visible
   passing behind them; dialogs, trays, buttons, and poster cards all animate
   rather than snap. If your system asks for reduced motion, Marquee drops the
@@ -513,6 +515,12 @@ front and center: the secondary actions live behind the **⋯** Actions menu, an
 importing, orphans, settings and your Plex connection all open as trays over the
 gallery rather than navigating away from it. Search and sort stay pinned to the
 top while you scroll, and tapping a poster opens a full-size action sheet.
+
+To move between categories you can tap the bottom tab bar or just swipe the grid
+sideways. The swipe follows your thumb rather than firing when you let go, so you
+can see the next category arriving and abandon the gesture by sliding back — and
+a swipe past the first or last category resists instead of doing nothing, so you
+can feel that there is nothing there.
 
 ## Security considerations
 
