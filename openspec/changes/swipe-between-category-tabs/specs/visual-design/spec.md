@@ -39,17 +39,37 @@ leave a rule that cannot render.
 - **THEN** the offset that moves them SHALL be horizontal, with no vertical
   component
 
-### Requirement: A panel taken out of the scroller keeps its own horizontal box
+### Requirement: A panel taken out of the scroller keeps the box it had in flow
 
 A panel pinned out of the document's scroller for the duration of a drag SHALL
-be given the horizontal position and width it occupied in flow, written from a
-measurement taken before any style is written for the gesture.
+occupy the same position and size it occupied in flow, on both axes, written
+from a measurement taken before any style is written for the gesture. Its
+contents SHALL sit where they sat.
 
-A pinned element does not inherit its former container's padding. Pinning to the
-viewport's edges instead of to the measured box widens the grid by that padding
-at the instant the gesture is claimed and narrows it again on release — a grid
-that changes size when a thumb lands, which is the same complaint as one that
-drops.
+Taking a box out of flow silently changes three things about its geometry, and
+each has been observed as movement in a gesture that should only slide
+sideways:
+
+- **It stops inheriting its container's padding.** Pinning to the viewport's
+  edges rather than to the measured box widens the grid by that padding when the
+  gesture is claimed and narrows it again on release.
+- **It stops collapsing margins with its children.** A first child whose top
+  margin collapsed through the panel keeps that margin outside it while in flow —
+  so the measured box is where the content starts — and regains it inside the
+  panel once pinned, dropping everything in it by that margin.
+- **It stops contributing its height to the document.** A document that collapses
+  below the viewer's scroll offset is clamped by the browser, which moves every
+  pinned or sticky element that was resolving against that offset.
+
+The application SHALL hold the document's scrollable height for the duration of
+the gesture, and SHALL NOT scroll the page as part of claiming, tracking or
+abandoning one. Both panels are positioned against the viewport, so neither
+needs the page moved to be correct.
+
+The three are one requirement because they share a cause and a symptom: a grid
+that moves when a thumb lands, for a reason that appears nowhere in the markup.
+Vertical movement in a horizontal gesture is the specific complaint that removed
+the lift, and it is no more acceptable at eight pixels than at twenty-three.
 
 The measurement SHALL be taken before the gesture writes anything, and no
 measurement SHALL be taken after a write within the same frame. Reading a
@@ -62,6 +82,20 @@ its layout there and then, and the frame it lands on is the gesture's first one
 - **WHEN** a drag is claimed
 - **THEN** each pinned panel SHALL be positioned and sized from its measured
   in-flow box, and the grid SHALL NOT change width
+
+#### Scenario: A pinned panel's contents do not drop
+
+- **WHEN** a drag is claimed on a panel whose first child's top margin collapsed
+  through it in flow
+- **THEN** that child SHALL stay where it was, and nothing in the panel SHALL
+  move vertically
+
+#### Scenario: The page is not scrolled by the gesture
+
+- **WHEN** a drag is claimed from any scroll position, tracked, and then
+  abandoned
+- **THEN** the page's scroll offset SHALL be unchanged throughout, and the pinned
+  and sticky chrome SHALL NOT move
 
 #### Scenario: The measurement precedes the writes
 

@@ -2641,6 +2641,17 @@
             // are `position: fixed`, so an `overflow-x` on a mid-page ancestor
             // does not clip them. Only the viewport's own scroller can.
             document.documentElement.classList.add('is-swiping');
+            // HOLD THE DOCUMENT'S HEIGHT. Pinning #results takes the tallest
+            // thing on the page out of the flow, and a document that collapses
+            // below the viewer's scroll offset is clamped to 0 by the browser —
+            // which drops the sticky toolbar from the viewport top down to its
+            // resting place under the header. Vertical movement, in a horizontal
+            // gesture, on every drag begun below the fold.
+            //
+            // The flow loses exactly the panel's height, so putting that height
+            // back as padding preserves it. Costs no extra measurement: the rect
+            // this reads was taken above, in the same clean-layout window.
+            root.style.paddingBottom = rect.height + 'px';
             results.classList.add('swipe-shift', 'swipe-pinned');
             // The outgoing panel renders exactly where it already was. Its box was
             // measured relative to the viewport, so pinning it at that top holds
@@ -2656,9 +2667,17 @@
                 return;
             }
 
-            // The incoming panel shows its OWN top, which is `box.top` with the
-            // page at 0 — so it is pinned at the outgoing panel's viewport top
-            // minus the scroll that is about to be discarded.
+            // The incoming panel shows its OWN top — it is a fresh category,
+            // opening at its first page. That is `box.top + scrollY`: the
+            // document offset of the results region, which is where it would sit
+            // with the page at the top.
+            //
+            // Both panels are `position: fixed`, so these are viewport
+            // coordinates and the page's actual scroll offset does not enter into
+            // either of them. The outgoing panel holds the position it already
+            // occupied; the incoming one shows its beginning. Nothing has to be
+            // scrolled for that to be true, which is why the page is left exactly
+            // where the viewer had it.
             var pane = buildIncomingPane(
                 { top: box.top + scrollY, left: box.left, width: box.width },
                 held
@@ -2666,15 +2685,6 @@
             setShift(pane, parkOffset(direction, width));
             results.parentNode.insertBefore(pane, results.nextSibling);
             swipe.pane = pane;
-
-            // Both panels are out of the scroller and the incoming one is off
-            // screen, so this moves nothing anyone can see — which is what makes
-            // the change one continuous movement rather than a jump followed by a
-            // slide. A fixed element contributes no scrollable overflow, so the
-            // document has already collapsed and the browser will clamp to 0 by
-            // itself; stating it anyway is cheaper than relying on a side effect,
-            // and 'instant' matters because the page has scroll-behavior: smooth.
-            window.scrollTo({ top: 0, behavior: 'instant' });
 
             // The bar marks the destination NOW, not at release. It is the
             // application's acknowledgement that the gesture was recognised, and
@@ -2930,16 +2940,20 @@
             results.style.top = '';
             results.style.left = '';
             results.style.width = '';
+            root.style.paddingBottom = '';
             document.documentElement.classList.remove('is-swiping');
 
-            // An abandoned gesture owes the viewer the position they were at when
-            // it began; a committed one has already been scrolled to 0 by
-            // switchCategory. Restored here rather than at the settle because
-            // this is the point the panels rejoin the scroller and the document
-            // has its height back.
-            if (!live.committed && live.scrollY) {
-                window.scrollTo(0, live.scrollY);
-            }
+            // NO SCROLL RESTORE, and its absence is the point rather than an
+            // omission. The gesture holds the document's height while the panels
+            // are pinned and never scrolls the page, so an abandoned drag returns
+            // the viewer to a position they were never moved from. A restore here
+            // would be a write with nothing to correct — and the moment one
+            // exists, the height that makes it unnecessary becomes safe-looking
+            // to remove.
+            //
+            // A committed drag is scrolled to the top by switchCategory, exactly
+            // as tapping a tab always has been.
+
             // The grid that is on screen may not be the one infinite scroll was
             // last wired for.
             setupInfinite();

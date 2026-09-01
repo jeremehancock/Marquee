@@ -283,6 +283,79 @@ final class TabSwipeTest extends TestCase
      *
      * The innocent-looking edit is "the stylesheet should own positioning".
      */
+    /**
+     * A pinned panel keeps its first child's margin outside it.
+     *
+     * #results is a plain div with no border, padding or formatting context, so
+     * its first child's top margin (.stats carries 8px) collapses through it and
+     * sits above its border box — which is what the measured rect describes.
+     * Pinning ends the collapse, because an out-of-flow box never collapses
+     * margins with its children, and the 8px reappears INSIDE the panel: the
+     * whole grid drops by it the instant a thumb lands.
+     *
+     * Reported from a real device as "the grid drops down when you drag", which
+     * is the same sentence that got the lift removed. Vertical movement in a
+     * horizontal gesture reads as the page glitching however small it is, and
+     * neither cause is visible anywhere in the markup.
+     */
+    public function testAPinnedPanelDoesNotGainItsFirstChildsTopMargin(): void
+    {
+        $rule = $this->rule('.swipe-pinned > :first-child');
+
+        self::assertMatchesRegularExpression(
+            '/margin-top:\s*0/',
+            $rule,
+            'A pinned panel must zero its first child\'s top margin. In flow that '
+            . 'margin collapses out of the panel; pinned it does not, and the grid '
+            . 'drops by it the moment the gesture is claimed.',
+        );
+    }
+
+    /**
+     * The gesture holds the document's height and never scrolls the page.
+     *
+     * Pinning #results takes the tallest thing on the page out of the flow. A
+     * document that collapses below the viewer's current offset is clamped to 0
+     * by the browser, which drops the sticky toolbar from the viewport top down
+     * to its resting place under the header — vertical movement, in a horizontal
+     * gesture, on every drag begun below the fold.
+     *
+     * Holding the height is also what makes the absence of a scroll restore
+     * correct: an abandoned drag returns the viewer to a position they were never
+     * moved from. The two facts are one decision, so they are asserted together —
+     * reintroducing a scroll here would make removing the height look safe.
+     */
+    public function testTheGestureHoldsTheDocumentHeightRatherThanScrollingThePage(): void
+    {
+        $begin = $this->functionBody('beginSwipe');
+
+        self::assertStringContainsString(
+            'paddingBottom',
+            $begin,
+            'The flow loses exactly the pinned panel\'s height; it must be put back, '
+            . 'or the document collapses and the browser clamps the scroll to 0.',
+        );
+        self::assertStringNotContainsString(
+            'scrollTo',
+            $begin,
+            'The gesture must not scroll the page. Both panels are fixed, so their '
+            . 'positions are viewport coordinates and the scroll offset does not '
+            . 'enter into either — scrolling here only moves the chrome.',
+        );
+
+        $end = $this->functionBody('endSwipe');
+        self::assertStringContainsString(
+            'paddingBottom',
+            $end,
+            'Teardown must release the held height.',
+        );
+        self::assertStringNotContainsString(
+            'scrollTo',
+            $end,
+            'There is nothing to restore: the gesture never moved the page.',
+        );
+    }
+
     public function testThePinnedRuleDoesNotDeclareItsOwnHorizontalBox(): void
     {
         $rule = $this->rule('.swipe-pinned');

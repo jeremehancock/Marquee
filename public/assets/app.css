@@ -1684,6 +1684,28 @@ h1 {
     margin: 0;
 }
 
+/* The panel's first child keeps its margin OUTSIDE the panel, as it had it in
+   flow.
+
+   #results is a plain div with no border, padding or formatting context of its
+   own, so its first child's top margin (.stats carries 8px) collapses through it
+   and sits above its border box. The measured rect is therefore exactly where
+   that text starts. Pinning the panel ends the collapse — an out-of-flow box
+   never collapses margins with its children — so without this the 8px reappears
+   INSIDE the panel and the whole grid drops by it the instant a thumb lands.
+
+   Zeroing it here reproduces the collapsed state exactly, so the panel is
+   pinned where it was and its content stays where it was. Nothing at rest is
+   affected: this rule only ever applies to a panel mid-gesture.
+
+   Same family as the missing left/right above — an out-of-flow element not
+   inheriting the geometry it had in flow — and the reason both are written down:
+   a grid that moves vertically when you drag it sideways is the exact complaint
+   that got the lift removed, and neither cause is visible in the markup. */
+.swipe-pinned > :first-child {
+    margin-top: 0;
+}
+
 /* Only while a gesture is live, so a panel parked a viewport away is never
    reachable by scrolling sideways. `clip` rather than `hidden`: `hidden` on an
    ancestor makes it a scroll container, which would give the parked panel

@@ -301,41 +301,49 @@ Order matters here — start with the platform check.
    the exact failure that is invisible in every desktop emulator and silent in
    the console.
 2. **On a real Android phone.** The same.
-3. **Both directions, from every category.** All → Movies → Shows → Seasons →
+3. **Nothing moves vertically.** Watch the top row of posters as you start a
+   drag. It must not drop, jump, or twitch — the gesture is horizontal and the
+   grid should only ever travel sideways. Check this **both at the top of the
+   page and scrolled well down**, because the two causes are different: an
+   out-of-flow panel regains a margin its children's margins used to collapse
+   out of, and a document that collapses when the panel leaves the flow gets its
+   scroll clamped, which drops the sticky toolbar. Both shipped once and both
+   were reported as "the grid drops down when you drag".
+4. **Both directions, from every category.** All → Movies → Shows → Seasons →
    Collections and back.
-4. **The two ends.** Drag right on All, and left on Collections. Each should move
+5. **The two ends.** Drag right on All, and left on Collections. Each should move
    a short damped distance and spring back. *Nothing happening at all is a bug* —
    the resistance is what distinguishes "there is nothing there" from "the app
    did not notice your gesture".
-5. **Commit, abandon, and change your mind.** Past a third of the screen and
+6. **Commit, abandon, and change your mind.** Past a third of the screen and
    release: it commits. A short drag: it springs back and the category is
    unchanged. Drag well past a third, drag back below it, then release: it must
    **abandon**. A gesture that commits because it once crossed the line has
    latched, which is the thing this design specifically avoids.
-6. **A flick.** A short, fast drag should commit even though it never travelled a
+7. **A flick.** A short, fast drag should commit even though it never travelled a
    third of the screen.
-7. **With a search active.** Type a search, then swipe. The destination must open
+8. **With a search active.** Type a search, then swipe. The destination must open
    filtered by the same search — not unfiltered, and not showing the previous
    category's matches.
-8. **Straight after a change.** Delete a poster, or run an import, then swipe.
+9. **Straight after a change.** Delete a poster, or run an import, then swipe.
    The destination must reflect what just happened. If it shows the poster you
    deleted, a stale held copy was trusted.
-9. **With a tray open.** Open the actions tray, then try to drag sideways over
+10. **With a tray open.** Open the actions tray, then try to drag sideways over
    it. Nothing must move. Then drag the tray *down* by its handle — it must still
    dismiss normally. The two gestures share the same touches on opposite axes.
-10. **Interrupt it.** Start a drag and lock the phone, or switch apps, or rotate
+11. **Interrupt it.** Start a drag and lock the phone, or switch apps, or rotate
     the device mid-drag. When you come back the page must scroll normally. A page
     that has stopped scrolling with nothing on screen to explain it means the
     gesture was left pinned.
-11. **Back and forward.** Swipe through several categories, then use the browser's
+12. **Back and forward.** Swipe through several categories, then use the browser's
     back gesture. It must walk back through them.
-12. **Deep scroll.** Scroll several pages into a category, swipe away, swipe back.
+13. **Deep scroll.** Scroll several pages into a category, swipe away, swipe back.
     It shows that category's **first page from the top** — that is correct and
     deliberate, not a lost position. Scrolling must still append more.
-13. **Reduced motion.** Turn it on at the system level. The grid must **still
+14. **Reduced motion.** Turn it on at the system level. The grid must **still
     follow your finger** — you are moving it, so it is not motion being done to
     you. Only the travel after you let go should become instant.
-14. **On a desktop with a mouse.** Nothing should have changed: no drag, and tab
+15. **On a desktop with a mouse.** Nothing should have changed: no drag, and tab
     clicks still cut instantly.
 
 ---
