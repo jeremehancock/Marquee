@@ -312,28 +312,52 @@ final class TabSwipeTest extends TestCase
     }
 
     /**
-     * The gesture holds the document's height and never scrolls the page.
+     * The gesture holds the pinned panel's place in the flow, and never scrolls.
      *
-     * Pinning #results takes the tallest thing on the page out of the flow. A
-     * document that collapses below the viewer's current offset is clamped to 0
-     * by the browser, which drops the sticky toolbar from the viewport top down
-     * to its resting place under the header — vertical movement, in a horizontal
-     * gesture, on every drag begun below the fold.
+     * Pinning #results takes the tallest thing on the page out of the flow, and
+     * two separate things are measured from what it leaves behind:
      *
-     * Holding the height is also what makes the absence of a scroll restore
+     * - The document's scrollable height. Collapse it below the viewer's offset
+     *   and the browser clamps the scroll, moving everything pinned or stuck.
+     * - The sticky containing block of the gallery header. A sticky element
+     *   travels only within its parent's CONTENT box, so when that collapses to
+     *   the header's own height, a viewer scrolled past it watches the header
+     *   stop sticking and leave.
+     *
+     * A real spacer restores both, because it restores what they are both
+     * derived from. Padding was tried and fixes only the first — the padding box
+     * carries the document height, sticky containment reads the content box — and
+     * the header still unstuck. That is the whole reason this asserts a node in
+     * the flow rather than any compensation that happens to make the page the
+     * right height.
+     *
+     * Holding the place is also what makes the absence of a scroll restore
      * correct: an abandoned drag returns the viewer to a position they were never
-     * moved from. The two facts are one decision, so they are asserted together —
-     * reintroducing a scroll here would make removing the height look safe.
+     * moved from. Asserted together, so reintroducing a scroll cannot make
+     * removing the spacer look safe.
      */
-    public function testTheGestureHoldsTheDocumentHeightRatherThanScrollingThePage(): void
+    public function testTheGestureHoldsThePinnedPanelsPlaceRatherThanScrollingThePage(): void
     {
         $begin = $this->functionBody('beginSwipe');
 
         self::assertStringContainsString(
+            'data-swipe-spacer',
+            $begin,
+            'The flow must keep a stand-in of the pinned panel\'s height. Without a '
+            . 'real box the parent\'s content box collapses, and the gallery header '
+            . 'loses the sticky range that keeps it on screen.',
+        );
+        self::assertStringContainsString(
+            'insertBefore',
+            $begin,
+            'The spacer must go into the flow where the panel was.',
+        );
+        self::assertStringNotContainsString(
             'paddingBottom',
             $begin,
-            'The flow loses exactly the pinned panel\'s height; it must be put back, '
-            . 'or the document collapses and the browser clamps the scroll to 0.',
+            'Padding is not a substitute: it extends the padding box, which carries '
+            . 'the document height, while sticky containment reads the content box. '
+            . 'It fixes the scroll clamp and leaves the header unsticking.',
         );
         self::assertStringNotContainsString(
             'scrollTo',
@@ -345,9 +369,9 @@ final class TabSwipeTest extends TestCase
 
         $end = $this->functionBody('endSwipe');
         self::assertStringContainsString(
-            'paddingBottom',
+            'live.spacer',
             $end,
-            'Teardown must release the held height.',
+            'Teardown must remove the spacer.',
         );
         self::assertStringNotContainsString(
             'scrollTo',
@@ -642,6 +666,7 @@ final class TabSwipeTest extends TestCase
             'clearTimeout' => 'the settle timer',
             'removeEventListener' => 'the transitionend listener',
             'removeChild' => 'the incoming panel',
+            'live.spacer' => 'the flow spacer standing in for the pinned panel',
             'swipe-pinned' => 'the pinning',
             'is-swiping' => 'the gesture-live flag on the root',
             'setupInfinite' => 'infinite scroll for whichever grid is now on screen',

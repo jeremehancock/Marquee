@@ -57,14 +57,25 @@ sideways:
   margin collapsed through the panel keeps that margin outside it while in flow —
   so the measured box is where the content starts — and regains it inside the
   panel once pinned, dropping everything in it by that margin.
-- **It stops contributing its height to the document.** A document that collapses
-  below the viewer's scroll offset is clamped by the browser, which moves every
-  pinned or sticky element that was resolving against that offset.
+- **It stops occupying its place in the flow.** Two separate things are measured
+  from that place. The document's scrollable height comes from it, and a document
+  that collapses below the viewer's scroll offset is clamped by the browser,
+  which moves every pinned or sticky element resolving against that offset. The
+  sticky containing block of any sibling chrome comes from it too — a sticky
+  element travels only within its parent's *content* box, so a panel leaving the
+  flow collapses that box to the height of the chrome itself, and a viewer
+  scrolled past it watches that chrome stop sticking and leave with it.
 
-The application SHALL hold the document's scrollable height for the duration of
-the gesture, and SHALL NOT scroll the page as part of claiming, tracking or
-abandoning one. Both panels are positioned against the viewport, so neither
-needs the page moved to be correct.
+The application SHALL hold the pinned panel's place in the flow for the duration
+of the gesture, with a stand-in of the same height, and SHALL NOT scroll the page
+as part of claiming, tracking or abandoning one. Both panels are positioned
+against the viewport, so neither needs the page moved to be correct.
+
+Holding the place is required rather than holding the height, and the difference
+is not pedantry: padding restores the document's height and leaves the sticky
+containing block collapsed, so the scroll stops being clamped and the header
+still unsticks. One stand-in for the panel restores both, because it restores
+what both are derived from.
 
 The three are one requirement because they share a cause and a symptom: a grid
 that moves when a thumb lands, for a reason that appears nowhere in the markup.

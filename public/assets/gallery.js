@@ -2635,23 +2635,42 @@
                 fetching: false,
                 committed: false,
                 applied: false,
+                spacer: null,
             };
 
             // On the root element, like the scroll lock's own flag: the panels
             // are `position: fixed`, so an `overflow-x` on a mid-page ancestor
             // does not clip them. Only the viewport's own scroller can.
             document.documentElement.classList.add('is-swiping');
-            // HOLD THE DOCUMENT'S HEIGHT. Pinning #results takes the tallest
-            // thing on the page out of the flow, and a document that collapses
-            // below the viewer's scroll offset is clamped to 0 by the browser —
-            // which drops the sticky toolbar from the viewport top down to its
-            // resting place under the header. Vertical movement, in a horizontal
-            // gesture, on every drag begun below the fold.
+            // HOLD THE PANEL'S PLACE IN THE FLOW.
             //
-            // The flow loses exactly the panel's height, so putting that height
-            // back as padding preserves it. Costs no extra measurement: the rect
-            // this reads was taken above, in the same clean-layout window.
-            root.style.paddingBottom = rect.height + 'px';
+            // Pinning #results takes the tallest thing on the page out of the
+            // flow, and two separate things are measured from what it leaves
+            // behind:
+            //
+            //   the document's scrollable height — collapse it below the viewer's
+            //   offset and the browser clamps the scroll, moving everything
+            //   pinned or stuck to the viewport;
+            //
+            //   the sticky containing block of the gallery header — a sticky
+            //   element travels only within its parent's CONTENT box, so when
+            //   that box collapses to the height of the header itself, a viewer
+            //   scrolled past it sees the header stop sticking and leave.
+            //
+            // A spacer of the same height restores both at once, because it
+            // restores the thing they are both derived from. Padding was tried
+            // and fixes only the first: the padding box carries the document's
+            // height, while sticky containment reads the content box, so the
+            // header still unstuck. One stand-in for the panel is also simply
+            // easier to reason about than two compensations that have to agree.
+            //
+            // Costs no extra measurement — this is the rect read above, in the
+            // same clean-layout window.
+            var spacer = document.createElement('div');
+            spacer.setAttribute('data-swipe-spacer', '');
+            spacer.style.height = rect.height + 'px';
+            results.parentNode.insertBefore(spacer, results);
+            swipe.spacer = spacer;
             results.classList.add('swipe-shift', 'swipe-pinned');
             // The outgoing panel renders exactly where it already was. Its box was
             // measured relative to the viewport, so pinning it at that top holds
@@ -2933,6 +2952,7 @@
             if (live.timer !== null) { window.clearTimeout(live.timer); }
             if (live.onEnd) { results.removeEventListener('transitionend', live.onEnd); }
             if (live.pane && live.pane.parentNode) { live.pane.parentNode.removeChild(live.pane); }
+            if (live.spacer && live.spacer.parentNode) { live.spacer.parentNode.removeChild(live.spacer); }
 
             results.classList.remove('swipe-shift', 'swipe-pinned', 'swipe-settling');
             results.style.removeProperty('--swipe-x');
@@ -2940,7 +2960,6 @@
             results.style.top = '';
             results.style.left = '';
             results.style.width = '';
-            root.style.paddingBottom = '';
             document.documentElement.classList.remove('is-swiping');
 
             // NO SCROLL RESTORE, and its absence is the point rather than an

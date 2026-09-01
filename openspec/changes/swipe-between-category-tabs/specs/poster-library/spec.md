@@ -326,8 +326,8 @@ category change from another control, or a second drag beginning.
 
 Resolution SHALL run from a single routine that is safe to invoke repeatedly and
 that clears everything the gesture set — both panels' pinning, transforms and
-inline sizing, the held document height, the gesture-live flag, and any pending
-frame callback.
+inline sizing, the spacer holding its place in the flow, the gesture-live flag,
+and any pending frame callback.
 
 A drag takes both grids out of the document's scroller. Leaving that in place
 because a touch was cancelled by an incoming call gives the viewer a page that

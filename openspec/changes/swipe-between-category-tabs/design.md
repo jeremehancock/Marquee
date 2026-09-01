@@ -140,14 +140,34 @@ viewport coordinates and the page's scroll offset does not enter into either.
 
 **The first version scrolled the page to 0 here, and that was wrong.** It was
 carried over from Glimpse, where both tabs live in one scrolling context and the
-reset is what lets the incoming tab show its top. Marquee does not need it, and
-it cost twice: pinning the tallest element collapses the document, the browser
-clamps the scroll, and the sticky toolbar drops from the viewport top to its
-resting place under the header — vertical movement in a horizontal gesture,
-which is the exact complaint that removed the lift. Holding the height instead
-(the flow loses exactly the panel's height, so it goes back as padding) leaves
-the page untouched, and that in turn deletes the scroll restore on abandon:
-there is nothing to restore from a page that never moved.
+reset is what lets the incoming tab show its top. Marquee does not need it:
+pinning the tallest element collapses the document, the browser clamps the
+scroll, and the chrome moves — vertical movement in a horizontal gesture, which
+is the exact complaint that removed the lift.
+
+**Hold the panel's place in the flow, not the page's height.** This took three
+attempts and the distinction is the whole lesson. Pinning `#results` removes a
+box that *two* things are measured from:
+
+- the **document's scrollable height**, which decides whether the browser clamps
+  the scroll;
+- the **sticky containing block** of `.gallery-head` / `.toolbar`, because a
+  sticky element travels only within its parent's **content** box.
+
+`padding-bottom` on the gallery root restores the first and not the second — the
+padding box carries the document height, sticky containment reads the content
+box. So the clamp stopped and the header went on unsticking: its range had
+collapsed from thousands of pixels to its own height, and a viewer scrolled past
+that watched it leave. The symptom survived a fix that looked complete.
+
+An empty spacer of the panel's height, inserted where the panel was, restores
+both, because it restores the thing both are derived from. One stand-in is also
+easier to reason about than two compensations that have to agree — and the
+compensations only *looked* equivalent, which is how the second bug hid behind
+the first.
+
+Holding the place also deletes the scroll restore on abandon: there is nothing
+to restore from a page that was never moved.
 
 **Do not clip the root while a gesture is live.** The parked panel sits a full
 viewport to one side and invites it. It is unnecessary — fixed boxes contribute
