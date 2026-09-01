@@ -2531,6 +2531,24 @@
         //   track        two style writes per frame, READ NOTHING
         //   release      commit, abandon, or spring back from a resisted end
 
+        // WHERE THE GESTURE LISTENS. The whole document, not the gallery root.
+        //
+        // The root is only as tall as its contents, so a search matching three
+        // posters leaves most of the screen outside it — and a swipe begun in
+        // that empty space never reached a listener. From the viewer's side
+        // nothing distinguishes the blank area under a short grid from the grid
+        // itself: both are the page they are browsing, and one of them silently
+        // ignored the gesture.
+        //
+        // Sizing the root to fill the viewport was the alternative and was not
+        // taken: it needs the chrome's height as a constant in the stylesheet,
+        // which this layout deliberately avoids elsewhere (see .gallery-head on
+        // why the toolbar is sticky rather than fixed).
+        //
+        // This whole block runs only on a page that has a gallery, so listening
+        // on the document does not reach any other screen.
+        var swipeSurface = document;
+
         // The live gesture, or null. One object so teardown has one thing to
         // clear and cannot half-finish.
         var swipe = null;
@@ -2555,10 +2573,21 @@
             if (anyOverlayOpen()) { return true; }
             var target = event.target;
             if (!target || !target.closest) { return false; }
-            // A touch on the bottom tab bar belongs to the bar, which is how you
-            // tap a category. Not an overflow concern: the phone bar is five
-            // equal columns and never scrolls.
-            return !!target.closest('.sheet, .modal, .viewer, .overlay, .tabs');
+            // THE GESTURE BELONGS TO THE CONTENT; EVERY BAR KEEPS ITS OWN
+            // TOUCHES. Listening on the document is what lets the blank space
+            // beside and below a short grid swipe — the point of doing so — but
+            // it also puts the chrome under the same listener, so each bar has to
+            // be excluded by name rather than by not being reached.
+            //
+            //   .tabs      the bottom bar: this is how you tap a category. Not an
+            //              overflow concern — five equal columns, never scrolls.
+            //   .toolbar   search and sort. A horizontal drag across a text field
+            //              is how text is selected in it.
+            //   .topbar    the app header: navigation, with its own menu.
+            //
+            // What is left is the gallery, the space around it, and the footer,
+            // all of which are the page the viewer is browsing.
+            return !!target.closest('.sheet, .modal, .viewer, .overlay, .tabs, .toolbar, .topbar');
         }
 
         // The incoming panel, built and parked a viewport away on the side it
@@ -2979,7 +3008,7 @@
         }
 
         if (isTouch()) {
-            root.addEventListener('touchstart', function (e) {
+            swipeSurface.addEventListener('touchstart', function (e) {
                 swipeAxis = null;
                 // More than one contact point is a pinch or a zoom, and belongs to
                 // the browser.
@@ -3000,7 +3029,7 @@
             // attempts to cancel it are ignored SILENTLY. The gesture then works
             // everywhere except the platform it was written for, with nothing in
             // the console to say so. Do not "optimise" this to passive.
-            root.addEventListener('touchmove', function (e) {
+            swipeSurface.addEventListener('touchmove', function (e) {
                 if (swipeAxis === 'y' || e.touches.length !== 1) { return; }
                 var x = e.touches[0].clientX;
                 var y = e.touches[0].clientY;
@@ -3027,7 +3056,7 @@
                 trackSwipe(x);
             }, { passive: false });
 
-            root.addEventListener('touchend', function () {
+            swipeSurface.addEventListener('touchend', function () {
                 if (swipeAxis === 'x') { settleSwipe(); }
                 swipeAxis = null;
             }, { passive: true });
@@ -3035,7 +3064,7 @@
             // A system gesture, an incoming call or an app switch ends a touch
             // without a touchend. Without this the panels stay pinned out of the
             // scroller and the page simply stops scrolling.
-            root.addEventListener('touchcancel', function () {
+            swipeSurface.addEventListener('touchcancel', function () {
                 if (swipeAxis === 'x') { settleSwipe(); }
                 swipeAxis = null;
             }, { passive: true });

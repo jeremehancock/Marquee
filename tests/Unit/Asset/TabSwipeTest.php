@@ -117,17 +117,18 @@ final class TabSwipeTest extends TestCase
     {
         $code = $this->code();
 
-        // Scoped to the gallery root, which is what separates this gesture's
-        // listener from the tray dismissal drag's — that one is registered on
-        // `document` and is deliberately passive, because it never cancels.
+        // Keyed on `swipeSurface`, the named binding this gesture listens on.
+        // Both it and the tray dismissal drag are on the document — the tray's is
+        // deliberately passive, because it never cancels — so the variable, not
+        // the target, is what tells the two apart.
         self::assertSame(
             1,
-            substr_count($code, "root.addEventListener('touchmove'"),
-            'The swipe must register exactly one touchmove listener on the gallery '
-            . 'root, so there is one place for this guarantee to hold.',
+            substr_count($code, "swipeSurface.addEventListener('touchmove'"),
+            'The swipe must register exactly one touchmove listener on its surface, '
+            . 'so there is one place for this guarantee to hold.',
         );
 
-        $at = strpos($code, "root.addEventListener('touchmove'");
+        $at = strpos($code, "swipeSurface.addEventListener('touchmove'");
         self::assertIsInt($at);
         $registration = substr($code, $at, 900);
 
@@ -156,7 +157,7 @@ final class TabSwipeTest extends TestCase
     public function testTheAxisIsDecidedOnceAndHeld(): void
     {
         $code = $this->code();
-        $at = strpos($code, "root.addEventListener('touchmove'");
+        $at = strpos($code, "swipeSurface.addEventListener('touchmove'");
         self::assertIsInt($at);
         $handler = substr($code, $at, 1800);
 
@@ -213,16 +214,28 @@ final class TabSwipeTest extends TestCase
     {
         $start = $this->functionBody('swipeRefused');
 
-        foreach (['.sheet', '.modal', '.viewer', '.tabs'] as $surface) {
+        // The gesture listens on the document so that the blank space beside and
+        // below a short grid still swipes. That puts every bar under the same
+        // listener, so each one keeps its own touches by being named here — a
+        // list that only became load-bearing when the surface widened.
+        foreach ([
+            '.sheet' => 'a tray',
+            '.modal' => 'a dialog',
+            '.viewer' => 'the full-screen poster',
+            '.overlay' => 'an overlay backdrop',
+            '.tabs' => 'the bottom tab bar, which is how a category is tapped',
+            '.toolbar' => 'search and sort, where a horizontal drag selects text',
+            '.topbar' => 'the app header and its menu',
+        ] as $surface => $what) {
             self::assertStringContainsString(
                 $surface,
                 $start,
-                sprintf('A touch beginning on "%s" belongs to it, not to the gesture.', $surface),
+                sprintf('A touch beginning on %s ("%s") belongs to it, not to the gesture.', $what, $surface),
             );
         }
 
         $code = $this->code();
-        $at = strpos($code, "root.addEventListener('touchstart'");
+        $at = strpos($code, "swipeSurface.addEventListener('touchstart'");
         self::assertIsInt($at);
         $handler = substr($code, $at, 700);
 
@@ -235,6 +248,31 @@ final class TabSwipeTest extends TestCase
             'touches.length !== 1',
             $handler,
             'A second contact point is a pinch or a zoom and belongs to the browser.',
+        );
+    }
+
+    /**
+     * The gesture listens on the document, not on the gallery root.
+     *
+     * The root is only as tall as its contents, so a search matching three
+     * posters leaves most of the screen outside it, and a swipe begun in that
+     * empty space reached no listener at all. Nothing distinguishes that blank
+     * area from the grid as far as the viewer is concerned — both are the page
+     * being browsed — so one part of the screen silently ignored the gesture.
+     *
+     * Asserted because narrowing it back is a one-word edit that looks tidier,
+     * changes no test that reads the listeners (they key on this variable), and
+     * restores the bug in full. The widened surface is also what makes the
+     * refusal list above load-bearing rather than incidental.
+     */
+    public function testTheGestureListensOnTheWholeDocument(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/var swipeSurface = document\s*;/',
+            $this->code(),
+            'The gesture must listen on the document. Bound to the gallery root it '
+            . 'covers only as much of the screen as the grid happens to fill, so a '
+            . 'swipe in the blank space under a short result set does nothing.',
         );
     }
 

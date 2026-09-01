@@ -203,15 +203,21 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   gallery moves between adjacent categories; it pins both grids out of the
   document's scroller and suppresses the browser's own handling for the life of
   the touch. Two consequences are worth knowing before touching either area.
-  - `swipeRefused()` lists `.sheet`, `.modal`, `.viewer`, `.overlay` and `.tabs`.
-    A **new overlay class added without an entry there** is claimable: the drag
-    starts under the viewer's finger while a tray is open, pins the page, and
-    they get an overlay that will not scroll and a gallery sliding behind it.
-    Nothing errors. `TabSwipeTest` pins the entries that exist and that the check
-    runs at `touchstart` — it cannot know about a class invented later. The
-    refusal shares `anyOverlayOpen()` with the page scroll lock deliberately; a
-    second reading of "is an overlay open" drifts, and the two gestures live on
-    opposite axes of the same touches.
+  - **The gesture listens on the whole `document`, and that is why the refusal
+    list is the mechanism rather than a convenience.** Bound to the gallery root
+    it only covered as much of the screen as the grid happened to fill, so a
+    swipe in the blank space under a short search result did nothing. Listening
+    page-wide fixes that and puts every bar under the same listener, so each one
+    keeps its touches only by being named: `swipeRefused()` lists `.sheet`,
+    `.modal`, `.viewer`, `.overlay`, `.tabs`, `.toolbar` and `.topbar`. A **new
+    overlay or bar added without an entry there** is claimable — the drag starts
+    under the viewer's finger while a tray is open, pins the page, and they get
+    an overlay that will not scroll and a gallery sliding behind it. Nothing
+    errors. `TabSwipeTest` pins the entries that exist, that the check runs at
+    `touchstart`, and that the surface stays `document` — it cannot know about a
+    class invented later. The refusal shares `anyOverlayOpen()` with the page
+    scroll lock deliberately; a second reading of "is an overlay open" drifts,
+    and the two gestures live on opposite axes of the same touches.
   - `switchCategory()` is the **only** way to change category, used by the tab
     tap and the swipe's commit alike. It owes seven things — the active tab, the
     results, the title, a history entry, the carried-over search, the scroll

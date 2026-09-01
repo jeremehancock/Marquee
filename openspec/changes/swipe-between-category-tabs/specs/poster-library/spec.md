@@ -279,9 +279,15 @@ only for how quickly they see it.
 
 ### Requirement: A drag is refused before it is claimed when an overlay is open
 
-A touch SHALL NOT begin a drag while any overlay is open, or when the touch
-begins inside an overlay panel or on its backdrop, or when it begins on the
-category tab bar.
+The gesture SHALL be available across the whole page, not only where the grid
+happens to reach. A grid short enough to leave empty space — a search matching a
+handful of posters — SHALL still be swipeable in that empty space, and beneath
+and beside it, because nothing there distinguishes it from the grid as far as
+the viewer is concerned.
+
+A touch SHALL NOT begin a drag while any overlay is open, when it begins inside
+an overlay panel or on its backdrop, or when it begins on any of the application
+bars: the category tab bar, the search and sort toolbar, or the page header.
 
 The refusal SHALL happen when the touch begins, not when it ends. A gesture that
 discovers the conflict later has already suppressed the browser's handling and
@@ -289,7 +295,14 @@ taken both grids out of the scroller.
 
 A touch inside an overlay belongs to that overlay — its own dismissal drag, a
 scroll in its body, or a backdrop tap — and never to the gallery behind it. A
-touch on the tab bar belongs to the tab bar.
+touch on a bar belongs to that bar: the tab bar is how a category is tapped, a
+horizontal drag across the search field is how text is selected in it, and the
+header carries the navigation. Everything else — the gallery, the space around
+it, the footer — is the page being browsed, and belongs to the gesture.
+
+Naming the bars is required rather than incidental. A gesture offered across the
+whole page reaches every bar on it, so each one keeps its touches only by being
+excluded; the list is the mechanism, not a convenience.
 
 The check for an open overlay SHALL be the same one the page scroll lock uses.
 Two independent answers to "is an overlay open" will drift, and the cost of them
@@ -312,11 +325,19 @@ disagreeing here is a gesture that fights a tray.
 - **THEN** the tray SHALL be dismissed as it is today, with no interference from
   the category gesture
 
-#### Scenario: A touch on the tab bar is not a drag
+#### Scenario: A touch on any application bar is not a drag
 
-- **WHEN** a touch begins on the fixed bottom tab bar
-- **THEN** no drag SHALL begin, and the tap SHALL change category as it does
-  today
+- **WHEN** a touch begins on the bottom tab bar, the search and sort toolbar, or
+  the page header
+- **THEN** no drag SHALL begin, and that bar's own controls SHALL behave as they
+  do today
+
+#### Scenario: Empty space below a short grid still swipes
+
+- **WHEN** a search leaves a grid shorter than the screen, and a horizontal drag
+  begins in the empty space below or beside it
+- **THEN** the drag SHALL be claimed and SHALL move between categories exactly as
+  one begun on a poster does
 
 ### Requirement: An interrupted drag leaves nothing pinned
 
