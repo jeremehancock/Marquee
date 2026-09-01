@@ -16,6 +16,45 @@
     var LOADING_GRACE_MS = 200;
     var LOADING_MIN_MS = 300;
 
+    // ---- Category swipe constants ----
+    // SWIPE_AXIS_LOCK_PX and SWIPE_COMMIT_FRACTION measure different things and
+    // must stay separate. The first is how far a finger travels before the
+    // gesture decides which axis it is on — it has to be small, because nothing
+    // can move until the gesture is claimed and a touch left uncancelled too long
+    // has already been given to the scroller. The second is how far the drag has
+    // to get before releasing it changes category. The sibling app this comes
+    // from once had these as one 100px number, which made the panels unable to
+    // move until the gesture was nearly decided anyway.
+    var SWIPE_AXIS_LOCK_PX = 8;
+    var SWIPE_COMMIT_FRACTION = 1 / 3;
+    // px/ms. A short drag thrown at speed commits even below the distance.
+    var SWIPE_FLICK_VELOCITY = 0.5;
+    // Velocity is read from the END of the gesture over this window, not from
+    // its average: a slow drag that finishes in a flick is a flick.
+    var SWIPE_VELOCITY_WINDOW_MS = 100;
+    // How much of the travel a drag off the end of the strip actually moves.
+    // Enough to say "there is nothing there" and not enough to look committable.
+    var SWIPE_RESIST_DAMPING = 0.28;
+    var SWIPE_SETTLE_MIN_MS = 120;
+
+    // The settle's cap comes from the stylesheet's motion scale rather than a
+    // number here, so a retune of --dur-slow carries and the two cannot drift.
+    // Read once and cached: this is a getComputedStyle call, which is a layout
+    // read, and the gesture's own rule is that it reads nothing once a finger is
+    // down. The fallback is for a stylesheet that has not parsed yet.
+    var swipeSettleCap = null;
+    function swipeSettleMaxMs() {
+        if (swipeSettleCap !== null) { return swipeSettleCap; }
+        var raw = '';
+        try {
+            raw = getComputedStyle(document.documentElement)
+                .getPropertyValue('--dur-slow').trim();
+        } catch (e) { raw = ''; }
+        var ms = raw.slice(-2) === 'ms' ? parseFloat(raw) : parseFloat(raw) * 1000;
+        swipeSettleCap = isFinite(ms) && ms > 0 ? ms : 300;
+        return swipeSettleCap;
+    }
+
     function dispatch(name, detail) {
         window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
     }
@@ -294,38 +333,47 @@
         document.addEventListener('touchcancel', endDrag);
     }());
 
+    // ---- Is any overlay open? ----
+    // There is no single flag to watch. Open state is spread across galleryUI
+    // (sheet, confirm, change, sort, import, orphans, viewer), orphansPage, and
+    // the standalone menuOpen scope on the topbar — and the orphans tray injects
+    // further overlays at runtime. So rather than wiring each one, watch the DOM
+    // for the inline `display` that x-show writes, the same way the tray drag
+    // gesture above stays agnostic of which scope owns a tray.
+    //
+    // An overlay that is transitioning out does not count. x-transition keeps the
+    // element displayed for the length of the leave animation, so without this
+    // the page stays pinned for an extra beat after every dismissal — the user
+    // closes a dialog, flicks to scroll, and the first flick is swallowed. The
+    // class is the one app.css uses to fade the overlay out, and it is also what
+    // makes the dying overlay stop taking clicks.
+    //
+    // MODULE SCOPE, AND DELIBERATELY SO. This began inside the scroll lock below,
+    // which was its only caller. The category swipe is the second: it refuses to
+    // start while an overlay is open, and it has to refuse using the SAME answer
+    // the lock uses. Two independent readings of "is an overlay open" will drift,
+    // and the cost of them disagreeing is a gesture that fights a tray — the tray
+    // dismissal drag lives on the other axis of the very same touches. Anything
+    // else needing this must call it rather than re-deriving it.
+    function anyOverlayOpen() {
+        var overlays = document.querySelectorAll('.sheet, .modal, .viewer');
+        for (var i = 0; i < overlays.length; i++) {
+            if (overlays[i].style.display === 'none') { continue; }
+            if (overlays[i].classList.contains('overlay-closing')) { continue; }
+            return true;
+        }
+        return false;
+    }
+
     // ---- Page scroll lock while an overlay is open ----
     // Overlays are fixed layers over a document that is otherwise still live, so
     // without this the page scrolls behind them: a drag on a backdrop has nothing
     // of its own to scroll and chains straight to the document.
-    //
-    // There is no single "an overlay is open" flag to watch. Open state is spread
-    // across galleryUI (sheet, confirm, change, sort, import, orphans, viewer),
-    // orphansPage, and the standalone menuOpen scope on the topbar — and the
-    // orphans tray injects further overlays at runtime. So rather than wiring each
-    // one, watch the DOM for the inline `display` that x-show writes, the same way
-    // the drag gesture above stays agnostic of which scope owns a tray.
     (function () {
         var body = document.body;
         var scrollY = 0;
         var locked = false;
         var queued = false;
-
-        // An overlay that is transitioning out does not count. x-transition keeps
-        // the element displayed for the length of the leave animation, so without
-        // this the page stays pinned for an extra beat after every dismissal —
-        // the user closes a dialog, flicks to scroll, and the first flick is
-        // swallowed. The class is the one app.css uses to fade the overlay out,
-        // and it is also what makes the dying overlay stop taking clicks.
-        function anyOverlayOpen() {
-            var overlays = document.querySelectorAll('.sheet, .modal, .viewer');
-            for (var i = 0; i < overlays.length; i++) {
-                if (overlays[i].style.display === 'none') { continue; }
-                if (overlays[i].classList.contains('overlay-closing')) { continue; }
-                return true;
-            }
-            return false;
-        }
 
         // Pinning the body is the only technique that holds on iOS Safari:
         // `overflow: hidden` on the body is unreliable there, and
@@ -1881,6 +1929,43 @@
             }
         }
 
+        // The categories in the order they are presented, read from the rendered
+        // tabs rather than written out here. The swipe traverses this order, so a
+        // hardcoded list would be a second statement of something the template
+        // already makes — and the two would disagree the first time a category
+        // was added, reordered, or renamed, with the gesture moving to a
+        // neighbour the tab bar does not show beside it.
+        //
+        // Computed once: a no-reload category change toggles the active class but
+        // never re-renders the strip, so these paths are fixed for the page's
+        // life.
+        var categoryPaths = (function () {
+            var paths = [];
+            if (!tabsEl) { return paths; }
+            var links = tabsEl.querySelectorAll('.tab');
+            for (var i = 0; i < links.length; i++) {
+                if (links[i].pathname) { paths.push(links[i].pathname); }
+            }
+            return paths;
+        }());
+
+        function categoryIndex(pathname) {
+            for (var i = 0; i < categoryPaths.length; i++) {
+                if (categoryPaths[i] === pathname) { return i; }
+            }
+            return -1;
+        }
+
+        // The category `step` places away, or null when there is none — which is
+        // what the ends of the strip are, and what makes a drag there resist
+        // rather than commit.
+        function neighbourPath(pathname, step) {
+            var at = categoryIndex(pathname);
+            if (at < 0) { return null; }
+            var to = at + step;
+            return to >= 0 && to < categoryPaths.length ? categoryPaths[to] : null;
+        }
+
         function setResults(html) {
             results.innerHTML = html;
             initImages(results);
@@ -2021,29 +2106,160 @@
             return text || null;
         }
 
-        function load(url, push) {
+        // The one place a view is applied: results in, title across, history
+        // pushed. Split from the fetch so the same three writes serve a response
+        // that has just arrived and one the swipe prefetched minutes ago.
+        function applyView(url, push, view) {
+            if (view.results !== null) { setResults(view.results); }
+            // The server already renders the right title for the view being
+            // fetched, so carry it over rather than rebuilding it here. Set
+            // before the pushState branch: a back/forward or refresh load changes
+            // the view too, and its title must follow.
+            if (view.title !== null) { document.title = view.title; }
+            if (push) { history.pushState({}, '', url); }
+        }
+
+        // Everything a view needs, pulled out of a parsed response in one place
+        // so the prefetch and the live fetch cannot extract it differently.
+        function viewFrom(html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            return { results: extractResults(doc), title: extractTitle(doc) };
+        }
+
+        // `prefetched` is a { results, title } already pulled from a response —
+        // what the swipe's neighbour cache holds. Given one, there is nothing to
+        // wait for, so the view is applied synchronously and no busy indication
+        // is raised: the deferred dim reports outstanding work, and there is
+        // none. The promise is still returned so every caller keeps one contract.
+        function load(url, push, prefetched) {
+            if (prefetched) {
+                applyView(url, push, prefetched);
+                return Promise.resolve();
+            }
             beginBusy();
             return fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
                 .then(function (r) { return r.text(); })
-                .then(function (html) {
-                    var doc = new DOMParser().parseFromString(html, 'text/html');
-                    var inner = extractResults(doc);
-                    if (inner !== null) { setResults(inner); }
-                    // The server already renders the right title for the view
-                    // being fetched, so carry it over rather than rebuilding it
-                    // here. Set before the pushState branch: a back/forward or
-                    // refresh load changes the view too, and its title must
-                    // follow.
-                    var title = extractTitle(doc);
-                    if (title !== null) { document.title = title; }
-                    if (push) { history.pushState({}, '', url); }
-                })
+                .then(function (html) { applyView(url, push, viewFrom(html)); })
                 .catch(function () {})
                 .finally(function () { endBusy(); });
         }
 
         function currentUrl() {
             return window.location.pathname + window.location.search;
+        }
+
+        // A category's URL for the live search box.
+        //
+        // `sort` is deliberately absent. The server remembers the selected sort
+        // in the session (SortPreference::resolve), and the one control that
+        // changes it does a full page load — so a category fetched without it
+        // comes back in the order the user chose. Adding it here would be a
+        // second source for something already answered.
+        function categoryUrl(pathname) {
+            var q = search ? search.value.trim() : '';
+            return pathname + (q ? '?q=' + encodeURIComponent(q) : '');
+        }
+
+        // THE ONE WAY TO CHANGE CATEGORY. Both the tab tap and the swipe's commit
+        // come through here, and that is the point rather than tidiness: a
+        // category change has to leave seven things right — the active tab, the
+        // results, the title, a history entry, the carried-over search, the
+        // scroll position, and infinite scroll re-armed for the new grid (the
+        // last of these inside setResults). Two paths that must agree about seven
+        // things will stop agreeing. Anything that changes category calls this.
+        //
+        // `options.prefetched` is a { results, title } the swipe already holds,
+        // which turns the load into three synchronous writes. Absent, this is
+        // exactly what tapping a tab has always done.
+        function switchCategory(pathname, options) {
+            var opts = options || {};
+            syncActiveTab(pathname);
+            window.scrollTo(0, 0);
+            return load(categoryUrl(pathname), true, opts.prefetched || null)
+                .then(function () { primeNeighbours(); });
+        }
+
+        // ---- The neighbour cache (phone swipe) ----
+        // The swipe needs the next category's grid in the frame the gesture is
+        // claimed, and that grid comes from the server. So both neighbours are
+        // fetched while nothing is happening and held here.
+        //
+        // AN OPTIMISATION, NEVER A SOURCE OF TRUTH. The gesture is fully correct
+        // with this map permanently empty — a miss costs a placeholder for the
+        // length of one fetch and nothing else. Nothing here may become the only
+        // record of anything.
+        //
+        // What makes a held copy stale:
+        //
+        //   the search term   compared directly, below
+        //   the library       via `libraryMutations`, bumped on every mutation
+        //   the sort order    NOTHING TO DO — see below
+        //
+        // Sort needs no key. There is exactly one control that changes it and it
+        // does a full `window.location.assign()` (the `a[data-sort]` branch of
+        // the click handler), so changing sort reloads the page and takes this
+        // whole map with it. Adding a sort key would be a second answer to a
+        // question the page reload has already settled; don't.
+        //
+        // The comparison errs toward discarding. Wrongly dropping a good copy
+        // costs one fetch nobody needed. Wrongly trusting a stale one shows a
+        // grid that does not match the viewer's search — a wrong library that
+        // looks like a working one.
+        var libraryMutations = 0;
+        var neighbourCache = {};
+
+        function liveQuery() {
+            return search ? search.value.trim() : '';
+        }
+
+        // Bumped rather than reasoned about. A mutation form was submitted, so
+        // assume the library moved — including for a `card` refresh, which looks
+        // local but is not: the All view holds every category's posters, so
+        // changing one movie's poster stales the All copy too.
+        function noteLibraryMutation() {
+            libraryMutations++;
+            neighbourCache = {};
+        }
+
+        function cachedView(pathname) {
+            var held = neighbourCache[pathname];
+            if (!held) { return null; }
+            if (held.query !== liveQuery() || held.mutation !== libraryMutations) {
+                delete neighbourCache[pathname];
+                return null;
+            }
+            return held.view;
+        }
+
+        // Fetch both neighbours of the active category, skipping any already
+        // held and current. Called only after the active category has settled,
+        // so it never competes with the load the viewer is waiting for.
+        function primeNeighbours() {
+            if (!isTouch() || categoryPaths.length < 2) { return; }
+            var here = window.location.pathname;
+            var query = liveQuery();
+            var mutation = libraryMutations;
+            [-1, 1].forEach(function (step) {
+                var path = neighbourPath(here, step);
+                if (!path || cachedView(path)) { return; }
+                fetch(categoryUrl(path), {
+                    headers: { 'X-Requested-With': 'fetch' },
+                    credentials: 'same-origin',
+                })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        // Stamped with the state it was fetched UNDER, not the
+                        // state at the time it lands. A search typed while this
+                        // was in flight must not be able to bless a copy that
+                        // predates it.
+                        neighbourCache[path] = {
+                            view: viewFrom(html),
+                            query: query,
+                            mutation: mutation,
+                        };
+                    })
+                    .catch(function () {});
+            });
         }
 
         function submitForm(form) {
@@ -2091,6 +2307,11 @@
                 .catch(function () {})
                 .finally(function () {
                     endBusy();
+                    // Every mutation stales the held neighbours, whatever this
+                    // form declared about its own grid. Re-primed below so the
+                    // next swipe is fast again rather than merely correct.
+                    noteLibraryMutation();
+                    primeNeighbours();
                     dispatch('gallery:done', {});
                 });
             if (form.reset) { form.reset(); }
@@ -2116,7 +2337,11 @@
                     scrollToTopOfGallery();
                     // Use the live pathname, not the page-load base: a no-reload tab
                     // switch changes the view without replacing the toolbar.
-                    load(window.location.pathname + (q ? '?q=' + encodeURIComponent(q) : ''), true);
+                    // Re-primed after: the held neighbours are already refused by
+                    // the query comparison, but a swipe made straight after a
+                    // search should still be quick rather than merely correct.
+                    load(window.location.pathname + (q ? '?q=' + encodeURIComponent(q) : ''), true)
+                        .then(function () { primeNeighbours(); });
                 }, 250);
             });
         }
@@ -2173,16 +2398,14 @@
                 );
                 return;
             }
-            // Switching views (tabs) keeps the active search: rebuild the tab's
-            // URL with the live query so the new view opens filtered, and load it
-            // through the same no-reload path used for search and pagination.
+            // Switching views (tabs) keeps the active search: switchCategory()
+            // rebuilds the URL with the live query so the new view opens
+            // filtered, and loads it through the same no-reload path used by
+            // search, pagination and the swipe.
             var tabLink = e.target.closest('.tabs a');
             if (tabLink && root.contains(tabLink)) {
                 e.preventDefault();
-                var tabQuery = search ? search.value.trim() : '';
-                syncActiveTab(tabLink.pathname);
-                window.scrollTo(0, 0);
-                load(tabLink.pathname + (tabQuery ? '?q=' + encodeURIComponent(tabQuery) : ''), true);
+                switchCategory(tabLink.pathname);
                 return;
             }
             // Clearing the search returns to the full, unfiltered view.
@@ -2273,14 +2496,532 @@
                 var params = new URLSearchParams(window.location.search);
                 search.value = params.get('q') || '';
             }
-            load(currentUrl(), false);
+            // Held copies are dropped rather than re-checked. The entry being
+            // restored can predate mutations the counter has already moved past,
+            // and its query is whatever the URL says rather than what was typed —
+            // so the two things that bless a copy are both unreliable here.
+            neighbourCache = {};
+            // Any gesture still settling belongs to the view being navigated away
+            // from, and its panels are pinned out of the scroller.
+            endSwipe();
+            load(currentUrl(), false).then(function () { primeNeighbours(); });
         });
 
         // A tray action (import, orphan delete) can change what belongs in the
         // gallery; refresh the current view's grid in place when asked.
-        window.addEventListener('gallery:refresh', function () { load(currentUrl(), false); });
+        window.addEventListener('gallery:refresh', function () {
+            noteLibraryMutation();
+            load(currentUrl(), false).then(function () { primeNeighbours(); });
+        });
+
+        // ---- The category swipe (touch only) ----
+        //
+        // A horizontal drag on the gallery moves between adjacent categories.
+        // The gesture IS the transition: the panels move because a thumb is
+        // moving them, not as an animation played back after the thumb lifts.
+        // That distinction is the whole point — a swipe evaluated only at
+        // touchend produces the same first frame whether it is going to work or
+        // not, so the viewer cannot see that it was recognised, cannot see how
+        // far is left, and cannot change their mind.
+        //
+        // Four phases, and only the second does any real work:
+        //
+        //   touchstart   record the origin, claim nothing
+        //   axis lock    decide the axis once, then set up (measure, pin, fill)
+        //   track        two style writes per frame, READ NOTHING
+        //   release      commit, abandon, or spring back from a resisted end
+
+        // The live gesture, or null. One object so teardown has one thing to
+        // clear and cannot half-finish.
+        var swipe = null;
+        var swipeAxis = null;
+        var swipeOriginX = 0;
+        var swipeOriginY = 0;
+
+        function reducedMotion() {
+            return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        }
+
+        // A touch that belongs to something else. Checked at touchstart and never
+        // again: refusing at touchend is only adequate while nothing has moved,
+        // and a gesture that discovers the conflict later has already suppressed
+        // the browser's handling and taken both grids out of the scroller.
+        //
+        // anyOverlayOpen() is the page scroll lock's own function, deliberately.
+        // A second reading of "is an overlay open" would drift from it, and the
+        // cost of them disagreeing is this gesture fighting a tray — the tray
+        // dismissal drag lives on the other axis of these very touches.
+        function swipeRefused(event) {
+            if (anyOverlayOpen()) { return true; }
+            var target = event.target;
+            if (!target || !target.closest) { return false; }
+            // A touch on the bottom tab bar belongs to the bar, which is how you
+            // tap a category. Not an overflow concern: the phone bar is five
+            // equal columns and never scrolls.
+            return !!target.closest('.sheet, .modal, .viewer, .overlay, .tabs');
+        }
+
+        // The incoming panel, built and parked a viewport away on the side it
+        // comes from. Takes the OUTGOING panel's measured box rather than reading
+        // its own: it is not in the document yet, so it has no box — and
+        // measuring it after the insert would be a forced layout on the
+        // gesture's opening frame, which is the frame the viewer is judging.
+        function buildIncomingPane(box, held) {
+            var pane = document.createElement('div');
+            pane.className = 'swipe-pane swipe-shift swipe-pinned';
+            pane.setAttribute('data-swipe-pane', '');
+            if (held) {
+                pane.innerHTML = held.results;
+                // Same reveal every other grid gets. Without it a cached panel
+                // slides in holding cards whose images never un-hide — the one
+                // path where a HIT looks worse than a miss.
+                initImages(pane);
+            } else {
+                var tpl = document.getElementById('swipe-placeholder');
+                if (tpl && tpl.content) { pane.appendChild(tpl.content.cloneNode(true)); }
+            }
+            pinPanel(pane, box.top, box.left, box.width);
+            return pane;
+        }
+
+        function pinPanel(panel, top, left, width) {
+            panel.style.top = top + 'px';
+            panel.style.left = left + 'px';
+            panel.style.width = width + 'px';
+        }
+
+        function setShift(panel, px) {
+            if (panel) { panel.style.setProperty('--swipe-x', px + 'px'); }
+        }
+
+        // Claim the gesture: measure, pin both panels, fill the incoming one,
+        // collapse the page, and mark the destination in the tab bar.
+        function beginSwipe(direction) {
+            // A gesture that committed and is still settling has a category
+            // change owed to it. Land that BEFORE tearing anything down, or a
+            // quick second flick discards it — see flushCommit.
+            if (swipe) { flushCommit(swipe); }
+            endSwipe();
+
+            var here = window.location.pathname;
+            var target = neighbourPath(here, direction);
+            var scrollY = window.scrollY;
+
+            // THE ONE MEASUREMENT, AND IT MUST STAY ABOVE EVERY WRITE BELOW.
+            // Layout is clean at this instant — the browser laid the page out for
+            // the last frame and nothing here has written a style yet — so this
+            // read is free. The same read after a write forces a synchronous
+            // re-layout, and it would land on the gesture's first frame.
+            var rect = results.getBoundingClientRect();
+            var box = { top: rect.top, left: rect.left, width: rect.width };
+
+            var width = window.innerWidth;
+            var held = target ? cachedView(target) : null;
+
+            swipe = {
+                from: here,
+                to: target,
+                direction: direction,
+                width: width,
+                offset: 0,
+                scrollY: scrollY,
+                resisted: !target,
+                pane: null,
+                held: held,
+                samples: [{ x: swipeOriginX, t: now() }],
+                frame: null,
+                timer: null,
+                onEnd: null,
+                fetching: false,
+                committed: false,
+                applied: false,
+            };
+
+            // On the root element, like the scroll lock's own flag: the panels
+            // are `position: fixed`, so an `overflow-x` on a mid-page ancestor
+            // does not clip them. Only the viewport's own scroller can.
+            document.documentElement.classList.add('is-swiping');
+            results.classList.add('swipe-shift', 'swipe-pinned');
+            // The outgoing panel renders exactly where it already was. Its box was
+            // measured relative to the viewport, so pinning it at that top holds
+            // it still at the instant it leaves the scroller.
+            pinPanel(results, box.top, box.left, box.width);
+            setShift(results, 0);
+
+            if (!target) {
+                // A drag off the end of the strip. Nothing arrives, so nothing is
+                // built — but the outgoing panel still moves, damped, because a
+                // gesture that did nothing at all is indistinguishable from one
+                // the application failed to recognise.
+                return;
+            }
+
+            // The incoming panel shows its OWN top, which is `box.top` with the
+            // page at 0 — so it is pinned at the outgoing panel's viewport top
+            // minus the scroll that is about to be discarded.
+            var pane = buildIncomingPane(
+                { top: box.top + scrollY, left: box.left, width: box.width },
+                held
+            );
+            setShift(pane, parkOffset(direction, width));
+            results.parentNode.insertBefore(pane, results.nextSibling);
+            swipe.pane = pane;
+
+            // Both panels are out of the scroller and the incoming one is off
+            // screen, so this moves nothing anyone can see — which is what makes
+            // the change one continuous movement rather than a jump followed by a
+            // slide. A fixed element contributes no scrollable overflow, so the
+            // document has already collapsed and the browser will clamp to 0 by
+            // itself; stating it anyway is cheaper than relying on a side effect,
+            // and 'instant' matters because the page has scroll-behavior: smooth.
+            window.scrollTo({ top: 0, behavior: 'instant' });
+
+            // The bar marks the destination NOW, not at release. It is the
+            // application's acknowledgement that the gesture was recognised, and
+            // that is owed at the start of a gesture rather than the end of it.
+            syncActiveTab(target);
+
+            if (!held) { fetchIncoming(target); }
+        }
+
+        // Where the incoming panel rests before it starts arriving: a FULL
+        // viewport out, on the side it comes from.
+        //
+        // A full viewport and not a fraction of one, so the two panels are edge
+        // to edge and never overlap. Parking it closer and moving it slower — the
+        // familiar platform parallax — puts the two grids on top of each other
+        // for the whole gesture, and which one is drawn above the other is then
+        // decided by document order rather than by the direction of travel. It
+        // reads as one direction winning every time.
+        function parkOffset(direction, width) {
+            return direction > 0 ? width : -width;
+        }
+
+        // The cache missed, so the panel is showing a placeholder. Replace it in
+        // place when the results land, without touching the panel's offset —
+        // the gesture is still running and the finger is still down.
+        function fetchIncoming(path) {
+            var live = swipe;
+            live.fetching = true;
+            fetch(categoryUrl(path), {
+                headers: { 'X-Requested-With': 'fetch' },
+                credentials: 'same-origin',
+            })
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    var view = viewFrom(html);
+                    neighbourCache[path] = {
+                        view: view,
+                        query: liveQuery(),
+                        mutation: libraryMutations,
+                    };
+                    // The gesture may have ended, or a second one may have
+                    // replaced this record, while this was in flight.
+                    if (swipe !== live) { return; }
+                    live.held = view;
+                    if (live.pane && view.results !== null) {
+                        live.pane.innerHTML = view.results;
+                        initImages(live.pane);
+                    }
+                })
+                .catch(function () {})
+                .finally(function () { if (swipe === live) { live.fetching = false; } });
+        }
+
+        function now() {
+            return window.performance && window.performance.now
+                ? window.performance.now() : Date.now();
+        }
+
+        // One write pass per frame, however many moves arrived. touchmove fires
+        // at the digitiser's rate, which on a 120Hz panel is twice the frame
+        // rate, so writing per move schedules style work the browser discards.
+        //
+        // READS NOTHING. Every value it needs — the origin, the width, the park
+        // offset — was captured when the gesture was claimed. A layout read here
+        // would be paid on every frame of the drag rather than once.
+        function trackSwipe(x) {
+            if (!swipe) { return; }
+            var live = swipe;
+            live.offset = x - swipeOriginX;
+
+            var t = now();
+            live.samples.push({ x: x, t: t });
+            while (live.samples.length > 2 && t - live.samples[0].t > SWIPE_VELOCITY_WINDOW_MS) {
+                live.samples.shift();
+            }
+
+            if (live.frame !== null) { return; }
+            live.frame = window.requestAnimationFrame(function () {
+                live.frame = null;
+                if (swipe !== live) { return; }
+                if (live.resisted) {
+                    setShift(results, live.offset * SWIPE_RESIST_DAMPING);
+                    return;
+                }
+                // The pair moves as one strip: the outgoing panel's trailing edge
+                // and the incoming panel's leading edge stay exactly a viewport
+                // apart, so one is always replacing the other rather than
+                // covering it.
+                var park = parkOffset(live.direction, live.width);
+                setShift(results, live.offset);
+                setShift(live.pane, park + live.offset);
+            });
+        }
+
+        function swipeVelocity(live) {
+            var s = live.samples;
+            if (s.length < 2) { return 0; }
+            var first = s[0];
+            var last = s[s.length - 1];
+            var elapsed = last.t - first.t;
+            return elapsed > 0 ? (last.x - first.x) / elapsed : 0;
+        }
+
+        // Distance OR velocity, and NEVER LATCHED. A drag that passed the
+        // threshold and came back is an abandon — latching would mean the panels
+        // keep following a finger whose gesture has already been decided, which
+        // is the thing a drag exists to avoid.
+        function swipeCommits(live) {
+            if (live.resisted) { return false; }
+            // `direction` is +1 for the neighbour to the right, which arrives when
+            // the finger moves LEFT. A drag the other way is not toward it.
+            var toward = live.direction > 0 ? live.offset < 0 : live.offset > 0;
+            if (!toward) { return false; }
+            if (Math.abs(live.offset) >= live.width * SWIPE_COMMIT_FRACTION) { return true; }
+            var v = swipeVelocity(live);
+            var flicking = live.direction > 0 ? v < 0 : v > 0;
+            return flicking && Math.abs(v) >= SWIPE_FLICK_VELOCITY;
+        }
+
+        // Timed from what is left to travel, not fixed. A panel released at 95%
+        // would otherwise spend the full duration crossing the last sliver, and
+        // one released at 5% would cover nearly the whole viewport in it.
+        function settleDuration(remaining, width) {
+            if (reducedMotion()) { return 0; }
+            var fraction = width > 0 ? Math.min(1, Math.abs(remaining) / width) : 1;
+            return Math.max(SWIPE_SETTLE_MIN_MS, Math.round(swipeSettleMaxMs() * fraction));
+        }
+
+        function settleSwipe() {
+            if (!swipe) { return; }
+            var live = swipe;
+
+            if (live.frame !== null) {
+                window.cancelAnimationFrame(live.frame);
+                live.frame = null;
+            }
+
+            var commit = swipeCommits(live);
+            var target = commit ? (live.direction > 0 ? -live.width : live.width) : 0;
+            // Timed from where the panel actually IS, which for a resisted drag
+            // is the damped fraction of the travel rather than the travel itself.
+            // Measuring the undamped distance would spend a long settle crossing
+            // a short gap.
+            var at = live.resisted ? live.offset * SWIPE_RESIST_DAMPING : live.offset;
+            var duration = settleDuration(target - at, live.width);
+
+            // The finger is off the glass, so the panels stop tracking it and
+            // start animating. Under reduced motion this duration is 0: the
+            // viewer is no longer moving them, so the app-wide suppression
+            // applies to the part the app performs on its own.
+            [results, live.pane].forEach(function (panel) {
+                if (!panel) { return; }
+                // Overrides the cap in .swipe-settling. Inline, so the app-wide
+                // reduced-motion rule — which is !important — still beats it.
+                panel.style.transitionDuration = duration + 'ms';
+                panel.classList.add('swipe-settling');
+            });
+
+            if (commit) {
+                setShift(results, target);
+                setShift(live.pane, 0);
+                finishSwipe(live, duration);
+                return;
+            }
+
+            // Abandoned. Both panels go home, the bar marks the category the
+            // viewer never left, and the scroll position captured at setup is
+            // restored by the teardown.
+            setShift(results, 0);
+            if (live.pane) {
+                setShift(live.pane, parkOffset(live.direction, live.width));
+                syncActiveTab(live.from);
+            }
+            armSwipeEnd(live, duration);
+        }
+
+        // Wait out the settle, then tear down. Both a transitionend and a timer,
+        // because a transition that never starts — a zero duration under reduced
+        // motion, or a panel already at its target — fires no event at all.
+        function armSwipeEnd(live, duration) {
+            var done = function () {
+                if (swipe === live) { endSwipe(); }
+            };
+            if (duration <= 0) {
+                live.timer = window.setTimeout(done, 0);
+                return;
+            }
+            live.onEnd = function (e) {
+                if (e.target === results && e.propertyName === 'transform') { done(); }
+            };
+            results.addEventListener('transitionend', live.onEnd);
+            live.timer = window.setTimeout(done, duration + 120);
+        }
+
+        // The commit. The incoming HTML is handed to switchCategory() as a
+        // pre-fetched body, so the swipe and the tab tap change category through
+        // ONE routine rather than two that must agree about seven things.
+        function finishSwipe(live, duration) {
+            // Marked before the teardown reads it: a committed gesture must NOT
+            // have its old scroll position restored — switchCategory is about to
+            // put the new category at its top, which is where a category change
+            // has always left the viewer.
+            live.committed = true;
+            // Deferred to the end of the settle so the swap lands once the
+            // panels have stopped moving; #results is the panel sliding off, and
+            // rewriting it mid-slide is visible.
+            window.setTimeout(function () { flushCommit(live); }, Math.max(duration, 0));
+        }
+
+        // Apply a committed gesture's category change, exactly once.
+        //
+        // Idempotent, and called from TWO places, which is the point. The settle
+        // timer is the ordinary one. The other is a second drag starting while
+        // this one is still settling — a real case at three interior categories,
+        // where flicking through the strip is the natural way to travel. Without
+        // this the new gesture's teardown would drop the record, the pending
+        // timer would find `swipe !== live` and bail, and the commit would be
+        // lost silently: the panels have animated, the tab bar is already marking
+        // the destination, and #results still holds the category before it. The
+        // bar would name a category that was never loaded.
+        function flushCommit(live) {
+            if (!live.committed || live.applied || swipe !== live) { return; }
+            live.applied = true;
+            // Read now rather than at release: a cache miss whose fetch landed
+            // during the settle commits as instantly as a hit.
+            var to = live.to;
+            var held = live.held;
+            // Teardown first — switchCategory writes into #results, which has to
+            // be back in the document's flow before it does. It also re-primes
+            // the neighbours, so a miss needs nothing extra here.
+            endSwipe();
+            switchCategory(to, { prefetched: held });
+        }
+
+        // ONE teardown, safe to call repeatedly, clearing everything the gesture
+        // set. A drag takes both grids out of the document's scroller; leaving
+        // that in place because a touch was cancelled by an incoming call hands
+        // the viewer a page that will not scroll, with nothing on screen to
+        // explain it. Every exit runs through here.
+        function endSwipe() {
+            var live = swipe;
+            if (!live) { return; }
+            swipe = null;
+
+            if (live.frame !== null) { window.cancelAnimationFrame(live.frame); }
+            if (live.timer !== null) { window.clearTimeout(live.timer); }
+            if (live.onEnd) { results.removeEventListener('transitionend', live.onEnd); }
+            if (live.pane && live.pane.parentNode) { live.pane.parentNode.removeChild(live.pane); }
+
+            results.classList.remove('swipe-shift', 'swipe-pinned', 'swipe-settling');
+            results.style.removeProperty('--swipe-x');
+            results.style.transitionDuration = '';
+            results.style.top = '';
+            results.style.left = '';
+            results.style.width = '';
+            document.documentElement.classList.remove('is-swiping');
+
+            // An abandoned gesture owes the viewer the position they were at when
+            // it began; a committed one has already been scrolled to 0 by
+            // switchCategory. Restored here rather than at the settle because
+            // this is the point the panels rejoin the scroller and the document
+            // has its height back.
+            if (!live.committed && live.scrollY) {
+                window.scrollTo(0, live.scrollY);
+            }
+            // The grid that is on screen may not be the one infinite scroll was
+            // last wired for.
+            setupInfinite();
+        }
+
+        if (isTouch()) {
+            root.addEventListener('touchstart', function (e) {
+                swipeAxis = null;
+                // More than one contact point is a pinch or a zoom, and belongs to
+                // the browser.
+                if (e.touches.length !== 1 || swipeRefused(e)) {
+                    swipeAxis = 'y';
+                    return;
+                }
+                swipeOriginX = e.touches[0].clientX;
+                swipeOriginY = e.touches[0].clientY;
+                // Nothing else. A tap and a vertical scroll must both stay free.
+            }, { passive: true });
+
+            // NON-PASSIVE FROM THE OUTSET, and that is load-bearing rather than
+            // cautious. preventDefault() has to be available on the FIRST move
+            // that crosses the lock distance: a listener registered passive cannot
+            // call it at all, and on iOS a touch sequence whose early moves went
+            // uncancelled has already been given to the scroller, where later
+            // attempts to cancel it are ignored SILENTLY. The gesture then works
+            // everywhere except the platform it was written for, with nothing in
+            // the console to say so. Do not "optimise" this to passive.
+            root.addEventListener('touchmove', function (e) {
+                if (swipeAxis === 'y' || e.touches.length !== 1) { return; }
+                var x = e.touches[0].clientX;
+                var y = e.touches[0].clientY;
+
+                if (swipeAxis === null) {
+                    var dx = x - swipeOriginX;
+                    var dy = y - swipeOriginY;
+                    if (Math.abs(dx) < SWIPE_AXIS_LOCK_PX && Math.abs(dy) < SWIPE_AXIS_LOCK_PX) {
+                        return;
+                    }
+                    // DECIDED ONCE, then held for the life of the touch. A gesture
+                    // that re-arbitrates mid-drag can hand a moving page back to
+                    // the scroller halfway through.
+                    if (Math.abs(dy) >= Math.abs(dx)) {
+                        swipeAxis = 'y';
+                        return;
+                    }
+                    swipeAxis = 'x';
+                    // Finger moving left reveals the category to the RIGHT.
+                    beginSwipe(dx < 0 ? 1 : -1);
+                }
+
+                e.preventDefault();
+                trackSwipe(x);
+            }, { passive: false });
+
+            root.addEventListener('touchend', function () {
+                if (swipeAxis === 'x') { settleSwipe(); }
+                swipeAxis = null;
+            }, { passive: true });
+
+            // A system gesture, an incoming call or an app switch ends a touch
+            // without a touchend. Without this the panels stay pinned out of the
+            // scroller and the page simply stops scrolling.
+            root.addEventListener('touchcancel', function () {
+                if (swipeAxis === 'x') { settleSwipe(); }
+                swipeAxis = null;
+            }, { passive: true });
+
+            // A rotation or a resize invalidates every measurement the gesture is
+            // running on — the viewport width it parks against most of all — so
+            // the drag is resolved rather than continued against stale numbers.
+            window.addEventListener('resize', function () {
+                if (swipe) { swipeAxis = null; endSwipe(); }
+            });
+            window.addEventListener('orientationchange', function () {
+                if (swipe) { swipeAxis = null; endSwipe(); }
+            });
+        }
 
         // Wire infinite scroll for the server-rendered first page.
         setupInfinite();
+        // Warm both neighbours for the server-rendered view, so the first swipe
+        // of a session is as quick as every later one.
+        primeNeighbours();
     });
 })();

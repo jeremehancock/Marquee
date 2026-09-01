@@ -1,0 +1,22 @@
+{# What the incoming category shows while its results are still being fetched.
+
+   Reached only when the swipe's neighbour cache misses — a search or a mutation
+   since the neighbours were primed, or a gesture begun before the prime landed.
+   The common case never renders this at all.
+
+   It is a designed state rather than a failure: the gesture still follows the
+   thumb at its usual rate, and this is what occupies the incoming panel until
+   the grid arrives to replace it. Deliberately just the app's spinner, with no
+   wording — the panel is on screen for a fraction of a second on a local server,
+   and a sentence nobody can finish reading is worse than a mark that says only
+   "working".
+
+   Lives in a <template> so gallery.js clones markup rather than assembling HTML
+   in a string; the gesture has no business knowing what a spinner looks like.
+
+   aria-hidden: the incoming panel is mid-gesture and not yet the view. What the
+   viewer is told about the new category is announced when it becomes the active
+   one, by the same title change every other category switch makes. #}
+<div class="swipe-placeholder" aria-hidden="true">
+    <div class="spinner"></div>
+</div>

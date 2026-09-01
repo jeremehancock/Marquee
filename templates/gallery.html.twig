@@ -122,9 +122,18 @@
         </div>
     </div>
 
+    {# #results is the swap target for every no-reload update — search, paging,
+       a mutation's re-render, and the category swipe's commit — all through
+       setResults() in gallery.js. Its id and its position here are load-bearing;
+       the swipe's incoming panel is a SIBLING inserted beside it for the length
+       of a gesture and removed after, precisely so that none of those callers
+       has to know the gesture exists. #}
     <div id="results">
         {% include 'partials/gallery_results.html.twig' %}
     </div>
+
+    {# Cloned by the swipe when its neighbour cache misses. Inert until then. #}
+    <template id="swipe-placeholder">{% include 'partials/_swipe_placeholder.html.twig' %}</template>
 
     {# Change poster modal #}
     {# Escape unwinds one layer at a time. This dialog, the confirm dialog and the
