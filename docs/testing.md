@@ -503,6 +503,21 @@ then check:
 Before that import, films and seasons fall back to a title search, which is the
 expected narrow state and not a failure.
 
+**If it is still searching, do not guess — ask.** A poster with no set and a
+poster whose set could not be read look identical from the gallery. This reports
+which:
+
+```bash
+docker exec -it <container> php /app/www/bin/diagnose-sets.php
+docker exec -it <container> php /app/www/bin/diagnose-sets.php "Jackass"
+```
+
+It prints the collections Plex reports and how many members each one lists, then
+how many stored posters record a set, then — with an argument — each matching
+poster and the set it holds. It reads only: it imports nothing and changes no
+poster. A collection listing `0 member(s)` is the finding; so is a film that Plex
+puts in no collection, which is not a fault and is why the title search remains.
+
 ### Worth testing separately: a locked poster
 
 The case that used to be missed entirely. Before step 3, change the poster in
