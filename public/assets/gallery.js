@@ -407,6 +407,23 @@
             locked = false;
         }
 
+        // The captured offset describes the page that was on screen when the
+        // overlay opened. If that page is replaced while the overlay is still up,
+        // the offset means nothing, and restoring it drops the reader part-way
+        // down a list they have never seen.
+        //
+        // Only reachable from the phone action sheet, whose actions all used to
+        // leave the gallery where it was — an overlay opening over it (change
+        // poster, full screen) or a mutation refreshing it in place both SHOULD
+        // come back to the same offset. Related posters was the first to send the
+        // sheet somewhere else, and it lands on a different view.
+        //
+        // This cannot be fixed by scrolling instead. The body is `position: fixed`
+        // for the life of the lock, so the document has no scroll to set; the
+        // restore above is what decides where the page ends up, which makes the
+        // anchor it restores to the only thing worth correcting.
+        window.addEventListener('gallery:scroll-anchor-reset', function () { scrollY = 0; });
+
         function schedule() {
             if (queued) { return; }
             queued = true;
@@ -2166,6 +2183,11 @@
             var opts = options || {};
             syncActiveTab(pathname);
             window.scrollTo(0, 0);
+            // A new view is read from the top. The line above does that when the
+            // page is scrollable; this does it when an overlay still has the body
+            // pinned, where the scroll lock's restore has the last word instead.
+            // Both are needed — a category change can start from either state.
+            dispatch('gallery:scroll-anchor-reset', {});
             return load(categoryUrl(pathname), true, opts.prefetched || null)
                 .then(function () { primeNeighbours(); });
         }

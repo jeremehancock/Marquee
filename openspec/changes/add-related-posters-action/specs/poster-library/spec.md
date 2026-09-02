@@ -52,6 +52,15 @@ left correct.
 The action SHALL be rendered from the same markup on both surfaces, so the label
 and icon a user learns on one cannot differ from the other.
 
+The results SHALL be presented from the top, whatever the reader's scroll
+position when the action was activated. A new view is a new list and is read from
+its first result.
+
+This SHALL hold when the action is activated from the touch action sheet, where
+the page behind the sheet is pinned and cannot be scrolled: the position the page
+is released to when the sheet closes SHALL be the top of the new view, not the
+offset the reader held in the view they left.
+
 The action SHALL NOT add an eighth control to the stack. It takes the place of
 Copy URL, leaving seven controls for a poster linked to Plex and five otherwise,
 so the sizing fixed by "Poster cards fit their full action stack" is unchanged.
@@ -124,6 +133,17 @@ so the sizing fixed by "Poster cards fit their full action stack" is unchanged.
 #### Scenario: Activating it from the touch sheet closes the sheet
 - **WHEN** a user activates Related posters from the touch action sheet
 - **THEN** the sheet closes and the filtered All view is shown
+
+#### Scenario: The results are read from the top
+- **WHEN** a user scrolls part-way down a category and activates Related posters
+  on a poster there
+- **THEN** the All view is shown scrolled to its first result
+
+#### Scenario: A sheet dismissal does not restore the previous view's position
+- **WHEN** a user scrolls part-way down a category on a touch device, taps a
+  poster to open its action sheet, and activates Related posters
+- **THEN** the page is released at the top of the All view
+- **AND** it is not returned to the offset it held in the category the user left
 
 ## MODIFIED Requirements
 
