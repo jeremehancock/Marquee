@@ -59,6 +59,19 @@ no additional requests.
 A movie in no collection SHALL record no set, and that SHALL NOT be treated as
 missing information or as an error — most films belong to no collection.
 
+A set SHALL be **removed** when the item no longer belongs to it. Unlike the other
+recorded facts, a collection is a relationship a user takes away on purpose, and
+Plex reports its removal only by omission; a mapping that held the old membership
+would keep showing a film in a collection it has left.
+
+The system SHALL therefore distinguish a membership read that listed every
+collection from one that could not. Only a complete read SHALL remove a set: where
+a collection could not be listed, the read SHALL be treated as concluding nothing
+and recorded sets SHALL stand. A film in no collection and a film whose
+collections could not be read are otherwise indistinguishable, and acting on that
+emptiness without the distinction would take every film out of every set the first
+time one request failed.
+
 A movie MAY belong to more than one collection, and SHALL record **every**
 collection holding it rather than one of them. Collections overlap in an ordinary
 library — a film can sit in both a franchise collection and a wider one — and
@@ -185,6 +198,17 @@ recognises the poster as outstanding and fetches it again.
   collections
 - **THEN** each movie's collection is recorded as its set
 - **AND** no collection poster is imported
+
+#### Scenario: A movie taken off a collection loses that set
+- **WHEN** a movie is removed from a Plex collection and the library is imported
+  again, its poster unchanged
+- **THEN** the mapping no longer records that collection
+- **AND** the poster is not re-downloaded to notice
+
+#### Scenario: A failed membership read removes nothing
+- **WHEN** an import cannot list one of a library's collections
+- **THEN** every mapping keeps the sets it already recorded
+- **AND** no item is reported as failed
 
 #### Scenario: A movie in two collections belongs to both
 - **WHEN** a movie belongs to two Plex collections

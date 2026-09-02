@@ -65,7 +65,7 @@ final class ImportService
             // is a property of the collections, not of any one film.
             $collectionsOf = $this->collectionMembership($library);
             foreach ($this->plex->items($library) as $movie) {
-                $this->importItem($movie, $result, $force, $collectionsOf[$movie->ratingKey] ?? []);
+                $this->importItem($movie, $result, $force, $collectionsOf->setsFor($movie->ratingKey));
             }
         }
 
@@ -120,11 +120,15 @@ final class ImportService
      * meant the collection read first took the film, and every other collection
      * sharing it was left holding nothing but its own poster.
      *
-     * @return array<string, list<string>>
+     * A collection that cannot be listed makes the answer incomplete rather than
+     * merely smaller: an empty result then means "not known" instead of "in no
+     * collection", and a film's recorded sets are left alone. Without that
+     * distinction one failed request would take every film out of every set.
      */
-    private function collectionMembership(PlexLibrary $library): array
+    private function collectionMembership(PlexLibrary $library): CollectionMembership
     {
         $membership = [];
+        $complete = true;
         foreach ($this->plex->collections($library) as $collection) {
             // Same reason as the show above: the collection names the set its
             // films point at, so its poster belongs in that set even on a
@@ -147,6 +151,7 @@ final class ImportService
                     'library' => $library->title,
                     'error' => $e->getMessage(),
                 ]);
+                $complete = false;
                 continue;
             }
         }
@@ -157,13 +162,17 @@ final class ImportService
             ]);
         }
 
-        return $membership;
+        return $complete
+            ? CollectionMembership::complete($membership)
+            : CollectionMembership::partial($membership);
     }
 
     /**
-     * @param list<string> $setKeys the sets this item belongs to
+     * @param list<string>|null $setKeys the sets this item belongs to, or null
+     *        when nothing could be concluded and whatever is recorded should
+     *        stand. An empty list is an answer — "in no set" — and removes one.
      */
-    private function importItem(PlexItem $item, ImportResult $result, bool $force, array $setKeys = []): void
+    private function importItem(PlexItem $item, ImportResult $result, bool $force, ?array $setKeys = null): void
     {
         try {
             $category = $item->mediaType->category();
@@ -254,7 +263,7 @@ final class ImportService
                 seasonNumber: $item->seasonNumber,
                 tmdbId: $item->tmdbId ?? $existing?->tmdbId,
                 parentTitle: $this->mergedParentTitle($existing, $item),
-                setKeys: $setKeys !== [] ? $setKeys : ($existing->setKeys ?? []),
+                setKeys: $setKeys ?? ($existing->setKeys ?? []),
             ));
 
             $result->recordImported($category);
@@ -324,22 +333,26 @@ final class ImportService
      * path should not pay repeatedly for one item.
      */
     /**
-     * @param list<string> $setKeys
+     * @param list<string>|null $setKeys see {@see importItem()}
      */
     private function reconcileFacts(
         PlexItemRecord $existing,
         PlexItem $item,
         string $filename,
-        array $setKeys = [],
+        ?array $setKeys = null,
     ): void {
         $title = $this->mergedTitle($existing, $item);
         $year = $item->year ?? $existing->year;
         $tmdbId = $item->tmdbId ?? $existing->tmdbId;
         $parentTitle = $this->mergedParentTitle($existing, $item);
-        // Same rule as every other recorded fact: a known one is never replaced
-        // by an unknown one. This is what backfills the set on an established
-        // library, where every poster is skipped and nothing is downloaded.
-        $sets = $setKeys !== [] ? $setKeys : $existing->setKeys;
+        // Unlike every other fact here, a set can legitimately be REMOVED: a
+        // film taken off a collection in Plex has left it, and holding the old
+        // membership would keep showing it there. So an empty list replaces what
+        // is recorded — but only when the read that produced it was complete,
+        // which is what null distinguishes. Null means nothing was concluded and
+        // the recorded sets stand, which is also what backfills an established
+        // library where every poster is skipped.
+        $sets = $setKeys ?? $existing->setKeys;
 
         if (
             $title === $existing->title

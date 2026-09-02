@@ -646,6 +646,93 @@ final class ImportServiceTest extends TestCase
         self::assertSame(['15553'], $this->items->findByRatingKey('11')?->setKeys);
     }
 
+    /**
+     * A collection is a relationship a user removes on purpose, and Plex says so
+     * by omission rather than by reporting anything. Holding the old membership
+     * kept showing a film in a collection it had left.
+     *
+     * This is where set reconciliation departs from every other recorded fact: a
+     * release year Plex has momentarily stopped reporting is better held stale
+     * than lost, but an absent membership is an answer.
+     */
+    public function testAFilmTakenOffACollectionLosesThatSet(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $film = new PlexItem('10', PlexMediaType::Movie, 'Jackass 2.5', 2007, $thumb, 'Movies');
+        $collection = new PlexItem('80', PlexMediaType::Collection, 'Jackass', null, '/t/80', 'Movies');
+
+        // Imported while it was in the collection.
+        $before = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => [$film]],
+        );
+        (new ImportService($before, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+        self::assertSame(['80'], $items->findByRatingKey('10')?->setKeys);
+
+        // Taken off the collection in Plex. The poster has not changed, so this
+        // is the skip path — the one an established library actually takes.
+        $after = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => []],
+        );
+        $result = (new ImportService($after, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame([], $items->findByRatingKey('10')->setKeys, 'It has left the collection.');
+        self::assertSame(1, $result->skipped());
+        self::assertSame([], $after->downloads, 'Nothing was re-downloaded to notice.');
+    }
+
+    /**
+     * The other half, and the reason removal cannot simply act on an empty
+     * result: a collection that will not list produces the same emptiness. One
+     * failed request must not take every film out of every set.
+     */
+    public function testAFailedMembershipReadLeavesRecordedSetsAlone(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $film = new PlexItem('10', PlexMediaType::Movie, 'Jackass 2.5', 2007, $thumb, 'Movies');
+        $collection = new PlexItem('80', PlexMediaType::Collection, 'Jackass', null, '/t/80', 'Movies');
+
+        $before = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => [$film]],
+        );
+        (new ImportService($before, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+        self::assertSame(['80'], $items->findByRatingKey('10')?->setKeys);
+
+        $broken = new FailingCollectionWalkClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+        );
+        $result = (new ImportService($broken, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['80'], $items->findByRatingKey('10')->setKeys, 'A failed read concludes nothing.');
+        self::assertSame(0, $result->failed(), 'And does not fail the import.');
+    }
+
     public function testReimportOverwritesWithoutDuplicating(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
