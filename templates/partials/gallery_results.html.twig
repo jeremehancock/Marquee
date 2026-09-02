@@ -100,7 +100,14 @@
            and for the window before the first import that records sets. Those
            fall back to the title search above, so nothing that worked before
            stops working. #}
-        {% set related_set = (set_keys[poster.category.value] ?? {})[poster.filename] ?? '' %}
+        {# The sets this poster belongs to. A film can be in several collections,
+           so the link opens the first — the poster it was activated from is in
+           every one of them, and a single link has to choose. The set VIEW then
+           matches on membership, so opening a collection's own poster gathers
+           every film listing that collection, including films that also belong to
+           another. #}
+        {% set related_sets = (set_keys[poster.category.value] ?? {})[poster.filename] ?? [] %}
+        {% set related_set = related_sets is not empty ? related_sets|first : '' %}
         {% set related_href = related_set is not empty
             ? '/library/all?set=' ~ related_set|url_encode
             : '/library/all?q=' ~ related_query|url_encode %}

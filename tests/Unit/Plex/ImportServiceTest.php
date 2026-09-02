@@ -264,7 +264,7 @@ final class ImportServiceTest extends TestCase
             seasonNumber: $stored->seasonNumber,
             tmdbId: $stored->tmdbId,
             parentTitle: '',
-            setKey: '',
+            setKeys: [],
         ));
         $rewound = $items->findByRatingKey('20');
         self::assertNotNull($rewound);
@@ -324,7 +324,7 @@ final class ImportServiceTest extends TestCase
             seasonNumber: $stored->seasonNumber,
             tmdbId: $stored->tmdbId,
             parentTitle: $stored->parentTitle,
-            setKey: $stored->setKey,
+            setKeys: $stored->setKeys,
         ));
 
         $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
@@ -353,9 +353,9 @@ final class ImportServiceTest extends TestCase
 
         $service->import(['2'], [PlexMediaType::Show, PlexMediaType::Season]);
 
-        self::assertSame('20', $this->items->findByRatingKey('20')?->setKey);
-        self::assertSame('20', $this->items->findByRatingKey('22')?->setKey);
-        self::assertSame('20', $this->items->findByRatingKey('23')?->setKey);
+        self::assertSame(['20'], $this->items->findByRatingKey('20')?->setKeys);
+        self::assertSame(['20'], $this->items->findByRatingKey('22')?->setKeys);
+        self::assertSame(['20'], $this->items->findByRatingKey('23')?->setKeys);
     }
 
     /**
@@ -380,10 +380,10 @@ final class ImportServiceTest extends TestCase
 
         $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
 
-        self::assertSame('90', $this->items->findByRatingKey('10')?->setKey);
-        self::assertSame('90', $this->items->findByRatingKey('11')?->setKey);
+        self::assertSame(['90'], $this->items->findByRatingKey('10')?->setKeys);
+        self::assertSame(['90'], $this->items->findByRatingKey('11')?->setKeys);
         // In no collection, so no set — the ordinary case, not an error.
-        self::assertSame('', $this->items->findByRatingKey('12')?->setKey);
+        self::assertSame([], $this->items->findByRatingKey('12')?->setKeys);
     }
 
     /**
@@ -408,7 +408,7 @@ final class ImportServiceTest extends TestCase
 
         $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
 
-        self::assertSame('90', $this->items->findByRatingKey('10')?->setKey);
+        self::assertSame(['90'], $this->items->findByRatingKey('10')?->setKeys);
         // The collection's own poster was not among the requested types.
         self::assertNull($this->items->findByRatingKey('90'));
     }
@@ -451,7 +451,7 @@ final class ImportServiceTest extends TestCase
 
         self::assertSame(1, $result->imported());
         self::assertSame(0, $result->failed());
-        self::assertSame('', $this->items->findByRatingKey('10')?->setKey);
+        self::assertSame([], $this->items->findByRatingKey('10')?->setKeys);
     }
 
     /**
@@ -491,13 +491,13 @@ final class ImportServiceTest extends TestCase
             seasonNumber: $stored->seasonNumber,
             tmdbId: $stored->tmdbId,
             parentTitle: $stored->parentTitle,
-            setKey: '',
+            setKeys: [],
         ));
 
         $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
         $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
 
-        self::assertSame('2', $items->findByRatingKey('20')?->setKey);
+        self::assertSame(['2'], $items->findByRatingKey('20')?->setKeys);
         self::assertSame(1, $result->skipped());
         self::assertSame(0, $result->imported());
         self::assertSame([], $plexAgain->downloads);
@@ -541,14 +541,14 @@ final class ImportServiceTest extends TestCase
             filename: $stored->filename,
             updatedAt: 1,
             thumb: $stored->thumb,
-            setKey: '',
+            setKeys: [],
         ));
 
         // Now a movies-only import, which never reaches the collection branch.
         (new ImportService($client(), $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
 
-        self::assertSame('90', $items->findByRatingKey('10')?->setKey, 'The film records its collection.');
-        self::assertSame('90', $items->findByRatingKey('90')?->setKey, 'So does the collection itself.');
+        self::assertSame(['90'], $items->findByRatingKey('10')?->setKeys, 'The film records its collection.');
+        self::assertSame(['90'], $items->findByRatingKey('90')?->setKeys, 'So does the collection itself.');
     }
 
     /**
@@ -579,13 +579,13 @@ final class ImportServiceTest extends TestCase
             filename: $stored->filename,
             updatedAt: 1,
             thumb: $stored->thumb,
-            setKey: '',
+            setKeys: [],
         ));
 
         (new ImportService($client(), $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Season]);
 
-        self::assertSame('20', $items->findByRatingKey('22')?->setKey, 'The season records its show.');
-        self::assertSame('20', $items->findByRatingKey('20')?->setKey, 'So does the show itself.');
+        self::assertSame(['20'], $items->findByRatingKey('22')?->setKeys, 'The season records its show.');
+        self::assertSame(['20'], $items->findByRatingKey('20')?->setKeys, 'So does the show itself.');
     }
 
     /**
@@ -603,45 +603,47 @@ final class ImportServiceTest extends TestCase
             title: 'Marvel Cinematic Universe',
             filename: 'MCU.png',
             updatedAt: 1,
-            setKey: 'already-set',
+            setKeys: ['already-set'],
         ));
 
         $items->fillMissingSetKey('90', '90');
 
         $after = $items->findByRatingKey('90');
         self::assertNotNull($after);
-        self::assertSame('already-set', $after->setKey);
+        self::assertSame(['already-set'], $after->setKeys);
         self::assertSame(1, $after->updatedAt, 'No write, so no new timestamp.');
     }
 
     /**
      * A film can be in more than one collection — "Godzilla vs. Kong" is in both
-     * King Kong and MonsterVerse — and only one set is recorded per poster. The
-     * first collection to claim it keeps it, so the answer cannot change with how
-     * far the walk gets or which collections Plex lists after.
+     * King Kong and MonsterVerse — and it belongs to both.
+     *
+     * Recording one meant the collection read first took the film, and every
+     * other collection sharing it was left holding nothing but its own poster.
      */
-    public function testAFilmInTwoCollectionsKeepsTheFirstThatClaimsIt(): void
+    public function testAFilmInTwoCollectionsBelongsToBoth(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
         $godzilla = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $skull = new PlexItem('11', PlexMediaType::Movie, 'Kong: Skull Island', 2017, '/t/11', 'Movies');
         $kong = new PlexItem('15512', PlexMediaType::Collection, 'King Kong', null, '/t/15512', 'Movies');
         $verse = new PlexItem('15553', PlexMediaType::Collection, 'MonsterVerse', null, '/t/15553', 'Movies');
 
         $plex = new FakePlexClient(
             [$library],
-            ['1' => [$godzilla]],
+            ['1' => [$godzilla, $skull]],
             [],
             ['1' => [$kong, $verse]],
-            membersByCollection: ['15512' => [$godzilla], '15553' => [$godzilla]],
+            membersByCollection: [
+                '15512' => [$godzilla],
+                '15553' => [$godzilla, $skull],
+            ],
         );
 
         $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
 
-        self::assertSame(
-            '15512',
-            $this->items->findByRatingKey('10')?->setKey,
-            'The first collection listed keeps the film.',
-        );
+        self::assertSame(['15512', '15553'], $this->items->findByRatingKey('10')?->setKeys);
+        self::assertSame(['15553'], $this->items->findByRatingKey('11')?->setKeys);
     }
 
     public function testReimportOverwritesWithoutDuplicating(): void

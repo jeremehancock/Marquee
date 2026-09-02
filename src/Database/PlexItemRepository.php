@@ -29,9 +29,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, set_key, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, set_keys, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :set_key, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :set_keys, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -45,7 +45,7 @@ final class PlexItemRepository
                 season_number = excluded.season_number,
                 tmdb_id = excluded.tmdb_id,
                 parent_title = excluded.parent_title,
-                set_key = excluded.set_key,
+                set_keys = excluded.set_keys,
                 updated_at = excluded.updated_at'
         );
 
@@ -63,7 +63,7 @@ final class PlexItemRepository
             ':season_number' => $record->seasonNumber,
             ':tmdb_id' => $record->tmdbId,
             ':parent_title' => $record->parentTitle,
-            ':set_key' => $record->setKey,
+            ':set_keys' => PlexItemRecord::joinSetKeys($record->setKeys),
             ':updated_at' => $record->updatedAt,
         ]);
     }
@@ -232,26 +232,34 @@ final class PlexItemRepository
     }
 
     /**
-     * The set each mapped poster in a category belongs to, keyed by filename.
+     * The sets each mapped poster in a category belongs to, keyed by filename.
      *
-     * The value is a Plex rating key: a show's or collection's own, a season's
-     * show, a movie's collection. Posters sharing one are shown together by
-     * Related posters. Rows with no set are omitted so the caller falls back to
-     * the title search — a movie in no collection is the ordinary case there.
+     * The values are Plex rating keys: a show's or collection's own, a season's
+     * show, a movie's collections. A poster is shown by Related posters when the
+     * requested set is among its keys — which is a list because collections
+     * overlap, and a film in two of them belongs to both.
      *
-     * @return array<string, string>
+     * Rows in no set are omitted so the caller falls back to the title search — a
+     * movie in no collection is the ordinary case there.
+     *
+     * @return array<string, list<string>>
      */
     public function setKeysForCategory(string $category): array
     {
         $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, set_key FROM plex_items WHERE category = :category AND set_key <> \'\''
+            'SELECT filename, set_keys FROM plex_items WHERE category = :category AND set_keys <> \'\''
         );
         $stmt->execute([':category' => $category]);
 
         $map = [];
         foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['set_key'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::string($row['set_key']);
+            if (!is_array($row) || !isset($row['filename'], $row['set_keys'])) {
+                continue;
+            }
+
+            $keys = PlexItemRecord::fromRow(['set_keys' => $row['set_keys']])->setKeys;
+            if ($keys !== []) {
+                $map[Scalar::string($row['filename'])] = $keys;
             }
         }
 
@@ -295,8 +303,8 @@ final class PlexItemRepository
         }
 
         $stmt = $this->database->pdo()->prepare(
-            'UPDATE plex_items SET set_key = :set, updated_at = :now
-              WHERE rating_key = :key AND set_key = \'\''
+            'UPDATE plex_items SET set_keys = :set, updated_at = :now
+              WHERE rating_key = :key AND set_keys = \'\''
         );
         $stmt->execute([':set' => $setKey, ':now' => time(), ':key' => $ratingKey]);
     }

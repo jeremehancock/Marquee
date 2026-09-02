@@ -626,7 +626,7 @@ final class GalleryTest extends AppTestCase
             title: 'Marvel Cinematic Universe',
             filename: 'MCU_Movies.png',
             updatedAt: time(),
-            setKey: '90',
+            setKeys: ['90'],
         ));
         foreach ([['10', 'Iron Man', 'Iron_Man_2008_Movies.png'], ['11', 'Thor', 'Thor_2011_Movies.png']] as [$k, $t, $f]) {
             $this->writePoster($f);
@@ -638,7 +638,7 @@ final class GalleryTest extends AppTestCase
                 title: $t,
                 filename: $f,
                 updatedAt: time(),
-                setKey: '90',
+                setKeys: ['90'],
             ));
         }
         // A film in no collection, which must not be swept in.
@@ -667,6 +667,55 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * Collections overlap in a real library. "Godzilla vs. Kong" is in both King
+     * Kong and MonsterVerse, so opening either must gather it — the reported
+     * defect was MonsterVerse showing nothing but its own poster, because King
+     * Kong had been listed first and taken the film.
+     */
+    public function testOverlappingCollectionsEachGatherTheirSharedFilms(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+
+        $rows = [
+            ['15512', 'collection', 'collections', 'King Kong',        'King_Kong_C.png',  ['15512']],
+            ['15553', 'collection', 'collections', 'MonsterVerse',     'MonsterVerse.png', ['15553']],
+            // In both.
+            ['10', 'movie', 'movies', 'Godzilla vs. Kong',  'GvK.png',    ['15512', '15553']],
+            // In MonsterVerse only.
+            ['11', 'movie', 'movies', 'Kong: Skull Island', 'Skull.png',  ['15553']],
+            // In King Kong only.
+            ['12', 'movie', 'movies', 'King Kong',          'KK1933.png', ['15512']],
+        ];
+        foreach ($rows as [$k, $type, $cat, $title, $file, $sets]) {
+            $this->writePosterIn($cat, $file);
+            $repo->upsert(new PlexItemRecord(
+                ratingKey: $k,
+                mediaType: $type,
+                category: $cat,
+                libraryTitle: 'Movies',
+                title: $title,
+                filename: $file,
+                updatedAt: time(),
+                setKeys: $sets,
+            ));
+        }
+
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
+
+        $verse = (string) $this->get($app, '/library/all?set=15553')->getBody();
+        self::assertStringContainsString('MonsterVerse', $verse);
+        self::assertStringContainsString('Godzilla vs. Kong', $verse, 'A shared film belongs to this set too.');
+        self::assertStringContainsString('Kong: Skull Island', $verse);
+        self::assertStringNotContainsString('KK1933', $verse, 'A film only in the other collection stays out.');
+
+        $kong = (string) $this->get($app, '/library/all?set=15512')->getBody();
+        self::assertStringContainsString('King Kong', $kong);
+        self::assertStringContainsString('Godzilla vs. Kong', $kong, 'The same film, from the other side.');
+        self::assertStringNotContainsString('Skull.png', $kong);
+    }
+
+    /**
      * A set names itself where it can, and offers the same clear control the
      * search does, so the two filtered states behave alike.
      */
@@ -684,7 +733,7 @@ final class GalleryTest extends AppTestCase
             title: 'Marvel Cinematic Universe',
             filename: 'MCU_Movies.png',
             updatedAt: time(),
-            setKey: '90',
+            setKeys: ['90'],
         ));
 
         $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
@@ -712,7 +761,7 @@ final class GalleryTest extends AppTestCase
             title: 'Iron Man',
             filename: 'Iron_Man_2008_Movies.png',
             updatedAt: time(),
-            setKey: '90',
+            setKeys: ['90'],
         ));
 
         $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);

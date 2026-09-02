@@ -105,7 +105,7 @@ $out();
 $out('== What Marquee has recorded ==');
 
 $rows = $items->all();
-$withSet = array_filter($rows, static fn ($row): bool => $row->setKey !== '');
+$withSet = array_filter($rows, static fn ($row): bool => $row->setKeys !== []);
 $out(sprintf('  %d of %d stored posters record a set.', count($withSet), count($rows)));
 
 if (count($withSet) === 0 && count($rows) > 0) {
@@ -140,17 +140,21 @@ foreach ($matches as $row) {
         $row->ratingKey,
         $row->category,
         $row->title,
-        $row->setKey === '' ? "''  <-- falls back to a title search" : $row->setKey,
+        $row->setKeys === [] ? "-  <-- falls back to a title search" : implode(', ', $row->setKeys),
     ));
 }
 
-$sets = array_unique(array_map(static fn ($row): string => $row->setKey, $matches));
-$sets = array_values(array_filter($sets, static fn (string $key): bool => $key !== ''));
-if (count($sets) === 1) {
-    $key = $sets[0];
-    $inSet = array_filter($rows, static fn ($row): bool => $row->setKey === $key);
+$sets = [];
+foreach ($matches as $row) {
+    foreach ($row->setKeys as $key) {
+        $sets[$key] = true;
+    }
+}
+
+foreach (array_keys($sets) as $key) {
+    $inSet = array_filter($rows, static fn ($row): bool => in_array($key, $row->setKeys, true));
     $out();
-    $out(sprintf('  They share set %s, which holds %d poster(s):', $key, count($inSet)));
+    $out(sprintf('  Set %s holds %d poster(s):', $key, count($inSet)));
     foreach ($inSet as $row) {
         $out(sprintf('    %-14s %s', $row->category, $row->title));
     }

@@ -134,15 +134,25 @@ final class Database
         // a movie, show or collection has no parent to name — which is why this
         // defaults rather than being nullable.
         $this->ensureColumn($pdo, 'plex_items', 'parent_title', "TEXT NOT NULL DEFAULT ''");
-        // The Plex rating key of the set this item belongs to: a show and a
-        // collection record their own, a season its show's, a movie that of the
-        // collection holding it. Posters sharing this are shown together by
-        // Related posters. A rating key rather than a title because a title
-        // cannot express a collection whose films share no words in their names
-        // ("Iron Man", "Thor"), and because two works can share a title while no
-        // two share a key. Empty for a movie in no collection, which is the
-        // ordinary case and not missing information.
-        $this->ensureColumn($pdo, 'plex_items', 'set_key', "TEXT NOT NULL DEFAULT ''");
+        // The Plex rating keys of the sets this item belongs to, comma separated:
+        // a show and a collection record their own, a season its show's, a movie
+        // those of every collection holding it. Posters listing a key are shown
+        // together by Related posters. Rating keys rather than titles because a
+        // title cannot express a collection whose films share no words in their
+        // names ("Iron Man", "Thor"), and because two works can share a title
+        // while no two share a key. Empty for a movie in no collection, which is
+        // the ordinary case and not missing information.
+        //
+        // A LIST because collections overlap in a real library: "Godzilla vs.
+        // Kong" is in both King Kong and MonsterVerse, "Planes" in both Planes
+        // and Thanksgiving. This was one key, and the collection that happened to
+        // be read first took the film — which left every other collection sharing
+        // a film holding nothing but its own poster.
+        //
+        // The `set_key` column an earlier build of this change added is dead and
+        // read by nothing. It is left in place because SQLite cannot drop a
+        // column without rewriting the table, and an unused one costs nothing.
+        $this->ensureColumn($pdo, 'plex_items', 'set_keys', "TEXT NOT NULL DEFAULT ''");
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

@@ -22,10 +22,11 @@ import, and SHALL be resolved by that identity rather than by matching titles:
 | A TV show | itself |
 | A TV season | its show |
 | A collection | itself |
-| A movie in a collection | that collection |
+| A movie in a collection | every collection holding it |
 
-Every poster recording the same set SHALL be shown together, so activating the
-action on **any** member SHALL open the same set — a late season and its show, a
+A poster SHALL be shown in a set whenever that set is among the ones it records,
+so a poster belonging to several appears in each of them. Activating the action on
+**any** member SHALL open a set holding every other member — a late season and its show, a
 sequel and the film it followed, alike. A set SHALL therefore not depend on which
 member it was opened from.
 
@@ -109,6 +110,12 @@ so the sizing fixed by "Poster cards fit their full action stack" is unchanged.
 - **WHEN** a user activates Related posters on the last film of a collection, and
   separately on the first
 - **THEN** both show the same set
+
+#### Scenario: Overlapping collections each gather their shared films
+- **WHEN** a film belongs to two collections and a user opens either of them
+- **THEN** that film is among the results both times
+- **AND** neither collection is reduced to its own poster by the other having
+  claimed the film
 
 #### Scenario: A set whose members share no words
 - **WHEN** a user activates Related posters on a film in a collection whose films

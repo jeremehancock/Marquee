@@ -118,9 +118,17 @@ final class PosterLibrary
             }
         }
 
+        // Membership, not equality: a poster records every set it belongs to, and
+        // collections overlap. Comparing one key against one key is what left a
+        // collection sharing a film with another holding nothing but its own
+        // poster.
         return array_values(array_filter(
             $posters,
-            static fn (Poster $poster): bool => ($keys[$poster->category->value][$poster->filename] ?? '') === $setKey,
+            static fn (Poster $poster): bool => in_array(
+                $setKey,
+                $keys[$poster->category->value][$poster->filename] ?? [],
+                true,
+            ),
         ));
     }
 
