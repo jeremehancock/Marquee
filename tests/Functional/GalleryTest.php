@@ -644,12 +644,13 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * The window between upgrading and the next import: a season whose show title
-     * has not been recorded yet answers with its own title. It finds mainly
-     * itself, which is narrow rather than wrong, and it widens on its own once an
-     * ordinary import backfills the column.
+     * The window between upgrading and the next import. A season whose show title
+     * has not been recorded yet still searches the show, by stripping the season
+     * its recorded season number predicts — otherwise the action would search the
+     * season's own full title and find only that season, which is how it looks
+     * broken on the install it is delivered to.
      */
-    public function testASeasonWithNoRecordedShowTitleFallsBackToItsOwn(): void
+    public function testASeasonWithNoRecordedShowTitleStillSearchesTheShow(): void
     {
         $dataDir = $this->makeTempDir();
         $this->writePosterIn('tv-seasons', 'Severance_-_Season_1_TV.png');
@@ -674,7 +675,8 @@ final class GalleryTest extends AppTestCase
         ]);
         $body = (string) $this->get($app, '/library/tv-seasons')->getBody();
 
-        self::assertStringContainsString('data-related="Severance - Season 1"', $body);
+        self::assertStringContainsString('data-related="Severance"', $body);
+        self::assertStringNotContainsString('data-related="Severance - Season 1"', $body);
     }
 
     /**

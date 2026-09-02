@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Poster\RelatedTitle;
 use App\Support\Scalar;
 
 /**
@@ -187,17 +188,21 @@ final class PlexItemRepository
      * the action was started from.
      *
      * A season imported before show titles were recorded has an empty
-     * `parent_title` and answers with its own title until the next import fills
-     * it in — narrow rather than wrong. Rows with nothing to offer are omitted so
+     * `parent_title`; RelatedTitle falls back to stripping the season off the
+     * display title, so the action works on the install it is delivered to rather
+     * than only after the next import. Rows with nothing to offer are omitted so
      * the caller falls back to the filename-derived title.
+     *
+     * The choice between the two is RelatedTitle's, not this query's — it is a
+     * rule about titles rather than about storage, and it has to be testable
+     * without a database.
      *
      * @return array<string, string>
      */
     public function relatedTitlesForCategory(string $category): array
     {
         $stmt = $this->database->pdo()->prepare(
-            'SELECT filename,
-                    CASE WHEN parent_title <> \'\' THEN parent_title ELSE title END AS related_title
+            'SELECT filename, title, parent_title, season_number
                FROM plex_items
               WHERE category = :category
                 AND (parent_title <> \'\' OR title <> \'\')'
@@ -206,8 +211,18 @@ final class PlexItemRepository
 
         $map = [];
         foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['related_title'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::string($row['related_title']);
+            if (!is_array($row) || !isset($row['filename'])) {
+                continue;
+            }
+
+            $related = RelatedTitle::forRecord(
+                Scalar::string($row['title'] ?? null),
+                Scalar::string($row['parent_title'] ?? null),
+                Scalar::intOrNull($row['season_number'] ?? null),
+            );
+
+            if ($related !== '') {
+                $map[Scalar::string($row['filename'])] = $related;
             }
         }
 

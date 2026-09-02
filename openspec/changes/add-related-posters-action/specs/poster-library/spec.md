@@ -19,8 +19,22 @@ results in the All view. The related title SHALL be:
   show's poster and every sibling season rather than the one season it started
   from;
 - for a movie, TV show, or collection, the title recorded for that item;
-- for a poster with no Plex record — or a season whose show title has not yet been
-  recorded — the poster's own filename-derived title.
+- for a season whose show title has not yet been recorded, the recorded display
+  title with its own season removed — that title being the show's and the
+  season's joined, and the season number being recorded already, so the suffix
+  removed is one the system can name rather than one it goes looking for;
+- for a poster with no Plex record at all, the poster's own filename-derived
+  title.
+
+The removal SHALL be narrow. It SHALL remove only a trailing season matching the
+season number recorded for that poster, and SHALL leave any title it does not
+recognise exactly as it is. It SHALL NOT split the title at its last or first
+separator: a show whose own name contains one, and a season whose name does, are
+both real, and either split would produce a plausible-looking wrong answer. A
+title the removal does not recognise is narrow rather than incorrect, and the
+recorded show title supersedes it at the next import.
+
+The removal SHALL NOT produce an empty query, which would match every poster.
 
 The related title SHALL be the recorded title alone and SHALL NOT carry the
 release year the caption appends. A year in the query would narrow the search back
@@ -74,11 +88,24 @@ so the sizing fixed by "Poster cards fit their full action stack" is unchanged.
 - **AND** no error is reported
 
 #### Scenario: A season whose show title is not yet recorded
-- **WHEN** a user activates Related posters on a season imported before the show
-  title was recorded
-- **THEN** the gallery shows the All view filtered by that season's own title
+- **WHEN** a user activates Related posters on a season titled "Severance -
+  Season 1" that was imported before show titles were recorded, and whose
+  recorded season number is 1
+- **THEN** the gallery shows the All view filtered by "Severance"
+- **AND** the show's poster and every sibling season are among the results,
+  without the user having run an import first
+
+#### Scenario: A season whose name the removal does not recognise
+- **WHEN** a user activates Related posters on a season whose recorded title does
+  not end in the season its recorded season number predicts
+- **THEN** the query is that season's title unchanged
 - **AND** the result is narrow rather than incorrect, and widens once the show
   title has been recorded by a later import
+
+#### Scenario: A show whose own name contains the separator is not split
+- **WHEN** a season of a show named "Cowboy Bebop - Remastered" is activated and
+  no show title has been recorded for it
+- **THEN** the query is "Cowboy Bebop - Remastered", not "Cowboy Bebop"
 
 #### Scenario: The action works without scripting
 - **WHEN** scripting is unavailable and a user follows the Related posters action
