@@ -13,6 +13,7 @@ use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
 use App\Poster\PosterCategory;
 use App\Poster\PosterStorage;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -26,6 +27,9 @@ final class ImportService
         private readonly PosterStorage $storage,
         private readonly PlexItemRepository $items,
         private readonly PlexLibraryRepository $libraries,
+        // Nullable and last so the many direct constructions in tests keep
+        // working. Autowiring supplies the real one.
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -116,9 +120,27 @@ final class ImportService
                 foreach ($this->plex->collectionChildren($collection) as $member) {
                     $membership[$member->ratingKey] = $collection->ratingKey;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                // Swallowing this silently was a mistake worth naming: a server
+                // that answers the collections listing but not a collection's
+                // members leaves every film without a set, and Related posters
+                // then falls back to a title search everywhere — which looks
+                // exactly like the feature not being deployed. There was nothing
+                // anywhere to tell the two apart. Say so in the log.
+                $this->logger?->warning('Could not read the members of a Plex collection.', [
+                    'collection' => $collection->title,
+                    'rating_key' => $collection->ratingKey,
+                    'library' => $library->title,
+                    'error' => $e->getMessage(),
+                ]);
                 continue;
             }
+        }
+
+        if ($membership === []) {
+            $this->logger?->info('No Plex collection membership was recorded for a library.', [
+                'library' => $library->title,
+            ]);
         }
 
         return $membership;
