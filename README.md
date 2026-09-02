@@ -31,7 +31,10 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
     member, so a late season or a sequel gets you the whole set, and it holds
     even for collections whose films share no words in their titles. Useful for
     making a set match. A film in no collection falls back to searching its
-    title.
+    title, and where that finds only itself the gallery offers a shorter query —
+    "Jackass" for "Jackass: Best and Last" — with the number of posters it would
+    find, so you can widen the search yourself without it ever widening on its
+    own.
   - **Download**, view **Full screen**, or **Delete**.
 - **Plex is the source of truth** — changing a poster uploads it to Plex and
   locks the artwork so Plex won't overwrite it.

@@ -1434,6 +1434,19 @@ h1 {
     margin: 8px 0 16px;
 }
 
+/* The offer to widen a search that found little. It sits under the filtered
+   summary rather than beside its clear control, because it is a suggestion and
+   that control is the one thing in that row a reader must always be able to
+   find. Muted and small, so it reads as an aside and not as a result. */
+.stats--suggest {
+    margin: -8px 0 16px;
+    font-size: 0.9rem;
+}
+
+.stats--suggest a {
+    color: var(--accent);
+}
+
 .sort {
     display: flex;
     align-items: center;

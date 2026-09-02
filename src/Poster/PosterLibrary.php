@@ -77,13 +77,19 @@ final class PosterLibrary
         // seasons, a collection with its films. It is applied before the search
         // and never alongside it, because the two answer the same question by
         // different means and the caller sends exactly one of them.
+        $broaderQuery = null;
+        $broaderTotal = 0;
+
         if ($setKey !== null && $setKey !== '') {
             $posters = $this->inSet($posters, $setKey);
         } elseif ($query !== null && trim($query) !== '') {
             // Searching narrows the listing; it never reorders it. The selected
             // sort then applies to whatever survives, so the sort control means
             // the same thing whether or not a search is active.
-            $posters = $this->search->filter($posters, $query, $this->titlesFor($posters));
+            $titles = $this->titlesFor($posters);
+            $all = $posters;
+            $posters = $this->search->filter($posters, $query, $titles);
+            [$broaderQuery, $broaderTotal] = $this->broaderThan($query, $all, $titles, count($posters));
         }
 
         usort($posters, $this->comparator->forOrder($sort, $addedAt));
@@ -95,7 +101,43 @@ final class PosterLibrary
 
         $items = array_slice($posters, ($page - 1) * $perPage, $perPage);
 
-        return new Page($items, $page, $perPage, $total);
+        return new Page($items, $page, $perPage, $total, $broaderQuery, $broaderTotal);
+    }
+
+    /**
+     * The shortest-cut query worth offering alongside a search that found little,
+     * with how many posters it would find.
+     *
+     * A library that keeps no Plex collections has no sets for its films, so
+     * Related posters falls back to searching the poster's own title — which
+     * reaches the rest of a series only from the shortest title in it. This is
+     * what lets the gallery offer a way out of that without ever taking it: the
+     * candidate is a link, and the count travels with it so one that is far too
+     * broad announces itself before anyone follows it.
+     *
+     * Evaluated against the same unfiltered list the search just ran over, so it
+     * costs no listing of its own. Candidates that find no more than the search
+     * already did are dropped — there is nothing to offer.
+     *
+     * @param list<Poster>                         $all    the unfiltered listing
+     * @param array<string, array<string, string>> $titles recorded titles
+     *
+     * @return array{0: string|null, 1: int}
+     */
+    private function broaderThan(string $query, array $all, array $titles, int $found): array
+    {
+        $best = null;
+        $bestTotal = $found;
+
+        foreach (BroaderQuery::candidatesFor($query) as $candidate) {
+            $total = count($this->search->filter($all, $candidate, $titles));
+            if ($total > $bestTotal) {
+                $best = $candidate;
+                $bestTotal = $total;
+            }
+        }
+
+        return $best === null ? [null, 0] : [$best, $bestTotal];
     }
 
     /**

@@ -42,6 +42,24 @@
         </span>
         <a class="search__clear" href="/library/{{ view.value }}">Clear search</a>
     </div>
+    {% if result.broaderQuery %}
+        {# A way out of the narrow result a library without Plex collections gets.
+           Related posters shows the set a poster belongs to, and a film in no
+           collection has none, so the action falls back to searching that film's
+           own title — which reaches the rest of a series only from the shortest
+           title in it. "The Matrix" finds its sequels; "The Matrix Reloaded"
+           finds itself.
+
+           OFFERED, NEVER APPLIED. The cut behind it is a guess, and a guess is
+           only acceptable here because the reader makes it: the count travels
+           with the link, so a candidate far too broad says so before anyone
+           follows it. Nothing widens a search on its own. #}
+        <p class="stats stats--suggest">
+            Looking for the rest of a series?
+            <a href="/library/{{ view.value }}?q={{ result.broaderQuery|url_encode }}">Try
+                “{{ result.broaderQuery }}” ({{ result.broaderTotal }} matches)</a>
+        </p>
+    {% endif %}
 {% else %}
     <p class="stats">
         {% if result.total > 0 %}

@@ -67,6 +67,54 @@ independently and is unchanged by this requirement.
 
 ## ADDED Requirements
 
+### Requirement: A narrow search may be offered a broader one
+When a search finds fewer posters than a shorter form of the same query would,
+the system SHALL offer that shorter query alongside the results, together with
+the number of posters it would find.
+
+The offer SHALL be a suggestion the user follows, and the system SHALL NOT widen
+a search on its own. The shorter query is produced by cutting a title — at a
+subtitle separator, or by dropping a trailing instalment number — and no such rule
+is reliable enough to apply unasked. Showing the count with the offer is what
+makes it safe to suggest: a cut that would gather far too much says so before
+anyone follows it.
+
+The offer SHALL be made only where it would help. A query with nothing to cut, or
+whose shorter forms find no more than the query already did, SHALL be offered
+nothing.
+
+This exists because a poster's set is what Plex says it is, and a library that
+keeps no collections has no set for its films. The action then falls back to
+searching the poster's own title, which reaches the rest of a series only from the
+shortest title in it — "The Matrix" finds its sequels while "The Matrix Reloaded"
+finds itself. A set the system was told about SHALL NOT be offered a broader
+search, because it is exact and there is nothing to widen.
+
+#### Scenario: A subtitled film offers its series
+- **WHEN** a user searches "Jackass: Best and Last" and the library holds five
+  films whose titles begin "Jackass"
+- **THEN** the gallery offers "Jackass" and reports that it would find five
+- **AND** the results shown remain those of the original query
+
+#### Scenario: A numbered sequel offers its series
+- **WHEN** a user searches "Lethal Weapon 3" and the library holds three films
+  whose titles begin "Lethal Weapon"
+- **THEN** the gallery offers "Lethal Weapon" and reports that it would find three
+
+#### Scenario: Nothing is offered when nothing broader exists
+- **WHEN** a user searches a title with nothing to cut, or whose shorter forms
+  match no more posters
+- **THEN** no broader search is offered
+
+#### Scenario: The broader query is never applied on its own
+- **WHEN** a broader search is offered
+- **THEN** the gallery still shows the results of the query the user made
+- **AND** the broader one is applied only once the user follows it
+
+#### Scenario: An exact set is offered nothing
+- **WHEN** the gallery is showing the set a poster belongs to
+- **THEN** no broader search is offered
+
 ### Requirement: A search can be started from a poster
 The system SHALL let a user start a search from a poster rather than by typing,
 by offering that poster an action that searches for the title it shares with its

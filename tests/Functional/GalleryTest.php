@@ -667,6 +667,85 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * A library that keeps no Plex collections has no sets for its films, so
+     * Related posters falls back to searching the film's own title — which
+     * reaches the rest of a series only from the shortest title in it. Rather
+     * than widening the search on its own, the gallery offers the shorter query
+     * with the number of posters it would find, and lets the reader decide.
+     */
+    public function testANarrowSearchOffersABroaderOne(): void
+    {
+        foreach ([
+            'Jackass_The_Movie.png',
+            'Jackass_Number_Two.png',
+            'Jackass_Best_and_Last.png',
+        ] as $file) {
+            $this->writePoster($file);
+        }
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=' . rawurlencode('Jackass: Best and Last'))->getBody();
+
+        self::assertStringContainsString('Looking for the rest of a series?', $body);
+        self::assertStringContainsString('“Jackass” (3 matches)', $body);
+        self::assertStringContainsString('href="/library/movies?q=Jackass"', $body);
+    }
+
+    /**
+     * Offered, never applied: the narrow result is still what is shown until the
+     * reader follows the link.
+     */
+    public function testTheBroaderQueryIsNotAppliedOnItsOwn(): void
+    {
+        foreach (['Jackass_The_Movie.png', 'Jackass_Best_and_Last.png'] as $file) {
+            $this->writePoster($file);
+        }
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=' . rawurlencode('Jackass Best and Last'))->getBody();
+
+        self::assertStringContainsString('1 match for', $body, 'The search itself is untouched.');
+    }
+
+    /**
+     * Nothing is offered when the shorter query would find no more, so the line
+     * only appears where it helps.
+     */
+    public function testNoOfferWhenThereIsNothingBroaderToFind(): void
+    {
+        $this->writePoster('Solaris.png');
+
+        $body = (string) $this->get($this->app(), '/library/movies?q=Solaris')->getBody();
+
+        self::assertStringNotContainsString('Looking for the rest of a series?', $body);
+    }
+
+    /**
+     * A set is exact, so it never offers to be widened — the offer exists for the
+     * fallback, not for a result Plex asserted.
+     */
+    public function testASetViewOffersNothingBroader(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+
+        $this->writePosterIn('collections', 'Jackass_C.png');
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '80',
+            mediaType: 'collection',
+            category: 'collections',
+            libraryTitle: 'Movies',
+            title: 'Jackass: Best and Last',
+            filename: 'Jackass_C.png',
+            updatedAt: time(),
+            setKeys: ['80'],
+        ));
+
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
+        $body = (string) $this->get($app, '/library/all?set=80')->getBody();
+
+        self::assertStringNotContainsString('Looking for the rest of a series?', $body);
+    }
+
+    /**
      * Collections overlap in a real library. "Godzilla vs. Kong" is in both King
      * Kong and MonsterVerse, so opening either must gather it — the reported
      * defect was MonsterVerse showing nothing but its own poster, because King

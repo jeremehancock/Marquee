@@ -11,12 +11,20 @@ final class Page
 {
     /**
      * @param list<Poster> $items
+     * @param string|null  $broaderQuery a shorter query that would find more than
+     *        this search did, or null when there is none worth offering. The
+     *        gallery offers it as a link; nothing here applies it.
+     * @param int          $broaderTotal how many posters that query would find,
+     *        shown with the offer so a candidate that is far too broad says so
+     *        before anyone follows it
      */
     public function __construct(
         public readonly array $items,
         public readonly int $page,
         public readonly int $perPage,
         public readonly int $total,
+        public readonly ?string $broaderQuery = null,
+        public readonly int $broaderTotal = 0,
     ) {
     }
 
