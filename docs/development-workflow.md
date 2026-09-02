@@ -529,6 +529,7 @@ Marquee/
 ├─ templates/         # Twig views + partials/
 ├─ tests/             # PHPUnit (Unit, Functional)
 ├─ docker/            # s6 services, nginx conf, auto-import cron
+├─ bin/               # CLI entry points that ship in the image (cron, diagnostics)
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
 ├─ docs/              # this file + configuration.md + testing.md + docker.md
 ├─ openspec/          # config.yaml, specs/, changes/

@@ -136,7 +136,7 @@
       skipped items still gain their sets; the card links to `?set=` or falls back
       to `?q=`; a set opens the same from any member; a set with no naming poster
       still resolves; and the JS empties the search box for a set.
-- [ ] 5.4 Verify by hand in the `:dev` image: Related posters from a season
+- [x] 5.4 Verify by hand in the `:dev` image: Related posters from a season
       gathers the show and its siblings; from a movie it gathers the trilogy and
       the collection poster; an accented title is findable by name; the action
       works with JavaScript disabled; and the phone action sheet shows the new
