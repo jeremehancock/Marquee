@@ -12,8 +12,34 @@ NOT be switched off, hidden, or conditioned on the poster having a Plex record: 
 poster with no record searches its own filename-derived title, which is narrow
 but never wrong.
 
-Activating it SHALL search for the poster's **related title** and present the
-results in the All view. The related title SHALL be:
+Activating it SHALL present, in the All view, the **set** the poster belongs to.
+
+A poster's set SHALL be identified by the Plex item it belongs to, recorded at
+import, and SHALL be resolved by that identity rather than by matching titles:
+
+| Poster | Its set |
+| --- | --- |
+| A TV show | itself |
+| A TV season | its show |
+| A collection | itself |
+| A movie in a collection | that collection |
+
+Every poster recording the same set SHALL be shown together, so activating the
+action on **any** member SHALL open the same set — a late season and its show, a
+sequel and the film it followed, alike. A set SHALL therefore not depend on which
+member it was opened from.
+
+Because a set is identified rather than described, two works that share a title
+SHALL NOT be gathered into one set, and members that share no words in their
+titles — as the films of a studio or franchise collection often do not — SHALL
+still be gathered.
+
+A poster's own set SHALL include itself, so the poster the action was activated on
+is always among the results.
+
+A poster with **no recorded set** — a movie in no collection, a poster with no
+Plex record, or any poster whose set has not been recorded yet — SHALL fall back to
+searching for the poster's **related title**, which SHALL be:
 
 - for a TV season, the title recorded for its **show**, so the search gathers the
   show's poster and every sibling season rather than the one season it started
@@ -67,17 +93,46 @@ so the sizing fixed by "Poster cards fit their full action stack" is unchanged.
 
 #### Scenario: Related posters from a TV season
 - **WHEN** a user activates Related posters on the poster for "Breaking Bad -
-  Season 5"
-- **THEN** the gallery shows the All view filtered by "Breaking Bad"
+  Season 5", whose set has been recorded
+- **THEN** the gallery shows the All view holding that show's set
 - **AND** the show's own poster and every imported season of it are among the
   results
 
-#### Scenario: Related posters from a movie
-- **WHEN** a user activates Related posters on the poster for a film that is part
-  of a trilogy
+#### Scenario: Related posters from a film in a collection
+- **WHEN** a user activates Related posters on a film recorded as belonging to a
+  collection
+- **THEN** the gallery shows the All view holding that collection's set
+- **AND** every other imported film in that collection is among the results
+- **AND** the collection's own poster is among them when it has been imported
+
+#### Scenario: The same set from any member
+- **WHEN** a user activates Related posters on the last film of a collection, and
+  separately on the first
+- **THEN** both show the same set
+
+#### Scenario: A set whose members share no words
+- **WHEN** a user activates Related posters on a film in a collection whose films
+  have no words in common, such as a studio or franchise collection
+- **THEN** every film in that collection is shown
+- **AND** the result does not depend on the films resembling one another by name
+
+#### Scenario: Two works sharing a title are not merged
+- **WHEN** two shows have the same title and a user activates Related posters on a
+  season of one of them
+- **THEN** only that show and its own seasons are shown
+
+#### Scenario: A collection's poster need not have been imported
+- **WHEN** a user activates Related posters on a film whose collection's own
+  poster has not been imported
+- **THEN** the other films of that collection are still shown
+- **AND** no error is reported
+
+#### Scenario: A film in no collection falls back to a title search
+- **WHEN** a user activates Related posters on a film that belongs to no
+  collection
 - **THEN** the gallery shows the All view filtered by that film's title
-- **AND** the other films sharing that title, and the collection poster if one has
-  been imported, are among the results
+- **AND** the films sharing that title are among the results, as they were before
+  sets were recorded
 
 #### Scenario: The release year is not part of the query
 - **WHEN** a user activates Related posters on a poster captioned "The Matrix

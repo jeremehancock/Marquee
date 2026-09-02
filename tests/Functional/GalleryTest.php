@@ -608,6 +608,134 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
+     * The whole point of recording sets: films held together only by the
+     * collection they are in. "Iron Man" and "Thor" share no words, so no title
+     * rule could ever gather them — and clicking either opens the same set.
+     */
+    public function testRelatedPostersOpensACollectionSetFromAnyMember(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+
+        $this->writePosterIn('collections', 'MCU_Movies.png');
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '90',
+            mediaType: 'collection',
+            category: 'collections',
+            libraryTitle: 'Movies',
+            title: 'Marvel Cinematic Universe',
+            filename: 'MCU_Movies.png',
+            updatedAt: time(),
+            setKey: '90',
+        ));
+        foreach ([['10', 'Iron Man', 'Iron_Man_2008_Movies.png'], ['11', 'Thor', 'Thor_2011_Movies.png']] as [$k, $t, $f]) {
+            $this->writePoster($f);
+            $repo->upsert(new PlexItemRecord(
+                ratingKey: $k,
+                mediaType: 'movie',
+                category: 'movies',
+                libraryTitle: 'Movies',
+                title: $t,
+                filename: $f,
+                updatedAt: time(),
+                setKey: '90',
+            ));
+        }
+        // A film in no collection, which must not be swept in.
+        $this->writePoster('Solaris_1972_Movies.png');
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '12',
+            mediaType: 'movie',
+            category: 'movies',
+            libraryTitle: 'Movies',
+            title: 'Solaris',
+            filename: 'Solaris_1972_Movies.png',
+            updatedAt: time(),
+        ));
+
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
+
+        // Every member links to the same set.
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+        self::assertSame(2, substr_count($body, 'href="/library/all?set=90"'));
+
+        $set = (string) $this->get($app, '/library/all?set=90')->getBody();
+        self::assertStringContainsString('Iron Man', $set);
+        self::assertStringContainsString('Thor', $set);
+        self::assertStringContainsString('Marvel Cinematic Universe', $set);
+        self::assertStringNotContainsString('Solaris', $set);
+    }
+
+    /**
+     * A set names itself where it can, and offers the same clear control the
+     * search does, so the two filtered states behave alike.
+     */
+    public function testASetViewNamesItselfAndCanBeCleared(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+
+        $this->writePosterIn('collections', 'MCU_Movies.png');
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '90',
+            mediaType: 'collection',
+            category: 'collections',
+            libraryTitle: 'Movies',
+            title: 'Marvel Cinematic Universe',
+            filename: 'MCU_Movies.png',
+            updatedAt: time(),
+            setKey: '90',
+        ));
+
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
+        $body = (string) $this->get($app, '/library/all?set=90')->getBody();
+
+        self::assertStringContainsString('in Marvel Cinematic Universe', $body);
+        self::assertStringContainsString('class="search__clear"', $body);
+    }
+
+    /**
+     * A set whose own item has no imported poster still resolves; it is simply
+     * not named. Reporting the set without a name beats failing.
+     */
+    public function testASetWhoseNamingItemHasNoPosterStillResolves(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+
+        $this->writePoster('Iron_Man_2008_Movies.png');
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '10',
+            mediaType: 'movie',
+            category: 'movies',
+            libraryTitle: 'Movies',
+            title: 'Iron Man',
+            filename: 'Iron_Man_2008_Movies.png',
+            updatedAt: time(),
+            setKey: '90',
+        ));
+
+        $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
+        $body = (string) $this->get($app, '/library/all?set=90')->getBody();
+
+        self::assertStringContainsString('Iron Man', $body);
+        self::assertStringContainsString('in this set', $body);
+    }
+
+    /**
+     * Nothing that worked before sets were recorded stops working: a poster with
+     * no set still links to the title search.
+     */
+    public function testAPosterWithNoRecordedSetStillLinksToTheTitleSearch(): void
+    {
+        $this->writePoster('Solaris.png');
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringContainsString('href="/library/all?q=Solaris"', $body);
+        self::assertStringContainsString('data-related-set=""', $body);
+    }
+
+    /**
      * Related posters searches for the poster's title, which for a season is its
      * SHOW's title — so the action gathers the show and every sibling season
      * rather than the one season it started from.

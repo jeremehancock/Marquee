@@ -26,11 +26,11 @@ posters per row.
 
 **Goals:**
 
-- One action on a poster card that shows that poster alongside everything sharing
-  its title, for TV *and* for film — a show with its seasons, a movie with its
-  sequels and its collection poster.
+- One action on a poster card that opens the set that poster belongs to, reached
+  as readily from a sequel or a late season as from the first film or the show.
 - Search matches the name the user can see, in one place, for one reason.
-- Existing installs gain the season behaviour without a forced re-import.
+- Existing installs gain all of it on their next ordinary import, with no forced
+  re-import and no poster re-downloaded.
 - The action stack keeps its current height, so the grid does not change.
 
 **Non-Goals:**
@@ -41,7 +41,11 @@ posters per row.
 - Sort order. `Poster::sortKey()` continues to use the filename-derived title.
   Search decides *which* posters match; sort decides their order; the two are
   already separate and stay that way.
-- Any new relation stored between items. See Decision 1.
+- Ranking, grouping, or naming a "primary" member of a set. A set is a flat list
+  under the gallery's active sort.
+- Sets Plex does not know about. Marquee records what Plex reports; it does not
+  infer a franchise from titles. A film in no collection has no set — see
+  Decision 1a for what happens to it.
 - Non-Latin scripts. A title made entirely of characters the filename sanitiser
   discards is unsearchable today and remains so for posters with no Plex record.
   With a recorded title it now works, which is a strict improvement, but it is a
@@ -49,22 +53,54 @@ posters per row.
 
 ## Decisions
 
-### 1. "Related" means *same title*, not *same Plex item tree*
+### 1. A poster's set is recorded, and a title search is what happens when it has none
 
-The precise alternative is a real parent/child relation: store
-`parent_rating_key` at import and list a show together with the seasons that
-point at it. It is exact where this is approximate, and it was rejected because
-it is **narrower**, not because it is harder.
+**The set is the mechanism; the search is the fallback.** Every poster records a
+**set key** — the Plex rating key of the thing it belongs to — and Related posters
+shows every poster sharing it. Only a poster with no recorded set falls back to
+searching its title.
 
-Movies and collections have no sibling relation stored anywhere. Under the
-relation design, the action has nothing to do for a movie — and a control that is
-switched off carrying a reason it cannot speak is the exact trap `CLAUDE.md`
-documents at length. The title-search reading is what makes the trilogy case work
-at all, and the trilogy case is the headline request.
+A title search alone cannot express what the feature is for. It was the original
+design, and it survives as the fallback, but it fails on exactly the sets users
+most want:
 
-The cost is that a title search can over-match: two different shows called *The
-Office* land in the same result set. This is mitigated by framing rather than by
-machinery — see Decision 4.
+| Set | Members | A title search |
+| --- | --- | --- |
+| Jackass | "Jackass: The Movie", "Jackass Number Two", "Jackass Forever" | needs a stem no title carries alone |
+| The Matrix | "The Matrix", "The Matrix Reloaded" | works only if you start from the shortest title |
+| MCU, A24, Ghibli | "Iron Man", "Thor", "Black Widow" | **impossible** — the members share no text |
+
+No rule over a title string reaches the third row, and no rule over a *collection
+name* reaches it either: "Marvel Cinematic Universe" appears in none of its films.
+Membership is the only thing that knows, and Plex already holds it.
+
+The set key is:
+
+| Poster | Its set key |
+| --- | --- |
+| TV show | its own rating key |
+| TV season | its show's rating key |
+| Collection | its own rating key |
+| Movie in a collection | that collection's rating key |
+| Movie in no collection | none — falls back to the title search |
+
+So a show and every season of it share one key, and a collection and every film in
+it share one key. Clicking any member opens the whole set, from any direction —
+which is what "start from a sequel" needed and what no title rule could give.
+
+Two shows that happen to share a title no longer collide either, because a rating
+key is unique where a title is not.
+
+### 1a. Why the title search stays
+
+A film in no collection has no set, and a pure set lookup would show it alone.
+That is *correct* and it is also worse than what the search already does for it:
+"The Matrix" finds its trilogy today by title. Dropping to a set of one would be a
+visible regression on a library that does not use collections much.
+
+So the fallback is kept for posters with no recorded set, and for the window
+before the first import that records one. Nothing that works today stops working;
+the set lookup is strictly an improvement layered over it.
 
 ### 2. Search matches the recorded Plex title, with the filename as fallback
 
@@ -89,6 +125,24 @@ single call site, so the map is built there and no controller signature moves.
 The map must be keyed by category *and* filename, because `browseAll()` merges
 all four categories and filenames are unique only within one — the same reason
 the gallery template already keys its `plex_titles` map that way.
+
+### 2a. Membership is read by walking each collection's children
+
+Plex reports a collection's members at `/library/metadata/<key>/children` — the
+same endpoint shape `seasons()` already uses for a show, which is why this needs
+no new access pattern and no parameter whose support has to be assumed.
+
+The cost is one request per collection per import, on top of the listing already
+made. It is paid on a movie import whether or not collection *posters* are
+wanted, because the membership is a fact about the movie rows rather than about
+any poster. A library with no collections pays nothing, because the collections
+listing comes back empty and there is nothing to walk.
+
+The alternative was `includeCollections=1` on the section listing, which would
+cost no extra requests at all. It was not taken: it could not be verified against
+a real server from here, and shipping an unverifiable optimisation into a change
+that is validated by hand is worse than an import that makes a few more cheap
+requests. If it proves slow in practice, that is the optimisation to reach for.
 
 ### 3. Store `parent_title`; do not parse it back out of the display title
 
@@ -195,8 +249,18 @@ existing `collections` icon.
 ## Risks / Trade-offs
 
 **A title search over-matches.** Two shows called *The Office* appear together.
-→ Accepted and made visible: the query is shown in the summary and is editable in
-the search box (Decision 4). No silent filtering to go wrong.
+→ Only reachable now for a poster with no recorded set. Where a set is recorded
+the key is a rating key, which is unique where a title is not. Where it is not,
+the query is shown in the summary and is editable in the search box (Decision 4).
+
+**The membership walk makes imports slower.** One request per collection.
+→ Bounded by the number of collections, not the size of the library, and each
+response is small. A library with no collections pays nothing. See Decision 2a for
+the cheaper option and why it was not taken.
+
+**A film in a collection the user has not imported still resolves.** Membership is
+recorded on the film's own row, so the set works whether or not the collection's
+own poster was imported — the collection poster simply is not among the results.
 
 **A title search under-matches.** A season Plex names differently from its show
 will not be gathered. → Bounded by Decision 3: the query comes from the recorded

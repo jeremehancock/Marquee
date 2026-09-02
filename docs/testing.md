@@ -469,18 +469,32 @@ This can't be exercised without a real Plex server, so it's a workflow test.
 | Poster count | Unchanged — the file is renamed, not duplicated |
 | **Find Posters** on that item | Offers the correct work's artwork |
 
-### Worth testing separately: a season's show title
+### Worth testing separately: the sets Related posters opens
 
-Seasons record the title of the show they belong to, which is what **Related
-posters** searches for. Mappings written before that was recorded hold nothing,
-and they fill in on the *skip* path — so an established library that downloads no
-posters at all is exactly the case that has to work.
+Each poster records the **set** it belongs to — a season records its show, a film
+records its Plex collection — and **Related posters** shows everything sharing it.
+Mappings written before that was recorded hold nothing, and they fill in on the
+*skip* path, so an established library that downloads no posters at all is
+exactly the case that has to work.
+
+A film's collection is not in the library listing, so an import reads each
+collection's members. That is one request per collection, and it happens on a
+movie import **whether or not you asked for collection posters**.
 
 On a library imported by an older build, run an ordinary import (no re-download),
-then use **Related posters** on any season. It should gather the show's own
-poster and every sibling season, rather than only the season you started from.
-Before that import it finds mainly itself, which is the expected narrow state and
-not a failure.
+then check:
+
+| Check | Expected |
+| --- | --- |
+| **Related posters** on any season | The show's own poster and every sibling season |
+| **Related posters** on a film in a collection | Every other film in that collection, and the collection's poster if it was imported |
+| The same, from a different member | The identical set — it must not matter which member you start from |
+| A collection whose films share no words (MCU, A24, Ghibli) | Still gathered; this is the case a title search cannot reach |
+| **Related posters** on a film in no collection | Falls back to searching that film's title |
+| Import summary | Unchanged — the membership read imports no posters and fails no items |
+
+Before that import, films and seasons fall back to a title search, which is the
+expected narrow state and not a failure.
 
 ### Worth testing separately: a locked poster
 

@@ -32,8 +32,9 @@ final class PosterLibrary
         int $page,
         SortOrder $sort = SortOrder::Alphabetical,
         array $addedAt = [],
+        ?string $setKey = null,
     ): Page {
-        return $this->paginate($this->storage->list($category), $query, $page, $sort, $addedAt);
+        return $this->paginate($this->storage->list($category), $query, $page, $sort, $addedAt, $setKey);
     }
 
     /**
@@ -47,13 +48,14 @@ final class PosterLibrary
         int $page,
         SortOrder $sort = SortOrder::Alphabetical,
         array $addedAt = [],
+        ?string $setKey = null,
     ): Page {
         $posters = [];
         foreach (PosterCategory::all() as $category) {
             $posters = array_merge($posters, $this->storage->list($category));
         }
 
-        return $this->paginate($posters, $query, $page, $sort, $addedAt);
+        return $this->paginate($posters, $query, $page, $sort, $addedAt, $setKey);
     }
 
     /**
@@ -62,12 +64,25 @@ final class PosterLibrary
      * @param list<Poster>                       $posters
      * @param array<string, array<string, int>>  $addedAt
      */
-    private function paginate(array $posters, ?string $query, int $page, SortOrder $sort, array $addedAt): Page
-    {
-        // Searching narrows the listing; it never reorders it. The selected sort
-        // then applies to whatever survives, so the sort control means the same
-        // thing whether or not a search is active.
-        if ($query !== null && trim($query) !== '') {
+    private function paginate(
+        array $posters,
+        ?string $query,
+        int $page,
+        SortOrder $sort,
+        array $addedAt,
+        ?string $setKey = null,
+    ): Page {
+        // A set is an identity, not a description: it narrows the listing to the
+        // posters recorded as belonging to one Plex item — a show with its
+        // seasons, a collection with its films. It is applied before the search
+        // and never alongside it, because the two answer the same question by
+        // different means and the caller sends exactly one of them.
+        if ($setKey !== null && $setKey !== '') {
+            $posters = $this->inSet($posters, $setKey);
+        } elseif ($query !== null && trim($query) !== '') {
+            // Searching narrows the listing; it never reorders it. The selected
+            // sort then applies to whatever survives, so the sort control means
+            // the same thing whether or not a search is active.
             $posters = $this->search->filter($posters, $query, $this->titlesFor($posters));
         }
 
@@ -81,6 +96,32 @@ final class PosterLibrary
         $items = array_slice($posters, ($page - 1) * $perPage, $perPage);
 
         return new Page($items, $page, $perPage, $total);
+    }
+
+    /**
+     * The posters recorded as belonging to one set, in the order they arrived.
+     *
+     * Like the search this only decides which posters survive; the sort applied
+     * below orders them, so a set reads in whatever order the user chose.
+     *
+     * @param list<Poster> $posters
+     *
+     * @return list<Poster>
+     */
+    private function inSet(array $posters, string $setKey): array
+    {
+        $keys = [];
+        foreach ($posters as $poster) {
+            $category = $poster->category->value;
+            if (!isset($keys[$category])) {
+                $keys[$category] = $this->items->setKeysForCategory($category);
+            }
+        }
+
+        return array_values(array_filter(
+            $posters,
+            static fn (Poster $poster): bool => ($keys[$poster->category->value][$poster->filename] ?? '') === $setKey,
+        ));
     }
 
     /**

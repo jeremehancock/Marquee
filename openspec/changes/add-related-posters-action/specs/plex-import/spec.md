@@ -42,14 +42,32 @@ An item that is not a season SHALL record no show title, and that SHALL NOT be
 treated as missing information — a movie, show, or collection has no parent to
 name.
 
+The system SHALL additionally record, for each stored poster, the **set** its item
+belongs to, identified by a Plex rating key: a show and a collection record their
+own, a season records its show's, and a movie records that of the collection it
+belongs to. This is what lets a poster be shown together with the rest of its set
+without matching titles, which cannot express a collection whose films share no
+words in their names.
+
+A movie's collection is not reported by the library listing, so the system SHALL
+read each collection's members and record membership on the movies' own rows. This
+SHALL happen whenever movies are imported, whether or not collection posters were
+among the requested types, because the membership is a fact about the movie rather
+than about any collection's poster. A library that has no collections SHALL cost
+no additional requests.
+
+A movie in no collection SHALL record no set, and that SHALL NOT be treated as
+missing information or as an error — most films belong to no collection.
+
 A mapping records what the Plex item was at the moment it was imported, and a
 Plex item does not hold still. Correcting a bad match — Plex's "Fix Match" — keeps
 the item's rating key but replaces the work behind it: a new title, a new release
 year, a new TMDB identifier. The system SHALL therefore treat the recorded facts
 as a cache to be reconciled rather than as a record written once. On re-import,
 when a mapping already exists for an item's rating key, the system SHALL compare
-the item's current title, release year, TMDB identifier and — for a season — show
-title against the recorded ones and SHALL update the mapping wherever they differ. A recorded fact SHALL NOT
+the item's current title, release year, TMDB identifier, set, and — for a season —
+show title against the recorded ones and SHALL update the mapping wherever they
+differ. A recorded fact SHALL NOT
 be replaced with an unknown one: where Plex now reports nothing, what is already
 recorded stands, because losing a known fact is worse than holding a stale one.
 
@@ -119,6 +137,32 @@ recognises the poster as outstanding and fetches it again.
 - **WHEN** a movie, show, or collection is imported
 - **THEN** the system records no show title for it and the import succeeds
 
+#### Scenario: A show and a collection record themselves as their own set
+- **WHEN** a TV show or a collection is imported
+- **THEN** the system records that item's own rating key as its set
+
+#### Scenario: A season records its show as its set
+- **WHEN** a TV season is imported
+- **THEN** the system records its show's rating key as its set
+
+#### Scenario: A movie records the collection it belongs to
+- **WHEN** a movie that belongs to a Plex collection is imported
+- **THEN** the system records that collection's rating key as the movie's set
+
+#### Scenario: Membership is recorded even when collection posters were not requested
+- **WHEN** a user imports only movies from a library whose movies belong to
+  collections
+- **THEN** each movie's collection is recorded as its set
+- **AND** no collection poster is imported
+
+#### Scenario: A movie in no collection records no set
+- **WHEN** a movie that belongs to no collection is imported
+- **THEN** the system records no set for it and the import succeeds
+
+#### Scenario: A library with no collections costs no extra requests
+- **WHEN** a movie library that has no collections is imported
+- **THEN** no collection membership requests are made
+
 #### Scenario: TMDB identifier recorded for a movie or show
 - **WHEN** a movie or show for which Plex reports a TMDB identifier is imported
 - **THEN** the system stores that identifier with the item's poster mapping
@@ -154,6 +198,19 @@ recognises the poster as outstanding and fetches it again.
   stored mapping has no release year while Plex now reports one
 - **THEN** the system records the year without downloading the poster, and still
   counts the item as skipped
+
+#### Scenario: A skipped item still gains a missing set
+- **WHEN** an import skips an item because its poster is unchanged, and the stored
+  mapping records no set while one is now known
+- **THEN** the system records the set without downloading the poster, and still
+  counts the item as skipped
+
+#### Scenario: Existing mappings gain their sets without a rebuild
+- **WHEN** a library imported by an earlier version of Marquee is imported again
+  and none of its posters have changed
+- **THEN** every mapping gains its set without the user deleting, rebuilding, or
+  forcing a re-download of anything
+- **AND** an item whose set already matches causes no write
 
 #### Scenario: A skipped season still gains a missing show title
 - **WHEN** an import skips a season because its poster is unchanged, and the

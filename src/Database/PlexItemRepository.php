@@ -29,9 +29,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, set_key, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :set_key, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -45,6 +45,7 @@ final class PlexItemRepository
                 season_number = excluded.season_number,
                 tmdb_id = excluded.tmdb_id,
                 parent_title = excluded.parent_title,
+                set_key = excluded.set_key,
                 updated_at = excluded.updated_at'
         );
 
@@ -62,6 +63,7 @@ final class PlexItemRepository
             ':season_number' => $record->seasonNumber,
             ':tmdb_id' => $record->tmdbId,
             ':parent_title' => $record->parentTitle,
+            ':set_key' => $record->setKey,
             ':updated_at' => $record->updatedAt,
         ]);
     }
@@ -227,6 +229,50 @@ final class PlexItemRepository
         }
 
         return $map;
+    }
+
+    /**
+     * The set each mapped poster in a category belongs to, keyed by filename.
+     *
+     * The value is a Plex rating key: a show's or collection's own, a season's
+     * show, a movie's collection. Posters sharing one are shown together by
+     * Related posters. Rows with no set are omitted so the caller falls back to
+     * the title search — a movie in no collection is the ordinary case there.
+     *
+     * @return array<string, string>
+     */
+    public function setKeysForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, set_key FROM plex_items WHERE category = :category AND set_key <> \'\''
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['set_key'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::string($row['set_key']);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The title of the item a set is named by — the show's or the collection's —
+     * so a set view can say what it is showing. Null when the set's own item has
+     * no mapping, which happens when its poster was never imported; the caller
+     * reports the set without a name rather than failing.
+     */
+    public function titleForRatingKey(string $ratingKey): ?string
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT title FROM plex_items WHERE rating_key = :key AND title <> \'\' LIMIT 1'
+        );
+        $stmt->execute([':key' => $ratingKey]);
+        $row = $stmt->fetch();
+
+        return is_array($row) && isset($row['title']) ? Scalar::string($row['title']) : null;
     }
 
     public function deleteByRatingKey(string $ratingKey): void

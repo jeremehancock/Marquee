@@ -189,6 +189,34 @@ final class PaginationScrollTest extends TestCase
         );
     }
 
+    /**
+     * A set is addressed by key, not by text, so following one must empty the
+     * search box. Leaving a stale query there would claim the results came from
+     * text they did not come from — and categoryUrl() would then carry that query
+     * into the next tab the user taps.
+     */
+    public function testFollowingASetEmptiesTheSearchBox(): void
+    {
+        $source = $this->gallerySource();
+
+        $start = strpos($source, "var relatedEl = e.target.closest('[data-related]');");
+        self::assertIsInt($start, 'The delegated click handler must keep a branch for Related posters.');
+        $end = strpos($source, 'return;', $start);
+        self::assertIsInt($end);
+        $branch = substr($source, $start, $end - $start);
+
+        self::assertStringContainsString(
+            'data-related-set',
+            $branch,
+            'The branch must read the recorded set, which is what makes it a set lookup.',
+        );
+        self::assertMatchesRegularExpression(
+            "/setKey \\? '' :/",
+            $branch,
+            'A set must empty the search box; only a poster with no set falls back to its query.',
+        );
+    }
+
     public function testTheSmoothScrollStaysLocalToTheHelper(): void
     {
         // Exactly one mention, inside the helper: the tab switch and the scroll

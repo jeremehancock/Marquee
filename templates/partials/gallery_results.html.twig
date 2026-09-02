@@ -12,7 +12,24 @@
     <span class="card__action-label">{{ label }}</span>
 {% endmacro %}
 
-{% if query is not empty %}
+{% if set_key is defined and set_key is not empty %}
+    {# A set: the posters recorded as belonging to one Plex item — a show with its
+       seasons, a collection with its films. Named where it can be; the item that
+       names it may have no imported poster of its own, and the set is still
+       correct without a name. Its clear control returns to the unfiltered view,
+       exactly as the search's does, so the two filtered states behave alike. #}
+    <div class="stats stats--filter">
+        <span>
+            {% if result.total > 0 %}
+                {{ result.total }} {{ result.total == 1 ? 'poster' : 'posters' }}
+                {%- if set_title %} in {{ set_title }}{% else %} in this set{% endif %}
+            {% else %}
+                Nothing else in this set
+            {% endif %}
+        </span>
+        <a class="search__clear" href="/library/{{ view.value }}">Clear</a>
+    </div>
+{% elseif query is not empty %}
     {# A search is active: name the query and its match count for THIS view, and
        offer a clear control so the filtered state is unmistakable. #}
     <div class="stats stats--filter">
@@ -74,6 +91,19 @@
            query carrying "(1999)" would narrow the search back to this one
            poster, which is the opposite of the point. #}
         {% set related_query = (related_titles[poster.category.value] ?? {})[poster.filename] ?? poster.title %}
+        {# The set this poster belongs to, recorded at import: a show's or a
+           collection's rating key. It is the whole point of the action — a title
+           cannot express a collection whose films share no words ("Iron Man",
+           "Thor"), and cannot tell two works apart that share one.
+
+           Empty for a movie in no collection, for a poster with no Plex record,
+           and for the window before the first import that records sets. Those
+           fall back to the title search above, so nothing that worked before
+           stops working. #}
+        {% set related_set = (set_keys[poster.category.value] ?? {})[poster.filename] ?? '' %}
+        {% set related_href = related_set is not empty
+            ? '/library/all?set=' ~ related_set|url_encode
+            : '/library/all?q=' ~ related_query|url_encode %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ caption_title }}" loading="lazy">
@@ -139,8 +169,9 @@
 
                            data-related carries the query rather than the handler re-deriving
                            it from the href, so the one place it is decided is above. #}
-                        <a class="btn btn--small" href="/library/all?q={{ related_query|url_encode }}"
-                           data-related="{{ related_query }}">{{ _self.action_body('related', 'Related posters') }}</a>
+                        <a class="btn btn--small" href="{{ related_href }}"
+                           data-related="{{ related_query }}"
+                           data-related-set="{{ related_set }}">{{ _self.action_body('related', 'Related posters') }}</a>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">

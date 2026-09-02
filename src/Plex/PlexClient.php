@@ -56,6 +56,18 @@ interface PlexClient
     public function collections(PlexLibrary $library): array;
 
     /**
+     * The items a collection holds, in the order Plex reports them.
+     *
+     * Membership is not carried by the library listing, so it has to be asked
+     * for per collection. This is what lets a film be shown with the rest of its
+     * collection: the films of one often share no words at all in their titles,
+     * so nothing about the film itself can reach the others.
+     *
+     * @return list<PlexItem>
+     */
+    public function collectionChildren(PlexItem $collection): array;
+
+    /**
      * Raw bytes of the item's current Plex poster.
      */
     public function downloadPoster(PlexItem $item): string;

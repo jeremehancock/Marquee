@@ -2163,7 +2163,8 @@
         // changes it does a full page load — so a category fetched without it
         // comes back in the order the user chose. Adding it here would be a
         // second source for something already answered.
-        function categoryUrl(pathname) {
+        function categoryUrl(pathname, setKey) {
+            if (setKey) { return pathname + '?set=' + encodeURIComponent(setKey); }
             var q = search ? search.value.trim() : '';
             return pathname + (q ? '?q=' + encodeURIComponent(q) : '');
         }
@@ -2188,7 +2189,7 @@
             // pinned, where the scroll lock's restore has the last word instead.
             // Both are needed — a category change can start from either state.
             dispatch('gallery:scroll-anchor-reset', {});
-            return load(categoryUrl(pathname), true, opts.prefetched || null)
+            return load(categoryUrl(pathname, opts.set), true, opts.prefetched || null)
                 .then(function () { primeNeighbours(); });
         }
 
@@ -2392,8 +2393,15 @@
                 e.preventDefault();
                 // Closed like every other action reachable from the touch sheet.
                 dispatch('gallery:sheet-close', {});
-                if (search) { search.value = relatedEl.getAttribute('data-related') || ''; }
-                switchCategory('/library/all');
+                // A recorded set is an identity, so it is addressed by key and
+                // the search box is emptied: leaving a stale query in it would
+                // claim the results came from text they did not come from, and
+                // categoryUrl() would then carry that query into the next tab.
+                //
+                // Only a poster with no recorded set falls back to the query.
+                var setKey = relatedEl.getAttribute('data-related-set') || '';
+                if (search) { search.value = setKey ? '' : (relatedEl.getAttribute('data-related') || ''); }
+                switchCategory('/library/all', { set: setKey });
                 return;
             }
             var actionEl = e.target.closest('[data-action]');

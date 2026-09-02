@@ -131,6 +131,45 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         return $items;
     }
 
+    /**
+     * A collection's members, read from the same `/children` endpoint a show's
+     * seasons come from. Movies are `<Video>` nodes; a show collection reports
+     * `<Directory>` nodes, and both are read so a collection of either kind
+     * resolves.
+     *
+     * Only the rating key is used by the caller — membership is recorded on the
+     * member's own row — but whole items are returned so this reads like every
+     * other listing method.
+     */
+    public function collectionChildren(PlexItem $collection): array
+    {
+        $xml = $this->get(sprintf('/library/metadata/%s/children', rawurlencode($collection->ratingKey)));
+
+        $items = [];
+        foreach ($xml->Video as $video) {
+            $items[] = $this->item($video, PlexMediaType::Movie, $this->libraryOf($collection));
+        }
+        foreach ($xml->Directory as $directory) {
+            $items[] = $this->item($directory, PlexMediaType::Show, $this->libraryOf($collection));
+        }
+
+        return $items;
+    }
+
+    /**
+     * The library a collection was listed from, rebuilt from what the collection
+     * already carries. `item()` needs one for the library title it records, and
+     * a collection knows its own section.
+     */
+    private function libraryOf(PlexItem $collection): PlexLibrary
+    {
+        return new PlexLibrary(
+            key: $collection->sectionKey,
+            title: $collection->libraryTitle,
+            type: 'movie',
+        );
+    }
+
     public function downloadPoster(PlexItem $item): string
     {
         if ($item->thumb === null || $item->thumb === '') {

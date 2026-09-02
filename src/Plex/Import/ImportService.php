@@ -57,19 +57,23 @@ final class ImportService
         $wants = static fn (PlexMediaType $type): bool => in_array($type, $mediaTypes, true);
 
         if ($library->isMovie() && $wants(PlexMediaType::Movie)) {
+            // Read once for the whole library rather than per movie: the answer
+            // is a property of the collections, not of any one film.
+            $collectionOf = $this->collectionMembership($library);
             foreach ($this->plex->items($library) as $movie) {
-                $this->importItem($movie, $result, $force);
+                $this->importItem($movie, $result, $force, $collectionOf[$movie->ratingKey] ?? '');
             }
         }
 
         if ($library->isShow() && ($wants(PlexMediaType::Show) || $wants(PlexMediaType::Season))) {
             foreach ($this->plex->items($library) as $show) {
                 if ($wants(PlexMediaType::Show)) {
-                    $this->importItem($show, $result, $force);
+                    // A show is its own set, so its seasons and it agree.
+                    $this->importItem($show, $result, $force, $show->ratingKey);
                 }
                 if ($wants(PlexMediaType::Season)) {
                     foreach ($this->plex->seasons($show) as $season) {
-                        $this->importItem($season, $result, $force);
+                        $this->importItem($season, $result, $force, $show->ratingKey);
                     }
                 }
             }
@@ -77,12 +81,50 @@ final class ImportService
 
         if ($wants(PlexMediaType::Collection)) {
             foreach ($this->plex->collections($library) as $collection) {
-                $this->importItem($collection, $result, $force);
+                // As with a show: the collection is its own set, which is the
+                // same key its films record below.
+                $this->importItem($collection, $result, $force, $collection->ratingKey);
             }
         }
     }
 
-    private function importItem(PlexItem $item, ImportResult $result, bool $force): void
+    /**
+     * Which collection each movie in a library belongs to, keyed by the movie's
+     * rating key.
+     *
+     * Membership is not carried by the library listing, so each collection is
+     * asked for its members. That is one request per collection — bounded by how
+     * many collections a library has rather than by how many films — and a
+     * library with none costs nothing, because there is nothing to walk.
+     *
+     * This runs whenever movies are imported, whether or not collection posters
+     * were asked for: the set is a fact about the movie's own row, and a user who
+     * never imports collection posters still expects a film to open alongside the
+     * rest of its collection.
+     *
+     * A collection Plex cannot list is skipped rather than failing the import.
+     * Membership is an enrichment; losing it costs a film its set until the next
+     * import, and no poster is affected.
+     *
+     * @return array<string, string>
+     */
+    private function collectionMembership(PlexLibrary $library): array
+    {
+        $membership = [];
+        foreach ($this->plex->collections($library) as $collection) {
+            try {
+                foreach ($this->plex->collectionChildren($collection) as $member) {
+                    $membership[$member->ratingKey] = $collection->ratingKey;
+                }
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        return $membership;
+    }
+
+    private function importItem(PlexItem $item, ImportResult $result, bool $force, string $setKey = ''): void
     {
         try {
             $category = $item->mediaType->category();
@@ -106,7 +148,7 @@ final class ImportService
                 // matches, so it is brought back in step even though nothing is
                 // downloaded — this is where a poster locked in Plex lands, and
                 // the only chance to correct one.
-                $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
+                $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category), $setKey);
                 $result->recordSkipped();
 
                 return;
@@ -129,7 +171,7 @@ final class ImportService
                 // The recorded thumb is deliberately not updated, so the next
                 // import still sees a mismatch and tries the download again.
                 if ($existing !== null) {
-                    $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
+                    $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category), $setKey);
                 }
                 $result->recordFailed();
 
@@ -173,6 +215,7 @@ final class ImportService
                 seasonNumber: $item->seasonNumber,
                 tmdbId: $item->tmdbId ?? $existing?->tmdbId,
                 parentTitle: $this->mergedParentTitle($existing, $item),
+                setKey: $setKey !== '' ? $setKey : ($existing->setKey ?? ''),
             ));
 
             $result->recordImported($category);
@@ -241,18 +284,27 @@ final class ImportService
      * whose match was corrected has changed all of them at once and the skip
      * path should not pay repeatedly for one item.
      */
-    private function reconcileFacts(PlexItemRecord $existing, PlexItem $item, string $filename): void
-    {
+    private function reconcileFacts(
+        PlexItemRecord $existing,
+        PlexItem $item,
+        string $filename,
+        string $setKey = '',
+    ): void {
         $title = $this->mergedTitle($existing, $item);
         $year = $item->year ?? $existing->year;
         $tmdbId = $item->tmdbId ?? $existing->tmdbId;
         $parentTitle = $this->mergedParentTitle($existing, $item);
+        // Same rule as every other recorded fact: a known one is never replaced
+        // by an unknown one. This is what backfills the set on an established
+        // library, where every poster is skipped and nothing is downloaded.
+        $set = $setKey !== '' ? $setKey : $existing->setKey;
 
         if (
             $title === $existing->title
             && $year === $existing->year
             && $tmdbId === $existing->tmdbId
             && $parentTitle === $existing->parentTitle
+            && $set === $existing->setKey
             && $filename === $existing->filename
         ) {
             return;
@@ -273,6 +325,7 @@ final class ImportService
             seasonNumber: $existing->seasonNumber,
             tmdbId: $tmdbId,
             parentTitle: $parentTitle,
+            setKey: $set,
         ));
     }
 

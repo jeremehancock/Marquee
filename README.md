@@ -26,9 +26,12 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
     came from.
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
-  - **Related posters** — jump to everything sharing the poster's title: a show
-    together with all of its seasons, or a film with the rest of its trilogy and
-    its collection. Useful for making a set match.
+  - **Related posters** — open the set a poster belongs to: a show with all of
+    its seasons, or a film with the rest of its Plex collection. Works from any
+    member, so a late season or a sequel gets you the whole set, and it holds
+    even for collections whose films share no words in their titles. Useful for
+    making a set match. A film in no collection falls back to searching its
+    title.
   - **Download**, view **Full screen**, or **Delete**.
 - **Plex is the source of truth** — changing a poster uploads it to Plex and
   locks the artwork so Plex won't overwrite it.
