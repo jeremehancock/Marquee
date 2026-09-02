@@ -275,6 +275,32 @@ final class PlexItemRepository
         return is_array($row) && isset($row['title']) ? Scalar::string($row['title']) : null;
     }
 
+    /**
+     * Record an item's set only where it has none yet.
+     *
+     * An item's set can be known while that item's own type is not being
+     * imported: a movie import learns every collection in the library, and a
+     * season import walks each show. Without this, a user who imports only
+     * movies leaves the collection's own poster out of the set its films point
+     * at, and one who imports only seasons leaves the show's poster out of
+     * theirs — the set is right except for the poster that names it.
+     *
+     * Guarded on the set being empty so it can only ever fill a blank. The full
+     * import path owns changing one, and this must not race it.
+     */
+    public function fillMissingSetKey(string $ratingKey, string $setKey): void
+    {
+        if ($setKey === '') {
+            return;
+        }
+
+        $stmt = $this->database->pdo()->prepare(
+            'UPDATE plex_items SET set_key = :set, updated_at = :now
+              WHERE rating_key = :key AND set_key = \'\''
+        );
+        $stmt->execute([':set' => $setKey, ':now' => time(), ':key' => $ratingKey]);
+    }
+
     public function deleteByRatingKey(string $ratingKey): void
     {
         $stmt = $this->database->pdo()->prepare('DELETE FROM plex_items WHERE rating_key = :key');

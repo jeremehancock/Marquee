@@ -481,6 +481,13 @@ A film's collection is not in the library listing, so an import reads each
 collection's members. That is one request per collection, and it happens on a
 movie import **whether or not you asked for collection posters**.
 
+An **ordinary import is enough** — no "Re-download unchanged posters", nothing to
+delete. Sets are recorded on the skip path, so an import that downloads nothing
+still fills them in. Import the types you care about: movies gain their sets when
+movies are imported, seasons when seasons are. The poster a set is *named* after —
+the collection's or the show's — is filled in either way, so a movies-only import
+still leaves the collection's poster inside the set its films point at.
+
 On a library imported by an older build, run an ordinary import (no re-download),
 then check:
 

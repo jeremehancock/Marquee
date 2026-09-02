@@ -76,6 +76,11 @@ final class ImportService
                     $this->importItem($show, $result, $force, $show->ratingKey);
                 }
                 if ($wants(PlexMediaType::Season)) {
+                    // The show names the set its seasons point at, so its own
+                    // poster belongs in that set even when shows were not among
+                    // the requested types. Fills a blank only; importing shows
+                    // above is what owns the value.
+                    $this->items->fillMissingSetKey($show->ratingKey, $show->ratingKey);
                     foreach ($this->plex->seasons($show) as $season) {
                         $this->importItem($season, $result, $force, $show->ratingKey);
                     }
@@ -116,6 +121,10 @@ final class ImportService
     {
         $membership = [];
         foreach ($this->plex->collections($library) as $collection) {
+            // Same reason as the show above: the collection names the set its
+            // films point at, so its poster belongs in that set even on a
+            // movies-only import that never reaches the collection branch.
+            $this->items->fillMissingSetKey($collection->ratingKey, $collection->ratingKey);
             try {
                 foreach ($this->plex->collectionChildren($collection) as $member) {
                     $membership[$member->ratingKey] = $collection->ratingKey;

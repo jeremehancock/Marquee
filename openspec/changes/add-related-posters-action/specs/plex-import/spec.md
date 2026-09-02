@@ -59,6 +59,16 @@ no additional requests.
 A movie in no collection SHALL record no set, and that SHALL NOT be treated as
 missing information or as an error — most films belong to no collection.
 
+An item that **names** a set SHALL record that set even when its own type was not
+among the requested types, provided it has no set recorded already. A movie import
+learns every collection in the library and a season import walks every show, so
+the naming item's set is known in both cases; without recording it, a user who
+imports only movies would leave the collection's own poster outside the set its
+films point at, and one who imports only seasons would leave the show's poster
+outside its seasons' — the set correct except for the poster it is named after,
+which is the one a user is most likely to open it from. This SHALL only fill an
+absent set and SHALL NOT replace a recorded one.
+
 A mapping records what the Plex item was at the moment it was imported, and a
 Plex item does not hold still. Correcting a bad match — Plex's "Fix Match" — keeps
 the item's rating key but replaces the work behind it: a new title, a new release
@@ -148,6 +158,21 @@ recognises the poster as outstanding and fetches it again.
 #### Scenario: A movie records the collection it belongs to
 - **WHEN** a movie that belongs to a Plex collection is imported
 - **THEN** the system records that collection's rating key as the movie's set
+
+#### Scenario: A movies-only import records the collection's own set
+- **WHEN** a user imports only movies from a library whose collections already
+  have imported posters recording no set
+- **THEN** each collection's own poster records that collection as its set
+- **AND** it is shown among the results when one of its films opens the set
+
+#### Scenario: A seasons-only import records the show's own set
+- **WHEN** a user imports only seasons from a library whose shows already have
+  imported posters recording no set
+- **THEN** each show's own poster records itself as its set
+
+#### Scenario: An already-recorded set is never replaced by this
+- **WHEN** an item that names a set already records one
+- **THEN** it is left exactly as it is
 
 #### Scenario: Membership is recorded even when collection posters were not requested
 - **WHEN** a user imports only movies from a library whose movies belong to
