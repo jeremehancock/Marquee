@@ -44,17 +44,32 @@ final class PreviewApplyProgressTest extends TestCase
     }
 
     /**
-     * The function body, from its own name to the next method after it.
-     * Anchoring on both ends keeps the assertions honest if code moves.
+     * The function body, from its own name to the end of the component that
+     * holds it. Anchoring on both ends keeps the assertions honest if code moves.
+     *
+     * The closing anchor is the section banner that follows the whole Alpine
+     * registration, searched forward from the start of the function, rather than
+     * the name of whichever method happens to sit next. It was `copyUrl()` until
+     * Copy URL left the poster actions, at which point every test in this file
+     * failed for a reason that had nothing to do with what any of them assert.
+     * applyPreview() is the last method in the component today, so a banner that
+     * names a different section of the file is the nearest thing to a fixed point.
+     *
+     * The slice therefore runs slightly past the function, over the braces that
+     * close the component. Nothing in them can satisfy an assertion below. A
+     * method added AFTER applyPreview would widen it further, which is the one
+     * way this could go quiet — put a new method before applyPreview, or give
+     * this a tighter anchor at that point.
      */
     private function applyFunction(): string
     {
         $source = $this->gallerySource();
 
         $start = strpos($source, 'applyPreview: function (');
-        $end = strpos($source, 'copyUrl: function (');
         self::assertIsInt($start, 'applyPreview() must exist.');
-        self::assertIsInt($end, 'copyUrl() must follow applyPreview().');
+
+        $end = strpos($source, '// ---- Vanilla enhancement:', $start);
+        self::assertIsInt($end, 'The vanilla-enhancement section must follow applyPreview().');
         self::assertGreaterThan($start, $end);
 
         return substr($source, $start, $end - $start);

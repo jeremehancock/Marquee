@@ -131,6 +131,85 @@ final class HttpPlexClient implements PlexClient, PlexPosterWriter
         return $items;
     }
 
+    /**
+     * A collection's members. Movies come back as `<Video>` nodes and a show
+     * collection's members as `<Directory>` nodes, so both are read and a
+     * collection of either kind resolves.
+     *
+     * Two addresses are tried, in this order, because Plex exposes a collection's
+     * contents at a route of its own **and** at the generic metadata-children
+     * route a show's seasons use, and which one answers has proved not to be
+     * something to assume:
+     *
+     *   /library/collections/<key>/children   the collections API's own route
+     *   /library/metadata/<key>/children      the route seasons come from
+     *
+     * The second is only reached when the first throws or reports nothing, so a
+     * server that answers the first pays for one request exactly as before. An
+     * empty result is treated as "ask the other one" rather than as an answer,
+     * because a collection with no members is not a thing Plex reports — an empty
+     * collection does not appear in the collections listing to begin with.
+     *
+     * This was one route, the second of the two, and every film in every
+     * collection silently kept no set. Related posters then fell back to a title
+     * search everywhere, which is indistinguishable from the feature not being
+     * installed. Do not narrow it back to one without checking a real server.
+     *
+     * Only the rating key is used by the caller — membership is recorded on the
+     * member's own row — but whole items are returned so this reads like every
+     * other listing method.
+     */
+    public function collectionChildren(PlexItem $collection): array
+    {
+        $key = rawurlencode($collection->ratingKey);
+
+        foreach (['/library/collections/%s/children', '/library/metadata/%s/children'] as $path) {
+            try {
+                $items = $this->childItemsOf($this->get(sprintf($path, $key)), $collection);
+            } catch (PlexException) {
+                continue;
+            }
+
+            if ($items !== []) {
+                return $items;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @return list<PlexItem>
+     */
+    private function childItemsOf(SimpleXMLElement $xml, PlexItem $collection): array
+    {
+        $library = $this->libraryOf($collection);
+
+        $items = [];
+        foreach ($xml->Video as $video) {
+            $items[] = $this->item($video, PlexMediaType::Movie, $library);
+        }
+        foreach ($xml->Directory as $directory) {
+            $items[] = $this->item($directory, PlexMediaType::Show, $library);
+        }
+
+        return $items;
+    }
+
+    /**
+     * The library a collection was listed from, rebuilt from what the collection
+     * already carries. `item()` needs one for the library title it records, and
+     * a collection knows its own section.
+     */
+    private function libraryOf(PlexItem $collection): PlexLibrary
+    {
+        return new PlexLibrary(
+            key: $collection->sectionKey,
+            title: $collection->libraryTitle,
+            type: 'movie',
+        );
+    }
+
     public function downloadPoster(PlexItem $item): string
     {
         if ($item->thumb === null || $item->thumb === '') {

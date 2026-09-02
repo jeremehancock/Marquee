@@ -143,9 +143,9 @@
     //
     // The cache-buster is the client's own, not the server's `?v=<mtime>`: the
     // new mtime is only knowable by asking for the grid, which is the request
-    // being avoided. The poster route ignores unknown query parameters (copyUrl
-    // already relies on that), and the next full render restores the canonical
-    // URL, so the two only ever disagree about the spelling.
+    // being avoided. The poster route ignores unknown query parameters, and the
+    // next full render restores the canonical URL, so the two only ever disagree
+    // about the spelling.
     function refreshCard(category, filename) {
         var card = cardFor(category, filename);
         var image = card ? card.querySelector('.card__image') : null;
@@ -406,6 +406,23 @@
             window.scrollTo(0, scrollY);
             locked = false;
         }
+
+        // The captured offset describes the page that was on screen when the
+        // overlay opened. If that page is replaced while the overlay is still up,
+        // the offset means nothing, and restoring it drops the reader part-way
+        // down a list they have never seen.
+        //
+        // Only reachable from the phone action sheet, whose actions all used to
+        // leave the gallery where it was — an overlay opening over it (change
+        // poster, full screen) or a mutation refreshing it in place both SHOULD
+        // come back to the same offset. Related posters was the first to send the
+        // sheet somewhere else, and it lands on a different view.
+        //
+        // This cannot be fixed by scrolling instead. The body is `position: fixed`
+        // for the life of the lock, so the document has no scroll to set; the
+        // restore above is what decides where the page ends up, which makes the
+        // anchor it restores to the only thing worth correcting.
+        window.addEventListener('gallery:scroll-anchor-reset', function () { scrollY = 0; });
 
         function schedule() {
             if (queued) { return; }
@@ -1886,15 +1903,6 @@
                         // an overlay that never lifts.
                         .finally(function () { self.preview.applying = false; });
                 },
-                copyUrl: function (url) {
-                    var self = this;
-                    // Drop the cache-busting ?v= — the server ignores it, so a
-                    // shared link is cleaner and no less correct without it.
-                    var full = window.location.origin + String(url).split('?')[0];
-                    navigator.clipboard.writeText(full)
-                        .then(function () { self.notify('URL copied to clipboard'); })
-                        .catch(function () {});
-                },
             });
         });
     });
@@ -2155,7 +2163,8 @@
         // changes it does a full page load — so a category fetched without it
         // comes back in the order the user chose. Adding it here would be a
         // second source for something already answered.
-        function categoryUrl(pathname) {
+        function categoryUrl(pathname, setKey) {
+            if (setKey) { return pathname + '?set=' + encodeURIComponent(setKey); }
             var q = search ? search.value.trim() : '';
             return pathname + (q ? '?q=' + encodeURIComponent(q) : '');
         }
@@ -2175,7 +2184,12 @@
             var opts = options || {};
             syncActiveTab(pathname);
             window.scrollTo(0, 0);
-            return load(categoryUrl(pathname), true, opts.prefetched || null)
+            // A new view is read from the top. The line above does that when the
+            // page is scrollable; this does it when an overlay still has the body
+            // pinned, where the scroll lock's restore has the last word instead.
+            // Both are needed — a category change can start from either state.
+            dispatch('gallery:scroll-anchor-reset', {});
+            return load(categoryUrl(pathname, opts.set), true, opts.prefetched || null)
                 .then(function () { primeNeighbours(); });
         }
 
@@ -2356,6 +2370,40 @@
                 dispatch('gallery:sheet-close', {});
                 return;
             }
+            // Related posters. Handled before the [data-action] block because it is
+            // an anchor, not a button: with scripting off it is a working link to
+            // the filtered view, and this branch is the enhancement.
+            //
+            // The query is set on the search input and then switchCategory() is
+            // called — the ONE way to change category, which owes the active tab,
+            // the results, the title, a history entry, the carried search, the
+            // scroll position, and infinite scroll re-armed. categoryUrl() reads
+            // the input, so setting it first is what carries the query through.
+            // Do not build the URL and load() it directly; that is the second path
+            // switchCategory exists to prevent.
+            //
+            // Setting .value does not fire an `input` event, so the 250ms live
+            // search debounce cannot also fire for this.
+            //
+            // The All view because a work's related posters need not share its
+            // category: a season's siblings sit in tv-seasons while its show sits
+            // in tv-shows, and a film's collection sits in collections.
+            var relatedEl = e.target.closest('[data-related]');
+            if (relatedEl && root.contains(relatedEl)) {
+                e.preventDefault();
+                // Closed like every other action reachable from the touch sheet.
+                dispatch('gallery:sheet-close', {});
+                // A recorded set is an identity, so it is addressed by key and
+                // the search box is emptied: leaving a stale query in it would
+                // claim the results came from text they did not come from, and
+                // categoryUrl() would then carry that query into the next tab.
+                //
+                // Only a poster with no recorded set falls back to the query.
+                var setKey = relatedEl.getAttribute('data-related-set') || '';
+                if (search) { search.value = setKey ? '' : (relatedEl.getAttribute('data-related') || ''); }
+                switchCategory('/library/all', { set: setKey });
+                return;
+            }
             var actionEl = e.target.closest('[data-action]');
             if (actionEl && root.contains(actionEl)) {
                 var action = actionEl.getAttribute('data-action');
@@ -2364,11 +2412,6 @@
                 if (action === 'view') {
                     e.preventDefault();
                     dispatch('gallery:view', { url: actionEl.getAttribute('data-url') });
-                    return;
-                }
-                if (action === 'copy') {
-                    e.preventDefault();
-                    dispatch('gallery:copy', { url: actionEl.getAttribute('data-url') });
                     return;
                 }
                 if (action === 'change') {

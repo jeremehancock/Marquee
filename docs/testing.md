@@ -30,8 +30,9 @@ for one poster, then verifies the result directly in Plex.
 ### 1. Pick a test item and gather its identifiers
 
 - **`CATEGORY` + `FILENAME`** — the poster in Marquee. Easiest source: hover the
-  poster and read its image URL, `/posters/<CATEGORY>/<FILENAME>`.
-  `CATEGORY` is one of `movies`, `tv-shows`, `tv-seasons`, `collections`.
+  poster and read the **Download** action's link target,
+  `/posters/<CATEGORY>/<FILENAME>`. `CATEGORY` is one of `movies`, `tv-shows`,
+  `tv-seasons`, `collections`.
 - **`RATING_KEY`** — the Plex item. In Plex Web: item → **⋯ → Get Info → View
   XML**; the number in the URL (`…/library/metadata/<RATING_KEY>?…`).
 
@@ -441,9 +442,10 @@ Same flow, but be aware deleting a movie in Plex removes its media files:
 Plex's **Fix Match** keeps an item's rating key but replaces the work behind it:
 new title, new year, new external ids, usually new artwork. Marquee's mapping
 records what the item *was*, so the next import has to reconcile it — including
-renaming the stored poster, because the gallery sorts by the filename and search
-matches against it. A poster left under its old name reads, in a library of any
-size, as the show having vanished.
+renaming the stored poster, because the gallery still *sorts* by the filename.
+(Search no longer matches it: a query is matched against the title Plex recorded,
+which the same reconciliation corrects.) A poster left under its old name sorts,
+in a library of any size, as though the show had vanished.
 
 This can't be exercised without a real Plex server, so it's a workflow test.
 
@@ -466,6 +468,55 @@ This can't be exercised without a real Plex server, so it's a workflow test.
 | Search for the old, wrong title | Finds nothing |
 | Poster count | Unchanged — the file is renamed, not duplicated |
 | **Find Posters** on that item | Offers the correct work's artwork |
+
+### Worth testing separately: the sets Related posters opens
+
+Each poster records the **set** it belongs to — a season records its show, a film
+records its Plex collection — and **Related posters** shows everything sharing it.
+Mappings written before that was recorded hold nothing, and they fill in on the
+*skip* path, so an established library that downloads no posters at all is
+exactly the case that has to work.
+
+A film's collection is not in the library listing, so an import reads each
+collection's members. That is one request per collection, and it happens on a
+movie import **whether or not you asked for collection posters**.
+
+An **ordinary import is enough** — no "Re-download unchanged posters", nothing to
+delete. Sets are recorded on the skip path, so an import that downloads nothing
+still fills them in. Import the types you care about: movies gain their sets when
+movies are imported, seasons when seasons are. The poster a set is *named* after —
+the collection's or the show's — is filled in either way, so a movies-only import
+still leaves the collection's poster inside the set its films point at.
+
+On a library imported by an older build, run an ordinary import (no re-download),
+then check:
+
+| Check | Expected |
+| --- | --- |
+| **Related posters** on any season | The show's own poster and every sibling season |
+| **Related posters** on a film in a collection | Every other film in that collection, and the collection's poster if it was imported |
+| The same, from a different member | The identical set — it must not matter which member you start from |
+| A collection whose films share no words (MCU, A24, Ghibli) | Still gathered; this is the case a title search cannot reach |
+| **Related posters** on a film in no collection | Falls back to searching that film's title |
+| Import summary | Unchanged — the membership read imports no posters and fails no items |
+
+Before that import, films and seasons fall back to a title search, which is the
+expected narrow state and not a failure.
+
+**If it is still searching, do not guess — ask.** A poster with no set and a
+poster whose set could not be read look identical from the gallery. This reports
+which:
+
+```bash
+docker exec -it <container> php /app/www/bin/diagnose-sets.php
+docker exec -it <container> php /app/www/bin/diagnose-sets.php "Jackass"
+```
+
+It prints the collections Plex reports and how many members each one lists, then
+how many stored posters record a set, then — with an argument — each matching
+poster and the set it holds. It reads only: it imports nothing and changes no
+poster. A collection listing `0 member(s)` is the finding; so is a film that Plex
+puts in no collection, which is not a fault and is why the title search remains.
 
 ### Worth testing separately: a locked poster
 

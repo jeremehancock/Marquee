@@ -9,7 +9,7 @@
      category tabs + sort   all, movies, tv-shows, tv-seasons, collections, sort,
                             sort-title, sort-date, sort-direction
      header nav + tray      wall, import, orphans, support, logout
-     poster actions         change, send, fetch, download, copy, fullscreen,
+     poster actions         change, send, fetch, download, related, fullscreen,
                             delete
 
    `fetch` is deliberately an alias of `import` rather than a second drawing of
@@ -26,6 +26,14 @@
    separating Send to Plex from Fetch from Plex — the two actions that move one
    image opposite ways and cannot be undone. Note that the downward arrow the
    import glyph gave up is exactly right for `download`, which now uses it. #}
+
+{# `related` is three poster cards in a row — a full-height one in the centre with
+   a shorter sibling either side. The centre is the poster the action was started
+   from and the flanking pair is the rest of its set, which is the whole idea of
+   Related posters. Drawn as cards rather than as a folder so it cannot be read as
+   the Collections category, and as a row rather than a grid so it cannot be read
+   as the All tab. It replaced the `copy` glyph in place when Copy URL left the
+   action stack; no caller of `copy` remained. #}
 
 {# The sort control's three marks divide the work: `sort-title` and `sort-date`
    name the field, `sort-direction` states which way it runs. Neither field glyph
@@ -73,7 +81,7 @@
         'settings': '<path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h6"/><path d="M14 17h6"/><circle cx="12" cy="17" r="2"/>',
         'change': '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
         'download': '<path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M5 20h14"/>',
-        'copy': '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+        'related': '<rect x="9" y="4.5" width="6" height="15" rx="1.5"/><rect x="2.5" y="7" width="4" height="10" rx="1.5"/><rect x="17.5" y="7" width="4" height="10" rx="1.5"/>',
         'fullscreen': '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
         'delete': '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/><path d="M10 11v6M14 11v6"/>'
     } %}

@@ -25,7 +25,43 @@ final class PlexItemRecord
         public readonly ?int $year = null,
         public readonly ?int $seasonNumber = null,
         public readonly ?string $tmdbId = null,
+        public readonly string $parentTitle = '',
+        /** @var list<string> */
+        public readonly array $setKeys = [],
     ) {
+    }
+
+    /**
+     * The stored form of {@see $setKeys}: the keys joined by commas, or the empty
+     * string for an item in no set. Plex rating keys carry no commas, so nothing
+     * has to be escaped.
+     *
+     * @param list<string> $setKeys
+     */
+    public static function joinSetKeys(array $setKeys): string
+    {
+        return implode(',', $setKeys);
+    }
+
+    /**
+     * The set keys held in a stored value.
+     *
+     * Public so a caller reading the column alone does not have to hydrate a
+     * whole record to parse one string — reading it for every poster in a
+     * library was measurably the most expensive part of rendering the gallery.
+     *
+     * @return list<string>
+     */
+    public static function splitSetKeys(string $stored): array
+    {
+        if ($stored === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            explode(',', $stored),
+            static fn (string $key): bool => $key !== '',
+        ));
     }
 
     /**
@@ -47,6 +83,8 @@ final class PlexItemRecord
             year: Scalar::intOrNull($row['year'] ?? null),
             seasonNumber: Scalar::intOrNull($row['season_number'] ?? null),
             tmdbId: Scalar::stringOrNull($row['tmdb_id'] ?? null),
+            parentTitle: Scalar::string($row['parent_title'] ?? null),
+            setKeys: self::splitSetKeys(Scalar::string($row['set_keys'] ?? null)),
         );
     }
 }

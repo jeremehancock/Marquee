@@ -122,6 +122,101 @@ final class PaginationScrollTest extends TestCase
         );
     }
 
+    /**
+     * Changing category has to leave the reader at the top of the new view, and
+     * on a phone that takes two separate things — which is the whole reason this
+     * is pinned.
+     *
+     * `window.scrollTo(0, 0)` covers the ordinary case. It does nothing at all
+     * when an overlay still holds the scroll lock, because the lock pins the body
+     * with `position: fixed` and a pinned document has no scroll to set. The lock
+     * then restores the offset it captured when the overlay opened, and that
+     * offset is the last word on where the page ends up.
+     *
+     * So a category change also has to tell the lock that the offset no longer
+     * describes anything. Reachable from the phone action sheet: Related posters
+     * closes the sheet and lands on the All view, and without the reset the reader
+     * arrives part-way down a list they have never seen.
+     */
+    public function testChangingCategoryResetsTheScrollLocksAnchor(): void
+    {
+        $source = $this->gallerySource();
+
+        $start = strpos($source, 'function switchCategory(pathname, options) {');
+        self::assertIsInt($start, 'switchCategory() must exist — it is the one way to change category.');
+        $end = strpos($source, 'primeNeighbours();', $start);
+        self::assertIsInt($end);
+        $body = substr($source, $start, $end - $start);
+
+        self::assertStringContainsString(
+            'window.scrollTo(0, 0)',
+            $body,
+            'Changing category must return the view to the top.',
+        );
+        self::assertStringContainsString(
+            "dispatch('gallery:scroll-anchor-reset'",
+            $body,
+            'Changing category must also clear the scroll lock\'s captured offset, which '
+            . 'otherwise restores the previous view\'s position over the top of the new one.',
+        );
+    }
+
+    /**
+     * The other half of the same arrangement: the lock has to listen, and the
+     * listener has to zero the offset the restore reads. Asserted against the
+     * lock\'s own closure rather than the file, so a listener added somewhere
+     * else — where it would set a different variable — does not satisfy this.
+     */
+    public function testTheScrollLockHonoursThatReset(): void
+    {
+        $source = $this->gallerySource();
+
+        $start = strpos($source, 'var locked = false;');
+        self::assertIsInt($start, 'The scroll lock must keep its locked flag.');
+        $end = strpos($source, 'new MutationObserver(schedule)', $start);
+        self::assertIsInt($end, 'The scroll lock must keep its observer.');
+        $lock = substr($source, $start, $end - $start);
+
+        self::assertMatchesRegularExpression(
+            "/addEventListener\\(\\s*'gallery:scroll-anchor-reset'.*?scrollY = 0/s",
+            $lock,
+            'The scroll lock must clear the offset it would otherwise restore.',
+        );
+        self::assertStringContainsString(
+            'window.scrollTo(0, scrollY);',
+            $lock,
+            'The restore this reset exists to correct must still be here.',
+        );
+    }
+
+    /**
+     * A set is addressed by key, not by text, so following one must empty the
+     * search box. Leaving a stale query there would claim the results came from
+     * text they did not come from — and categoryUrl() would then carry that query
+     * into the next tab the user taps.
+     */
+    public function testFollowingASetEmptiesTheSearchBox(): void
+    {
+        $source = $this->gallerySource();
+
+        $start = strpos($source, "var relatedEl = e.target.closest('[data-related]');");
+        self::assertIsInt($start, 'The delegated click handler must keep a branch for Related posters.');
+        $end = strpos($source, 'return;', $start);
+        self::assertIsInt($end);
+        $branch = substr($source, $start, $end - $start);
+
+        self::assertStringContainsString(
+            'data-related-set',
+            $branch,
+            'The branch must read the recorded set, which is what makes it a set lookup.',
+        );
+        self::assertMatchesRegularExpression(
+            "/setKey \\? '' :/",
+            $branch,
+            'A set must empty the search box; only a poster with no set falls back to its query.',
+        );
+    }
+
     public function testTheSmoothScrollStaysLocalToTheHelper(): void
     {
         // Exactly one mention, inside the helper: the tab switch and the scroll

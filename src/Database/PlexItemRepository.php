@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
+use App\Poster\RelatedTitle;
 use App\Support\Scalar;
 
 /**
@@ -28,9 +29,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, set_keys, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :set_keys, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -43,6 +44,8 @@ final class PlexItemRepository
                 year = excluded.year,
                 season_number = excluded.season_number,
                 tmdb_id = excluded.tmdb_id,
+                parent_title = excluded.parent_title,
+                set_keys = excluded.set_keys,
                 updated_at = excluded.updated_at'
         );
 
@@ -59,6 +62,8 @@ final class PlexItemRepository
             ':year' => $record->year,
             ':season_number' => $record->seasonNumber,
             ':tmdb_id' => $record->tmdbId,
+            ':parent_title' => $record->parentTitle,
+            ':set_keys' => PlexItemRecord::joinSetKeys($record->setKeys),
             ':updated_at' => $record->updatedAt,
         ]);
     }
@@ -169,6 +174,139 @@ final class PlexItemRepository
         }
 
         return $map;
+    }
+
+    /**
+     * The title to search for when a user asks for a poster's related posters,
+     * keyed by filename within a category.
+     *
+     * A season answers with its **show's** title, so the search gathers the show
+     * and every sibling season rather than the one season it started from.
+     * Everything else answers with its own title. Resolving that here rather than
+     * at the caller means no surface has to know which kind of item it is holding.
+     *
+     * The year is deliberately not part of this. The caption appends it, but a
+     * query carrying "(1999)" would narrow the search back to the single poster
+     * the action was started from.
+     *
+     * A season imported before show titles were recorded has an empty
+     * `parent_title`; RelatedTitle falls back to stripping the season off the
+     * display title, so the action works on the install it is delivered to rather
+     * than only after the next import. Rows with nothing to offer are omitted so
+     * the caller falls back to the filename-derived title.
+     *
+     * The choice between the two is RelatedTitle's, not this query's — it is a
+     * rule about titles rather than about storage, and it has to be testable
+     * without a database.
+     *
+     * @return array<string, string>
+     */
+    public function relatedTitlesForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, title, parent_title, season_number
+               FROM plex_items
+              WHERE category = :category
+                AND (parent_title <> \'\' OR title <> \'\')'
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (!is_array($row) || !isset($row['filename'])) {
+                continue;
+            }
+
+            $related = RelatedTitle::forRecord(
+                Scalar::string($row['title'] ?? null),
+                Scalar::string($row['parent_title'] ?? null),
+                Scalar::intOrNull($row['season_number'] ?? null),
+            );
+
+            if ($related !== '') {
+                $map[Scalar::string($row['filename'])] = $related;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The sets each mapped poster in a category belongs to, keyed by filename.
+     *
+     * The values are Plex rating keys: a show's or collection's own, a season's
+     * show, a movie's collections. A poster is shown by Related posters when the
+     * requested set is among its keys — which is a list because collections
+     * overlap, and a film in two of them belongs to both.
+     *
+     * Rows in no set are omitted so the caller falls back to the title search — a
+     * movie in no collection is the ordinary case there.
+     *
+     * @return array<string, list<string>>
+     */
+    public function setKeysForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename, set_keys FROM plex_items WHERE category = :category AND set_keys <> \'\''
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (!is_array($row) || !isset($row['filename'], $row['set_keys'])) {
+                continue;
+            }
+
+            $keys = PlexItemRecord::splitSetKeys(Scalar::string($row['set_keys']));
+            if ($keys !== []) {
+                $map[Scalar::string($row['filename'])] = $keys;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The title of the item a set is named by — the show's or the collection's —
+     * so a set view can say what it is showing. Null when the set's own item has
+     * no mapping, which happens when its poster was never imported; the caller
+     * reports the set without a name rather than failing.
+     */
+    public function titleForRatingKey(string $ratingKey): ?string
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT title FROM plex_items WHERE rating_key = :key AND title <> \'\' LIMIT 1'
+        );
+        $stmt->execute([':key' => $ratingKey]);
+        $row = $stmt->fetch();
+
+        return is_array($row) && isset($row['title']) ? Scalar::string($row['title']) : null;
+    }
+
+    /**
+     * Record an item's set only where it has none yet.
+     *
+     * An item's set can be known while that item's own type is not being
+     * imported: a movie import learns every collection in the library, and a
+     * season import walks each show. Without this, a user who imports only
+     * movies leaves the collection's own poster out of the set its films point
+     * at, and one who imports only seasons leaves the show's poster out of
+     * theirs — the set is right except for the poster that names it.
+     *
+     * Guarded on the set being empty so it can only ever fill a blank. The full
+     * import path owns changing one, and this must not race it.
+     */
+    public function fillMissingSetKey(string $ratingKey, string $setKey): void
+    {
+        if ($setKey === '') {
+            return;
+        }
+
+        $stmt = $this->database->pdo()->prepare(
+            'UPDATE plex_items SET set_keys = :set, updated_at = :now
+              WHERE rating_key = :key AND set_keys = \'\''
+        );
+        $stmt->execute([':set' => $setKey, ':now' => time(), ':key' => $ratingKey]);
     }
 
     public function deleteByRatingKey(string $ratingKey): void

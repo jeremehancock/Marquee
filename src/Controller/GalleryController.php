@@ -55,6 +55,13 @@ final class GalleryController
 
         $params = $request->getQueryParams();
         $query = isset($params['q']) && is_string($params['q']) ? $params['q'] : '';
+        // A set is addressed by the Plex rating key of the item it belongs to.
+        // It and a search are alternatives, never combined: Related posters sends
+        // one or the other, so a set present wins and the query is ignored.
+        $setKey = isset($params['set']) && is_string($params['set']) ? trim($params['set']) : '';
+        if ($setKey !== '') {
+            $query = '';
+        }
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
         // Effective sort: a valid ?sort= wins and is remembered, else the
@@ -76,8 +83,8 @@ final class GalleryController
 
         $category = $view->category;
         $result = $category === null
-            ? $this->library->browseAll($query, $page, $sort, $addedAt)
-            : $this->library->browse($category, $query, $page, $sort, $addedAt);
+            ? $this->library->browseAll($query, $page, $sort, $addedAt, $setKey)
+            : $this->library->browse($category, $query, $page, $sort, $addedAt, $setKey);
 
         // Remember the section so Orphans/Import can send the user back to it.
         LastCategory::remember($this->session, $view);
@@ -97,11 +104,21 @@ final class GalleryController
         // year (shown in parentheses). Both are kept even when Plex is not
         // currently configured — the posters and their mappings outlive the
         // connection. Reads only; rendering a title never writes.
+        //
+        // The third map is what Related posters searches for: a season answers
+        // with its show's title so the search gathers the show and its sibling
+        // seasons, everything else with its own. Carries no year, unlike the
+        // caption — a query naming one would narrow the search back to the single
+        // poster the action started from.
         $plexTitles = [];
         $plexYears = [];
+        $relatedTitles = [];
+        $setKeys = [];
         foreach ($view->categories() as $cat) {
             $plexTitles[$cat->value] = $this->plexItems->titlesForCategory($cat->value);
             $plexYears[$cat->value] = $this->plexItems->yearsForCategory($cat->value);
+            $relatedTitles[$cat->value] = $this->plexItems->relatedTitlesForCategory($cat->value);
+            $setKeys[$cat->value] = $this->plexItems->setKeysForCategory($cat->value);
         }
 
         return $this->twig->render($response, 'gallery.html.twig', [
@@ -115,6 +132,14 @@ final class GalleryController
             'linked' => $linked,
             'plex_titles' => $plexTitles,
             'plex_years' => $plexYears,
+            'related_titles' => $relatedTitles,
+            'set_keys' => $setKeys,
+            'set_key' => $setKey,
+            // What to call the set on screen. The item naming it may have no
+            // poster of its own — a collection whose artwork was never imported —
+            // and the view then reports the set without a name rather than
+            // failing, which is why this is nullable.
+            'set_title' => $setKey === '' ? null : $this->plexItems->titleForRatingKey($setKey),
             'sort' => $sort->value,
             'sort_state' => $sortState,
         ]);

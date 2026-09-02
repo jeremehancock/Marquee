@@ -19,6 +19,7 @@ use App\Poster\PosterLibrary;
 use App\Poster\Search\PosterSearch;
 use App\Poster\SortComparator;
 use App\Poster\SortOrder;
+use App\Tests\Support\FailingCollectionWalkClient;
 use App\Tests\Support\FakePlexClient;
 use App\Tests\Support\MakesImages;
 use PHPUnit\Framework\TestCase;
@@ -172,6 +173,564 @@ final class ImportServiceTest extends TestCase
         self::assertNotNull($stored->seasonNumber, 'Specials must store 0, not null');
         self::assertSame(0, $stored->seasonNumber);
         self::assertSame(1, $this->items->findByRatingKey('22')?->seasonNumber);
+    }
+
+    /**
+     * A season records the title of the show it belongs to, as a fact of its own.
+     * The display title it is stored under joins the two ("The Office - Season 1")
+     * and that join cannot be undone by inspecting the result — a show whose own
+     * name contains " - " and a season whose name does are both real — so the
+     * parent is recorded rather than parsed back out.
+     */
+    public function testImportPersistsASeasonsShowTitle(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV');
+        $specials = new PlexItem('21', PlexMediaType::Season, 'Specials', null, '/t/21', 'TV', parentTitle: 'Severance', seasonNumber: 0);
+        $seasonOne = new PlexItem('22', PlexMediaType::Season, 'Season 1', null, '/t/22', 'TV', parentTitle: 'Severance', seasonNumber: 1);
+
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['2' => [$show]],
+            ['20' => [$specials, $seasonOne]],
+        ));
+
+        $service->import(['2'], [PlexMediaType::Season]);
+
+        $specialsRow = $this->items->findByRatingKey('21');
+        $seasonOneRow = $this->items->findByRatingKey('22');
+        self::assertNotNull($specialsRow);
+        self::assertNotNull($seasonOneRow);
+
+        self::assertSame('Severance', $specialsRow->parentTitle);
+        self::assertSame('Severance', $seasonOneRow->parentTitle);
+        // The display title still joins the two; the parent is recorded beside it,
+        // not instead of it.
+        self::assertSame('Severance - Season 1', $seasonOneRow->title);
+    }
+
+    /**
+     * Only a season has a parent to name. A movie, show or collection records the
+     * empty string, and that is a settled state rather than missing information.
+     */
+    public function testAnItemThatIsNotASeasonRecordsNoShowTitle(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', 2022, '/t/20', 'TV');
+
+        $service = $this->service(new FakePlexClient([$library], ['2' => [$show]], []));
+        $service->import(['2'], [PlexMediaType::Show]);
+
+        self::assertSame('', $this->items->findByRatingKey('20')?->parentTitle);
+    }
+
+    /**
+     * The reason the skip path reconciles at all, for this fact as for the others:
+     * an established library skips every season on every import, so a mapping
+     * written before show titles were recorded would never gain one. It backfills
+     * without re-downloading a poster and without the user forcing anything.
+     */
+    public function testSkippedSeasonGainsAMissingShowTitleWithoutRedownloading(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV');
+        $season = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1);
+
+        $plex = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        // Rewind the row to the shape a build without the column left behind,
+        // keeping everything else exactly as imported.
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $stored->ratingKey,
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: $stored->updatedAt,
+            sectionKey: $stored->sectionKey,
+            thumb: $stored->thumb,
+            addedAt: $stored->addedAt,
+            year: $stored->year,
+            seasonNumber: $stored->seasonNumber,
+            tmdbId: $stored->tmdbId,
+            parentTitle: '',
+            setKeys: [],
+        ));
+        $rewound = $items->findByRatingKey('20');
+        self::assertNotNull($rewound);
+        self::assertSame('', $rewound->parentTitle);
+
+        $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        $backfilled = $items->findByRatingKey('20');
+        self::assertNotNull($backfilled);
+        self::assertSame('The Office', $backfilled->parentTitle);
+        // Still a skip: the poster was not fetched again.
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexAgain->downloads);
+        // Nothing else moved.
+        self::assertSame('The Office - Season 1', $backfilled->title);
+        self::assertSame(1, $backfilled->seasonNumber);
+    }
+
+    /**
+     * And once backfilled it costs nothing. A season whose recorded show title
+     * already matches writes no row, so a scheduled import over a settled library
+     * is no more expensive than it was before the column existed.
+     */
+    public function testASeasonWhoseShowTitleAlreadyMatchesIsNotRewritten(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV');
+        $season = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1);
+
+        $plex = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        // A sentinel timestamp no write would leave standing: any upsert stamps
+        // the row with time(). Its survival is the observable proof of no write.
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $stored->ratingKey,
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: 1,
+            sectionKey: $stored->sectionKey,
+            thumb: $stored->thumb,
+            addedAt: $stored->addedAt,
+            year: $stored->year,
+            seasonNumber: $stored->seasonNumber,
+            tmdbId: $stored->tmdbId,
+            parentTitle: $stored->parentTitle,
+            setKeys: $stored->setKeys,
+        ));
+
+        $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertSame(1, $items->findByRatingKey('20')?->updatedAt);
+    }
+
+    /**
+     * A show and a collection are their own set, and a season takes its show's.
+     * That shared key is what lets any member open the whole set.
+     */
+    public function testShowsAndSeasonsShareOneSet(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV');
+        $seasonOne = new PlexItem('22', PlexMediaType::Season, 'Season 1', null, '/t/22', 'TV', parentTitle: 'Severance', seasonNumber: 1);
+        $seasonTwo = new PlexItem('23', PlexMediaType::Season, 'Season 2', null, '/t/23', 'TV', parentTitle: 'Severance', seasonNumber: 2);
+
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['2' => [$show]],
+            ['20' => [$seasonOne, $seasonTwo]],
+        ));
+
+        $service->import(['2'], [PlexMediaType::Show, PlexMediaType::Season]);
+
+        self::assertSame(['20'], $this->items->findByRatingKey('20')?->setKeys);
+        self::assertSame(['20'], $this->items->findByRatingKey('22')?->setKeys);
+        self::assertSame(['20'], $this->items->findByRatingKey('23')?->setKeys);
+    }
+
+    /**
+     * The case a title search could never reach: films whose names have nothing
+     * in common, held together only by the collection they are in.
+     */
+    public function testMoviesRecordTheCollectionTheyBelongTo(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $ironMan = new PlexItem('10', PlexMediaType::Movie, 'Iron Man', 2008, '/t/10', 'Movies');
+        $thor = new PlexItem('11', PlexMediaType::Movie, 'Thor', 2011, '/t/11', 'Movies');
+        $solaris = new PlexItem('12', PlexMediaType::Movie, 'Solaris', 1972, '/t/12', 'Movies');
+        $mcu = new PlexItem('90', PlexMediaType::Collection, 'Marvel Cinematic Universe', null, '/t/90', 'Movies');
+
+        $plex = new FakePlexClient(
+            [$library],
+            ['1' => [$ironMan, $thor, $solaris]],
+            [],
+            ['1' => [$mcu]],
+            membersByCollection: ['90' => [$ironMan, $thor]],
+        );
+
+        $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['90'], $this->items->findByRatingKey('10')?->setKeys);
+        self::assertSame(['90'], $this->items->findByRatingKey('11')?->setKeys);
+        // In no collection, so no set — the ordinary case, not an error.
+        self::assertSame([], $this->items->findByRatingKey('12')?->setKeys);
+    }
+
+    /**
+     * Membership is a fact about the movie's row, not about the collection's
+     * poster, so it is recorded whether or not collection posters were asked for.
+     * A user who never imports collection artwork still expects a film to open
+     * alongside the rest of its collection.
+     */
+    public function testMembershipIsRecordedWhenCollectionPostersWereNotRequested(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $ironMan = new PlexItem('10', PlexMediaType::Movie, 'Iron Man', 2008, '/t/10', 'Movies');
+        $mcu = new PlexItem('90', PlexMediaType::Collection, 'Marvel Cinematic Universe', null, '/t/90', 'Movies');
+
+        $plex = new FakePlexClient(
+            [$library],
+            ['1' => [$ironMan]],
+            [],
+            ['1' => [$mcu]],
+            membersByCollection: ['90' => [$ironMan]],
+        );
+
+        $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['90'], $this->items->findByRatingKey('10')?->setKeys);
+        // The collection's own poster was not among the requested types.
+        self::assertNull($this->items->findByRatingKey('90'));
+    }
+
+    /**
+     * The walk is bounded by how many collections a library has, so a library
+     * with none costs nothing extra.
+     */
+    public function testALibraryWithNoCollectionsIsNotWalked(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $solaris = new PlexItem('12', PlexMediaType::Movie, 'Solaris', 1972, '/t/12', 'Movies');
+
+        $plex = new FakePlexClient([$library], ['1' => [$solaris]]);
+        $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame([], $plex->collectionWalks);
+    }
+
+    /**
+     * Membership is an enrichment. A collection Plex cannot list costs that
+     * collection's films their set until the next import; it does not fail the
+     * import or affect any poster.
+     */
+    public function testACollectionThatCannotBeListedDoesNotFailTheImport(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $ironMan = new PlexItem('10', PlexMediaType::Movie, 'Iron Man', 2008, '/t/10', 'Movies');
+        $mcu = new PlexItem('90', PlexMediaType::Collection, 'Marvel Cinematic Universe', null, '/t/90', 'Movies');
+
+        // No members registered for '90', and the client is told the walk fails.
+        $plex = new FailingCollectionWalkClient(
+            [$library],
+            ['1' => [$ironMan]],
+            [],
+            ['1' => [$mcu]],
+        );
+
+        $result = $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(1, $result->imported());
+        self::assertSame(0, $result->failed());
+        self::assertSame([], $this->items->findByRatingKey('10')?->setKeys);
+    }
+
+    /**
+     * The backfill the established library depends on: every poster is skipped,
+     * nothing is downloaded, and the sets still land.
+     */
+    public function testSkippedItemsStillGainTheirSets(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'Severance', 2022, '/t/2', 'TV');
+        $season = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2022, $thumb, 'TV', parentTitle: 'Severance', seasonNumber: 1);
+
+        $plex = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        // Rewind to the shape a build without the column left behind.
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $stored->ratingKey,
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: $stored->updatedAt,
+            sectionKey: $stored->sectionKey,
+            thumb: $stored->thumb,
+            addedAt: $stored->addedAt,
+            year: $stored->year,
+            seasonNumber: $stored->seasonNumber,
+            tmdbId: $stored->tmdbId,
+            parentTitle: $stored->parentTitle,
+            setKeys: [],
+        ));
+
+        $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        self::assertSame(['2'], $items->findByRatingKey('20')?->setKeys);
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexAgain->downloads);
+    }
+
+    /**
+     * A movies-only import must still leave the collection's own poster inside
+     * the set its films point at. Without this the set is right except for the
+     * poster that names it, which is the one a user is most likely to open it
+     * from.
+     */
+    public function testAMoviesOnlyImportStillSetsTheCollectionsOwnPoster(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $ironMan = new PlexItem('10', PlexMediaType::Movie, 'Iron Man', 2008, '/t/10', 'Movies');
+        $mcu = new PlexItem('90', PlexMediaType::Collection, 'Marvel Cinematic Universe', null, '/t/90', 'Movies');
+
+        $client = fn (): FakePlexClient => new FakePlexClient(
+            [$library],
+            ['1' => [$ironMan]],
+            [],
+            ['1' => [$mcu]],
+            membersByCollection: ['90' => [$ironMan]],
+        );
+
+        // The collection's poster exists from an earlier import that predates sets.
+        (new ImportService($client(), $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Collection]);
+        $stored = $items->findByRatingKey('90');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: '90',
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: 1,
+            thumb: $stored->thumb,
+            setKeys: [],
+        ));
+
+        // Now a movies-only import, which never reaches the collection branch.
+        (new ImportService($client(), $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['90'], $items->findByRatingKey('10')?->setKeys, 'The film records its collection.');
+        self::assertSame(['90'], $items->findByRatingKey('90')?->setKeys, 'So does the collection itself.');
+    }
+
+    /**
+     * The same for a seasons-only import and the show's own poster.
+     */
+    public function testASeasonsOnlyImportStillSetsTheShowsOwnPoster(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV');
+        $season = new PlexItem('22', PlexMediaType::Season, 'Season 1', null, '/t/22', 'TV', parentTitle: 'Severance', seasonNumber: 1);
+
+        $client = fn (): FakePlexClient => new FakePlexClient([$library], ['2' => [$show]], ['20' => [$season]]);
+
+        (new ImportService($client(), $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Show]);
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: '20',
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: 1,
+            thumb: $stored->thumb,
+            setKeys: [],
+        ));
+
+        (new ImportService($client(), $storage, $items, $libraryRepo))->import(['2'], [PlexMediaType::Season]);
+
+        self::assertSame(['20'], $items->findByRatingKey('22')?->setKeys, 'The season records its show.');
+        self::assertSame(['20'], $items->findByRatingKey('20')?->setKeys, 'So does the show itself.');
+    }
+
+    /**
+     * It fills a blank and never overwrites: the import path owns changing a
+     * recorded set, and this must not race it.
+     */
+    public function testFillingASetNeverOverwritesOne(): void
+    {
+        $items = new PlexItemRepository(new Database(':memory:'));
+        $items->upsert(new PlexItemRecord(
+            ratingKey: '90',
+            mediaType: 'collection',
+            category: 'collections',
+            libraryTitle: 'Movies',
+            title: 'Marvel Cinematic Universe',
+            filename: 'MCU.png',
+            updatedAt: 1,
+            setKeys: ['already-set'],
+        ));
+
+        $items->fillMissingSetKey('90', '90');
+
+        $after = $items->findByRatingKey('90');
+        self::assertNotNull($after);
+        self::assertSame(['already-set'], $after->setKeys);
+        self::assertSame(1, $after->updatedAt, 'No write, so no new timestamp.');
+    }
+
+    /**
+     * A film can be in more than one collection — "Godzilla vs. Kong" is in both
+     * King Kong and MonsterVerse — and it belongs to both.
+     *
+     * Recording one meant the collection read first took the film, and every
+     * other collection sharing it was left holding nothing but its own poster.
+     */
+    public function testAFilmInTwoCollectionsBelongsToBoth(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $godzilla = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $skull = new PlexItem('11', PlexMediaType::Movie, 'Kong: Skull Island', 2017, '/t/11', 'Movies');
+        $kong = new PlexItem('15512', PlexMediaType::Collection, 'King Kong', null, '/t/15512', 'Movies');
+        $verse = new PlexItem('15553', PlexMediaType::Collection, 'MonsterVerse', null, '/t/15553', 'Movies');
+
+        $plex = new FakePlexClient(
+            [$library],
+            ['1' => [$godzilla, $skull]],
+            [],
+            ['1' => [$kong, $verse]],
+            membersByCollection: [
+                '15512' => [$godzilla],
+                '15553' => [$godzilla, $skull],
+            ],
+        );
+
+        $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['15512', '15553'], $this->items->findByRatingKey('10')?->setKeys);
+        self::assertSame(['15553'], $this->items->findByRatingKey('11')?->setKeys);
+    }
+
+    /**
+     * A collection is a relationship a user removes on purpose, and Plex says so
+     * by omission rather than by reporting anything. Holding the old membership
+     * kept showing a film in a collection it had left.
+     *
+     * This is where set reconciliation departs from every other recorded fact: a
+     * release year Plex has momentarily stopped reporting is better held stale
+     * than lost, but an absent membership is an answer.
+     */
+    public function testAFilmTakenOffACollectionLosesThatSet(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $film = new PlexItem('10', PlexMediaType::Movie, 'Jackass 2.5', 2007, $thumb, 'Movies');
+        $collection = new PlexItem('80', PlexMediaType::Collection, 'Jackass', null, '/t/80', 'Movies');
+
+        // Imported while it was in the collection.
+        $before = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => [$film]],
+        );
+        (new ImportService($before, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+        self::assertSame(['80'], $items->findByRatingKey('10')?->setKeys);
+
+        // Taken off the collection in Plex. The poster has not changed, so this
+        // is the skip path — the one an established library actually takes.
+        $after = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => []],
+        );
+        $result = (new ImportService($after, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame([], $items->findByRatingKey('10')->setKeys, 'It has left the collection.');
+        self::assertSame(1, $result->skipped());
+        self::assertSame([], $after->downloads, 'Nothing was re-downloaded to notice.');
+    }
+
+    /**
+     * The other half, and the reason removal cannot simply act on an empty
+     * result: a collection that will not list produces the same emptiness. One
+     * failed request must not take every film out of every set.
+     */
+    public function testAFailedMembershipReadLeavesRecordedSetsAlone(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $thumb = '/library/metadata/10/thumb/1';
+        $film = new PlexItem('10', PlexMediaType::Movie, 'Jackass 2.5', 2007, $thumb, 'Movies');
+        $collection = new PlexItem('80', PlexMediaType::Collection, 'Jackass', null, '/t/80', 'Movies');
+
+        $before = new FakePlexClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+            membersByCollection: ['80' => [$film]],
+        );
+        (new ImportService($before, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+        self::assertSame(['80'], $items->findByRatingKey('10')?->setKeys);
+
+        $broken = new FailingCollectionWalkClient(
+            [$library],
+            ['1' => [$film]],
+            [],
+            ['1' => [$collection]],
+        );
+        $result = (new ImportService($broken, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(['80'], $items->findByRatingKey('10')->setKeys, 'A failed read concludes nothing.');
+        self::assertSame(0, $result->failed(), 'And does not fail the import.');
     }
 
     public function testReimportOverwritesWithoutDuplicating(): void

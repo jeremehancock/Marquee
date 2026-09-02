@@ -51,7 +51,6 @@
 {% block content %}
 <div data-gallery data-base="{{ base }}" x-data="galleryUI"
      @gallery:view.window="view($event.detail.url)"
-     @gallery:copy.window="copyUrl($event.detail.url)"
      @gallery:change.window="openChange($event.detail.filename, $event.detail.title, $event.detail.category, $event.detail.linked)"
      @gallery:confirm.window="askConfirm($event.detail)"
      @gallery:toast.window="notify($event.detail.text)"

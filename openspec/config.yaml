@@ -70,7 +70,7 @@ context: |
     - plex-import         (type-first import, skip-unchanged, item mapping,
                            filenames, library tracking)
     - plex-export         (upload to Plex, poster locking, Kometa overlay label)
-    - poster-editing      (change in place, re-send, fetch, download, copy)
+    - poster-editing      (change in place, re-send, fetch, download)
     - poster-sources      (candidate posters to change to: Plex Posters, the
                            artwork the connected server already holds for an
                            item; and Find Posters via posteria.app:

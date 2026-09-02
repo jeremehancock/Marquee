@@ -12,7 +12,24 @@
     <span class="card__action-label">{{ label }}</span>
 {% endmacro %}
 
-{% if query is not empty %}
+{% if set_key is defined and set_key is not empty %}
+    {# A set: the posters recorded as belonging to one Plex item — a show with its
+       seasons, a collection with its films. Named where it can be; the item that
+       names it may have no imported poster of its own, and the set is still
+       correct without a name. Its clear control returns to the unfiltered view,
+       exactly as the search's does, so the two filtered states behave alike. #}
+    <div class="stats stats--filter">
+        <span>
+            {% if result.total > 0 %}
+                {{ result.total }} {{ result.total == 1 ? 'poster' : 'posters' }}
+                {%- if set_title %} in {{ set_title }}{% else %} in this set{% endif %}
+            {% else %}
+                Nothing else in this set
+            {% endif %}
+        </span>
+        <a class="search__clear" href="/library/{{ view.value }}">Clear</a>
+    </div>
+{% elseif query is not empty %}
     {# A search is active: name the query and its match count for THIS view, and
        offer a clear control so the filtered state is unmistakable. #}
     <div class="stats stats--filter">
@@ -25,6 +42,24 @@
         </span>
         <a class="search__clear" href="/library/{{ view.value }}">Clear search</a>
     </div>
+    {% if result.broaderQuery %}
+        {# A way out of the narrow result a library without Plex collections gets.
+           Related posters shows the set a poster belongs to, and a film in no
+           collection has none, so the action falls back to searching that film's
+           own title — which reaches the rest of a series only from the shortest
+           title in it. "The Matrix" finds its sequels; "The Matrix Reloaded"
+           finds itself.
+
+           OFFERED, NEVER APPLIED. The cut behind it is a guess, and a guess is
+           only acceptable here because the reader makes it: the count travels
+           with the link, so a candidate far too broad says so before anyone
+           follows it. Nothing widens a search on its own. #}
+        <p class="stats stats--suggest">
+            Looking for the rest of a series?
+            <a href="/library/{{ view.value }}?q={{ result.broaderQuery|url_encode }}">Try
+                “{{ result.broaderQuery }}” ({{ result.broaderTotal }} matches)</a>
+        </p>
+    {% endif %}
 {% else %}
     <p class="stats">
         {% if result.total > 0 %}
@@ -64,6 +99,36 @@
         {% set poster_title = (plex_titles[poster.category.value] ?? {})[poster.filename] ?? null %}
         {% set poster_year = (plex_years[poster.category.value] ?? {})[poster.filename] ?? null %}
         {% set caption_title = poster.captionTitle(poster_title, poster_year) %}
+        {# What Related posters searches for. A season answers with its show's
+           title, so the search gathers the show and every sibling season rather
+           than the one season it started from; everything else answers with its
+           own. Falls back to the filename-derived title for a poster with no Plex
+           record — narrow, never wrong.
+
+           Deliberately NOT caption_title: that appends the release year, and a
+           query carrying "(1999)" would narrow the search back to this one
+           poster, which is the opposite of the point. #}
+        {% set related_query = (related_titles[poster.category.value] ?? {})[poster.filename] ?? poster.title %}
+        {# The set this poster belongs to, recorded at import: a show's or a
+           collection's rating key. It is the whole point of the action — a title
+           cannot express a collection whose films share no words ("Iron Man",
+           "Thor"), and cannot tell two works apart that share one.
+
+           Empty for a movie in no collection, for a poster with no Plex record,
+           and for the window before the first import that records sets. Those
+           fall back to the title search above, so nothing that worked before
+           stops working. #}
+        {# The sets this poster belongs to. A film can be in several collections,
+           so the link opens the first — the poster it was activated from is in
+           every one of them, and a single link has to choose. The set VIEW then
+           matches on membership, so opening a collection's own poster gathers
+           every film listing that collection, including films that also belong to
+           another. #}
+        {% set related_sets = (set_keys[poster.category.value] ?? {})[poster.filename] ?? [] %}
+        {% set related_set = related_sets is not empty ? related_sets|first : '' %}
+        {% set related_href = related_set is not empty
+            ? '/library/all?set=' ~ related_set|url_encode
+            : '/library/all?q=' ~ related_query|url_encode %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ caption_title }}" loading="lazy">
@@ -119,7 +184,19 @@
                             </form>
                         {% endif %}
                         <a class="btn btn--small" href="{{ poster.url }}" download>{{ _self.action_body('download', 'Download') }}</a>
-                        <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">{{ _self.action_body('copy', 'Copy URL') }}</button>
+                        {# An anchor rather than a button, like Download above it. With no
+                           JavaScript this is a working full page load to the filtered view;
+                           with it, the gallery intercepts the click and switches view without
+                           a reload. Being a real link, it can also be middle-clicked, opened
+                           in a new tab, and copied — which is a more useful "copy" than the
+                           Copy URL action it replaced, whose address only ever resolved
+                           inside the session that produced it.
+
+                           data-related carries the query rather than the handler re-deriving
+                           it from the href, so the one place it is decided is above. #}
+                        <a class="btn btn--small" href="{{ related_href }}"
+                           data-related="{{ related_query }}"
+                           data-related-set="{{ related_set }}">{{ _self.action_body('related', 'Related posters') }}</a>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">

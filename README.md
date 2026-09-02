@@ -26,7 +26,16 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
     came from.
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
-  - **Download**, **Copy URL**, view **Full screen**, or **Delete**.
+  - **Related posters** — open the set a poster belongs to: a show with all of
+    its seasons, or a film with the rest of its Plex collection. Works from any
+    member, so a late season or a sequel gets you the whole set, and it holds
+    even for collections whose films share no words in their titles. Useful for
+    making a set match. A film in no collection falls back to searching its
+    title, and where that finds only itself the gallery offers a shorter query —
+    "Jackass" for "Jackass: Best and Last" — with the number of posters it would
+    find, so you can widen the search yourself without it ever widening on its
+    own.
+  - **Download**, view **Full screen**, or **Delete**.
 - **Plex is the source of truth** — changing a poster uploads it to Plex and
   locks the artwork so Plex won't overwrite it.
 - **Efficient imports** — Marquee skips re-downloading posters that haven't
@@ -397,9 +406,9 @@ fresh import.
 **I fixed a wrong match in Plex. Do I need to do anything in Marquee?**
 Just run an import. When you correct a match in Plex — the **Fix Match** option —
 the item becomes a different movie or show, and the next import brings Marquee's
-copy into line: the poster is renamed to the new title, so it sorts and searches
-under that title rather than the old one, and the details behind **Find Posters**
-are corrected too. This happens even if the artwork itself didn't change, so a
+copy into line: the recorded title is corrected, so the poster is captioned and
+found under the new title rather than the old one, the file is renamed so it sorts
+there too, and the details behind **Find Posters** are corrected as well. This happens even if the artwork itself didn't change, so a
 poster you'd already customised and locked is fixed up as well.
 
 **Something's wrong with my posters. Can I start over?**

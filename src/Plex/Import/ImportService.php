@@ -13,6 +13,7 @@ use App\Plex\PlexLibrary;
 use App\Plex\PlexMediaType;
 use App\Poster\PosterCategory;
 use App\Poster\PosterStorage;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -26,6 +27,9 @@ final class ImportService
         private readonly PosterStorage $storage,
         private readonly PlexItemRepository $items,
         private readonly PlexLibraryRepository $libraries,
+        // Nullable and last so the many direct constructions in tests keep
+        // working. Autowiring supplies the real one.
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -57,19 +61,28 @@ final class ImportService
         $wants = static fn (PlexMediaType $type): bool => in_array($type, $mediaTypes, true);
 
         if ($library->isMovie() && $wants(PlexMediaType::Movie)) {
+            // Read once for the whole library rather than per movie: the answer
+            // is a property of the collections, not of any one film.
+            $collectionsOf = $this->collectionMembership($library);
             foreach ($this->plex->items($library) as $movie) {
-                $this->importItem($movie, $result, $force);
+                $this->importItem($movie, $result, $force, $collectionsOf->setsFor($movie->ratingKey));
             }
         }
 
         if ($library->isShow() && ($wants(PlexMediaType::Show) || $wants(PlexMediaType::Season))) {
             foreach ($this->plex->items($library) as $show) {
                 if ($wants(PlexMediaType::Show)) {
-                    $this->importItem($show, $result, $force);
+                    // A show is its own set, so its seasons and it agree.
+                    $this->importItem($show, $result, $force, [$show->ratingKey]);
                 }
                 if ($wants(PlexMediaType::Season)) {
+                    // The show names the set its seasons point at, so its own
+                    // poster belongs in that set even when shows were not among
+                    // the requested types. Fills a blank only; importing shows
+                    // above is what owns the value.
+                    $this->items->fillMissingSetKey($show->ratingKey, $show->ratingKey);
                     foreach ($this->plex->seasons($show) as $season) {
-                        $this->importItem($season, $result, $force);
+                        $this->importItem($season, $result, $force, [$show->ratingKey]);
                     }
                 }
             }
@@ -77,12 +90,89 @@ final class ImportService
 
         if ($wants(PlexMediaType::Collection)) {
             foreach ($this->plex->collections($library) as $collection) {
-                $this->importItem($collection, $result, $force);
+                // As with a show: the collection is its own set, which is the
+                // same key its films record below.
+                $this->importItem($collection, $result, $force, [$collection->ratingKey]);
             }
         }
     }
 
-    private function importItem(PlexItem $item, ImportResult $result, bool $force): void
+    /**
+     * Which collections each movie in a library belongs to, keyed by the movie's
+     * rating key.
+     *
+     * Membership is not carried by the library listing, so each collection is
+     * asked for its members. That is one request per collection — bounded by how
+     * many collections a library has rather than by how many films — and a
+     * library with none costs nothing, because there is nothing to walk.
+     *
+     * This runs whenever movies are imported, whether or not collection posters
+     * were asked for: the set is a fact about the movie's own row, and a user who
+     * never imports collection posters still expects a film to open alongside the
+     * rest of its collection.
+     *
+     * A collection Plex cannot list is skipped rather than failing the import.
+     * Membership is an enrichment; losing it costs a film its set until the next
+     * import, and no poster is affected.
+     *
+     * A movie can be in several. "Godzilla vs. Kong" is in both King Kong and
+     * MonsterVerse; "Planes" in both Planes and Thanksgiving. Recording only one
+     * meant the collection read first took the film, and every other collection
+     * sharing it was left holding nothing but its own poster.
+     *
+     * A collection that cannot be listed makes the answer incomplete rather than
+     * merely smaller: an empty result then means "not known" instead of "in no
+     * collection", and a film's recorded sets are left alone. Without that
+     * distinction one failed request would take every film out of every set.
+     */
+    private function collectionMembership(PlexLibrary $library): CollectionMembership
+    {
+        $membership = [];
+        $complete = true;
+        foreach ($this->plex->collections($library) as $collection) {
+            // Same reason as the show above: the collection names the set its
+            // films point at, so its poster belongs in that set even on a
+            // movies-only import that never reaches the collection branch.
+            $this->items->fillMissingSetKey($collection->ratingKey, $collection->ratingKey);
+            try {
+                foreach ($this->plex->collectionChildren($collection) as $member) {
+                    $membership[$member->ratingKey][] = $collection->ratingKey;
+                }
+            } catch (Throwable $e) {
+                // Swallowing this silently was a mistake worth naming: a server
+                // that answers the collections listing but not a collection's
+                // members leaves every film without a set, and Related posters
+                // then falls back to a title search everywhere — which looks
+                // exactly like the feature not being deployed. There was nothing
+                // anywhere to tell the two apart. Say so in the log.
+                $this->logger?->warning('Could not read the members of a Plex collection.', [
+                    'collection' => $collection->title,
+                    'rating_key' => $collection->ratingKey,
+                    'library' => $library->title,
+                    'error' => $e->getMessage(),
+                ]);
+                $complete = false;
+                continue;
+            }
+        }
+
+        if ($membership === []) {
+            $this->logger?->info('No Plex collection membership was recorded for a library.', [
+                'library' => $library->title,
+            ]);
+        }
+
+        return $complete
+            ? CollectionMembership::complete($membership)
+            : CollectionMembership::partial($membership);
+    }
+
+    /**
+     * @param list<string>|null $setKeys the sets this item belongs to, or null
+     *        when nothing could be concluded and whatever is recorded should
+     *        stand. An empty list is an answer — "in no set" — and removes one.
+     */
+    private function importItem(PlexItem $item, ImportResult $result, bool $force, ?array $setKeys = null): void
     {
         try {
             $category = $item->mediaType->category();
@@ -106,7 +196,7 @@ final class ImportService
                 // matches, so it is brought back in step even though nothing is
                 // downloaded — this is where a poster locked in Plex lands, and
                 // the only chance to correct one.
-                $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
+                $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category), $setKeys);
                 $result->recordSkipped();
 
                 return;
@@ -129,7 +219,7 @@ final class ImportService
                 // The recorded thumb is deliberately not updated, so the next
                 // import still sees a mismatch and tries the download again.
                 if ($existing !== null) {
-                    $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category));
+                    $this->reconcileFacts($existing, $item, $this->renamedToMatch($existing, $item, $category), $setKeys);
                 }
                 $result->recordFailed();
 
@@ -172,6 +262,8 @@ final class ImportService
                 year: $item->year ?? $existing?->year,
                 seasonNumber: $item->seasonNumber,
                 tmdbId: $item->tmdbId ?? $existing?->tmdbId,
+                parentTitle: $this->mergedParentTitle($existing, $item),
+                setKeys: $setKeys ?? ($existing->setKeys ?? []),
             ));
 
             $result->recordImported($category);
@@ -240,16 +332,34 @@ final class ImportService
      * whose match was corrected has changed all of them at once and the skip
      * path should not pay repeatedly for one item.
      */
-    private function reconcileFacts(PlexItemRecord $existing, PlexItem $item, string $filename): void
-    {
+    /**
+     * @param list<string>|null $setKeys see {@see importItem()}
+     */
+    private function reconcileFacts(
+        PlexItemRecord $existing,
+        PlexItem $item,
+        string $filename,
+        ?array $setKeys = null,
+    ): void {
         $title = $this->mergedTitle($existing, $item);
         $year = $item->year ?? $existing->year;
         $tmdbId = $item->tmdbId ?? $existing->tmdbId;
+        $parentTitle = $this->mergedParentTitle($existing, $item);
+        // Unlike every other fact here, a set can legitimately be REMOVED: a
+        // film taken off a collection in Plex has left it, and holding the old
+        // membership would keep showing it there. So an empty list replaces what
+        // is recorded — but only when the read that produced it was complete,
+        // which is what null distinguishes. Null means nothing was concluded and
+        // the recorded sets stand, which is also what backfills an established
+        // library where every poster is skipped.
+        $sets = $setKeys ?? $existing->setKeys;
 
         if (
             $title === $existing->title
             && $year === $existing->year
             && $tmdbId === $existing->tmdbId
+            && $parentTitle === $existing->parentTitle
+            && $sets === $existing->setKeys
             && $filename === $existing->filename
         ) {
             return;
@@ -269,6 +379,8 @@ final class ImportService
             year: $year,
             seasonNumber: $existing->seasonNumber,
             tmdbId: $tmdbId,
+            parentTitle: $parentTitle,
+            setKeys: $sets,
         ));
     }
 
@@ -285,6 +397,32 @@ final class ImportService
         }
 
         return $existing === null ? '' : $existing->title;
+    }
+
+    /**
+     * The show title to record for a season: Plex's, unless it reports none and
+     * we already have one. Only seasons have a parent, so everything else records
+     * the empty string and keeps it.
+     *
+     * Recorded separately from the display title rather than derived from it. The
+     * display title is the show's and the season's joined ("Breaking Bad -
+     * Season 5"), and the join cannot be undone: splitting at the first separator
+     * misreads a show whose own name contains one, and splitting at the last
+     * misreads a season whose name does. Plex reports the two separately here, so
+     * nothing has to be guessed.
+     *
+     * A mapping written before this column existed holds the empty string, and
+     * the next import fills it in through reconcileFacts() without downloading
+     * the poster again.
+     */
+    private function mergedParentTitle(?PlexItemRecord $existing, PlexItem $item): string
+    {
+        $parentTitle = $item->parentTitle ?? '';
+        if ($parentTitle !== '') {
+            return $parentTitle;
+        }
+
+        return $existing === null ? '' : $existing->parentTitle;
     }
 
     private function deriveFilename(PlexItem $item, string $bytes): string

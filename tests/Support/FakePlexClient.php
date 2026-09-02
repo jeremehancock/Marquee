@@ -16,10 +16,13 @@ use SimpleXMLElement;
 /**
  * In-memory PlexClient for tests: canned libraries/items and generated posters.
  */
-final class FakePlexClient implements PlexClient
+class FakePlexClient implements PlexClient
 {
     /** @var list<string> rating keys whose poster was actually downloaded */
     public array $downloads = [];
+
+    /** @var list<string> collection rating keys whose members were asked for */
+    public array $collectionWalks = [];
 
     /**
      * @param list<PlexLibrary>                $libraries
@@ -33,6 +36,8 @@ final class FakePlexClient implements PlexClient
      * @param string|null                      $serverName       the server's friendly name, null when unknown
      * @param array<array-key, string>         $postersByKey     raw posters XML, keyed by rating key
      * @param bool                             $failLibraries    whether listing libraries fails, as an unreachable server does
+     * @param array<array-key, list<PlexItem>> $membersByCollection collection members, keyed by collection rating key.
+     *        Last so that adding it shifts no existing positional caller.
      */
     public function __construct(
         private readonly array $libraries = [],
@@ -47,6 +52,7 @@ final class FakePlexClient implements PlexClient
         private readonly ?string $serverName = 'Anansi',
         private readonly array $postersByKey = [],
         private readonly bool $failLibraries = false,
+        private readonly array $membersByCollection = [],
     ) {
     }
 
@@ -94,6 +100,13 @@ final class FakePlexClient implements PlexClient
     public function collections(PlexLibrary $library): array
     {
         return $this->collectionsByKey[$library->key] ?? [];
+    }
+
+    public function collectionChildren(PlexItem $collection): array
+    {
+        $this->collectionWalks[] = $collection->ratingKey;
+
+        return $this->membersByCollection[$collection->ratingKey] ?? [];
     }
 
     public function downloadPoster(PlexItem $item): string
