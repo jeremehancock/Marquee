@@ -50,13 +50,108 @@ final class PosterSearchTest extends TestCase
         self::assertSame(['Star Wars'], $result);
     }
 
+    /**
+     * The filename this poster actually reaches disk with. Import sanitises every
+     * character outside A-Za-z0-9._- to an underscore and appends the source
+     * library, so "Amélie" is stored as Am_lie_2001_Movies.png and its
+     * filename-derived title is "Am lie 2001 Movies".
+     *
+     * This test used to build a poster literally named `Amélie.png`, which
+     * plex-import cannot produce — posters enter the library only through it. So
+     * the accent case passed against a shape the app never creates, while the
+     * real one could not be found by its own name at all: the query folds to
+     * "amelie", which is not a substring of "am lie".
+     *
+     * It is the recorded Plex title that makes it findable, which is why the map
+     * is what this asserts on.
+     */
+    public function testAnAccentedTitleIsFoundByItsOwnName(): void
+    {
+        $posters = $this->posters(['Am_lie_2001_Movies.png', 'Other_Movies.png']);
+        $titles = ['movies' => ['Am_lie_2001_Movies.png' => 'Amélie']];
+
+        $result = $this->search->filter($posters, 'Amélie', $titles);
+
+        self::assertCount(1, $result);
+        self::assertSame('Am_lie_2001_Movies.png', $result[0]->filename);
+    }
+
     public function testAccentAndCaseInsensitive(): void
     {
-        $posters = $this->posters(['Amélie.png', 'Other.png']);
+        $posters = $this->posters(['Am_lie_2001_Movies.png', 'Other_Movies.png']);
+        $titles = ['movies' => ['Am_lie_2001_Movies.png' => 'Amélie']];
 
-        $result = $this->titles($this->search->filter($posters, 'amelie'));
+        $result = $this->search->filter($posters, 'amelie', $titles);
 
-        self::assertSame(['Amélie'], $result);
+        self::assertCount(1, $result);
+        self::assertSame('Am_lie_2001_Movies.png', $result[0]->filename);
+    }
+
+    /**
+     * A poster with no Plex record — or one whose recorded title is empty — is
+     * matched on its filename exactly as before. This is what keeps an orphan
+     * findable.
+     */
+    public function testAPosterWithNoRecordedTitleFallsBackToItsFilename(): void
+    {
+        $posters = $this->posters(['Solaris.png', 'Dune.png']);
+
+        self::assertSame(['Solaris'], $this->titles($this->search->filter($posters, 'solaris')));
+        self::assertSame(
+            ['Solaris'],
+            $this->titles($this->search->filter($posters, 'solaris', ['movies' => ['Solaris.png' => '']])),
+        );
+    }
+
+    /**
+     * Import appends the source library to every filename. Matching the filename
+     * therefore made the library name silently searchable, even though it appears
+     * nowhere on the card. With the recorded title as the haystack it does not.
+     */
+    public function testTheSourceLibraryIsNotSearchable(): void
+    {
+        $posters = $this->posters(['Solaris_1972_Movies.png']);
+        $titles = ['movies' => ['Solaris_1972_Movies.png' => 'Solaris']];
+
+        self::assertSame([], $this->search->filter($posters, 'movies', $titles));
+        self::assertCount(1, $this->search->filter($posters, 'solaris', $titles));
+    }
+
+    /**
+     * Exactly one haystack per poster. Matching the filename as well would look
+     * safer, but it is the accidental behaviour that would be preserved: a poster
+     * matching for reasons the user cannot see on the card.
+     */
+    public function testTheFilenameIsNotAlsoMatchedWhenATitleIsRecorded(): void
+    {
+        $posters = $this->posters(['Old_Working_Title.png']);
+        $titles = ['movies' => ['Old_Working_Title.png' => 'Stalker']];
+
+        self::assertSame([], $this->search->filter($posters, 'working', $titles));
+        self::assertCount(1, $this->search->filter($posters, 'stalker', $titles));
+    }
+
+    /**
+     * Filenames are unique only within a category and the All view merges all
+     * four, so the map is keyed by both. A title recorded under one category must
+     * not decide the haystack for a same-named file in another.
+     */
+    public function testTheMapIsKeyedByCategoryAsWellAsFilename(): void
+    {
+        $posters = [
+            new Poster(PosterCategory::Movies, 'Dune.png', 100, 0),
+            new Poster(PosterCategory::Collections, 'Dune.png', 100, 0),
+        ];
+        $titles = ['movies' => ['Dune.png' => 'Arrakis']];
+
+        $arrakis = $this->search->filter($posters, 'arrakis', $titles);
+        self::assertCount(1, $arrakis);
+        self::assertSame(PosterCategory::Movies, $arrakis[0]->category);
+
+        // The collections poster keeps its filename-derived title.
+        $dune = $this->search->filter($posters, 'dune', $titles);
+        self::assertCount(1, $dune);
+        self::assertSame(PosterCategory::Collections, $dune[0]->category);
     }
 
     public function testNoMatchReturnsEmpty(): void

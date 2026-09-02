@@ -172,6 +172,7 @@ final class ImportService
                 year: $item->year ?? $existing?->year,
                 seasonNumber: $item->seasonNumber,
                 tmdbId: $item->tmdbId ?? $existing?->tmdbId,
+                parentTitle: $this->mergedParentTitle($existing, $item),
             ));
 
             $result->recordImported($category);
@@ -245,11 +246,13 @@ final class ImportService
         $title = $this->mergedTitle($existing, $item);
         $year = $item->year ?? $existing->year;
         $tmdbId = $item->tmdbId ?? $existing->tmdbId;
+        $parentTitle = $this->mergedParentTitle($existing, $item);
 
         if (
             $title === $existing->title
             && $year === $existing->year
             && $tmdbId === $existing->tmdbId
+            && $parentTitle === $existing->parentTitle
             && $filename === $existing->filename
         ) {
             return;
@@ -269,6 +272,7 @@ final class ImportService
             year: $year,
             seasonNumber: $existing->seasonNumber,
             tmdbId: $tmdbId,
+            parentTitle: $parentTitle,
         ));
     }
 
@@ -285,6 +289,32 @@ final class ImportService
         }
 
         return $existing === null ? '' : $existing->title;
+    }
+
+    /**
+     * The show title to record for a season: Plex's, unless it reports none and
+     * we already have one. Only seasons have a parent, so everything else records
+     * the empty string and keeps it.
+     *
+     * Recorded separately from the display title rather than derived from it. The
+     * display title is the show's and the season's joined ("Breaking Bad -
+     * Season 5"), and the join cannot be undone: splitting at the first separator
+     * misreads a show whose own name contains one, and splitting at the last
+     * misreads a season whose name does. Plex reports the two separately here, so
+     * nothing has to be guessed.
+     *
+     * A mapping written before this column existed holds the empty string, and
+     * the next import fills it in through reconcileFacts() without downloading
+     * the poster again.
+     */
+    private function mergedParentTitle(?PlexItemRecord $existing, PlexItem $item): string
+    {
+        $parentTitle = $item->parentTitle ?? '';
+        if ($parentTitle !== '') {
+            return $parentTitle;
+        }
+
+        return $existing === null ? '' : $existing->parentTitle;
     }
 
     private function deriveFilename(PlexItem $item, string $bytes): string

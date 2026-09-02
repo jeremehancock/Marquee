@@ -64,6 +64,16 @@
         {% set poster_title = (plex_titles[poster.category.value] ?? {})[poster.filename] ?? null %}
         {% set poster_year = (plex_years[poster.category.value] ?? {})[poster.filename] ?? null %}
         {% set caption_title = poster.captionTitle(poster_title, poster_year) %}
+        {# What Related posters searches for. A season answers with its show's
+           title, so the search gathers the show and every sibling season rather
+           than the one season it started from; everything else answers with its
+           own. Falls back to the filename-derived title for a poster with no Plex
+           record — narrow, never wrong.
+
+           Deliberately NOT caption_title: that appends the release year, and a
+           query carrying "(1999)" would narrow the search back to this one
+           poster, which is the opposite of the point. #}
+        {% set related_query = (related_titles[poster.category.value] ?? {})[poster.filename] ?? poster.title %}
         <figure class="card">
             <div class="card__frame">
                 <img class="card__image" src="{{ poster.url }}" alt="{{ caption_title }}" loading="lazy">
@@ -119,7 +129,18 @@
                             </form>
                         {% endif %}
                         <a class="btn btn--small" href="{{ poster.url }}" download>{{ _self.action_body('download', 'Download') }}</a>
-                        <button type="button" class="btn btn--small" data-action="copy" data-url="{{ poster.url }}">{{ _self.action_body('copy', 'Copy URL') }}</button>
+                        {# An anchor rather than a button, like Download above it. With no
+                           JavaScript this is a working full page load to the filtered view;
+                           with it, the gallery intercepts the click and switches view without
+                           a reload. Being a real link, it can also be middle-clicked, opened
+                           in a new tab, and copied — which is a more useful "copy" than the
+                           Copy URL action it replaced, whose address only ever resolved
+                           inside the session that produced it.
+
+                           data-related carries the query rather than the handler re-deriving
+                           it from the href, so the one place it is decided is above. #}
+                        <a class="btn btn--small" href="/library/all?q={{ related_query|url_encode }}"
+                           data-related="{{ related_query }}">{{ _self.action_body('related', 'Related posters') }}</a>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">

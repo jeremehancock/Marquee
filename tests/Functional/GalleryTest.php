@@ -596,13 +596,171 @@ final class GalleryTest extends AppTestCase
         self::assertStringContainsString('class="card__image" src="/posters/movies/Solaris.png?v=', $body);
         self::assertMatchesRegularExpression('/href="\/posters\/movies\/Solaris\.png\?v=\d+" download/', $body);
         self::assertMatchesRegularExpression(
-            '/data-action="copy" data-url="\/posters\/movies\/Solaris\.png\?v=\d+"/',
-            $body,
-        );
-        self::assertMatchesRegularExpression(
             '/data-action="view" data-url="\/posters\/movies\/Solaris\.png\?v=\d+"/',
             $body,
         );
+
+        // Related posters is deliberately absent from that list: it addresses a
+        // filtered view, not the image, so an in-place update has nothing to
+        // rewrite on it. Pinned here so a future change that gives it the poster
+        // URL has to come past this comment.
+        self::assertStringNotContainsString('data-related="/posters/', $body);
+    }
+
+    /**
+     * Related posters searches for the poster's title, which for a season is its
+     * SHOW's title — so the action gathers the show and every sibling season
+     * rather than the one season it started from.
+     */
+    public function testRelatedPostersSearchesTheShowTitleForASeason(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePosterIn('tv-seasons', 'Severance_-_Season_1_TV.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '1',
+            mediaType: 'season',
+            category: 'tv-seasons',
+            libraryTitle: 'TV',
+            title: 'Severance - Season 1',
+            filename: 'Severance_-_Season_1_TV.png',
+            updatedAt: time(),
+            year: 2022,
+            seasonNumber: 1,
+            parentTitle: 'Severance',
+        ));
+
+        $app = $this->makeSignedInApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+        ]);
+        $body = (string) $this->get($app, '/library/tv-seasons')->getBody();
+
+        self::assertStringContainsString('data-related="Severance"', $body);
+        self::assertStringContainsString('href="/library/all?q=Severance"', $body);
+        // Not the season's own title, which would find only this poster.
+        self::assertStringNotContainsString('data-related="Severance - Season 1"', $body);
+    }
+
+    /**
+     * The window between upgrading and the next import: a season whose show title
+     * has not been recorded yet answers with its own title. It finds mainly
+     * itself, which is narrow rather than wrong, and it widens on its own once an
+     * ordinary import backfills the column.
+     */
+    public function testASeasonWithNoRecordedShowTitleFallsBackToItsOwn(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePosterIn('tv-seasons', 'Severance_-_Season_1_TV.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '1',
+            mediaType: 'season',
+            category: 'tv-seasons',
+            libraryTitle: 'TV',
+            title: 'Severance - Season 1',
+            filename: 'Severance_-_Season_1_TV.png',
+            updatedAt: time(),
+            seasonNumber: 1,
+            // As a build before the column left it.
+            parentTitle: '',
+        ));
+
+        $app = $this->makeSignedInApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+        ]);
+        $body = (string) $this->get($app, '/library/tv-seasons')->getBody();
+
+        self::assertStringContainsString('data-related="Severance - Season 1"', $body);
+    }
+
+    /**
+     * A movie searches its own title, and without the release year the caption
+     * appends — a query carrying "(1972)" would narrow the search back to the one
+     * poster the action was started from, which is the opposite of the point.
+     */
+    public function testRelatedPostersOmitsTheReleaseYear(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris_1972_Movies.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            ratingKey: '1',
+            mediaType: 'movie',
+            category: 'movies',
+            libraryTitle: 'Movies',
+            title: 'Solaris',
+            filename: 'Solaris_1972_Movies.png',
+            updatedAt: time(),
+            year: 1972,
+        ));
+
+        $app = $this->makeSignedInApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+        ]);
+        $body = (string) $this->get($app, '/library/movies')->getBody();
+
+        // The caption carries the year; the query must not.
+        self::assertStringContainsString('Solaris (1972)', $body);
+        self::assertStringContainsString('data-related="Solaris"', $body);
+        self::assertStringNotContainsString('data-related="Solaris (1972)"', $body);
+    }
+
+    /**
+     * Offered for every poster, whatever its category and whether or not it is
+     * linked to Plex. A poster with no mapping searches its own filename-derived
+     * title — narrow, never wrong, and never a control switched off with a reason
+     * it cannot speak.
+     */
+    public function testRelatedPostersIsOfferedForEveryPoster(): void
+    {
+        foreach (['movies', 'tv-shows', 'tv-seasons', 'collections'] as $category) {
+            $this->writePosterIn($category, 'Solaris.png');
+        }
+
+        $body = (string) $this->get($this->app(), '/library/all')->getBody();
+
+        self::assertSame(
+            4,
+            substr_count($body, 'data-related="Solaris"'),
+            'Every poster must offer Related posters, mapped to Plex or not.',
+        );
+        self::assertStringNotContainsString('aria-disabled', $this->cardActions($body));
+    }
+
+    /**
+     * A link, not a button. With scripting off it is a working navigation to the
+     * filtered view; the gallery only intercepts it as an enhancement. It is also
+     * why the action can be middle-clicked and copied.
+     */
+    public function testRelatedPostersIsALinkThatWorksWithoutScripting(): void
+    {
+        $this->writePoster('Solaris.png');
+        $actions = $this->cardActions((string) $this->get($this->app(), '/library/movies')->getBody());
+
+        self::assertMatchesRegularExpression(
+            '/<a class="btn btn--small" href="\/library\/all\?q=Solaris"[^>]*data-related="Solaris"/',
+            $actions,
+        );
+    }
+
+    /**
+     * Copy URL is gone, and its clipboard wiring with it. The address it produced
+     * was behind the session, so a copied link only ever resolved in the browser
+     * that copied it.
+     */
+    public function testCopyUrlIsNoLongerOffered(): void
+    {
+        $this->writePoster('Solaris.png');
+        $body = (string) $this->get($this->app(), '/library/movies')->getBody();
+
+        self::assertStringNotContainsString('Copy URL', $body);
+        self::assertStringNotContainsString('data-action="copy"', $body);
     }
 
     /**
@@ -616,7 +774,7 @@ final class GalleryTest extends AppTestCase
         $this->writePoster('Solaris.png');
         $actions = $this->cardActions((string) $this->get($this->app(), '/library/movies')->getBody());
 
-        foreach (['Change poster', 'Download', 'Copy URL', 'Full screen', 'Delete'] as $label) {
+        foreach (['Change poster', 'Download', 'Related posters', 'Full screen', 'Delete'] as $label) {
             self::assertStringContainsString(
                 '<span class="card__action-label">' . $label . '</span>',
                 $actions,
@@ -634,6 +792,51 @@ final class GalleryTest extends AppTestCase
             'aria-label',
             $actions,
             'The label names the control; an aria-label would compete with it.',
+        );
+    }
+
+    /**
+     * The card's height is a fixed ratio of the grid's column width, and the
+     * minimum column width is sized for the tallest possible stack — the seven
+     * actions of a poster linked to Plex. Related posters took the place of Copy
+     * URL rather than being added beside it, so that count is unchanged and the
+     * grid does not have to widen (and show fewer posters per row).
+     *
+     * The label is the same length as the longest one already there ("Fetch from
+     * Plex"), so nothing wraps that did not wrap before.
+     */
+    public function testTheActionStackDidNotGrow(): void
+    {
+        $dataDir = $this->makeTempDir();
+        $this->writePoster('Solaris.png');
+
+        $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
+        $repo->upsert(new PlexItemRecord(
+            '1',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.png',
+            time(),
+        ));
+
+        $app = $this->makeSignedInApp([
+            'POSTERS_DIR' => $this->postersDir,
+            'DATA_DIR' => $dataDir,
+        ]);
+        $actions = $this->cardActions((string) $this->get($app, '/library/movies')->getBody());
+
+        self::assertSame(
+            7,
+            preg_match_all('/<span class="card__action-ico" aria-hidden="true">/', $actions),
+            'A poster linked to Plex shows seven actions — the count the grid is sized for.',
+        );
+        self::assertStringContainsString('<span class="card__action-label">Related posters</span>', $actions);
+        self::assertSame(
+            strlen('Fetch from Plex'),
+            strlen('Related posters'),
+            'The new label is no longer than the longest one the stack already held.',
         );
     }
 

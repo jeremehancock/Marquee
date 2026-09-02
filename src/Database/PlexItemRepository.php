@@ -28,9 +28,9 @@ final class PlexItemRepository
     {
         $stmt = $this->database->pdo()->prepare(
             'INSERT INTO plex_items
-                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, updated_at)
+                (rating_key, media_type, category, library_title, section_key, title, filename, thumb, added_at, year, season_number, tmdb_id, parent_title, updated_at)
              VALUES
-                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :updated_at)
+                (:rating_key, :media_type, :category, :library_title, :section_key, :title, :filename, :thumb, :added_at, :year, :season_number, :tmdb_id, :parent_title, :updated_at)
              ON CONFLICT(rating_key) DO UPDATE SET
                 media_type = excluded.media_type,
                 category = excluded.category,
@@ -43,6 +43,7 @@ final class PlexItemRepository
                 year = excluded.year,
                 season_number = excluded.season_number,
                 tmdb_id = excluded.tmdb_id,
+                parent_title = excluded.parent_title,
                 updated_at = excluded.updated_at'
         );
 
@@ -59,6 +60,7 @@ final class PlexItemRepository
             ':year' => $record->year,
             ':season_number' => $record->seasonNumber,
             ':tmdb_id' => $record->tmdbId,
+            ':parent_title' => $record->parentTitle,
             ':updated_at' => $record->updatedAt,
         ]);
     }
@@ -165,6 +167,47 @@ final class PlexItemRepository
         foreach ($stmt->fetchAll() as $row) {
             if (is_array($row) && isset($row['filename'], $row['year'])) {
                 $map[Scalar::string($row['filename'])] = Scalar::int($row['year']);
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * The title to search for when a user asks for a poster's related posters,
+     * keyed by filename within a category.
+     *
+     * A season answers with its **show's** title, so the search gathers the show
+     * and every sibling season rather than the one season it started from.
+     * Everything else answers with its own title. Resolving that here rather than
+     * at the caller means no surface has to know which kind of item it is holding.
+     *
+     * The year is deliberately not part of this. The caption appends it, but a
+     * query carrying "(1999)" would narrow the search back to the single poster
+     * the action was started from.
+     *
+     * A season imported before show titles were recorded has an empty
+     * `parent_title` and answers with its own title until the next import fills
+     * it in — narrow rather than wrong. Rows with nothing to offer are omitted so
+     * the caller falls back to the filename-derived title.
+     *
+     * @return array<string, string>
+     */
+    public function relatedTitlesForCategory(string $category): array
+    {
+        $stmt = $this->database->pdo()->prepare(
+            'SELECT filename,
+                    CASE WHEN parent_title <> \'\' THEN parent_title ELSE title END AS related_title
+               FROM plex_items
+              WHERE category = :category
+                AND (parent_title <> \'\' OR title <> \'\')'
+        );
+        $stmt->execute([':category' => $category]);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (is_array($row) && isset($row['filename'], $row['related_title'])) {
+                $map[Scalar::string($row['filename'])] = Scalar::string($row['related_title']);
             }
         }
 

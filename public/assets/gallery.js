@@ -143,9 +143,9 @@
     //
     // The cache-buster is the client's own, not the server's `?v=<mtime>`: the
     // new mtime is only knowable by asking for the grid, which is the request
-    // being avoided. The poster route ignores unknown query parameters (copyUrl
-    // already relies on that), and the next full render restores the canonical
-    // URL, so the two only ever disagree about the spelling.
+    // being avoided. The poster route ignores unknown query parameters, and the
+    // next full render restores the canonical URL, so the two only ever disagree
+    // about the spelling.
     function refreshCard(category, filename) {
         var card = cardFor(category, filename);
         var image = card ? card.querySelector('.card__image') : null;
@@ -1886,15 +1886,6 @@
                         // an overlay that never lifts.
                         .finally(function () { self.preview.applying = false; });
                 },
-                copyUrl: function (url) {
-                    var self = this;
-                    // Drop the cache-busting ?v= — the server ignores it, so a
-                    // shared link is cleaner and no less correct without it.
-                    var full = window.location.origin + String(url).split('?')[0];
-                    navigator.clipboard.writeText(full)
-                        .then(function () { self.notify('URL copied to clipboard'); })
-                        .catch(function () {});
-                },
             });
         });
     });
@@ -2356,6 +2347,33 @@
                 dispatch('gallery:sheet-close', {});
                 return;
             }
+            // Related posters. Handled before the [data-action] block because it is
+            // an anchor, not a button: with scripting off it is a working link to
+            // the filtered view, and this branch is the enhancement.
+            //
+            // The query is set on the search input and then switchCategory() is
+            // called — the ONE way to change category, which owes the active tab,
+            // the results, the title, a history entry, the carried search, the
+            // scroll position, and infinite scroll re-armed. categoryUrl() reads
+            // the input, so setting it first is what carries the query through.
+            // Do not build the URL and load() it directly; that is the second path
+            // switchCategory exists to prevent.
+            //
+            // Setting .value does not fire an `input` event, so the 250ms live
+            // search debounce cannot also fire for this.
+            //
+            // The All view because a work's related posters need not share its
+            // category: a season's siblings sit in tv-seasons while its show sits
+            // in tv-shows, and a film's collection sits in collections.
+            var relatedEl = e.target.closest('[data-related]');
+            if (relatedEl && root.contains(relatedEl)) {
+                e.preventDefault();
+                // Closed like every other action reachable from the touch sheet.
+                dispatch('gallery:sheet-close', {});
+                if (search) { search.value = relatedEl.getAttribute('data-related') || ''; }
+                switchCategory('/library/all');
+                return;
+            }
             var actionEl = e.target.closest('[data-action]');
             if (actionEl && root.contains(actionEl)) {
                 var action = actionEl.getAttribute('data-action');
@@ -2364,11 +2382,6 @@
                 if (action === 'view') {
                     e.preventDefault();
                     dispatch('gallery:view', { url: actionEl.getAttribute('data-url') });
-                    return;
-                }
-                if (action === 'copy') {
-                    e.preventDefault();
-                    dispatch('gallery:copy', { url: actionEl.getAttribute('data-url') });
                     return;
                 }
                 if (action === 'change') {

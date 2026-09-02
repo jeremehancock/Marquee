@@ -123,6 +123,17 @@ final class Database
         // is a normal permanent state: a collection is a local Plex grouping
         // with no upstream record, and an unmatched item has no id either.
         $this->ensureColumn($pdo, 'plex_items', 'tmdb_id', 'TEXT');
+        // The title of the show a season belongs to, recorded as a fact of its
+        // own rather than left inside the season's display title. That title is
+        // the show's and the season's joined ("Breaking Bad - Season 5"), and the
+        // join cannot be undone by inspecting the result: splitting at the first
+        // separator misreads a show whose name contains one ("Cowboy Bebop -
+        // Remastered"), and splitting at the last misreads a season whose name
+        // does ("Part 2 - Finale"). Plex reports the two separately at import, so
+        // nothing has to be guessed. Empty for everything that is not a season —
+        // a movie, show or collection has no parent to name — which is why this
+        // defaults rather than being nullable.
+        $this->ensureColumn($pdo, 'plex_items', 'parent_title', "TEXT NOT NULL DEFAULT ''");
     }
 
     private function ensureColumn(PDO $pdo, string $table, string $column, string $type): void

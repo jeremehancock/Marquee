@@ -97,11 +97,19 @@ final class GalleryController
         // year (shown in parentheses). Both are kept even when Plex is not
         // currently configured — the posters and their mappings outlive the
         // connection. Reads only; rendering a title never writes.
+        //
+        // The third map is what Related posters searches for: a season answers
+        // with its show's title so the search gathers the show and its sibling
+        // seasons, everything else with its own. Carries no year, unlike the
+        // caption — a query naming one would narrow the search back to the single
+        // poster the action started from.
         $plexTitles = [];
         $plexYears = [];
+        $relatedTitles = [];
         foreach ($view->categories() as $cat) {
             $plexTitles[$cat->value] = $this->plexItems->titlesForCategory($cat->value);
             $plexYears[$cat->value] = $this->plexItems->yearsForCategory($cat->value);
+            $relatedTitles[$cat->value] = $this->plexItems->relatedTitlesForCategory($cat->value);
         }
 
         return $this->twig->render($response, 'gallery.html.twig', [
@@ -115,6 +123,7 @@ final class GalleryController
             'linked' => $linked,
             'plex_titles' => $plexTitles,
             'plex_years' => $plexYears,
+            'related_titles' => $relatedTitles,
             'sort' => $sort->value,
             'sort_state' => $sortState,
         ]);

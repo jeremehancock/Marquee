@@ -30,8 +30,9 @@ for one poster, then verifies the result directly in Plex.
 ### 1. Pick a test item and gather its identifiers
 
 - **`CATEGORY` + `FILENAME`** — the poster in Marquee. Easiest source: hover the
-  poster and read its image URL, `/posters/<CATEGORY>/<FILENAME>`.
-  `CATEGORY` is one of `movies`, `tv-shows`, `tv-seasons`, `collections`.
+  poster and read the **Download** action's link target,
+  `/posters/<CATEGORY>/<FILENAME>`. `CATEGORY` is one of `movies`, `tv-shows`,
+  `tv-seasons`, `collections`.
 - **`RATING_KEY`** — the Plex item. In Plex Web: item → **⋯ → Get Info → View
   XML**; the number in the URL (`…/library/metadata/<RATING_KEY>?…`).
 
@@ -441,9 +442,10 @@ Same flow, but be aware deleting a movie in Plex removes its media files:
 Plex's **Fix Match** keeps an item's rating key but replaces the work behind it:
 new title, new year, new external ids, usually new artwork. Marquee's mapping
 records what the item *was*, so the next import has to reconcile it — including
-renaming the stored poster, because the gallery sorts by the filename and search
-matches against it. A poster left under its old name reads, in a library of any
-size, as the show having vanished.
+renaming the stored poster, because the gallery still *sorts* by the filename.
+(Search no longer matches it: a query is matched against the title Plex recorded,
+which the same reconciliation corrects.) A poster left under its old name sorts,
+in a library of any size, as though the show had vanished.
 
 This can't be exercised without a real Plex server, so it's a workflow test.
 
@@ -466,6 +468,19 @@ This can't be exercised without a real Plex server, so it's a workflow test.
 | Search for the old, wrong title | Finds nothing |
 | Poster count | Unchanged — the file is renamed, not duplicated |
 | **Find Posters** on that item | Offers the correct work's artwork |
+
+### Worth testing separately: a season's show title
+
+Seasons record the title of the show they belong to, which is what **Related
+posters** searches for. Mappings written before that was recorded hold nothing,
+and they fill in on the *skip* path — so an established library that downloads no
+posters at all is exactly the case that has to work.
+
+On a library imported by an older build, run an ordinary import (no re-download),
+then use **Related posters** on any season. It should gather the show's own
+poster and every sibling season, rather than only the season you started from.
+Before that import it finds mainly itself, which is the expected narrow state and
+not a failure.
 
 ### Worth testing separately: a locked poster
 

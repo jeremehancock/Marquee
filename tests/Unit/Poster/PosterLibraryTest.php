@@ -52,6 +52,77 @@ final class PosterLibraryTest extends TestCase
         return new PosterLibrary($storage, new PosterSearch(), $config, $this->items, $comparator);
     }
 
+    /**
+     * Search decides WHICH posters match; the sort order decides how they are
+     * listed. Matching on the recorded Plex title rather than the filename moved
+     * the first of those and must not have touched the second — sortKey() still
+     * derives from the filename, so a poster whose recorded title sorts somewhere
+     * else entirely keeps its place in the listing.
+     */
+    public function testSearchingOnRecordedTitlesDoesNotReorderTheResults(): void
+    {
+        $library = $this->library(['Alien.png', 'Solaris.png', 'Zodiac.png']);
+        foreach ([['1', 'Alien.png'], ['2', 'Solaris.png'], ['3', 'Zodiac.png']] as [$key, $file]) {
+            // Every recorded title shares the query term, and each sorts in the
+            // opposite direction to its filename, so a haystack that leaked into
+            // the ordering would be plainly visible here.
+            $this->items->upsert(new PlexItemRecord(
+                $key,
+                'movie',
+                'movies',
+                'Movies',
+                'Voyage ' . (4 - (int) $key),
+                $file,
+                time(),
+                '1',
+            ));
+        }
+
+        $titles = array_map(
+            static fn ($p): string => $p->title(),
+            $library->browse(PosterCategory::Movies, 'voyage', 1)->items,
+        );
+
+        self::assertSame(['Alien', 'Solaris', 'Zodiac'], $titles);
+    }
+
+    /**
+     * The map reaches the filter for the All view too, where four categories are
+     * merged and a filename is unique only within one of them.
+     *
+     * The accented title is the point: `Am_lie_Movies.png` is what import stores
+     * for "Amélie", and before the recorded title became the haystack this query
+     * matched nothing at all.
+     *
+     * A title in a script the filename sanitiser discards entirely — Cyrillic,
+     * CJK — is a different matter and remains out of reach: normalize() keeps
+     * only a-z0-9, so such a QUERY reduces to no terms and the filter returns the
+     * unfiltered list. That is pre-existing and deliberately not addressed here.
+     */
+    public function testTheAggregateViewSearchesOnRecordedTitles(): void
+    {
+        mkdir($this->dir . '/collections');
+        $library = $this->library(['Am_lie_Movies.png']);
+        $this->writePng($this->dir . '/collections/Am_lie_Collection.png');
+
+        $this->items->upsert(new PlexItemRecord(
+            '1',
+            'movie',
+            'movies',
+            'Movies',
+            'Amélie',
+            'Am_lie_Movies.png',
+            time(),
+            '1',
+        ));
+
+        $found = $library->browseAll('Amélie', 1)->items;
+
+        self::assertCount(1, $found);
+        self::assertSame('Am_lie_Movies.png', $found[0]->filename);
+        self::assertSame(PosterCategory::Movies, $found[0]->category);
+    }
+
     public function testArticleAwareSort(): void
     {
         $library = $this->library(['The Matrix.png', 'Alien.png', 'Zodiac.png']);

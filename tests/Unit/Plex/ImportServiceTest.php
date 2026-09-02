@@ -174,6 +174,163 @@ final class ImportServiceTest extends TestCase
         self::assertSame(1, $this->items->findByRatingKey('22')?->seasonNumber);
     }
 
+    /**
+     * A season records the title of the show it belongs to, as a fact of its own.
+     * The display title it is stored under joins the two ("The Office - Season 1")
+     * and that join cannot be undone by inspecting the result — a show whose own
+     * name contains " - " and a season whose name does are both real — so the
+     * parent is recorded rather than parsed back out.
+     */
+    public function testImportPersistsASeasonsShowTitle(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', null, '/t/20', 'TV');
+        $specials = new PlexItem('21', PlexMediaType::Season, 'Specials', null, '/t/21', 'TV', parentTitle: 'Severance', seasonNumber: 0);
+        $seasonOne = new PlexItem('22', PlexMediaType::Season, 'Season 1', null, '/t/22', 'TV', parentTitle: 'Severance', seasonNumber: 1);
+
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['2' => [$show]],
+            ['20' => [$specials, $seasonOne]],
+        ));
+
+        $service->import(['2'], [PlexMediaType::Season]);
+
+        $specialsRow = $this->items->findByRatingKey('21');
+        $seasonOneRow = $this->items->findByRatingKey('22');
+        self::assertNotNull($specialsRow);
+        self::assertNotNull($seasonOneRow);
+
+        self::assertSame('Severance', $specialsRow->parentTitle);
+        self::assertSame('Severance', $seasonOneRow->parentTitle);
+        // The display title still joins the two; the parent is recorded beside it,
+        // not instead of it.
+        self::assertSame('Severance - Season 1', $seasonOneRow->title);
+    }
+
+    /**
+     * Only a season has a parent to name. A movie, show or collection records the
+     * empty string, and that is a settled state rather than missing information.
+     */
+    public function testAnItemThatIsNotASeasonRecordsNoShowTitle(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Severance', 2022, '/t/20', 'TV');
+
+        $service = $this->service(new FakePlexClient([$library], ['2' => [$show]], []));
+        $service->import(['2'], [PlexMediaType::Show]);
+
+        self::assertSame('', $this->items->findByRatingKey('20')?->parentTitle);
+    }
+
+    /**
+     * The reason the skip path reconciles at all, for this fact as for the others:
+     * an established library skips every season on every import, so a mapping
+     * written before show titles were recorded would never gain one. It backfills
+     * without re-downloading a poster and without the user forcing anything.
+     */
+    public function testSkippedSeasonGainsAMissingShowTitleWithoutRedownloading(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV');
+        $season = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1);
+
+        $plex = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        // Rewind the row to the shape a build without the column left behind,
+        // keeping everything else exactly as imported.
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $stored->ratingKey,
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: $stored->updatedAt,
+            sectionKey: $stored->sectionKey,
+            thumb: $stored->thumb,
+            addedAt: $stored->addedAt,
+            year: $stored->year,
+            seasonNumber: $stored->seasonNumber,
+            tmdbId: $stored->tmdbId,
+            parentTitle: '',
+        ));
+        $rewound = $items->findByRatingKey('20');
+        self::assertNotNull($rewound);
+        self::assertSame('', $rewound->parentTitle);
+
+        $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        $backfilled = $items->findByRatingKey('20');
+        self::assertNotNull($backfilled);
+        self::assertSame('The Office', $backfilled->parentTitle);
+        // Still a skip: the poster was not fetched again.
+        self::assertSame(1, $result->skipped());
+        self::assertSame(0, $result->imported());
+        self::assertSame([], $plexAgain->downloads);
+        // Nothing else moved.
+        self::assertSame('The Office - Season 1', $backfilled->title);
+        self::assertSame(1, $backfilled->seasonNumber);
+    }
+
+    /**
+     * And once backfilled it costs nothing. A season whose recorded show title
+     * already matches writes no row, so a scheduled import over a settled library
+     * is no more expensive than it was before the column existed.
+     */
+    public function testASeasonWhoseShowTitleAlreadyMatchesIsNotRewritten(): void
+    {
+        $storage = new FilesystemPosterStorage($this->dir, ['jpg', 'jpeg', 'png', 'webp']);
+        $database = new Database(':memory:');
+        $items = new PlexItemRepository($database);
+        $libraryRepo = new PlexLibraryRepository($database);
+        $library = new PlexLibrary('1', 'TV', 'show');
+        $thumb = '/library/metadata/20/thumb/1';
+
+        $show = new PlexItem('2', PlexMediaType::Show, 'The Office', 2005, '/t/2', 'TV');
+        $season = new PlexItem('20', PlexMediaType::Season, 'Season 1', 2005, $thumb, 'TV', parentTitle: 'The Office', seasonNumber: 1);
+
+        $plex = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        (new ImportService($plex, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        // A sentinel timestamp no write would leave standing: any upsert stamps
+        // the row with time(). Its survival is the observable proof of no write.
+        $stored = $items->findByRatingKey('20');
+        self::assertNotNull($stored);
+        $items->upsert(new PlexItemRecord(
+            ratingKey: $stored->ratingKey,
+            mediaType: $stored->mediaType,
+            category: $stored->category,
+            libraryTitle: $stored->libraryTitle,
+            title: $stored->title,
+            filename: $stored->filename,
+            updatedAt: 1,
+            sectionKey: $stored->sectionKey,
+            thumb: $stored->thumb,
+            addedAt: $stored->addedAt,
+            year: $stored->year,
+            seasonNumber: $stored->seasonNumber,
+            tmdbId: $stored->tmdbId,
+            parentTitle: $stored->parentTitle,
+        ));
+
+        $plexAgain = new FakePlexClient([$library], ['1' => [$show]], ['2' => [$season]]);
+        $result = (new ImportService($plexAgain, $storage, $items, $libraryRepo))->import(['1'], [PlexMediaType::Season]);
+
+        self::assertSame(1, $result->skipped());
+        self::assertSame(1, $items->findByRatingKey('20')?->updatedAt);
+    }
+
     public function testReimportOverwritesWithoutDuplicating(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');

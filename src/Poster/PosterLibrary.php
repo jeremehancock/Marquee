@@ -68,7 +68,7 @@ final class PosterLibrary
         // then applies to whatever survives, so the sort control means the same
         // thing whether or not a search is active.
         if ($query !== null && trim($query) !== '') {
-            $posters = $this->search->filter($posters, $query);
+            $posters = $this->search->filter($posters, $query, $this->titlesFor($posters));
         }
 
         usort($posters, $this->comparator->forOrder($sort, $addedAt));
@@ -81,6 +81,34 @@ final class PosterLibrary
         $items = array_slice($posters, ($page - 1) * $perPage, $perPage);
 
         return new Page($items, $page, $perPage, $total);
+    }
+
+    /**
+     * The recorded Plex titles for a set of posters, keyed by category value then
+     * filename — what search matches against, so a poster is found by the title
+     * on its card rather than by its sanitised filename.
+     *
+     * Built here rather than passed in by the controller because this is the one
+     * place search is applied, and the repository is already held. Only the
+     * categories actually present are read, so a single-category view costs one
+     * query and the All view costs four — and nothing at all when no query is
+     * active, since the caller only asks while filtering.
+     *
+     * @param list<Poster> $posters
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function titlesFor(array $posters): array
+    {
+        $titles = [];
+        foreach ($posters as $poster) {
+            $category = $poster->category->value;
+            if (!isset($titles[$category])) {
+                $titles[$category] = $this->items->titlesForCategory($category);
+            }
+        }
+
+        return $titles;
     }
 
     public function delete(PosterCategory $category, string $filename): bool

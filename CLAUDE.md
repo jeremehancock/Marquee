@@ -234,9 +234,9 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   Poster Wall, Import from Plex, Plex Connection, Plex Posters, Find Posters and
   Support Development — one string each, in the nav entry, the tray or dialog
   title, the page heading, the document title and the accessible name alike.
-  Everything else is sentence case: actions (Change poster, Send to Plex, Copy
-  URL, Save settings), confirmation titles (Delete poster?), form labels, section
-  headings (Presentation, Auto-import), positional names (First page, More
+  Everything else is sentence case: actions (Change poster, Send to Plex, Related
+  posters, Save settings), confirmation titles (Delete poster?), form labels,
+  section headings (Presentation, Auto-import), positional names (First page, More
   actions, Sort order). **A name and a description of the same destination are
   both correct and are not a divergence** — nav says "Orphans", the page it opens
   is headed "Orphaned posters", and each is used consistently in its own
