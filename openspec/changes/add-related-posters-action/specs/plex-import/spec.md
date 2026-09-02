@@ -59,6 +59,12 @@ no additional requests.
 A movie in no collection SHALL record no set, and that SHALL NOT be treated as
 missing information or as an error — most films belong to no collection.
 
+A movie MAY belong to more than one collection. One set is recorded per poster, so
+the system SHALL record the first collection that claims a movie and SHALL NOT
+let a later one replace it. First rather than last so the result does not depend
+on how far the read gets: a collection that cannot be listed, or one added
+afterwards, SHALL NOT take a movie away from a collection that already claimed it.
+
 An item that **names** a set SHALL record that set even when its own type was not
 among the requested types, provided it has no set recorded already. A movie import
 learns every collection in the library and a season import walks every show, so
@@ -179,6 +185,11 @@ recognises the poster as outstanding and fetches it again.
   collections
 - **THEN** each movie's collection is recorded as its set
 - **AND** no collection poster is imported
+
+#### Scenario: A movie in two collections keeps the first
+- **WHEN** a movie belongs to two Plex collections
+- **THEN** the system records the first one that claims it as the movie's set
+- **AND** the second does not replace it
 
 #### Scenario: A movie in no collection records no set
 - **WHEN** a movie that belongs to no collection is imported

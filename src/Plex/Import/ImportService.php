@@ -127,7 +127,21 @@ final class ImportService
             $this->items->fillMissingSetKey($collection->ratingKey, $collection->ratingKey);
             try {
                 foreach ($this->plex->collectionChildren($collection) as $member) {
-                    $membership[$member->ratingKey] = $collection->ratingKey;
+                    // A film can belong to several collections — "Godzilla vs.
+                    // Kong" sits in both King Kong and MonsterVerse; "Planes" in
+                    // both Planes and Thanksgiving. Only one set is recorded per
+                    // poster, so the first collection to claim a film keeps it.
+                    //
+                    // First rather than last purely so the answer does not depend
+                    // on how far the walk happens to get: a collection that fails
+                    // to list, or one added later, cannot take a film away from
+                    // one that already claimed it. Neither order is *right* —
+                    // which collection a user means when a film is in two is not
+                    // something the data answers, and picking properly means
+                    // recording every set a poster belongs to rather than one.
+                    if (!isset($membership[$member->ratingKey])) {
+                        $membership[$member->ratingKey] = $collection->ratingKey;
+                    }
                 }
             } catch (Throwable $e) {
                 // Swallowing this silently was a mistake worth naming: a server

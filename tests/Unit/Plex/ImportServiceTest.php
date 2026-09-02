@@ -614,6 +614,36 @@ final class ImportServiceTest extends TestCase
         self::assertSame(1, $after->updatedAt, 'No write, so no new timestamp.');
     }
 
+    /**
+     * A film can be in more than one collection — "Godzilla vs. Kong" is in both
+     * King Kong and MonsterVerse — and only one set is recorded per poster. The
+     * first collection to claim it keeps it, so the answer cannot change with how
+     * far the walk gets or which collections Plex lists after.
+     */
+    public function testAFilmInTwoCollectionsKeepsTheFirstThatClaimsIt(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $godzilla = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $kong = new PlexItem('15512', PlexMediaType::Collection, 'King Kong', null, '/t/15512', 'Movies');
+        $verse = new PlexItem('15553', PlexMediaType::Collection, 'MonsterVerse', null, '/t/15553', 'Movies');
+
+        $plex = new FakePlexClient(
+            [$library],
+            ['1' => [$godzilla]],
+            [],
+            ['1' => [$kong, $verse]],
+            membersByCollection: ['15512' => [$godzilla], '15553' => [$godzilla]],
+        );
+
+        $this->service($plex)->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame(
+            '15512',
+            $this->items->findByRatingKey('10')?->setKey,
+            'The first collection listed keeps the film.',
+        );
+    }
+
     public function testReimportOverwritesWithoutDuplicating(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
