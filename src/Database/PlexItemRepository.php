@@ -257,7 +257,7 @@ final class PlexItemRepository
                 continue;
             }
 
-            $keys = PlexItemRecord::fromRow(['set_keys' => $row['set_keys']])->setKeys;
+            $keys = PlexItemRecord::splitSetKeys(Scalar::string($row['set_keys']));
             if ($keys !== []) {
                 $map[Scalar::string($row['filename'])] = $keys;
             }

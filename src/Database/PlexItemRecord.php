@@ -44,9 +44,15 @@ final class PlexItemRecord
     }
 
     /**
+     * The set keys held in a stored value.
+     *
+     * Public so a caller reading the column alone does not have to hydrate a
+     * whole record to parse one string — reading it for every poster in a
+     * library was measurably the most expensive part of rendering the gallery.
+     *
      * @return list<string>
      */
-    private static function splitSetKeys(string $stored): array
+    public static function splitSetKeys(string $stored): array
     {
         if ($stored === '') {
             return [];
