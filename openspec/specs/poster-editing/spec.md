@@ -231,17 +231,6 @@ request and leave the local file unchanged.
 - **THEN** the system reports that the poster is not linked to Plex and changes
   nothing
 
-### Requirement: Download and copy a poster
-The system SHALL let a user download a poster's image and copy the poster's URL.
-
-#### Scenario: Download a poster
-- **WHEN** a user chooses to download a poster
-- **THEN** the system provides the image file for download
-
-#### Scenario: Copy a poster URL
-- **WHEN** a user chooses to copy a poster's URL
-- **THEN** the poster's URL is placed on the clipboard
-
 ### Requirement: A changed poster is visible immediately
 After any operation that replaces a poster's image, the system SHALL present the
 new image on the next page render, without requiring the user to reload the page
@@ -529,4 +518,22 @@ heading, so one action has one name throughout. The URL field SHALL be labelled
   change
 - **THEN** it is accepted exactly as before; the label change is presentational
   only
+
+### Requirement: Download a poster
+The system SHALL let a user download a poster's image.
+
+The system SHALL NOT offer an action that copies a poster's URL to the clipboard.
+A poster's image address is served only to an authenticated session, so a copied
+URL resolves nowhere except the browser that copied it — it cannot be pasted into
+another application, sent to anyone, or used by any other tool. Download is the
+supported way to take a poster's image out of Marquee.
+
+#### Scenario: Download a poster
+- **WHEN** a user chooses to download a poster
+- **THEN** the system provides the image file for download
+
+#### Scenario: No copy-URL action is offered
+- **WHEN** a poster's actions are shown, on a pointer device or in the touch
+  action sheet
+- **THEN** no action copies the poster's URL to the clipboard
 
