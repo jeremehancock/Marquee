@@ -10,8 +10,7 @@ side in the same control, where the direction indicator reports whether a field
 is running its ordinary way rather than whether it ascends. Giving them opposite
 ordinary directions would leave both buttons resting identically while ordering
 time in opposite directions, which is the single confusion that convention exists
-to prevent. A set opens **earliest first** by asking for that direction
-explicitly, not by inheriting it from here.
+to prevent.
 
 Ascending, the order SHALL be decided by, in turn:
 
@@ -73,61 +72,52 @@ SHALL NOT be treated as an error.
 - **THEN** it is ordered as a poster with no recorded release year
 - **AND** it is not omitted from the listing
 
-### Requirement: A set opens in release order
-When the gallery presents the set a poster belongs to, it SHALL present that set
-in release order, earliest first, whatever sort order the user last selected for
-browsing.
+### Requirement: A set is ordered by the active sort
+The gallery SHALL order a set by the sort order in force, exactly as it orders a
+listing narrowed by a search. Opening a set SHALL NOT change which field is
+active, SHALL NOT change its direction, and SHALL NOT alter what the sort control
+displays.
 
-This SHALL be a **default, not an override**. The sort control SHALL remain
-present and active in a set view, SHALL indicate release as the field in force,
-and activating any field in it SHALL re-order the set rather than leave it.
+A sort order chosen while a set is being shown SHALL be recorded as the user's
+preference on the same terms as any other, so the control obeys one rule
+everywhere rather than a different one per view.
 
-The order in force for a request SHALL be resolved in this precedence:
+**A set SHALL NOT carry an order of its own.** Ordering a set by release was
+tried and withdrawn. The sort control is a global control, and a view that
+reinterprets it makes the toolbar change on its own — which reads as the user's
+own setting being overwritten whether or not anything was stored, that
+distinction being invisible from the button. Release is offered as a field the
+user selects; selecting it persists like any other selection.
 
-1. a sort order named explicitly in the address;
-2. release order, when the view is a set;
-3. the order the user selected earlier in the session;
-4. the install's configured default sort.
+The sort control's links SHALL carry the active set, so activating one re-orders
+the set rather than leaving it. That is a difference in where the links point and
+not in what the control shows.
 
-A sort order resolved or chosen while a set is being shown SHALL NOT be recorded
-as the user's session preference. Leaving the set SHALL return the library to the
-order the user last chose for it. A set is a question about one work, and the
-answer SHALL NOT outlive it.
+#### Scenario: A set uses the order the user chose
+- **WHEN** a user has ordered the gallery by release, latest first, and opens a
+  set
+- **THEN** the set is shown by release, latest first
 
-Opening a set is a different act from filtering a list, and a set therefore
-carries an order of its own. A search does not: an active query never changes the
-order of the listing it narrows.
+#### Scenario: The order applies to a set in either direction
+- **WHEN** the same set is opened with the gallery ordered by release earliest
+  first, and again latest first
+- **THEN** the set is listed in the opposite order the second time
 
-#### Scenario: A set opens in release order despite a chosen sort
-- **WHEN** a user has ordered the gallery Z–A and activates Related posters on a
-  film in a collection
-- **THEN** the set is shown in release order, earliest first
-- **AND** the sort control indicates release as the active field
+#### Scenario: Opening a set leaves the sort control alone
+- **WHEN** a user opens a set
+- **THEN** the sort control shows the same active field, the same labels and the
+  same direction indicators it showed before the set was opened
 
-#### Scenario: A set asks for earliest first rather than inheriting it
-- **WHEN** the same library is browsed by release without a set active
-- **THEN** it leads with the most recently released poster
-- **AND** the set continues to lead with the earliest, the two directions being
-  chosen for different acts rather than one following from the other
+#### Scenario: An order chosen inside a set is remembered
+- **WHEN** a user viewing a set selects a different sort order and then clears
+  the set
+- **THEN** the gallery keeps the order they selected
 
-#### Scenario: Sorting inside a set keeps the set
-- **WHEN** a user viewing a set activates the title sort button
-- **THEN** the same set is shown ordered by title
-- **AND** the view is still the set, not the full library
-
-#### Scenario: The set's order is not remembered
-- **WHEN** a user viewing a set orders it by date added and then clears the set
-- **THEN** the full library is shown in the order the user had chosen before
-  opening the set
-
-#### Scenario: An address naming a sort wins over the set's default
-- **WHEN** a set view is opened at an address naming a sort order
-- **THEN** the set is shown in that order rather than in release order
-
-#### Scenario: A show's set reads show first, then seasons in order
-- **WHEN** a user activates Related posters on a late season of a show
-- **THEN** the show's own poster is shown first
-- **AND** its seasons follow in season-number order
+#### Scenario: A set is ordered alphabetically when that is the active order
+- **WHEN** a user browsing A–Z opens a set
+- **THEN** the set is listed A–Z
+- **AND** the user may select release order to read it in the order it was
+  released, that selection persisting as any other does
 
 ### Requirement: A set persists like an active query
 A set SHALL survive the same navigation an active search query survives, so
@@ -460,8 +450,7 @@ The system SHALL present a control in the gallery toolbar with one button per
 sort field. Activating the button of the field that is already active SHALL
 reverse that field's direction; activating another field's button SHALL switch to
 that field. The resulting order SHALL persist across navigation within the
-session, taking precedence over `DEFAULT_SORT`, except while a set is being
-shown, where the order applies to the request without being recorded.
+session, taking precedence over `DEFAULT_SORT`.
 
 When the user has not made a choice, the control SHALL reflect the configured
 default. The buttons SHALL be rendered in a fixed order so the control does not

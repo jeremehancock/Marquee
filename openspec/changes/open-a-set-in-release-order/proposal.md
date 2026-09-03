@@ -33,11 +33,15 @@ Related posters, so this is the change that owes the cleanup.
 
 - **A new gallery sort field, Release**, in both directions, ordering by the
   release year already recorded on every row and by season number within a year,
-  so a show precedes its seasons and its seasons read 1, 2, 3.
-- **A set opens in release order by default**, without recording that as the
-  user's sort preference. The sort control stays live inside a set: it now says
-  *Release*, and choosing another field re-orders the set rather than dropping
-  out of it.
+  so a show precedes its seasons and its seasons read 1, 2, 3. It rests
+  latest-first, agreeing with Date added beside it, so a resting arrow means one
+  thing across the control.
+- **A set is ordered by the active sort**, like a search. Opening one changes
+  nothing in the toolbar. Sets opening in release order *by default* was built
+  and then withdrawn during validation — see the design's Decision 1 — because a
+  global control that changes on its own reads as the user's setting being
+  overwritten. The sort control's links do carry the set, so pressing one
+  re-orders the set rather than dropping out of it.
 - **A set survives a view switch and a sort change**, exactly as an active search
   does, so Related posters behaves the same whether it finds a set or falls back
   to a search. **BREAKING (behavioural):** changing sort or tab inside a set no
@@ -67,8 +71,8 @@ None. Every behaviour here belongs to a capability that already exists.
 ### Modified Capabilities
 
 - `poster-library`: a Release sort field alongside Alphabetical and Date added;
-  a set's default order and the fact that it is a default rather than an
-  override; a set surviving a view switch and a sort change; a set naming the
+  a set being ordered by the active sort rather than carrying one of its own;
+  a set surviving a view switch and a sort change; a set naming the
   other sets its origin poster belongs to; the gallery reading each category's
   recorded facts once per render.
 - `search`: whether "Search filters without reordering" governs a set (it does

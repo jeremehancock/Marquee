@@ -12,7 +12,6 @@ use App\Poster\Poster;
 use App\Poster\PosterCategory;
 use App\Poster\PosterFactsIndex;
 use App\Poster\PosterLibrary;
-use App\Poster\SortOrder;
 use App\Support\Flash;
 use App\Support\LastCategory;
 use App\Support\Session\SessionInterface;
@@ -76,28 +75,19 @@ final class GalleryController
         $origin = isset($params['from']) && is_string($params['from']) ? trim($params['from']) : '';
         $page = isset($params['page']) && is_string($params['page']) ? max(1, (int) $params['page']) : 1;
 
-        // Effective sort, in precedence order: a valid ?sort= wins; else a set
-        // opens in release order; else the session's stored choice; else the
-        // DEFAULT_SORT config default. The state carries what the toolbar's
-        // buttons need besides the order in force — each field's remembered
-        // direction.
+        // Effective sort: a valid ?sort= wins and is remembered, else the
+        // session's stored choice, else the DEFAULT_SORT config default. The
+        // state carries what the toolbar's buttons need besides the order in
+        // force — each field's remembered direction.
         //
-        // A set DEFAULTS the sort rather than overriding it: the control stays
-        // live, and choosing another field re-orders the set instead of dropping
-        // out of it. Nothing chosen while a set is open is recorded, so leaving
-        // the set returns the library to the order the user chose for it.
-        $inSet = $setKey !== '';
-        $sortState = SortPreference::resolve(
-            $this->session,
-            $params,
-            $this->posterConfig->defaultSort,
-            // Earliest first, explicitly — NOT the release field's own default,
-            // which is latest first so that its arrow agrees with the date
-            // field's. Reading a trilogy in the order it came out is the whole
-            // point of opening a set, so the set names the direction it wants.
-            $inSet ? SortOrder::ReleaseAsc : null,
-            !$inSet,
-        );
+        // A SET IS NOT SPECIAL HERE, and that is a decision rather than an
+        // omission. It used to open in release order whatever the user had
+        // chosen, which meant the toolbar's sort button visibly changed the
+        // moment a set was opened — and a global control that changes on its own
+        // reads as the user's setting being overwritten, even though nothing was
+        // stored. Release is offered as a field to pick instead; a set is
+        // ordered by whatever the user is browsing in, exactly as a search is.
+        $sortState = SortPreference::resolve($this->session, $params, $this->posterConfig->defaultSort);
         $sort = $sortState->current;
 
         // Everything recorded about this view's posters, read ONCE per category

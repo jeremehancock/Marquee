@@ -260,3 +260,43 @@ The view is named for the same reason the search names it, and it earns its plac
 now in a way it would not have before: a set survives a tab change as of this
 change, so "2 posters for Breaking Bad in TV Seasons" is something a reader can
 actually be looking at.
+
+### A set opening in release order was withdrawn
+
+Reported as: with the library sorted by release newest-first, opening a set
+changes the "global" sort order, which is confusing.
+
+The mechanism was narrower than it looked, and that is the interesting part. The
+preference was never overwritten — the resolve deliberately did not write to the
+session while a set was open, so clearing the set put the library back exactly as
+it was. What the reader saw was the toolbar's Release button visibly flipping to
+its reversed state the moment a set opened.
+
+**"Nothing was stored" is not a distinction anyone can see from a button that has
+changed.** The sort control is global; a view that reinterprets it will read as
+tampering however carefully the state is managed underneath. This was the third
+report in the same family — the arrow direction and this one are both the same
+mistake, a view-specific meaning imposed on a global control.
+
+So the default is gone. Release is a field the user picks; a set is ordered by
+whatever they picked, exactly as a search is. This is the second of the two
+options the original brief offered, and it should probably have been the first
+choice: the hybrid was trying to have the ordering benefit without paying for it
+anywhere visible, and the bill arrived at the toolbar.
+
+The cost is stated rather than hidden: on a fresh install a trilogy still opens
+alphabetically, which was item 1's original complaint. It is one button press
+away now, and the press persists. Also withdrawn: the rule that an order chosen
+inside a set was not remembered. That was careful in the same unhelpful way — it
+prevented a set re-sorting the library, at the price of silently discarding a
+choice the user had just made.
+
+`SetOrderTest` now pins the ABSENCE of the special case, including a comparison
+of the sort control's rendered state either side of opening a set — with hrefs
+stripped, because those are supposed to differ (they carry the set forward) while
+everything the reader sees must not.
+
+**The change slug is now slightly wrong.** "open-a-set-in-release-order" names a
+behaviour that was withdrawn; what shipped is a release sort field the user can
+select. Left alone deliberately — renaming means moving the directory that three
+commits already reference — but the PR title says what actually happened.

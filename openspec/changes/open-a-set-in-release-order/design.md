@@ -64,20 +64,40 @@ parameter fixes both.
 
 ## Decisions
 
-### 1. Release is a real sort field, and a set selects it by default
+### 1. Release is a real sort field, and a set does not touch it
 
-**A set does not override the sort — it defaults it.** Opening a set selects
-Release the way it already selects the All view: a starting point, not a
-restriction. The sort control stays visible and live, shows *Release* as the
-active field, and activating another field re-orders the set without leaving it.
+**Superseded during validation.** This decision originally read "a set does not
+override the sort — it defaults it", and that is what shipped to `:dev`. It was
+withdrawn after three separate reports, and the reason is worth keeping because
+the reasoning that produced it still looks sound in isolation.
 
-Three options were weighed.
+The defence of the default was that it kept the control honest: every button
+live, every label true, nothing written to the session. All of that was so. What
+it missed is that **the sort control is a global control**, and a view that
+reinterprets it makes the toolbar change on its own. "Nothing was stored" is not
+a distinction anyone can see from a button that has visibly flipped. It reads as
+your setting being overwritten, and it was reported as exactly that.
+
+So: **Release is a field the user picks, and a set is ordered by whatever they
+picked** — the second of the two options the brief offered ("overrides the active
+sort, or offers release order as a choice"). Opening a set changes nothing about
+the sort. The sort control's links carry the set, so pressing one re-orders the
+set rather than dropping out of it, but that is a difference in where the links
+point and not in what the control shows.
+
+The cost is real and worth stating: on a fresh install a trilogy still opens
+alphabetically, which is item 1's original complaint. It is now one button press
+away, and that press persists. A default that has to be explained three times is
+worse than a control that does what it says.
+
+Three options were weighed for the original decision.
 
 | | What it does | Why not |
 | --- | --- | --- |
 | Override | The set ignores the active sort and is always release-ordered | The sort control then reads "A–Z" over a grid that is not in A–Z. It is a lie on screen, and it leaves no honest thing for the control to do |
 | Hide the control in a set | No lie, no conflict | Removes a pinned control mid-session and takes the phone sort tray with it. A control that vanishes is worse than one that changes |
-| **Third field, defaulted by the set** | Release joins Alphabetical and Date added; a set opens on it | Chosen |
+| **Third field, defaulted by the set** | Release joins Alphabetical and Date added; a set opens on it | Chosen, then withdrawn — see above |
+| Third field, never defaulted | Release joins the other two; a set uses whatever is active | **Shipped.** The toolbar never changes on its own |
 
 The third option is more code and less special-casing, which is the right trade
 here. It also makes the answer to "does the set override the sort" a plain no,
@@ -106,6 +126,12 @@ Direction reverses (1) only. Tie-breaks always run forwards — the rule
 `SortComparator` already states — so under Release descending a show's seasons
 still read 1, 2, 3 rather than scrambling.
 
+The field rests **latest first**, matching Date added. Both fields answer a
+question about time and sit in the same control, where the arrow reports whether
+a field is running its ordinary way rather than whether it ascends — so giving
+them opposite ordinary directions left two identical resting arrows meaning
+opposite orders. That shipped and was reported; see the notes.
+
 **Unknown-year-first is chosen because it is correct whichever way Plex answers.**
 A collection's `year` is whatever `<Directory type="collection" year=…>` carried,
 and that cannot be verified from here. If Plex reports none, the collection's own
@@ -126,20 +152,22 @@ season is missing its number. The rule above is designed to survive every answer
 but a surprise here — say, seasons with no recorded year at all — is worth seeing
 before the tests are written around the mechanism.
 
-#### 1b. A set's default is a default, not a recorded choice
+#### 1b. One rule for the control, everywhere
 
-Precedence when resolving the sort: an explicit `?sort=` wins; otherwise, if a set
-is active, Release; otherwise the session's stored choice; otherwise
-`DEFAULT_SORT`. The set's rung sits *above* the stored preference — otherwise a
-user who once picked Date added never sees a set in release order — and *below*
-an explicit request, so the control still works.
+**Withdrawn along with 1a's default.** This originally described a set-specific
+rung in the sort precedence, and a rule that nothing resolved inside a set was
+written to the session.
 
-**Nothing a set view resolves is written to the session, including an explicit
-choice made while a set is open.** `SortPreference::resolve()` records on every
-valid `?sort=`, which would mean sorting a set by Date added quietly re-sorts the
-whole library once the set is cleared. The user asked a question about a set; the
-answer should not outlive it. The URL already carries the choice, so paging and
-tab-switching inside the set keep it without the session's help.
+The second half deserves its own note, because it was a mistake in the same
+family. Not recording a sort chosen inside a set sounded careful — it stopped a
+set re-sorting the library behind you — and it produced its own surprise: an
+order you deliberately picked, silently lost, with nothing saying why. Two rules
+for one control are harder to hold in your head than one rule, even when each is
+individually defensible.
+
+There is now no precedence to describe. `SortPreference::resolve()` behaves the
+same on every view: an explicit `?sort=` wins and is recorded, else the session's
+stored choice, else `DEFAULT_SORT`.
 
 ### 2. The address carries the poster a set was opened from
 

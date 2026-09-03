@@ -11,16 +11,21 @@ use App\Tests\Support\MakesImages;
 use Slim\App;
 
 /**
- * The order a set opens in, and what that order does and does not outlive.
+ * A set is ordered by the active sort, exactly as a search is.
  *
- * A set DEFAULTS the sort rather than overriding it. The distinction is the
- * whole design: an override would leave the sort control reading "A–Z" over a
- * grid that is not in A–Z, which is a lie on screen and leaves the control
- * nothing honest to do. A default keeps every button live and every label true.
+ * This is the second answer to the question. The first was that a set opened in
+ * release order whatever the user had chosen — a default rather than an
+ * override, careful not to write anything to the session, and wrong anyway. The
+ * sort control is a GLOBAL control, and a view that reinterprets it makes the
+ * toolbar change on its own; "nothing was stored" is not a distinction anyone
+ * can see from the button. It read as the user's setting being overwritten, and
+ * was reported as exactly that.
  *
- * The other half is that the default does not leak. Sorting a set is a question
- * about one work; answering it must not re-sort the library the user goes back
- * to. Both directions of that are asserted here.
+ * So Release is a field to pick and nothing more. What these tests pin is the
+ * ABSENCE of special-casing: opening a set changes nothing about the sort, and a
+ * sort chosen while a set is open is remembered like any other. The absence is
+ * what needs guarding, because re-adding a "sets should really open in release
+ * order" default is a small and plausible-looking edit.
  */
 final class SetOrderTest extends AppTestCase
 {
@@ -93,36 +98,74 @@ final class SetOrderTest extends AppTestCase
         return $first < $second ? 'Aaa Last' : 'Zzz First';
     }
 
-    public function testASetOpensInReleaseOrder(): void
+    /**
+     * A stored choice is honoured inside a set. This is the reported defect: the
+     * user had ordered by release, newest first, and opening a set turned it
+     * around under them.
+     */
+    public function testASetUsesTheOrderTheUserChose(): void
     {
         $app = $this->app();
+        $this->get($app, '/library/all?sort=release');
 
-        self::assertSame('Zzz First', $this->firstFilm($app, '/library/all?set=700'), '1990 before 2020');
+        self::assertSame(
+            'Aaa Last',
+            $this->firstFilm($app, '/library/all?set=700'),
+            'release, newest first — 2020 before 1990, as chosen',
+        );
     }
 
     /**
-     * The rung that matters: a set's default outranks a stored preference.
-     * Without it, a user who once chose Z–A would never see a set in the order
-     * it was released — which is the only reason to open one.
+     * And the other direction, so this cannot pass by the set happening to agree
+     * with one particular order.
      */
-    public function testASetOpensInReleaseOrderDespiteAStoredChoice(): void
+    public function testASetFollowsTheOrderInEitherDirection(): void
     {
         $app = $this->app();
-        $this->get($app, '/library/all?sort=alphabetical_desc');
 
+        $this->get($app, '/library/all?sort=release_asc');
         self::assertSame('Zzz First', $this->firstFilm($app, '/library/all?set=700'));
+
+        $this->get($app, '/library/all?sort=release');
+        self::assertSame('Aaa Last', $this->firstFilm($app, '/library/all?set=700'));
     }
 
-    public function testTheSortControlShowsReleaseAsActiveInASet(): void
+    /**
+     * The toolbar must look identical either side of opening a set. A control
+     * that changes on its own is the whole of what went wrong before, and it is
+     * invisible to a test that only checks the grid.
+     */
+    public function testOpeningASetDoesNotChangeTheSortControl(): void
     {
         $app = $this->app();
-        $body = (string) $this->get($app, '/library/all?set=700')->getBody();
+        $this->get($app, '/library/all?sort=release');
 
-        self::assertMatchesRegularExpression(
-            '/data-sort="release[^"]*"[^>]*aria-current="true"|aria-current="true"[^>]*data-sort="release/',
-            $body,
-            'the active button must be the release one, not a field the grid is not in',
-        );
+        $before = $this->sortControl((string) $this->get($app, '/library/all')->getBody());
+        $inSet = $this->sortControl((string) $this->get($app, '/library/all?set=700')->getBody());
+
+        self::assertSame($before, $inSet, 'the sort control must not change because a set is open');
+    }
+
+    /**
+     * The sort control's displayed STATE, for comparing one render against
+     * another: which field is active, what each button reads, and which way each
+     * arrow points.
+     *
+     * The hrefs are stripped, and that is the point of the method rather than a
+     * convenience. They are SUPPOSED to differ inside a set — each carries the
+     * set forward, so pressing a sort button re-orders the set instead of
+     * dropping out of it — while everything a reader actually sees must be
+     * identical. Comparing the raw markup would fail on the one difference that
+     * is meant to be there and hide the ones that are not.
+     */
+    private function sortControl(string $body): string
+    {
+        self::assertSame(1, preg_match('/<div class="sort".*?<\/div>/s', $body, $m));
+
+        $stripped = preg_replace('/\s*href="[^"]*"/', '', $m[0] ?? '');
+        self::assertIsString($stripped);
+
+        return $stripped;
     }
 
     /**
@@ -149,21 +192,23 @@ final class SetOrderTest extends AppTestCase
     }
 
     /**
-     * The other direction, and the one a user would notice: an order chosen
-     * inside a set does not become the library's order once the set is cleared.
+     * A sort chosen while a set is open is remembered like any other. The
+     * earlier design deliberately did NOT record it, so that a set could not
+     * re-sort the library behind you — which sounded careful and produced its own
+     * surprise: an order you picked, then lost for no stated reason. One rule
+     * for the control everywhere is easier to hold in your head than two.
      */
-    public function testAnOrderChosenInsideASetDoesNotOutliveIt(): void
+    public function testAnOrderChosenInsideASetIsRememberedLikeAnyOther(): void
     {
         $app = $this->app();
 
-        // Establish a library preference, then contradict it inside a set.
         $this->get($app, '/library/all?sort=alphabetical');
         $this->get($app, '/library/all?set=700&sort=alphabetical_desc');
 
         self::assertSame(
-            'Aaa Last',
+            'Zzz First',
             $this->firstFilm($app, '/library/all'),
-            'the library keeps the A–Z the user chose for it',
+            'Z–A, chosen while the set was open and kept afterwards',
         );
     }
 
@@ -248,32 +293,18 @@ final class SetOrderTest extends AppTestCase
         // Two films and a default page size, so there is no second page to link
         // to; what matters is that the set survives the round trip at all.
         self::assertStringContainsString('for this set', $body);
-        self::assertSame('Zzz First', $this->firstFilm($app, '/library/all?set=700&page=1'));
+        self::assertStringContainsString('Aaa Last', (string) $this->get($app, '/library/all?set=700&page=1')->getBody());
     }
 
     /**
-     * The library and a set lead with opposite ends of the same field, and both
-     * are deliberate.
-     *
-     * Browsing by release leads with the newest, agreeing with Date added beside
-     * it so a down arrow means one thing across the toolbar. Opening a SET leads
-     * with the earliest, because reading a trilogy in the order it came out is
-     * the whole reason to open one. Asserted together so neither can be changed
-     * on the assumption that the other follows from it.
+     * Release still rests the way Date added rests. That rule came from the same
+     * round of feedback and survives this change: it is about the two time
+     * fields agreeing with each other, not about sets.
      */
-    public function testTheLibraryLeadsWithTheNewestWhileASetLeadsWithTheEarliest(): void
+    public function testBrowsingByReleaseLeadsWithTheNewest(): void
     {
         $app = $this->app();
 
-        self::assertSame(
-            'Aaa Last',
-            $this->firstFilm($app, '/library/all?sort=release'),
-            'browsing by release leads with 2020, like date added beside it',
-        );
-        self::assertSame(
-            'Zzz First',
-            $this->firstFilm($app, '/library/all?set=700'),
-            'a set leads with 1990 — the order it was released in',
-        );
+        self::assertSame('Aaa Last', $this->firstFilm($app, '/library/all?sort=release'));
     }
 }

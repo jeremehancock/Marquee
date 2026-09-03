@@ -9,13 +9,13 @@ posters exactly as it would order the same posters unfiltered.
 Where a term appears within a title SHALL carry no weight — only whether it
 appears at all.
 
-**This governs a query and nothing else.** A set is not a search: it narrows the
-listing by recorded membership rather than by matching text, the two are
-alternatives that are never applied together, and a set is a view of one work
-rather than a filter over a list. A set therefore carries an order of its own and
-is outside this requirement — see "A set opens in release order" in
-`poster-library` for the order it carries and for the fact that the user can still
-choose another. Nothing here permits a query to reorder anything.
+**A set is governed by the same rule, for the same reason.** A set is not a
+search — it narrows the listing by recorded membership rather than by matching
+text, and the two are never applied together — but it is a filter over a listing
+just as a query is, and it does not reorder what it narrows either. Ordering a
+set by release regardless of the active sort was tried and withdrawn; see "A set
+is ordered by the active sort" in `poster-library`. Neither kind of filter
+touches the order.
 
 #### Scenario: The sort order decides the order of results
 - **WHEN** a user searches and the gallery is ordered by date added, newest first
@@ -41,11 +41,10 @@ choose another. Nothing here permits a query to reorder anything.
 - **THEN** the matching posters are listed in release order, the query having
   changed which posters are shown and not their order
 
-#### Scenario: A set is not governed by this
+#### Scenario: A set does not reorder either
 - **WHEN** the gallery is showing a set
-- **THEN** it is ordered by the rules stated for a set rather than by this
-  requirement
-- **AND** no query is active
+- **THEN** the set's posters are listed in the active sort order
+- **AND** opening the set changed neither the order nor the sort control
 
 ### Requirement: A narrow search may be offered a broader one
 When a search finds fewer posters than a shorter form of the same query would,

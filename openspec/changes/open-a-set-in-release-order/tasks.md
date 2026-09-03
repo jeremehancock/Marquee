@@ -69,17 +69,21 @@
       Update `SortPreferenceTest`'s two-button assertion and `SortOrderTest`'s
       four-order assertions.
 
-## 4. A set opens in release order
+## 4. A set is ordered by the active sort
 
-- [x] 4.1 Resolve the effective sort with the set's rung: explicit `?sort=` wins,
-      then release when a set is active, then the session's stored choice, then
-      the configured default.
-- [x] 4.2 Suppress the session write while a set is being shown, so an order
-      chosen inside a set does not outlive it.
-- [x] 4.3 Tests: a set opens in release order over a stored Z–A preference; an
-      explicit `?sort=` in a set address wins; sorting inside a set keeps the set;
-      clearing the set restores the previously chosen library order; and — the
-      other direction — sorting outside a set still records normally.
+Built first as "a set opens in release order by default", and withdrawn during
+validation: the sort control is global, and a view that reinterprets it makes the
+toolbar change on its own. Both rungs below were removed again.
+
+- [x] 4.1 ~~Resolve the effective sort with the set's rung~~ — withdrawn. A set
+      resolves the sort exactly as every other view does.
+- [x] 4.2 ~~Suppress the session write while a set is being shown~~ — withdrawn.
+      One rule for the control everywhere; an order chosen inside a set is
+      remembered like any other.
+- [x] 4.3 Tests: a set follows the active order in both directions; the sort
+      control's displayed state is byte-identical either side of opening a set
+      (hrefs excluded — those carry the set on purpose); an order chosen inside a
+      set is remembered afterwards.
 
 ## 5. A set persists like a query
 
