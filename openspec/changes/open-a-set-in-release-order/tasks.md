@@ -145,7 +145,7 @@ toolbar change on its own. Both rungs below were removed again.
       rather than inventing an edit.
 - [x] 8.2 Run `composer test`, `composer stan`, `composer cs` and fix everything
       they report.
-- [ ] 8.3 Validate by hand against the real library: a trilogy and a show's set in
+- [x] 8.3 Validate by hand against the real library: a trilogy and a show's set in
       release order; a film in two collections naming the other and hopping
       between them; a tab switch and a sort change inside a set; an incomplete
       collection being offered its series; and the before/after benchmark numbers
