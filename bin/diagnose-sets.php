@@ -141,8 +141,9 @@ foreach ($categories as $category => $inCategory) {
 }
 
 // The one that cannot be checked from outside a real server: whether Plex
-// reports a year on a collection at all. Unknown-first is chosen to be correct
-// either way, so this confirms a design assumption rather than deciding one.
+// reports a year on a collection at all. It decides where collections land under
+// the Release sort — interleaved among the films if they carry a year, gathered
+// at whichever end holds the unknowns if they do not.
 $collectionRows = $categories['collections'] ?? [];
 $datedCollections = array_filter($collectionRows, static fn ($row): bool => $row->year !== null);
 $out(sprintf(
@@ -152,8 +153,8 @@ $out(sprintf(
     $collectionRows === []
         ? ''
         : (count($datedCollections) === 0
-            ? '; a collection sorts ahead of its films on "unknown first"'
-            : '; a collection sorts among its films by that year'),
+            ? '; under Release they gather with the unknowns — last when newest-first, first when oldest-first'
+            : '; under Release they sort among the films by that year'),
 ));
 
 $seasons = $categories['tv-seasons'] ?? [];

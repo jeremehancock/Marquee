@@ -320,4 +320,57 @@ final class ReleaseOrderTest extends TestCase
 
         self::assertSame(['MonsterVerse', 'Godzilla', 'Kong'], $order);
     }
+
+    /**
+     * An unknown year is a value below every known one, not a special case
+     * exempt from the direction — so reversing moves the unknown block to the
+     * other end rather than leaving it pinned.
+     *
+     * This is what decides where COLLECTIONS land, which is the practical
+     * question. A Plex collection has no release date of its own, and where the
+     * server reports no year for one they all gather in this block: at the end
+     * under the default latest-first order, at the start when reversed.
+     */
+    public function testTheUnknownBlockMovesWithTheDirection(): void
+    {
+        $filenames = ['MonsterVerse.png', 'Godzilla.png', 'Kong.png'];
+        $recorded = [
+            'MonsterVerse.png' => [null, null],
+            'Godzilla.png' => [2014, null],
+            'Kong.png' => [2017, null],
+        ];
+        $categories = ['MonsterVerse.png' => PosterCategory::Collections];
+
+        self::assertSame(
+            'MonsterVerse',
+            $this->order($filenames, $recorded, SortOrder::ReleaseAsc, $categories)[0],
+            'earliest first: the unknown leads',
+        );
+        self::assertSame(
+            'MonsterVerse',
+            $this->order($filenames, $recorded, SortOrder::Release, $categories)[2],
+            'latest first: the unknown trails',
+        );
+    }
+
+    /**
+     * And within the unknown block the ordering falls through to the ordinary
+     * tie-breaks, so a listing of nothing but yearless collections is stable —
+     * title order — rather than whatever usort happened to produce.
+     */
+    public function testYearlessCollectionsReadInTitleOrder(): void
+    {
+        $order = $this->order(
+            ['Zzz Collection.png', 'Aaa Collection.png', 'Mmm Collection.png'],
+            [],
+            SortOrder::Release,
+            [
+                'Zzz Collection.png' => PosterCategory::Collections,
+                'Aaa Collection.png' => PosterCategory::Collections,
+                'Mmm Collection.png' => PosterCategory::Collections,
+            ],
+        );
+
+        self::assertSame(['Aaa Collection', 'Mmm Collection', 'Zzz Collection'], $order);
+    }
 }

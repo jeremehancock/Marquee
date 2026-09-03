@@ -2425,11 +2425,25 @@ tie-breaks below it SHALL always run forwards, on the same terms as every other
 sort field, so a show's seasons still read 1, 2, 3 with the order reversed rather
 than scrambling.
 
-An unknown release year SHALL order first rather than last because it is the
-placement that is correct however Plex answers: a collection Plex reports no year
-for then leads the films it holds, and a collection Plex does report a year for
-sorts among its earliest films. Ordering unknowns last is correct only in the
-second case.
+An unknown release year SHALL be treated as a value below every known year rather
+than as a special case exempt from the direction. It therefore gathers at the
+start when the order runs earliest-first and at the end when it runs latest-first,
+which is the field reversing as a whole. Pinning unknowns to one end regardless of
+direction would make them the single value that ignores the control.
+
+**Collections are the ordinary case of this, not an edge.** A Plex collection has
+no release date of its own, and whether Plex reports a `year` for one is a
+property of the server rather than something the gallery can decide. Where it
+reports none, every collection carries an unknown year and they gather together
+at one end of a release-ordered listing — last under the default latest-first
+order. Where it does report one, they sort among the films by it. The system SHALL
+NOT invent a year for a collection from the films it holds: a collection spanning
+decades has no one year, and a derived value would be indistinguishable on screen
+from one Plex actually reported.
+
+Within the unknown block the ordering SHALL fall through to the same tie-breaks as
+any other, so it is stable rather than arbitrary — which for a listing of nothing
+but collections means they read in title order.
 
 A poster whose Plex item records no year SHALL be ordered, never omitted, and
 SHALL NOT be treated as an error.
@@ -2456,6 +2470,26 @@ SHALL NOT be treated as an error.
   item records no release year
 - **THEN** that poster is listed before every poster whose year is known
 - **AND** no error is reported
+
+#### Scenario: Reversing moves the unknowns to the other end
+- **WHEN** the same gallery is ordered by release, latest first
+- **THEN** the posters with no recorded year are listed after every poster whose
+  year is known
+- **AND** they are not pinned to one end regardless of direction
+
+#### Scenario: Collections gather together when Plex reports them no year
+- **WHEN** the gallery is ordered by release and the Plex server reports no year
+  for its collections
+- **THEN** the collection posters are listed together with the other posters whose
+  year is unknown
+- **AND** within that group they are ordered by the listing's ordinary tie-breaks
+  rather than arbitrarily
+
+#### Scenario: A collection's year is not inferred from its films
+- **WHEN** a collection holds films spanning several years and Plex reports no
+  year for the collection itself
+- **THEN** the collection is ordered as having no known year
+- **AND** no year is derived for it from the films it holds
 
 #### Scenario: Release rests the same way as date added
 - **WHEN** neither the release nor the date-added field has been reversed this

@@ -505,6 +505,7 @@ then check:
 | A collection whose own poster was never imported | Named on screen rather than "this set" |
 | A collection missing a film the library holds | Offers a shorter query with its count — only when the film's title has a subtitle or an instalment number to cut |
 | Sort by **Release** | Leads with the newest, and its arrow rests the same way as Date added's — both time fields mean the same thing by a down arrow. Press it again for oldest first, which is how a trilogy reads |
+| Collections under **Release** | A collection has no release date of its own. If your server reports no year for them they gather together — last when newest-first, first when reversed — and read in title order within that block. `diagnose-sets.php` says which case you are in |
 | Import summary | Unchanged — the membership read imports no posters and fails no items |
 
 Before that import, films and seasons fall back to a title search, which is the
