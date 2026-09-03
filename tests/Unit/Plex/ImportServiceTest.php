@@ -119,11 +119,11 @@ final class ImportServiceTest extends TestCase
         self::assertSame(1700000000, $record->addedAt);
 
         // The stored timestamp is exposed to the date-added sort, keyed by filename.
-        $map = $this->items->addedAtForCategory('movies');
-        self::assertSame(1700000000, $map[$record->filename] ?? null);
+        $facts = $this->items->factsForCategory('movies');
+        self::assertSame(1700000000, $facts[$record->filename]->addedAt ?? null);
     }
 
-    public function testImportWithoutAddedAtStoresZeroAndOmitsFromLookup(): void
+    public function testImportWithoutAddedAtStoresZeroAndReadsAsUnknown(): void
     {
         $library = new PlexLibrary('1', 'Movies', 'movie');
         $movie = new PlexItem('11', PlexMediaType::Movie, 'Dune', 2021, '/t/11', 'Movies');
@@ -134,8 +134,10 @@ final class ImportServiceTest extends TestCase
         $record = $this->items->findByRatingKey('11');
         self::assertNotNull($record);
         self::assertSame(0, $record->addedAt);
-        // added_at = 0 means "unknown" and is excluded so the caller falls back to mtime.
-        self::assertSame([], $this->items->addedAtForCategory('movies'));
+        // added_at = 0 means "unknown" and reads as absent so the caller falls
+        // back to the file's modification time.
+        $facts = $this->items->factsForCategory('movies');
+        self::assertNull($facts[$record->filename]->addedAt);
     }
 
     public function testImportPersistsTheReleaseYear(): void
@@ -1363,5 +1365,89 @@ final class ImportServiceTest extends TestCase
 
         self::assertSame(1, $this->countFiles('tv-shows'));
         self::assertSame(0, $this->countFiles('tv-seasons'));
+    }
+
+    /**
+     * The name a set is shown under, recorded from the walk that already reads
+     * collection membership — so it costs no request beyond the ones the import
+     * was making anyway.
+     */
+    public function testAMovieImportRecordsEachCollectionsName(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $collection = new PlexItem('90', PlexMediaType::Collection, 'MonsterVerse', null, '/t/90', 'Movies');
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['1' => [$movie]],
+            collectionsByKey: ['1' => [$collection]],
+            membersByCollection: ['90' => [$movie]],
+        ));
+
+        $service->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame('MonsterVerse', $this->items->titleForRatingKey('90'));
+    }
+
+    /**
+     * The case the recorded name exists for: no collection poster was imported,
+     * so there is no plex_items row to read a name from — and before this the
+     * set could only be described rather than named.
+     */
+    public function testACollectionsNameIsRecordedWithoutItsPosterBeingImported(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $collection = new PlexItem('90', PlexMediaType::Collection, 'MonsterVerse', null, '/t/90', 'Movies');
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['1' => [$movie]],
+            collectionsByKey: ['1' => [$collection]],
+            membersByCollection: ['90' => [$movie]],
+        ));
+
+        // Movies only: the collection branch never runs.
+        $service->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertNull($this->items->findByRatingKey('90'), 'no poster row for the collection');
+        self::assertSame('MonsterVerse', $this->items->titleForRatingKey('90'));
+    }
+
+    public function testASeasonImportRecordsTheShowsName(): void
+    {
+        $library = new PlexLibrary('2', 'TV', 'show');
+        $show = new PlexItem('20', PlexMediaType::Show, 'Breaking Bad', 2008, '/t/20', 'TV');
+        $season = new PlexItem('21', PlexMediaType::Season, 'Season 1', 2008, '/t/21', 'TV', seasonNumber: 1, parentTitle: 'Breaking Bad');
+        $service = $this->service(new FakePlexClient(
+            [$library],
+            ['2' => [$show]],
+            ['20' => [$season]],
+        ));
+
+        $service->import(['2'], [PlexMediaType::Season]);
+
+        self::assertSame('Breaking Bad', $this->items->titleForRatingKey('20'));
+    }
+
+    /**
+     * The other direction: a collection Plex will not list the members of still
+     * gets its name recorded. Membership is the enrichment that fails; the name
+     * is read before the walk and is unaffected.
+     */
+    public function testACollectionThatCannotBeWalkedStillGetsItsName(): void
+    {
+        $library = new PlexLibrary('1', 'Movies', 'movie');
+        $movie = new PlexItem('10', PlexMediaType::Movie, 'Godzilla vs. Kong', 2021, '/t/10', 'Movies');
+        $collection = new PlexItem('90', PlexMediaType::Collection, 'MonsterVerse', null, '/t/90', 'Movies');
+        $service = $this->service(new FailingCollectionWalkClient(
+            [$library],
+            ['1' => [$movie]],
+            collectionsByKey: ['1' => [$collection]],
+        ));
+
+        $result = $service->import(['1'], [PlexMediaType::Movie]);
+
+        self::assertSame('MonsterVerse', $this->items->titleForRatingKey('90'));
+        self::assertGreaterThan(0, $result->imported(), 'the import still succeeds');
     }
 }

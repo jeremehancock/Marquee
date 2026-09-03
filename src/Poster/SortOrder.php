@@ -21,6 +21,8 @@ enum SortOrder: string
     case AlphabeticalDesc = 'alphabetical_desc';
     case DateAdded = 'date_added';
     case DateAddedAsc = 'date_added_asc';
+    case Release = 'release';
+    case ReleaseAsc = 'release_asc';
 
     /**
      * What the sort control's button reads. The title button carries its
@@ -34,6 +36,7 @@ enum SortOrder: string
             self::Alphabetical => 'A–Z',
             self::AlphabeticalDesc => 'Z–A',
             self::DateAdded, self::DateAddedAsc => 'Date added',
+            self::Release, self::ReleaseAsc => 'Release',
         };
     }
 
@@ -49,6 +52,12 @@ enum SortOrder: string
             self::AlphabeticalDesc => 'Z to A',
             self::DateAdded => 'newest first',
             self::DateAddedAsc => 'oldest first',
+            // Not "oldest"/"newest": those are the date field's words, and the
+            // two fields answer different questions — when a poster's media
+            // arrived in Plex, and when the work itself came out. A library can
+            // easily have added its oldest film most recently.
+            self::Release => 'latest first',
+            self::ReleaseAsc => 'earliest first',
         };
     }
 
@@ -79,14 +88,15 @@ enum SortOrder: string
         return match ($this) {
             self::Alphabetical, self::AlphabeticalDesc => SortField::Alphabetical,
             self::DateAdded, self::DateAddedAsc => SortField::DateAdded,
+            self::Release, self::ReleaseAsc => SortField::Release,
         };
     }
 
     public function direction(): SortDirection
     {
         return match ($this) {
-            self::Alphabetical, self::DateAddedAsc => SortDirection::Ascending,
-            self::AlphabeticalDesc, self::DateAdded => SortDirection::Descending,
+            self::Alphabetical, self::DateAddedAsc, self::ReleaseAsc => SortDirection::Ascending,
+            self::AlphabeticalDesc, self::DateAdded, self::Release => SortDirection::Descending,
         };
     }
 

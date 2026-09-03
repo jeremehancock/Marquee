@@ -87,7 +87,7 @@ the variable is absent, empty, or unset at seeding time.
 | --- | --- | --- |
 | `SITE_TITLE` | Site name in the header and browser tab. Does not rename the installed app, which is always "Marquee". Sixty characters or fewer. | `Marquee` |
 | `IMAGES_PER_PAGE` | Posters per gallery page. The screen offers 1–200. | `24` |
-| `DEFAULT_SORT` | Install default gallery sort. One of `alphabetical`, `alphabetical_desc`, `date_added`, `date_added_asc`. Users can still switch field and direction in the gallery. | `alphabetical` |
+| `DEFAULT_SORT` | Install default gallery sort. One of `alphabetical`, `alphabetical_desc`, `date_added`, `date_added_asc`, `release`, `release_asc`. Users can still switch field and direction in the gallery. | `alphabetical` |
 | `IGNORE_ARTICLES_IN_SORT` | Ignore a leading "a", "an", or "the" when sorting | `true` |
 | `MAX_FILE_SIZE` | Maximum upload size, **in bytes**. The Settings screen asks for this in megabytes; the store keeps bytes either way. | `5242880` (5 MB) |
 

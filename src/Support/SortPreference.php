@@ -26,6 +26,16 @@ final class SortPreference
     private const DIRECTION_KEY_PREFIX = 'sort_direction_';
 
     /**
+     * The sort applies to every view alike, a set included.
+     *
+     * A set used to open in release order regardless of what the user had
+     * chosen, and that was withdrawn. The sort control is a GLOBAL control: a
+     * view that quietly reinterprets it reads as the user's own setting being
+     * changed, whether or not anything was actually stored — the button flips,
+     * and "nothing was written to the session" is not a distinction anyone can
+     * see from the toolbar. Release is offered as a field to pick; picking it
+     * sticks, and opening a set changes nothing.
+     *
      * @param array<array-key, mixed> $queryParams
      */
     public static function resolve(SessionInterface $session, array $queryParams, SortOrder $default): SortState
@@ -40,7 +50,23 @@ final class SortPreference
             $current = self::stored($session) ?? $default;
         }
 
-        return new SortState($current, self::remembered($session, $current->field()->other()));
+        return new SortState($current, self::rememberedAll($session));
+    }
+
+    /**
+     * Each field at the direction it was last left in, for the control's
+     * inactive buttons.
+     *
+     * @return array<string, SortOrder>
+     */
+    private static function rememberedAll(SessionInterface $session): array
+    {
+        $remembered = [];
+        foreach (SortField::all() as $field) {
+            $remembered[$field->value] = self::remembered($session, $field);
+        }
+
+        return $remembered;
     }
 
     /**

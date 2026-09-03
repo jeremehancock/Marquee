@@ -228,7 +228,11 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
   - The neighbour cache is an optimisation and must stay one: the gesture is
     fully correct with it permanently empty. Never let a held copy become the
     only record of anything, and never add a `sort` key to it — sort changes do a
-    full page load, which takes the whole cache with it.
+    full page load, which takes the whole cache with it. The **set** is a
+    different case and is keyed: a set changes without a page load (a tab tap
+    carries it), so a copy held from before one was opened is the whole
+    unfiltered category — a wrong library that looks like a working one. The rule
+    is not "never add keys", it is "key on what changes without a reload".
 - **A surface the interface offers *by name* is Title Case everywhere it is
   named; everything else a user reads is sentence case.** The named surfaces are
   Poster Wall, Import from Plex, Plex Connection, Plex Posters, Find Posters and

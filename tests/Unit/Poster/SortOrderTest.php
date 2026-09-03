@@ -48,6 +48,8 @@ final class SortOrderTest extends TestCase
         self::assertSame(SortOrder::Alphabetical, SortOrder::AlphabeticalDesc->flipped());
         self::assertSame(SortOrder::DateAddedAsc, SortOrder::DateAdded->flipped());
         self::assertSame(SortOrder::DateAdded, SortOrder::DateAddedAsc->flipped());
+        self::assertSame(SortOrder::ReleaseAsc, SortOrder::Release->flipped());
+        self::assertSame(SortOrder::Release, SortOrder::ReleaseAsc->flipped());
     }
 
     public function testFlippingTwiceReturnsTheSameOrder(): void
@@ -58,8 +60,9 @@ final class SortOrderTest extends TestCase
     }
 
     /**
-     * The title button carries its direction in the label; the date button has
-     * no equally short pair of words for it and shows direction by arrow alone.
+     * The title button carries its direction in the label; the date and release
+     * buttons have no equally short pair of words for it and show direction by
+     * arrow alone.
      */
     public function testLabels(): void
     {
@@ -67,6 +70,22 @@ final class SortOrderTest extends TestCase
         self::assertSame('Z–A', SortOrder::AlphabeticalDesc->label());
         self::assertSame('Date added', SortOrder::DateAdded->label());
         self::assertSame('Date added', SortOrder::DateAddedAsc->label());
+        self::assertSame('Release', SortOrder::Release->label());
+        self::assertSame('Release', SortOrder::ReleaseAsc->label());
+    }
+
+    /**
+     * The two date-ish fields answer different questions — when a poster's media
+     * arrived in Plex, and when the work itself came out — and a library can
+     * easily have added its oldest film most recently. Sharing "oldest first"
+     * between them would present those as the same question asked twice.
+     */
+    public function testReleaseAndDateAddedDoNotShareDirectionWords(): void
+    {
+        $dates = [SortOrder::DateAdded->directionPhrase(), SortOrder::DateAddedAsc->directionPhrase()];
+        $releases = [SortOrder::Release->directionPhrase(), SortOrder::ReleaseAsc->directionPhrase()];
+
+        self::assertSame([], array_intersect($dates, $releases));
     }
 
     /**
@@ -76,7 +95,7 @@ final class SortOrderTest extends TestCase
     {
         $labels = array_map(static fn (SortOrder $o): string => $o->actionLabel(), SortOrder::cases());
 
-        self::assertCount(4, array_unique($labels));
+        self::assertCount(count(SortOrder::cases()), array_unique($labels));
         self::assertSame('Sort by date added, oldest first', SortOrder::DateAddedAsc->actionLabel());
     }
 
@@ -89,8 +108,10 @@ final class SortOrderTest extends TestCase
     {
         self::assertFalse(SortOrder::Alphabetical->isReversed(), 'A–Z is how titles normally run.');
         self::assertFalse(SortOrder::DateAdded->isReversed(), 'Newest first is how dates normally run.');
+        self::assertFalse(SortOrder::Release->isReversed(), 'Latest first is how a release order normally runs.');
         self::assertTrue(SortOrder::AlphabeticalDesc->isReversed());
         self::assertTrue(SortOrder::DateAddedAsc->isReversed());
+        self::assertTrue(SortOrder::ReleaseAsc->isReversed());
     }
 
     public function testFlippingAlwaysChangesWhetherAnOrderIsReversed(): void
@@ -104,12 +125,50 @@ final class SortOrderTest extends TestCase
     {
         self::assertSame('sort-title', SortField::Alphabetical->glyph());
         self::assertSame('sort-date', SortField::DateAdded->glyph());
+        self::assertSame('sort-release', SortField::Release->glyph());
     }
 
-    public function testOtherFieldIsTheOneNotGiven(): void
+    /**
+     * A field naming the same mark as another would make the control's buttons
+     * tell a reader they sort the same way.
+     */
+    public function testNoTwoFieldsShareAGlyph(): void
     {
-        self::assertSame(SortField::DateAdded, SortField::Alphabetical->other());
-        self::assertSame(SortField::Alphabetical, SortField::DateAdded->other());
+        $glyphs = array_map(static fn (SortField $f): string => $f->glyph(), SortField::all());
+
+        self::assertCount(count($glyphs), array_unique($glyphs));
+    }
+
+    public function testOtherFieldsAreEveryFieldButTheOneGiven(): void
+    {
+        self::assertSame(
+            [SortField::DateAdded, SortField::Release],
+            SortField::Alphabetical->others(),
+        );
+        self::assertSame(
+            [SortField::Alphabetical, SortField::Release],
+            SortField::DateAdded->others(),
+        );
+        self::assertSame(
+            [SortField::Alphabetical, SortField::DateAdded],
+            SortField::Release->others(),
+        );
+    }
+
+    /**
+     * Every order has a field and every field has both directions, so the two
+     * enums cannot drift apart: a case added to one without the other is what
+     * would leave the control with a button that cannot be reversed.
+     */
+    public function testEveryFieldAndDirectionPairsWithAnOrder(): void
+    {
+        $reachable = [];
+        foreach (SortField::all() as $field) {
+            $reachable[] = $field->order(SortDirection::Ascending);
+            $reachable[] = $field->order(SortDirection::Descending);
+        }
+
+        self::assertEqualsCanonicalizing(SortOrder::cases(), $reachable);
     }
 
     public function testFromSlugAcceptsAlphaShorthandAndIsCaseInsensitive(): void
@@ -127,5 +186,57 @@ final class SortOrderTest extends TestCase
     public function testDefaultIsAlphabetical(): void
     {
         self::assertSame(SortOrder::Alphabetical, SortOrder::default());
+    }
+
+    /**
+     * The two date-shaped fields must rest pointing the same way AND mean the
+     * same thing by it.
+     *
+     * This shipped wrong. Release defaulted to earliest-first while Date added
+     * defaults to newest-first, so both buttons sat in the toolbar showing an
+     * identical down arrow while ordering time in opposite directions — which is
+     * precisely what keying the arrow to "reversed" rather than to
+     * ascending/descending is supposed to prevent. The convention only holds if
+     * fields answering the same kind of question agree about their ordinary
+     * direction.
+     *
+     * Titles are excluded deliberately: A–Z is not a claim about time, and
+     * nobody reads a down arrow on it as "newest".
+     */
+    public function testBothTimeFieldsRunTheSameWayByDefault(): void
+    {
+        self::assertSame(
+            SortField::DateAdded->defaultDirection(),
+            SortField::Release->defaultDirection(),
+            'a down arrow must mean the same thing on both date-shaped buttons',
+        );
+    }
+
+    /**
+     * And the direction itself, stated so a later "tidy-up" cannot quietly flip
+     * both together and still pass the test above.
+     */
+    public function testTheTimeFieldsLeadWithTheMostRecent(): void
+    {
+        self::assertSame(SortDirection::Descending, SortField::DateAdded->defaultDirection());
+        self::assertSame(SortDirection::Descending, SortField::Release->defaultDirection());
+        self::assertSame('latest first', SortField::Release->defaultOrder()->directionPhrase());
+    }
+
+    /**
+     * The bare slug names each field's default direction, and the suffixed one
+     * its reverse — the pattern date_added/date_added_asc already set. Getting
+     * this backwards would make DEFAULT_SORT=release mean the opposite of what
+     * the settings screen shows for it.
+     */
+    public function testTheBareSlugIsAlwaysTheFieldsDefaultDirection(): void
+    {
+        foreach (SortField::all() as $field) {
+            self::assertSame(
+                $field->value,
+                $field->defaultOrder()->value,
+                $field->value . ': the unsuffixed slug must be the default direction',
+            );
+        }
     }
 }

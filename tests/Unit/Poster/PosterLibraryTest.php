@@ -10,6 +10,8 @@ use App\Database\PlexItemRecord;
 use App\Database\PlexItemRepository;
 use App\Poster\FilesystemPosterStorage;
 use App\Poster\PosterCategory;
+use App\Poster\PosterFacts;
+use App\Poster\PosterFactsIndex;
 use App\Poster\PosterLibrary;
 use App\Poster\Search\PosterSearch;
 use App\Poster\SortComparator;
@@ -53,6 +55,38 @@ final class PosterLibraryTest extends TestCase
     }
 
     /**
+     * The recorded facts for some categories, read the way the gallery reads
+     * them: one query each, through the repository these tests already write to.
+     * The library no longer reads them itself, so a test that records something
+     * has to hand it over the same way the controller does.
+     */
+    private function recordedFacts(string ...$categories): PosterFactsIndex
+    {
+        $facts = [];
+        foreach ($categories as $category) {
+            $facts[$category] = $this->items->factsForCategory($category);
+        }
+
+        return new PosterFactsIndex($facts);
+    }
+
+    /**
+     * A facts index carrying nothing but Plex timestamps for the movies
+     * category — what the date-added sort reads.
+     *
+     * @param array<string, int> $timestamps keyed by filename
+     */
+    private function addedAt(array $timestamps): PosterFactsIndex
+    {
+        $facts = [];
+        foreach ($timestamps as $filename => $addedAt) {
+            $facts[$filename] = PosterFacts::fromRecorded('', null, null, '', [], $addedAt);
+        }
+
+        return new PosterFactsIndex(['movies' => $facts]);
+    }
+
+    /**
      * Search decides WHICH posters match; the sort order decides how they are
      * listed. Matching on the recorded Plex title rather than the filename moved
      * the first of those and must not have touched the second — sortKey() still
@@ -80,7 +114,13 @@ final class PosterLibraryTest extends TestCase
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, 'voyage', 1)->items,
+            $library->browse(
+                PosterCategory::Movies,
+                'voyage',
+                1,
+                SortOrder::Alphabetical,
+                $this->recordedFacts('movies'),
+            )->items,
         );
 
         self::assertSame(['Alien', 'Solaris', 'Zodiac'], $titles);
@@ -116,7 +156,12 @@ final class PosterLibraryTest extends TestCase
             '1',
         ));
 
-        $found = $library->browseAll('Amélie', 1)->items;
+        $found = $library->browseAll(
+            'Amélie',
+            1,
+            SortOrder::Alphabetical,
+            $this->recordedFacts('movies', 'tv-shows', 'tv-seasons', 'collections'),
+        )->items;
 
         self::assertCount(1, $found);
         self::assertSame('Am_lie_Movies.png', $found[0]->filename);
@@ -189,15 +234,15 @@ final class PosterLibraryTest extends TestCase
     {
         $library = $this->library(['Alien.png', 'Matrix.png', 'Zodiac.png']);
 
-        $addedAt = ['movies' => [
+        $facts = $this->addedAt([
             'Alien.png' => 100,
             'Matrix.png' => 300,
             'Zodiac.png' => 200,
-        ]];
+        ]);
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $addedAt)->items,
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $facts)->items,
         );
 
         self::assertSame(['Matrix', 'Zodiac', 'Alien'], $titles);
@@ -214,7 +259,7 @@ final class PosterLibraryTest extends TestCase
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, [])->items,
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, new PosterFactsIndex())->items,
         );
 
         self::assertSame(['New', 'Mid', 'Old'], $titles);
@@ -227,11 +272,11 @@ final class PosterLibraryTest extends TestCase
         // Stored has an explicit (older) Plex timestamp; Fallback has none and
         // uses its newer file mtime — so Fallback should sort first.
         touch($this->dir . '/movies/Fallback.png', 5_000);
-        $addedAt = ['movies' => ['Stored.png' => 1_000]];
+        $facts = $this->addedAt(['Stored.png' => 1_000]);
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $addedAt)->items,
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAdded, $facts)->items,
         );
 
         self::assertSame(['Fallback', 'Stored'], $titles);
@@ -303,15 +348,15 @@ final class PosterLibraryTest extends TestCase
     {
         $library = $this->library(['Alien.png', 'Matrix.png', 'Zodiac.png']);
 
-        $addedAt = ['movies' => [
+        $facts = $this->addedAt([
             'Alien.png' => 100,
             'Matrix.png' => 300,
             'Zodiac.png' => 200,
-        ]];
+        ]);
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, $addedAt)->items,
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, $facts)->items,
         );
 
         self::assertSame(['Alien', 'Zodiac', 'Matrix'], $titles);
@@ -327,7 +372,7 @@ final class PosterLibraryTest extends TestCase
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, [])->items,
+            $library->browse(PosterCategory::Movies, null, 1, SortOrder::DateAddedAsc, new PosterFactsIndex())->items,
         );
 
         self::assertSame(['Old', 'Mid', 'New'], $titles);
@@ -350,16 +395,16 @@ final class PosterLibraryTest extends TestCase
         ]);
 
         // The one poster that does not begin with the query is by far the newest.
-        $addedAt = ['movies' => [
+        $facts = $this->addedAt([
             'Alien.png' => 100,
             'Aliens.png' => 200,
             'Alien Covenant.png' => 300,
             'The Alien Movie.png' => 9_999,
-        ]];
+        ]);
 
         $titles = array_map(
             static fn ($p): string => $p->title(),
-            $library->browse(PosterCategory::Movies, 'alien', 1, SortOrder::DateAdded, $addedAt)->items,
+            $library->browse(PosterCategory::Movies, 'alien', 1, SortOrder::DateAdded, $facts)->items,
         );
 
         self::assertSame([

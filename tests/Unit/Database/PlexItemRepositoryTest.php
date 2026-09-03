@@ -202,33 +202,48 @@ final class PlexItemRepositoryTest extends TestCase
         // The parentheses the filename lost are intact in the record — the whole
         // reason the caption reads from here.
         self::assertSame(
-            ['Lucky_2026_-_Season_1_TV.jpg' => 'Lucky (2026) - Season 1'],
-            $repo->titlesForCategory('tv-seasons'),
+            'Lucky (2026) - Season 1',
+            $repo->factsForCategory('tv-seasons')['Lucky_2026_-_Season_1_TV.jpg']->title,
         );
     }
 
     /**
-     * An empty title must be absent rather than mapped to "", so the caller falls
-     * back to the filename instead of rendering a blank caption.
+     * An empty title must read as null rather than "", so the caller falls back
+     * to the filename instead of rendering a blank caption.
+     *
+     * This used to be expressed by omitting the row. A combined read cannot omit
+     * it — the same row still carries a year, a set and a timestamp — so the
+     * fallback moved onto the value object, and both directions are asserted
+     * here: a recorded title arrives, an empty one reads as absent.
      */
-    public function testTitlesForCategoryOmitsEmptyTitles(): void
+    public function testFactsReportAnEmptyTitleAsAbsent(): void
     {
         $repo = $this->repository();
         $repo->upsert(new PlexItemRecord('10', 'movie', 'movies', 'Movies', '', 'Solaris.jpg', time()));
 
-        self::assertSame([], $repo->titlesForCategory('movies'));
+        $facts = $repo->factsForCategory('movies')['Solaris.jpg'];
+        self::assertTrue($facts->mapped, 'the row exists even though its title says nothing');
+        self::assertNull($facts->title);
     }
 
-    public function testTitlesForCategoryIgnoresOtherCategories(): void
+    public function testFactsReportARecordedTitle(): void
     {
         $repo = $this->repository();
         $repo->upsert($this->record('10', 'Solaris.jpg'));
 
-        self::assertSame(['Solaris.jpg' => 'Solaris'], $repo->titlesForCategory('movies'));
-        self::assertSame([], $repo->titlesForCategory('tv-shows'));
+        self::assertSame('Solaris', $repo->factsForCategory('movies')['Solaris.jpg']->title);
     }
 
-    public function testYearsForCategoryMapsFilenamesToYears(): void
+    public function testFactsIgnoreOtherCategories(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertArrayHasKey('Solaris.jpg', $repo->factsForCategory('movies'));
+        self::assertSame([], $repo->factsForCategory('tv-shows'));
+    }
+
+    public function testFactsCarryTheRecordedYear(): void
     {
         $repo = $this->repository();
         $repo->upsert(new PlexItemRecord(
@@ -242,23 +257,80 @@ final class PlexItemRepositoryTest extends TestCase
             year: 1972,
         ));
 
-        self::assertSame(['Solaris.jpg' => 1972], $repo->yearsForCategory('movies'));
+        self::assertSame(1972, $repo->factsForCategory('movies')['Solaris.jpg']->year);
     }
 
     /**
-     * A poster with no year must be absent from the map rather than present with
-     * a zero: the gallery shows those titles unchanged, and "(0)" would be worse
-     * than no year at all.
+     * The other direction: no year reads as null rather than zero. The gallery
+     * shows those titles unchanged, and "(0)" would be worse than no year.
      */
-    public function testYearsForCategoryOmitsRowsWithNoYear(): void
+    public function testFactsReportAMissingYearAsAbsent(): void
     {
         $repo = $this->repository();
         $repo->upsert($this->record('10', 'Solaris.jpg'));
 
-        self::assertSame([], $repo->yearsForCategory('movies'));
+        self::assertNull($repo->factsForCategory('movies')['Solaris.jpg']->year);
     }
 
-    public function testYearsForCategoryIgnoresOtherCategories(): void
+    public function testFactsCarryTheRecordedTimestamp(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Solaris',
+            'Solaris.jpg',
+            time(),
+            addedAt: 1700000000,
+        ));
+
+        self::assertSame(1700000000, $repo->factsForCategory('movies')['Solaris.jpg']->addedAt);
+    }
+
+    /**
+     * Zero means "Plex told us nothing", not "the epoch" — the date sort falls
+     * back to the file's own modification time for these.
+     */
+    public function testFactsReportAZeroTimestampAsAbsent(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertNull($repo->factsForCategory('movies')['Solaris.jpg']->addedAt);
+    }
+
+    public function testFactsCarryRecordedSets(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert(new PlexItemRecord(
+            '10',
+            'movie',
+            'movies',
+            'Movies',
+            'Godzilla vs. Kong',
+            'gvk.jpg',
+            time(),
+            setKeys: ['500', '600'],
+        ));
+
+        self::assertSame(['500', '600'], $repo->factsForCategory('movies')['gvk.jpg']->setKeys);
+    }
+
+    public function testFactsReportNoSetsAsAnEmptyList(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertSame([], $repo->factsForCategory('movies')['Solaris.jpg']->setKeys);
+    }
+
+    /**
+     * A season answers with its show's title so the action gathers the show and
+     * its sibling seasons; everything else answers with its own.
+     */
+    public function testFactsResolveASeasonsRelatedTitle(): void
     {
         $repo = $this->repository();
         $repo->upsert(new PlexItemRecord(
@@ -269,11 +341,21 @@ final class PlexItemRepositoryTest extends TestCase
             'Breaking Bad - Season 2',
             'bb-s2.jpg',
             time(),
-            year: 2009,
+            seasonNumber: 2,
+            parentTitle: 'Breaking Bad',
         ));
 
-        self::assertSame([], $repo->yearsForCategory('movies'));
-        self::assertSame(['bb-s2.jpg' => 2009], $repo->yearsForCategory('tv-seasons'));
+        $facts = $repo->factsForCategory('tv-seasons')['bb-s2.jpg'];
+        self::assertSame('Breaking Bad', $facts->relatedTitle);
+        self::assertSame(2, $facts->seasonNumber);
+    }
+
+    public function testFactsResolveAMoviesRelatedTitleAsItsOwn(): void
+    {
+        $repo = $this->repository();
+        $repo->upsert($this->record('10', 'Solaris.jpg'));
+
+        self::assertSame('Solaris', $repo->factsForCategory('movies')['Solaris.jpg']->relatedTitle);
     }
 
     public function testLibrarySyncIsIdempotent(): void

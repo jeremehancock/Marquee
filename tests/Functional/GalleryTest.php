@@ -655,9 +655,12 @@ final class GalleryTest extends AppTestCase
 
         $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
 
-        // Every member links to the same set.
+        // Every member links to the same set. The link also names the poster it
+        // was activated on, so the destination can say which of a film's other
+        // collections it is not showing — hence the prefix match rather than an
+        // exact one.
         $body = (string) $this->get($app, '/library/movies')->getBody();
-        self::assertSame(2, substr_count($body, 'href="/library/all?set=90"'));
+        self::assertSame(2, substr_count($body, 'href="/library/all?set=90&amp;from='));
 
         $set = (string) $this->get($app, '/library/all?set=90')->getBody();
         self::assertStringContainsString('Iron Man', $set);
@@ -719,10 +722,15 @@ final class GalleryTest extends AppTestCase
     }
 
     /**
-     * A set is exact, so it never offers to be widened — the offer exists for the
-     * fallback, not for a result Plex asserted.
+     * A set opened without an origin poster is offered nothing, there being no
+     * title to derive a candidate from.
+     *
+     * This used to be the rule for EVERY set, on the reasoning that a set is
+     * exact. That conflated two things: membership is exact, and the collection
+     * is complete. A Plex collection holds what somebody put in it — see
+     * {@see SetBroaderOfferTest} for the case where the offer is now made.
      */
-    public function testASetViewOffersNothingBroader(): void
+    public function testASetViewWithNoOriginOffersNothingBroader(): void
     {
         $dataDir = $this->makeTempDir();
         $repo = new PlexItemRepository(new Database($dataDir . '/marquee.sqlite'));
@@ -743,6 +751,7 @@ final class GalleryTest extends AppTestCase
         $body = (string) $this->get($app, '/library/all?set=80')->getBody();
 
         self::assertStringNotContainsString('Looking for the rest of a series?', $body);
+        self::assertStringNotContainsString('Missing something?', $body);
     }
 
     /**
@@ -818,7 +827,7 @@ final class GalleryTest extends AppTestCase
         $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
         $body = (string) $this->get($app, '/library/all?set=90')->getBody();
 
-        self::assertStringContainsString('in Marvel Cinematic Universe', $body);
+        self::assertStringContainsString('for Marvel Cinematic Universe', $body);
         self::assertStringContainsString('class="search__clear"', $body);
     }
 
@@ -847,7 +856,7 @@ final class GalleryTest extends AppTestCase
         $body = (string) $this->get($app, '/library/all?set=90')->getBody();
 
         self::assertStringContainsString('Iron Man', $body);
-        self::assertStringContainsString('in this set', $body);
+        self::assertStringContainsString('for this set', $body);
     }
 
     /**
