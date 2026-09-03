@@ -113,6 +113,100 @@ if (count($withSet) === 0 && count($rows) > 0) {
     $out('  if it is still none, the membership read above is what to look at.');
 }
 
+$out();
+$out('== The shape of this library ==');
+$out('  What the ordering and "also in" rules were designed against. Reads the');
+$out('  recorded rows only; no server is needed for this section.');
+$out();
+
+// Release order sorts on `year`, and on `season_number` within a year. How often
+// each is absent decides whether "unknown first" is a corner or a whole block,
+// and whether a show's seasons really do tie with the show on year.
+$categories = [];
+foreach ($rows as $row) {
+    $categories[$row->category][] = $row;
+}
+ksort($categories);
+
+$out('  Recorded release year, by category:');
+foreach ($categories as $category => $inCategory) {
+    $withoutYear = array_filter($inCategory, static fn ($row): bool => $row->year === null);
+    $out(sprintf(
+        '    %-14s %4d row(s), %4d with no year (%d%%)',
+        $category,
+        count($inCategory),
+        count($withoutYear),
+        count($inCategory) === 0 ? 0 : (int) round(100 * count($withoutYear) / count($inCategory)),
+    ));
+}
+
+// The one that cannot be checked from outside a real server: whether Plex
+// reports a year on a collection at all. Unknown-first is chosen to be correct
+// either way, so this confirms a design assumption rather than deciding one.
+$collectionRows = $categories['collections'] ?? [];
+$datedCollections = array_filter($collectionRows, static fn ($row): bool => $row->year !== null);
+$out(sprintf(
+    '    -> %d of %d collections carry a year%s',
+    count($datedCollections),
+    count($collectionRows),
+    $collectionRows === []
+        ? ''
+        : (count($datedCollections) === 0
+            ? '; a collection sorts ahead of its films on "unknown first"'
+            : '; a collection sorts among its films by that year'),
+));
+
+$seasons = $categories['tv-seasons'] ?? [];
+$numberless = array_filter($seasons, static fn ($row): bool => $row->seasonNumber === null);
+$out(sprintf(
+    '  Seasons with no recorded season number: %d of %d%s',
+    count($numberless),
+    count($seasons),
+    $numberless === [] ? '' : '   <-- these tie with their show rather than following it',
+));
+
+// The "also in" line names the sets ONE poster belongs to. This is the number
+// that says whether that list stays short on a real library.
+$bySetCount = [];
+foreach ($rows as $row) {
+    $bySetCount[count($row->setKeys)] = ($bySetCount[count($row->setKeys)] ?? 0) + 1;
+}
+ksort($bySetCount);
+$out('  Sets recorded per poster:');
+foreach ($bySetCount as $count => $howMany) {
+    $out(sprintf(
+        '    in %d set(s):  %4d poster(s)%s',
+        $count,
+        $howMany,
+        $count === 0 ? '   (falls back to a title search)' : '',
+    ));
+}
+$most = max(array_keys($bySetCount) ?: [0]);
+if ($most > 1) {
+    $out(sprintf('    -> the longest "also in" line names %d other set(s)', $most - 1));
+}
+
+// A set can be named from the naming item's own poster row. Where that poster
+// was never imported, the set reads "this set" until its name is recorded
+// separately — which is the case the plex_sets table exists for.
+$recordedKeys = [];
+foreach ($rows as $row) {
+    $recordedKeys[$row->ratingKey] = true;
+}
+$allSets = [];
+foreach ($rows as $row) {
+    foreach ($row->setKeys as $key) {
+        $allSets[$key] = true;
+    }
+}
+$nameless = array_filter(array_keys($allSets), static fn (string $key): bool => !isset($recordedKeys[$key]));
+$out(sprintf(
+    '  Sets with no naming poster imported: %d of %d%s',
+    count($nameless),
+    count($allSets),
+    $nameless === [] ? '' : '   <-- these read "this set" until names are recorded',
+));
+
 $needle = $argv[1] ?? '';
 if ($needle === '') {
     $out();
