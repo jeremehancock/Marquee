@@ -827,7 +827,7 @@ final class GalleryTest extends AppTestCase
         $app = $this->makeSignedInApp(['POSTERS_DIR' => $this->postersDir, 'DATA_DIR' => $dataDir]);
         $body = (string) $this->get($app, '/library/all?set=90')->getBody();
 
-        self::assertStringContainsString('in Marvel Cinematic Universe', $body);
+        self::assertStringContainsString('for Marvel Cinematic Universe', $body);
         self::assertStringContainsString('class="search__clear"', $body);
     }
 
@@ -856,7 +856,7 @@ final class GalleryTest extends AppTestCase
         $body = (string) $this->get($app, '/library/all?set=90')->getBody();
 
         self::assertStringContainsString('Iron Man', $body);
-        self::assertStringContainsString('in this set', $body);
+        self::assertStringContainsString('for this set', $body);
     }
 
     /**

@@ -222,8 +222,8 @@ final class SetNamingTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/all?set=400')->getBody();
 
-        self::assertStringContainsString('in Villeneuve', $body);
-        self::assertStringNotContainsString('in this set', $body);
+        self::assertStringContainsString('for Villeneuve', $body);
+        self::assertStringNotContainsString('for this set', $body);
     }
 
     /**
@@ -236,7 +236,7 @@ final class SetNamingTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/all?set=500')->getBody();
 
-        self::assertStringContainsString('in this set', $body);
+        self::assertStringContainsString('for this set', $body);
         self::assertStringContainsString('Stalker', $body);
         self::assertStringContainsString('Clear', $body);
     }
@@ -282,7 +282,7 @@ final class SetNamingTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/all?set=800')->getBody();
 
-        self::assertStringContainsString('in The Apu Trilogy', $body);
+        self::assertStringContainsString('for The Apu Trilogy', $body);
         self::assertStringNotContainsString('Stale Name', $body);
     }
 
@@ -297,7 +297,52 @@ final class SetNamingTest extends AppTestCase
 
         $body = (string) $this->get($this->app(), '/library/all?set=900')->getBody();
 
-        self::assertStringContainsString('in New Name', $body);
+        self::assertStringContainsString('for New Name', $body);
         self::assertStringNotContainsString('Old Name', $body);
+    }
+
+    /**
+     * A set is two different relations wearing one word.
+     *
+     * A film really is IN a collection, so "9 posters in MonsterVerse" reads
+     * correctly. A season is not in its show — it is artwork FOR it — and "6
+     * posters in Breaking Bad" reads as a mistake, which is how it shipped. One
+     * preposition has to serve both kinds of set, because the summary cannot ask
+     * what kind it is holding without recording a type it has no other use for.
+     *
+     * "for" is true of each, and is the preposition the search summary beside it
+     * already uses ("12 matches for “dune” in Movies"), so the two filtered
+     * states read as siblings.
+     */
+    public function testTheSummarySaysPostersForASetRatherThanInIt(): void
+    {
+        $this->film('30', 'Breaking Bad', ['1000']);
+        $this->items()->rememberSetName('1000', 'Breaking Bad');
+
+        $body = (string) $this->get($this->app(), '/library/all?set=1000')->getBody();
+
+        self::assertStringContainsString('for Breaking Bad', $body);
+        self::assertStringNotContainsString('poster in Breaking Bad', $body);
+        self::assertStringNotContainsString('posters in Breaking Bad', $body);
+    }
+
+    /**
+     * And it names the view, for the same reason the search summary does: a set
+     * survives a tab change now, so which view you are looking at is a real
+     * question rather than always "All".
+     */
+    public function testTheSummaryNamesTheViewItIsFiltering(): void
+    {
+        $this->film('31', 'Dune', ['1100']);
+        $this->items()->rememberSetName('1100', 'Villeneuve');
+
+        self::assertStringContainsString(
+            'for Villeneuve in All',
+            (string) $this->get($this->app(), '/library/all?set=1100')->getBody(),
+        );
+        self::assertStringContainsString(
+            'for Villeneuve in Movies',
+            (string) $this->get($this->app(), '/library/movies?set=1100')->getBody(),
+        );
     }
 }

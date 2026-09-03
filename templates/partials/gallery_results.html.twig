@@ -17,14 +17,26 @@
        seasons, a collection with its films. Named where it can be; the item that
        names it may have no imported poster of its own, and the set is still
        correct without a name. Its clear control returns to the unfiltered view,
-       exactly as the search's does, so the two filtered states behave alike. #}
+       exactly as the search's does, so the two filtered states behave alike.
+
+       "FOR", not "in". A set is two different relations wearing one word: a film
+       really is IN a collection, but a season is not in its show — it is artwork
+       FOR it — and "6 posters in Breaking Bad" reads as a mistake. One preposition
+       has to serve both, and "for" is true of each: these are the posters Marquee
+       holds for that work. It is also the preposition the search summary below
+       already uses, so the two filtered states read as siblings rather than as
+       two unrelated sentences.
+
+       The view is named for the same reason the search names it: a set now
+       survives a tab change, so "2 posters for Breaking Bad in TV Seasons" is a
+       thing a reader can actually be looking at. #}
     <div class="stats stats--filter">
         <span>
+            {% set set_name = set_title ?? 'this set' %}
             {% if result.total > 0 %}
-                {{ result.total }} {{ result.total == 1 ? 'poster' : 'posters' }}
-                {%- if set_title %} in {{ set_title }}{% else %} in this set{% endif %}
+                {{ result.total }} {{ result.total == 1 ? 'poster' : 'posters' }} for {{ set_name }} in {{ view.label }}
             {% else %}
-                Nothing else in this set
+                No posters for {{ set_name }} in {{ view.label }}
             {% endif %}
         </span>
         <a class="search__clear" href="/library/{{ view.value }}">Clear</a>

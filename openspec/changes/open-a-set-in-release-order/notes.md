@@ -234,3 +234,29 @@ about a film they can no longer name.
 The line now names the poster, using the same caption the card carries. The
 requirement says so explicitly rather than leaving it to the wording, and the
 tests assert the film's name rather than the bare preposition.
+
+### "6 posters in Breaking Bad" was wrong for half the sets
+
+Reported as: "in" makes sense for collections, but a TV show's set showing the
+number of posters "in" the show title does not.
+
+Correct, and the reason is that a set is two different relations wearing one
+word. A film really is *in* a collection. A season is not *in* its show — it is
+artwork *for* it. The summary was written against the collection case, which
+reads perfectly, and nobody noticed it was making a claim that is false for every
+show.
+
+The obvious fix — vary the preposition by the kind of set — was not taken. The
+summary would have to ask what kind of item names the set, which means recording
+a type that has no other use, and every set recorded before that column existed
+would have no answer. One wording has to serve both.
+
+"for" is true of each: these are the posters Marquee holds for that work. It is
+also the preposition the search summary beside it already uses — "12 matches for
+“dune” in Movies" — so the two filtered states now read as siblings rather than
+as two unrelated sentences.
+
+The view is named for the same reason the search names it, and it earns its place
+now in a way it would not have before: a set survives a tab change as of this
+change, so "2 posters for Breaking Bad in TV Seasons" is something a reader can
+actually be looking at.

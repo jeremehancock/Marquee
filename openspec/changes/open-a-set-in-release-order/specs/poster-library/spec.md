@@ -268,6 +268,17 @@ to say.
 The gallery SHALL name a set from the name Plex reported for the item that names
 it, whether or not that item's own poster was imported.
 
+The summary SHALL report the posters as being **for** the set rather than **in**
+it, and SHALL name the view it is filtering, on the same terms as the summary for
+an active query.
+
+A set is two different relations wearing one word. A film really is *in* a
+collection; a season is not *in* its show — it is artwork *for* it — so "6
+posters in Breaking Bad" reads as a mistake while "9 posters in MonsterVerse" does
+not. One wording SHALL serve every kind of set: asking which kind is being shown
+would mean recording a type the gallery has no other use for, and would leave
+sets recorded before that was stored with no answer at all.
+
 A set whose name is not known SHALL be described rather than named, and the set
 SHALL be presented correctly either way. A name is a courtesy; the members are the
 answer.
@@ -285,6 +296,20 @@ where one exists and otherwise describe it, exactly as it does today.
 - **WHEN** a set's name is not known by any means
 - **THEN** the set view describes it without naming it
 - **AND** the set's members and its clear control are shown unchanged
+
+#### Scenario: A show's set does not read as posters inside the show
+- **WHEN** a user opens the set of a show that has imported seasons
+- **THEN** the summary reports the posters as being for that show
+- **AND** it does not report them as being in it
+
+#### Scenario: A collection's set reads the same way
+- **WHEN** a user opens the set of a collection
+- **THEN** the summary uses the same wording it uses for a show's set, one
+  phrasing serving both kinds of set
+
+#### Scenario: The summary names the view being filtered
+- **WHEN** a user viewing a set switches from All to Movies
+- **THEN** the summary names the newly selected view alongside the set
 
 ### Requirement: The gallery reads a category's recorded facts once per render
 Rendering a view SHALL read each category's recorded Plex facts — the item's

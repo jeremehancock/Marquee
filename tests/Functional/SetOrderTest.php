@@ -145,7 +145,7 @@ final class SetOrderTest extends AppTestCase
         $body = (string) $this->get($app, '/library/all?set=700&sort=alphabetical')->getBody();
 
         // Still the set's own summary and clear control, not a full listing.
-        self::assertStringContainsString('in this set', $body);
+        self::assertStringContainsString('for this set', $body);
     }
 
     /**
@@ -236,7 +236,7 @@ final class SetOrderTest extends AppTestCase
         $app = $this->app();
         $body = (string) $this->get($app, '/library/collections?set=700')->getBody();
 
-        self::assertStringContainsString('Nothing else in this set', $body);
+        self::assertStringContainsString('No posters for this set in Collections', $body);
         self::assertStringNotContainsString('No posters yet', $body);
     }
 
@@ -247,7 +247,7 @@ final class SetOrderTest extends AppTestCase
 
         // Two films and a default page size, so there is no second page to link
         // to; what matters is that the set survives the round trip at all.
-        self::assertStringContainsString('in this set', $body);
+        self::assertStringContainsString('for this set', $body);
         self::assertSame('Zzz First', $this->firstFilm($app, '/library/all?set=700&page=1'));
     }
 
