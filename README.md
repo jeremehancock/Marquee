@@ -27,15 +27,17 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
   - **Related posters** — open the set a poster belongs to: a show with all of
-    its seasons, or a film with the rest of its Plex collection, read in release
-    order. Works from any member, so a late season or a sequel gets you the whole
-    set, and it holds even for collections whose films share no words in their
-    titles. Useful for making a set match. A film in more than one collection is
-    told which others it is in. A film in no collection falls back to searching its
-    title, and where that finds only itself the gallery offers a shorter query —
-    "Jackass" for "Jackass: Best and Last" — with the number of posters it would
-    find, so you can widen the search yourself without it ever widening on its
-    own.
+    its seasons, or a film with the rest of its Plex collection. Works from any
+    member, so a late season or a sequel gets you the whole set, and it holds
+    even for collections whose films share no words in their titles. Useful for
+    making a set match. The set stays put as you switch tabs or change the sort,
+    and sorting by **Release** reads it in the order it came out. A film in more
+    than one collection is told which others it is in. A film in no collection
+    falls back to searching its title, and where that finds only itself the
+    gallery offers a shorter query — "Jackass" for "Jackass: Best and Last" —
+    with the number of posters it would find, so you can widen the search
+    yourself without it ever widening on its own. A collection that is missing a
+    film your library holds gets the same offer.
   - **Download**, view **Full screen**, or **Delete**.
 - **Plex is the source of truth** — changing a poster uploads it to Plex and
   locks the artwork so Plex won't overwrite it.

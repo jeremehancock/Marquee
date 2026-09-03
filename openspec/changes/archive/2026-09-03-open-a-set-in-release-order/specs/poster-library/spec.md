@@ -469,10 +469,14 @@ everywhere the control appears, whatever view is being shown.
 - **WHEN** the gallery is ordered Z–A and the user activates the title button
 - **THEN** the gallery is reordered A–Z
 
-#### Scenario: Activating another field switches to it
+#### Scenario: Activating the other field switches to it
 - **WHEN** the gallery is ordered Z–A and the user activates the date-added
   button
 - **THEN** the gallery is ordered by date added
+
+#### Scenario: Activating a third field switches to it
+- **WHEN** the gallery is ordered Z–A and the user activates the release button
+- **THEN** the gallery is ordered by release
 
 #### Scenario: Every field is offered in every view
 - **WHEN** the sort control is shown in the full library and again in a set view
@@ -560,6 +564,12 @@ different things.
 - **WHEN** the gallery is ordered Z–A
 - **THEN** the title button is marked active, reads `Z–A`, and shows an upward
   arrow, Z–A being the title field reversed
+
+#### Scenario: Both fields rest pointing the same way
+- **WHEN** the gallery is ordered A–Z and the date-added field has not been
+  reversed this session
+- **THEN** both buttons show a downward arrow, despite A–Z being ascending and
+  the date field's default being descending
 
 #### Scenario: Every field rests pointing the same way
 - **WHEN** the gallery is ordered A–Z and neither the date-added nor the release

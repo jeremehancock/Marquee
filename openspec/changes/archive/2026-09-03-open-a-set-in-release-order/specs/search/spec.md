@@ -122,10 +122,13 @@ presence.
 - **THEN** the gallery offers "Jackass" and reports that it would find nine
 - **AND** the set shown still holds its eight members
 
-#### Scenario: A complete set is offered nothing
+#### Scenario: An exact set is offered nothing
 - **WHEN** a user opens a set holding every poster its origin poster's title
   would find
 - **THEN** no broader search is offered
+- **AND** the reason is that nothing shorter would find more, NOT that the set's
+  membership was asserted by Plex — a set is no longer exempt merely for being
+  exact, exactness of membership not being completeness of the collection
 
 #### Scenario: A set whose members share no words is offered nothing
 - **WHEN** a user opens the set of a studio or franchise collection, from a film
