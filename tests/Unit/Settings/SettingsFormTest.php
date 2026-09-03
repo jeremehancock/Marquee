@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Settings;
 use App\Config\AuthConfig;
 use App\Config\PlexConfig;
 use App\Config\PosterConfig;
+use App\Poster\SortOrder;
 use App\Settings\SettingKey;
 use App\Settings\SettingsForm;
 use App\Settings\SettingsStore;
@@ -260,7 +261,10 @@ final class SettingsFormTest extends TestCase
 
         $labels = array_map(static fn (array $o): string => $o['label'], $options);
 
-        self::assertCount(4, $options);
+        // Every order the gallery can be in is offerable as an install default,
+        // so this counts the enum rather than a literal — a field added without
+        // reaching the settings screen is the drift worth catching.
+        self::assertCount(count(SortOrder::cases()), $options);
         self::assertSame($labels, array_unique($labels));
     }
 

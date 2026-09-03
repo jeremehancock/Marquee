@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
-use App\Poster\RelatedTitle;
+use App\Poster\PosterFacts;
 use App\Support\Scalar;
 
 /**
@@ -80,207 +80,152 @@ final class PlexItemRepository
     }
 
     /**
-     * Filenames in a category that are linked to a Plex item.
+     * Everything a render needs to know about one category's mapped posters, in
+     * a single read.
      *
-     * @return list<string>
-     */
-    public function filenamesForCategory(string $category): array
-    {
-        $stmt = $this->database->pdo()->prepare('SELECT filename FROM plex_items WHERE category = :category');
-        $stmt->execute([':category' => $category]);
-
-        $filenames = [];
-        foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'])) {
-                $filenames[] = Scalar::string($row['filename']);
-            }
-        }
-
-        return $filenames;
-    }
-
-    /**
-     * The Plex "added at" timestamp for each mapped poster in a category, keyed
-     * by filename. Rows with no known timestamp (added_at = 0) are omitted so
-     * the caller can fall back to the file's modification time.
+     * This replaces six separate per-column reads — the title, the year, the
+     * season number, the related title's inputs, the sets, and the Plex "added
+     * at" timestamp — each of which scanned the same rows of the same category.
+     * The All view was paying twenty of them, and a filtered one twenty-four.
      *
-     * @return array<string, int>
+     * **Every row comes back.** The reads this replaces each dropped rows they
+     * had nothing to say about, and their callers read that omission as an
+     * instruction to fall back. That cannot survive a combined read — a row with
+     * no year still has a title — so absence moves into {@see PosterFacts},
+     * which spells each of those fallbacks out. Nothing about which poster falls
+     * back to what has changed.
+     *
+     * @return array<string, PosterFacts> keyed by filename
      */
-    public function addedAtForCategory(string $category): array
+    public function factsForCategory(string $category): array
     {
         $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, added_at FROM plex_items WHERE category = :category AND added_at > 0'
-        );
-        $stmt->execute([':category' => $category]);
-
-        $map = [];
-        foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['added_at'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::int($row['added_at']);
-            }
-        }
-
-        return $map;
-    }
-
-    /**
-     * The title Plex reported for each mapped poster in a category, keyed by
-     * filename. This is what the gallery shows. It is preferred over the
-     * filename-derived title because the filename is a sanitised copy of it —
-     * punctuation flattened, library appended — and that loss cannot be undone by
-     * inspecting the filename. Rows with an empty title are omitted so the caller
-     * falls back rather than rendering a blank caption.
-     *
-     * @return array<string, string>
-     */
-    public function titlesForCategory(string $category): array
-    {
-        $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, title FROM plex_items WHERE category = :category AND title <> \'\''
-        );
-        $stmt->execute([':category' => $category]);
-
-        $map = [];
-        foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['title'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::string($row['title']);
-            }
-        }
-
-        return $map;
-    }
-
-    /**
-     * The release year for each mapped poster in a category, keyed by filename.
-     * The gallery shows it in parentheses. Import writes a year into the filename
-     * only for movies but records one for shows and seasons too, so this column —
-     * not the filename — is the reliable source. Rows with no year are omitted,
-     * and the caller shows those posters' titles unchanged.
-     *
-     * @return array<string, int>
-     */
-    public function yearsForCategory(string $category): array
-    {
-        $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, year FROM plex_items WHERE category = :category AND year IS NOT NULL'
-        );
-        $stmt->execute([':category' => $category]);
-
-        $map = [];
-        foreach ($stmt->fetchAll() as $row) {
-            if (is_array($row) && isset($row['filename'], $row['year'])) {
-                $map[Scalar::string($row['filename'])] = Scalar::int($row['year']);
-            }
-        }
-
-        return $map;
-    }
-
-    /**
-     * The title to search for when a user asks for a poster's related posters,
-     * keyed by filename within a category.
-     *
-     * A season answers with its **show's** title, so the search gathers the show
-     * and every sibling season rather than the one season it started from.
-     * Everything else answers with its own title. Resolving that here rather than
-     * at the caller means no surface has to know which kind of item it is holding.
-     *
-     * The year is deliberately not part of this. The caption appends it, but a
-     * query carrying "(1999)" would narrow the search back to the single poster
-     * the action was started from.
-     *
-     * A season imported before show titles were recorded has an empty
-     * `parent_title`; RelatedTitle falls back to stripping the season off the
-     * display title, so the action works on the install it is delivered to rather
-     * than only after the next import. Rows with nothing to offer are omitted so
-     * the caller falls back to the filename-derived title.
-     *
-     * The choice between the two is RelatedTitle's, not this query's — it is a
-     * rule about titles rather than about storage, and it has to be testable
-     * without a database.
-     *
-     * @return array<string, string>
-     */
-    public function relatedTitlesForCategory(string $category): array
-    {
-        $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, title, parent_title, season_number
+            'SELECT filename, title, year, season_number, parent_title, set_keys, added_at
                FROM plex_items
-              WHERE category = :category
-                AND (parent_title <> \'\' OR title <> \'\')'
+              WHERE category = :category'
         );
         $stmt->execute([':category' => $category]);
 
-        $map = [];
+        $facts = [];
         foreach ($stmt->fetchAll() as $row) {
             if (!is_array($row) || !isset($row['filename'])) {
                 continue;
             }
 
-            $related = RelatedTitle::forRecord(
+            $facts[Scalar::string($row['filename'])] = PosterFacts::fromRecorded(
                 Scalar::string($row['title'] ?? null),
-                Scalar::string($row['parent_title'] ?? null),
+                Scalar::intOrNull($row['year'] ?? null),
                 Scalar::intOrNull($row['season_number'] ?? null),
+                Scalar::string($row['parent_title'] ?? null),
+                PlexItemRecord::splitSetKeys(Scalar::string($row['set_keys'] ?? null)),
+                Scalar::int($row['added_at'] ?? null),
             );
-
-            if ($related !== '') {
-                $map[Scalar::string($row['filename'])] = $related;
-            }
         }
 
-        return $map;
+        return $facts;
     }
 
     /**
-     * The sets each mapped poster in a category belongs to, keyed by filename.
+     * Record what a set is called, as Plex reports it.
      *
-     * The values are Plex rating keys: a show's or collection's own, a season's
-     * show, a movie's collections. A poster is shown by Related posters when the
-     * requested set is among its keys — which is a list because collections
-     * overlap, and a film in two of them belongs to both.
-     *
-     * Rows in no set are omitted so the caller falls back to the title search — a
-     * movie in no collection is the ordinary case there.
-     *
-     * @return array<string, list<string>>
+     * Written from the import's collection walk and show loop, both of which
+     * already hold the title — so this costs no request. Upserted rather than
+     * filled-if-blank, because a collection renamed in Plex should be corrected,
+     * and there is exactly one writer.
      */
-    public function setKeysForCategory(string $category): array
+    public function rememberSetName(string $ratingKey, string $title): void
     {
-        $stmt = $this->database->pdo()->prepare(
-            'SELECT filename, set_keys FROM plex_items WHERE category = :category AND set_keys <> \'\''
-        );
-        $stmt->execute([':category' => $category]);
-
-        $map = [];
-        foreach ($stmt->fetchAll() as $row) {
-            if (!is_array($row) || !isset($row['filename'], $row['set_keys'])) {
-                continue;
-            }
-
-            $keys = PlexItemRecord::splitSetKeys(Scalar::string($row['set_keys']));
-            if ($keys !== []) {
-                $map[Scalar::string($row['filename'])] = $keys;
-            }
+        if ($ratingKey === '' || $title === '') {
+            return;
         }
 
-        return $map;
+        $stmt = $this->database->pdo()->prepare(
+            'INSERT INTO plex_sets (rating_key, title, updated_at)
+             VALUES (:key, :title, :now)
+             ON CONFLICT(rating_key) DO UPDATE SET
+                title = excluded.title,
+                updated_at = excluded.updated_at'
+        );
+        $stmt->execute([':key' => $ratingKey, ':title' => $title, ':now' => time()]);
     }
 
     /**
      * The title of the item a set is named by — the show's or the collection's —
-     * so a set view can say what it is showing. Null when the set's own item has
-     * no mapping, which happens when its poster was never imported; the caller
-     * reports the set without a name rather than failing.
+     * so a set view can say what it is showing.
+     *
+     * Two places hold it, and the order matters. The item's OWN poster row is
+     * preferred: it is the title the gallery captions that poster with, so a set
+     * cannot be named one thing in its summary and another on the card naming
+     * it. Failing that, the name recorded during the import's membership walk,
+     * which exists whether or not the poster was ever imported — the common case
+     * for a user who imports films but not collection artwork.
+     *
+     * Null when neither knows, which is a set imported before names were
+     * recorded. The caller describes the set rather than failing.
+     *
+     * One keyed lookup, not a scan, and one per render rather than one per
+     * category — which is why it is not part of the combined facts read.
      */
     public function titleForRatingKey(string $ratingKey): ?string
     {
         $stmt = $this->database->pdo()->prepare(
-            'SELECT title FROM plex_items WHERE rating_key = :key AND title <> \'\' LIMIT 1'
+            'SELECT title FROM (
+                SELECT title, 0 AS rank FROM plex_items WHERE rating_key = :key AND title <> \'\'
+                UNION ALL
+                SELECT title, 1 AS rank FROM plex_sets WHERE rating_key = :key AND title <> \'\'
+             ) ORDER BY rank LIMIT 1'
         );
         $stmt->execute([':key' => $ratingKey]);
         $row = $stmt->fetch();
 
         return is_array($row) && isset($row['title']) ? Scalar::string($row['title']) : null;
+    }
+
+    /**
+     * The names of several sets at once, keyed by rating key — what the "also
+     * in" line on a set view needs.
+     *
+     * One read for the whole list rather than one per set: a poster in five
+     * collections must not cost five queries to name four of them. Sets with no
+     * known name are simply absent, and the caller describes those rather than
+     * omitting the link.
+     *
+     * @param list<string> $ratingKeys
+     *
+     * @return array<string, string>
+     */
+    public function titlesForRatingKeys(array $ratingKeys): array
+    {
+        $keys = array_values(array_unique(array_filter($ratingKeys, static fn (string $k): bool => $k !== '')));
+        if ($keys === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $stmt = $this->database->pdo()->prepare(sprintf(
+            'SELECT rating_key, title FROM (
+                SELECT rating_key, title, 0 AS rank FROM plex_items
+                 WHERE rating_key IN (%1$s) AND title <> \'\'
+                UNION ALL
+                SELECT rating_key, title, 1 AS rank FROM plex_sets
+                 WHERE rating_key IN (%1$s) AND title <> \'\'
+             ) ORDER BY rank',
+            $placeholders,
+        ));
+        $stmt->execute([...$keys, ...$keys]);
+
+        $titles = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (!is_array($row) || !isset($row['rating_key'], $row['title'])) {
+                continue;
+            }
+            // Ordered by rank, so the poster row's title arrives first and the
+            // recorded set name never overwrites it.
+            $key = Scalar::string($row['rating_key']);
+            $titles[$key] ??= Scalar::string($row['title']);
+        }
+
+        return $titles;
     }
 
     /**

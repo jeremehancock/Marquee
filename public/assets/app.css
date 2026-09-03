@@ -1451,6 +1451,11 @@ h1 {
     display: flex;
     align-items: center;
     gap: 6px;
+    /* Three fields rather than two. .toolbar already wraps, so the group drops
+       to its own row when the search box is at its 240px minimum; this lets the
+       group itself wrap in the narrow band where even a row of its own is not
+       quite enough, rather than pushing the toolbar wider than the page. */
+    flex-wrap: wrap;
 }
 
 .sort__label {

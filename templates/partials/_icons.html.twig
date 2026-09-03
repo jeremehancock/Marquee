@@ -7,7 +7,7 @@
    in without looking foreign. Callers:
 
      category tabs + sort   all, movies, tv-shows, tv-seasons, collections, sort,
-                            sort-title, sort-date, sort-direction
+                            sort-title, sort-date, sort-release, sort-direction
      header nav + tray      wall, import, orphans, support, logout
      poster actions         change, send, fetch, download, related, fullscreen,
                             delete
@@ -35,10 +35,18 @@
    as the All tab. It replaced the `copy` glyph in place when Copy URL left the
    action stack; no caller of `copy` remained. #}
 
-{# The sort control's three marks divide the work: `sort-title` and `sort-date`
-   name the field, `sort-direction` states which way it runs. Neither field glyph
-   carries an arrow of its own, so a button has exactly one direction indicator on
-   it and there is no second arrow to contradict the first.
+{# The sort control's marks divide the work: `sort-title`, `sort-date` and
+   `sort-release` name the field, `sort-direction` states which way it runs. No
+   field glyph carries an arrow of its own, so a button has exactly one direction
+   indicator on it and there is no second arrow to contradict the first.
+
+   `sort-release` is a clapperboard, and it is deliberately NOT another calendar.
+   The two date-ish fields answer different questions — when a poster's media
+   arrived in this Plex library, and when the work itself came out — and a
+   library can easily have added its oldest film most recently. Two calendars
+   differing by an interior detail would say those were the same question asked
+   twice. It is also not the film strip `movies` draws: that names a category,
+   and a mark doing two jobs in one toolbar is a mark that names neither.
 
    `sort-direction` is one half of the `sort` glyph above, moved to the centre.
    That glyph is a down arrow beside an up arrow — it opens the phone tray and so
@@ -70,6 +78,7 @@
         'sort': '<path d="M7 4v15M7 19l-3-3M7 19l3-3M17 20V5M17 5l-3 3M17 5l3 3"/>',
         'sort-title': '<path d="M5 6h5M5 12h9M5 18h13"/>',
         'sort-date': '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10.5h17"/><path d="M8 3v4M16 3v4"/>',
+        'sort-release': '<rect x="3" y="9.5" width="18" height="10.5" rx="2"/><path d="M3.4 9.6l1-4.2 17.2 2-.8 3.4"/><path d="M9.2 5.5L7.6 9.6M14.8 6.2L13.2 9.9"/>',
         'sort-direction': '<path d="M12 4v15M12 19l-3-3M12 19l3-3"/>',
         'wall': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.3l4.5 2.7-4.5 2.7z"/>',
         'connect': '<path d="M9 15l-2.5 2.5a3.5 3.5 0 0 1-5-5L4 10"/><path d="M15 9l2.5-2.5a3.5 3.5 0 0 1 5 5L20 14"/><path d="M9.5 14.5l5-5"/>',

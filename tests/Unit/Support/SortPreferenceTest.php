@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Support;
 
+use App\Poster\SortField;
 use App\Poster\SortOrder;
 use App\Support\Session\ArraySession;
 use App\Support\SortPreference;
@@ -57,11 +58,29 @@ final class SortPreferenceTest extends TestCase
         self::assertSame(SortOrder::AlphabeticalDesc, $state->toggled);
     }
 
-    public function testAlternateStartsAtTheOtherFieldsDefaultDirection(): void
+    /**
+     * What an inactive field's button offers. Read off the rendered buttons
+     * rather than off a property, because the buttons are what the control
+     * actually draws — and with three fields there is no single "the other one"
+     * left to ask about.
+     */
+    private function offered(SortState $state, SortField $field): SortOrder
+    {
+        foreach ($state->buttons() as $button) {
+            if ($button->shown->field() === $field) {
+                return $button->shown;
+            }
+        }
+
+        self::fail('No button for ' . $field->value);
+    }
+
+    public function testInactiveFieldsStartAtTheirOwnDefaultDirection(): void
     {
         $state = $this->resolve(['sort' => 'alphabetical']);
 
-        self::assertSame(SortOrder::DateAdded, $state->alternate);
+        self::assertSame(SortOrder::DateAdded, $this->offered($state, SortField::DateAdded));
+        self::assertSame(SortOrder::Release, $this->offered($state, SortField::Release));
     }
 
     /**
@@ -76,12 +95,12 @@ final class SortPreferenceTest extends TestCase
         // On the date field, the title button offers the direction it was left in.
         $onDate = $this->resolve([]);
         self::assertSame(SortOrder::DateAddedAsc, $onDate->current);
-        self::assertSame(SortOrder::AlphabeticalDesc, $onDate->alternate);
+        self::assertSame(SortOrder::AlphabeticalDesc, $this->offered($onDate, SortField::Alphabetical));
 
         // Going back gives Z–A, and the date button still offers oldest first.
-        $backOnTitle = $this->resolve(['sort' => $onDate->alternate->value]);
+        $backOnTitle = $this->resolve(['sort' => $this->offered($onDate, SortField::Alphabetical)->value]);
         self::assertSame(SortOrder::AlphabeticalDesc, $backOnTitle->current);
-        self::assertSame(SortOrder::DateAddedAsc, $backOnTitle->alternate);
+        self::assertSame(SortOrder::DateAddedAsc, $this->offered($backOnTitle, SortField::DateAdded));
     }
 
     public function testChangingOneFieldsDirectionLeavesTheOtherAlone(): void
@@ -90,7 +109,26 @@ final class SortPreferenceTest extends TestCase
         $this->resolve(['sort' => 'alphabetical_desc']);
         $this->resolve(['sort' => 'alphabetical']);
 
-        self::assertSame(SortOrder::DateAddedAsc, $this->resolve([])->alternate);
+        self::assertSame(
+            SortOrder::DateAddedAsc,
+            $this->offered($this->resolve([]), SortField::DateAdded),
+        );
+    }
+
+    /**
+     * A third field must not disturb the two that were there. Reversing release
+     * leaves the title and date buttons offering exactly what they were.
+     */
+    public function testReversingReleaseLeavesTheOtherFieldsAlone(): void
+    {
+        $this->resolve(['sort' => 'alphabetical_desc']);
+        $this->resolve(['sort' => 'date_added_asc']);
+        $this->resolve(['sort' => 'release_desc']);
+
+        $state = $this->resolve([]);
+        self::assertSame(SortOrder::ReleaseDesc, $state->current);
+        self::assertSame(SortOrder::AlphabeticalDesc, $this->offered($state, SortField::Alphabetical));
+        self::assertSame(SortOrder::DateAddedAsc, $this->offered($state, SortField::DateAdded));
     }
 
     /**
@@ -104,14 +142,17 @@ final class SortPreferenceTest extends TestCase
         $state = $this->resolve([]);
 
         self::assertSame(SortOrder::Alphabetical, $state->current);
-        self::assertSame(SortOrder::DateAdded, $state->alternate);
+        self::assertSame(SortOrder::DateAdded, $this->offered($state, SortField::DateAdded));
     }
 
     public function testUnreadableDirectionFallsBackToTheFieldsDefault(): void
     {
         $this->session->set('sort_direction_date_added', 'sideways');
 
-        self::assertSame(SortOrder::DateAdded, $this->resolve(['sort' => 'alphabetical'])->alternate);
+        self::assertSame(
+            SortOrder::DateAdded,
+            $this->offered($this->resolve(['sort' => 'alphabetical']), SortField::DateAdded),
+        );
     }
 
     /**
@@ -200,17 +241,36 @@ final class SortPreferenceTest extends TestCase
     }
 
     /**
-     * Title first, date second, whichever is active — a control that reordered
+     * Title, date, release, whichever is active — a control that reordered
      * itself as you used it would move the button out from under the pointer.
      */
     public function testButtonOrderIsFixed(): void
     {
-        foreach (['alphabetical', 'date_added'] as $slug) {
+        foreach (['alphabetical', 'date_added', 'release'] as $slug) {
             $buttons = $this->resolve(['sort' => $slug])->buttons();
 
-            self::assertCount(2, $buttons);
+            self::assertCount(3, $buttons);
             self::assertSame('sort-title', $buttons[0]->shown->field()->glyph());
             self::assertSame('sort-date', $buttons[1]->shown->field()->glyph());
+            self::assertSame('sort-release', $buttons[2]->shown->field()->glyph());
+        }
+    }
+
+    /**
+     * One button per field, and exactly one of them active, in every order the
+     * control can be in.
+     */
+    public function testEveryOrderRendersOneButtonPerFieldWithOneActive(): void
+    {
+        foreach (SortOrder::cases() as $order) {
+            $buttons = $this->resolve(['sort' => $order->value])->buttons();
+
+            self::assertCount(count(SortField::all()), $buttons);
+            self::assertCount(
+                1,
+                array_filter($buttons, static fn ($button): bool => $button->active),
+                $order->value . ' must mark exactly one button active',
+            );
         }
     }
 }

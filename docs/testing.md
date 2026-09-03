@@ -498,6 +498,12 @@ then check:
 | The same, from a different member | The identical set — it must not matter which member you start from |
 | A collection whose films share no words (MCU, A24, Ghibli) | Still gathered; this is the case a title search cannot reach |
 | **Related posters** on a film in no collection | Falls back to searching that film's title |
+| Order of any set | Release order — a show before its seasons, a series oldest first — whatever sort you left the gallery in |
+| Change the sort inside a set | The set stays, re-ordered; clearing it returns the library to the order you had chosen |
+| Switch tab inside a set | The set is carried, exactly as an active search is |
+| A film in two collections | The set view names the other one and links to it |
+| A collection whose own poster was never imported | Named on screen rather than "this set" |
+| A collection missing a film the library holds | Offers a shorter query with its count — only when the film's title has a subtitle or an instalment number to cut |
 | Import summary | Unchanged — the membership read imports no posters and fails no items |
 
 Before that import, films and seasons fall back to a title search, which is the
@@ -513,10 +519,38 @@ docker exec -it <container> php /app/www/bin/diagnose-sets.php "Jackass"
 ```
 
 It prints the collections Plex reports and how many members each one lists, then
-how many stored posters record a set, then — with an argument — each matching
-poster and the set it holds. It reads only: it imports nothing and changes no
-poster. A collection listing `0 member(s)` is the finding; so is a film that Plex
-puts in no collection, which is not a fault and is why the title search remains.
+how many stored posters record a set, then the **shape of the library** — how
+many rows in each category carry no release year, whether collections carry one
+at all, how many posters sit in more than one set, and how many sets have no
+naming poster imported — then, with an argument, each matching poster and the set
+it holds. It reads only: it imports nothing and changes no poster. A collection
+listing `0 member(s)` is the finding; so is a film that Plex puts in no
+collection, which is not a fault and is why the title search remains.
+
+The shape section answers the two questions release order and the "Also in" line
+were designed around: whether Plex reports a year on a collection, and how many
+films sit in several. Both rules are meant to hold either way, so this confirms an
+assumption rather than settling one — but it is the cheapest way to find out that
+a real library disagrees.
+
+### What a gallery render costs
+
+How many times rendering a view reads the poster mapping, and how long it takes:
+
+```bash
+docker exec -it <container> php /app/www/bin/bench-gallery.php
+docker exec -it <container> php /app/www/bin/bench-gallery.php 20
+```
+
+The argument is the number of iterations to average over. It drives the real
+gallery controller rather than a copy of what it does, and reads only.
+
+A view should cost **one read per category it holds** — four for All, one for a
+single category — whatever the sort order and whether or not a query or a set is
+active. A set view adds one more: the keyed lookup that gives the set its name.
+Anything above that is the number to chase, not the milliseconds: wall time
+varies by ~10% between runs on the same machine, so only differences larger than
+that mean anything.
 
 ### Worth testing separately: a locked poster
 

@@ -29,6 +29,48 @@
         </span>
         <a class="search__clear" href="/library/{{ view.value }}">Clear</a>
     </div>
+    {% if result.broaderQuery %}
+        {# A set can be narrower than the library and say nothing about it: a
+           Plex collection holds what somebody put in it, so a collection of
+           eight where the library holds nine is what a film never added looks
+           like. Membership being exact is not the same as the collection being
+           complete, which is why "an exact set is offered nothing" was the wrong
+           rule.
+
+           Worded for its own question. The search's offer asks "did you mean
+           something broader?"; this asks "is something missing from this
+           collection?" — and only appears when a shorter query would find MORE
+           posters than the set holds, which is what keeps it quiet for a show's
+           seasons and for a collection whose films share no words. #}
+        <p class="stats stats--suggest">
+            Missing something?
+            <a href="/library/{{ view.value }}?q={{ result.broaderQuery|url_encode }}">Searching
+                “{{ result.broaderQuery }}” finds {{ result.broaderTotal }}</a>
+        </p>
+    {% endif %}
+    {% if also_in is defined and also_in is not empty %}
+        {# The poster this set was opened from belongs to other sets too, and
+           without this the user has no way to know. "Godzilla vs. Kong" is in
+           both King Kong and MonsterVerse; the card's link had to pick one, and
+           picked silently.
+
+           These are the ORIGIN poster's other sets, not the union over every
+           member — a film in a large collection commonly belongs to several
+           others, and listing all of those answers a question nobody asked.
+
+           Each link carries the same origin poster, so a film in several
+           collections can be followed from any one of them to any other. A set
+           whose name is not known yet is described rather than dropped: the link
+           is the useful part, the name is the courtesy. #}
+        <p class="stats stats--suggest">
+            Also in
+            {%- for other in also_in %}
+                {{ loop.first ? '' : (loop.last ? ' and' : ',') }}
+                <a href="/library/{{ view.value }}?set={{ other.key|url_encode }}{{ set_from is not empty ? '&from=' ~ set_from|url_encode : '' }}">{{
+                    other.title ?? 'another set' }}</a>
+            {%- endfor %}.
+        </p>
+    {% endif %}
 {% elseif query is not empty %}
     {# A search is active: name the query and its match count for THIS view, and
        offer a clear control so the filtered state is unmistakable. #}
@@ -90,14 +132,18 @@
         {# Actions target the poster's OWN category: filenames are unique only
            within a category, so the page-level base is wrong in the All view. #}
         {% set poster_base = '/library/' ~ poster.category.value %}
-        {% set is_linked = plex_configured and poster.filename in (linked[poster.category.value] ?? []) %}
+        {# Everything recorded about this poster, read once for the whole view.
+           `mapped` is the mapping's existence; linked is that AND a live
+           connection, because the actions a link enables need the server. #}
+        {% set poster_facts = facts.for(poster) %}
+        {% set is_linked = plex_configured and poster_facts.mapped %}
         {# One title serves every place this poster is named: the caption, its
            tooltip, the alt text, the mobile sheet, the change-poster dialog, and
            the delete confirmation. It comes from Plex, with the known year in
            parentheses. Either may be null (a poster with no Plex record, a
            collection with no year), and captionTitle falls back accordingly. #}
-        {% set poster_title = (plex_titles[poster.category.value] ?? {})[poster.filename] ?? null %}
-        {% set poster_year = (plex_years[poster.category.value] ?? {})[poster.filename] ?? null %}
+        {% set poster_title = poster_facts.title %}
+        {% set poster_year = poster_facts.year %}
         {% set caption_title = poster.captionTitle(poster_title, poster_year) %}
         {# What Related posters searches for. A season answers with its show's
            title, so the search gathers the show and every sibling season rather
@@ -108,7 +154,7 @@
            Deliberately NOT caption_title: that appends the release year, and a
            query carrying "(1999)" would narrow the search back to this one
            poster, which is the opposite of the point. #}
-        {% set related_query = (related_titles[poster.category.value] ?? {})[poster.filename] ?? poster.title %}
+        {% set related_query = facts.relatedTitleFor(poster) %}
         {# The set this poster belongs to, recorded at import: a show's or a
            collection's rating key. It is the whole point of the action — a title
            cannot express a collection whose films share no words ("Iron Man",
@@ -123,11 +169,19 @@
            every one of them, and a single link has to choose. The set VIEW then
            matches on membership, so opening a collection's own poster gathers
            every film listing that collection, including films that also belong to
-           another. #}
-        {% set related_sets = (set_keys[poster.category.value] ?? {})[poster.filename] ?? [] %}
+           another.
+
+           `from` is what stops that choice being silent. It names the poster the
+           set was opened from, so the destination can say "…is also in
+           MonsterVerse" and link there. It is optional and decides nothing about
+           which posters the set holds — a set address without it renders exactly
+           as it always did — which is why the link can carry it without the
+           destination depending on it. #}
+        {% set related_sets = poster_facts.setKeys %}
         {% set related_set = related_sets is not empty ? related_sets|first : '' %}
+        {% set related_from = poster.category.value ~ '/' ~ poster.filename %}
         {% set related_href = related_set is not empty
-            ? '/library/all?set=' ~ related_set|url_encode
+            ? '/library/all?set=' ~ related_set|url_encode ~ '&from=' ~ related_from|url_encode
             : '/library/all?q=' ~ related_query|url_encode %}
         <figure class="card">
             <div class="card__frame">
@@ -196,7 +250,8 @@
                            it from the href, so the one place it is decided is above. #}
                         <a class="btn btn--small" href="{{ related_href }}"
                            data-related="{{ related_query }}"
-                           data-related-set="{{ related_set }}">{{ _self.action_body('related', 'Related posters') }}</a>
+                           data-related-set="{{ related_set }}"
+                           data-related-from="{{ related_from }}">{{ _self.action_body('related', 'Related posters') }}</a>
                         <button type="button" class="btn btn--small" data-action="view" data-url="{{ poster.url }}">{{ _self.action_body('fullscreen', 'Full screen') }}</button>
                         <form class="js-mutate" method="post" action="{{ poster_base }}/delete"
                               data-confirm="Permanently delete “{{ caption_title }}”? This cannot be undone.">

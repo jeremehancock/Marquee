@@ -81,6 +81,11 @@ final class ImportService
                     // the requested types. Fills a blank only; importing shows
                     // above is what owns the value.
                     $this->items->fillMissingSetKey($show->ratingKey, $show->ratingKey);
+                    // And what that set is CALLED, so a season's set can be named
+                    // on screen whether or not the show's own poster was
+                    // imported. The title is already in hand; this costs no
+                    // request.
+                    $this->items->rememberSetName($show->ratingKey, $show->title);
                     foreach ($this->plex->seasons($show) as $season) {
                         $this->importItem($season, $result, $force, [$show->ratingKey]);
                     }
@@ -134,6 +139,11 @@ final class ImportService
             // films point at, so its poster belongs in that set even on a
             // movies-only import that never reaches the collection branch.
             $this->items->fillMissingSetKey($collection->ratingKey, $collection->ratingKey);
+            // And its name, recorded here because this is where it is known. A
+            // user who imports films without collection artwork has no poster row
+            // for the collection at all, so without this its films' set could
+            // only ever be described rather than named.
+            $this->items->rememberSetName($collection->ratingKey, $collection->title);
             try {
                 foreach ($this->plex->collectionChildren($collection) as $member) {
                     $membership[$member->ratingKey][] = $collection->ratingKey;

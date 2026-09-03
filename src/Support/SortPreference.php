@@ -27,20 +27,57 @@ final class SortPreference
 
     /**
      * @param array<array-key, mixed> $queryParams
+     * @param SortOrder|null          $viewDefault the order this particular view
+     *        opens in when the address names none — a set opens in release order.
+     *        It outranks the session's stored choice deliberately: otherwise a
+     *        user who once picked Date added would never see a set in the order
+     *        it was released, which is the whole point of opening one.
+     * @param bool $remember whether a chosen order becomes the session's
+     *        preference. False while a set is being shown — see below.
      */
-    public static function resolve(SessionInterface $session, array $queryParams, SortOrder $default): SortState
-    {
+    public static function resolve(
+        SessionInterface $session,
+        array $queryParams,
+        SortOrder $default,
+        ?SortOrder $viewDefault = null,
+        bool $remember = true,
+    ): SortState {
         $current = self::requested($queryParams);
         if ($current !== null) {
             // A chosen order is the one moment the user states a direction, so
             // it is also the only moment worth recording one.
-            $session->set(self::KEY, $current->value);
-            $session->set(self::directionKey($current->field()), $current->direction()->value);
+            //
+            // Except inside a set. A set is a question about one work, and the
+            // answer must not outlive it: sorting a set by date added and then
+            // clearing it would otherwise leave the whole library sorted that
+            // way, which nobody asked for. The address still carries the choice,
+            // so it survives paging and tab switches within the set without the
+            // session's help.
+            if ($remember) {
+                $session->set(self::KEY, $current->value);
+                $session->set(self::directionKey($current->field()), $current->direction()->value);
+            }
         } else {
-            $current = self::stored($session) ?? $default;
+            $current = $viewDefault ?? self::stored($session) ?? $default;
         }
 
-        return new SortState($current, self::remembered($session, $current->field()->other()));
+        return new SortState($current, self::rememberedAll($session));
+    }
+
+    /**
+     * Each field at the direction it was last left in, for the control's
+     * inactive buttons.
+     *
+     * @return array<string, SortOrder>
+     */
+    private static function rememberedAll(SessionInterface $session): array
+    {
+        $remembered = [];
+        foreach (SortField::all() as $field) {
+            $remembered[$field->value] = self::remembered($session, $field);
+        }
+
+        return $remembered;
     }
 
     /**

@@ -23,18 +23,19 @@ final class SortComparator
     }
 
     /**
-     * @param array<string, array<string, int>> $addedAt Plex "added at" timestamps
-     *        keyed by category value then filename; used only by the date field.
+     * @param PosterFactsIndex $facts what import recorded about each poster;
+     *        the date field reads its timestamps from here
      *
      * @return callable(Poster, Poster): int
      */
-    public function forOrder(SortOrder $sort, array $addedAt = []): callable
+    public function forOrder(SortOrder $sort, PosterFactsIndex $facts = new PosterFactsIndex()): callable
     {
         $descending = $sort->direction() === SortDirection::Descending;
 
         return match ($sort->field()) {
             SortField::Alphabetical => $this->byTitle($descending),
-            SortField::DateAdded => $this->byDateAdded($descending, $addedAt),
+            SortField::DateAdded => $this->byDateAdded($descending, $facts),
+            SortField::Release => $this->byRelease($descending, $facts),
         };
     }
 
@@ -63,19 +64,66 @@ final class SortComparator
     }
 
     /**
+     * Release order: the year the work came out, then the season within it.
+     *
+     * **An unknown year sorts FIRST.** That is not a preference; it is the
+     * placement that stays correct however Plex answers a question this code
+     * cannot settle on its own — whether a collection carries a year. If it does
+     * not, the collection leads the films it holds, which is how a set should
+     * read. If it does, the collection sorts among its earliest films, which
+     * also reads correctly. Sorting unknowns last is right only in the second
+     * case, so it is the more fragile of the two.
+     *
+     * **Season number breaks a tie in the year, with "no season" first.** This
+     * is what makes a show's own poster precede its seasons, and it needs no
+     * special case to do it: a season records its SHOW's year (Plex reports none
+     * on a season node), so a show and every season of it tie on the year, and
+     * the show is the only one of them with no season number.
+     *
+     * Below those, category and then the article-aware key, so the listing is
+     * fully deterministic rather than left in whatever order usort produced.
+     *
+     * @return callable(Poster, Poster): int
+     */
+    private function byRelease(bool $descending, PosterFactsIndex $facts): callable
+    {
+        $ignoreArticles = $this->config->ignoreArticlesInSort;
+
+        return static function (Poster $a, Poster $b) use ($descending, $facts, $ignoreArticles): int {
+            // PHP_INT_MIN rather than 0: a year of 0 is a year, and a poster
+            // recording one would otherwise be indistinguishable from a poster
+            // recording none.
+            $yearOf = static fn (Poster $poster): int
+                => $facts->for($poster)->year ?? PHP_INT_MIN;
+
+            $primary = $yearOf($a) <=> $yearOf($b);
+            if ($primary !== 0) {
+                return $descending ? -$primary : $primary;
+            }
+
+            // Everything below the chosen field runs forwards whichever way that
+            // field is pointing — the rule this class already follows — so a
+            // show's seasons still read 1, 2, 3 with the order reversed.
+            $seasonOf = static fn (Poster $poster): int
+                => $facts->for($poster)->seasonNumber ?? PHP_INT_MIN;
+
+            return [$seasonOf($a), $a->category->sortOrder(), $a->sortKey($ignoreArticles)]
+                <=> [$seasonOf($b), $b->category->sortOrder(), $b->sortKey($ignoreArticles)];
+        };
+    }
+
+    /**
      * Plex "added at" order, falling back to the file's modification time when
      * Plex has no timestamp for the poster. Category order breaks ties so a
      * mixed listing stays deterministic.
      *
-     * @param array<string, array<string, int>> $addedAt
-     *
      * @return callable(Poster, Poster): int
      */
-    private function byDateAdded(bool $descending, array $addedAt): callable
+    private function byDateAdded(bool $descending, PosterFactsIndex $facts): callable
     {
-        return static function (Poster $a, Poster $b) use ($descending, $addedAt): int {
+        return static function (Poster $a, Poster $b) use ($descending, $facts): int {
             $dateOf = static fn (Poster $poster): int
-                => $addedAt[$poster->category->value][$poster->filename] ?? $poster->modifiedAt;
+                => $facts->for($poster)->addedAt ?? $poster->modifiedAt;
 
             $primary = $dateOf($a) <=> $dateOf($b);
             if ($primary !== 0) {

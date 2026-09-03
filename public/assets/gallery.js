@@ -2156,6 +2156,25 @@
             return window.location.pathname + window.location.search;
         }
 
+        // The set the current address is showing, or ''.
+        //
+        // Read from the address rather than held in a variable, because the
+        // address is already the record: applyView() pushes it on every
+        // no-reload update, so it is correct after a tab switch, a swipe, a page
+        // and a back button alike. A second copy would be a second thing to keep
+        // in step.
+        function activeSet() {
+            return new URLSearchParams(window.location.search).get('set') || '';
+        }
+
+        // The poster the active set was opened from, or ''. Carried alongside the
+        // set for the same reason and by the same paths: it is what lets the set
+        // view name the OTHER sets that poster belongs to, and losing it on a tab
+        // change would make that line come and go for no visible reason.
+        function activeFrom() {
+            return new URLSearchParams(window.location.search).get('from') || '';
+        }
+
         // A category's URL for the live search box.
         //
         // `sort` is deliberately absent. The server remembers the selected sort
@@ -2163,8 +2182,24 @@
         // changes it does a full page load — so a category fetched without it
         // comes back in the order the user chose. Adding it here would be a
         // second source for something already answered.
-        function categoryUrl(pathname, setKey) {
-            if (setKey) { return pathname + '?set=' + encodeURIComponent(setKey); }
+        //
+        // The SET is carried, and carried from the address rather than from an
+        // argument. That asymmetry was the bug: a query lives in the search
+        // input, which every path reads, while a set lived only in whatever the
+        // caller happened to pass — so tapping a tab dropped it and typing did
+        // not. Related posters then behaved differently depending on whether it
+        // found a set, which is a difference the user cannot see the cause of.
+        //
+        // `setKey` overrides the address for the one caller that is OPENING a
+        // set rather than carrying one, and '' is how a caller says "drop it" —
+        // which is what typing a query does, a typed query being a new intent.
+        function categoryUrl(pathname, setKey, fromKey) {
+            var set = setKey === undefined ? activeSet() : setKey;
+            if (set) {
+                var from = fromKey === undefined ? activeFrom() : fromKey;
+                return pathname + '?set=' + encodeURIComponent(set)
+                    + (from ? '&from=' + encodeURIComponent(from) : '');
+            }
             var q = search ? search.value.trim() : '';
             return pathname + (q ? '?q=' + encodeURIComponent(q) : '');
         }
@@ -2189,7 +2224,7 @@
             // pinned, where the scroll lock's restore has the last word instead.
             // Both are needed — a category change can start from either state.
             dispatch('gallery:scroll-anchor-reset', {});
-            return load(categoryUrl(pathname, opts.set), true, opts.prefetched || null)
+            return load(categoryUrl(pathname, opts.set, opts.from), true, opts.prefetched || null)
                 .then(function () { primeNeighbours(); });
         }
 
@@ -2206,6 +2241,7 @@
         // What makes a held copy stale:
         //
         //   the search term   compared directly, below
+        //   the active set    compared directly, below
         //   the library       via `libraryMutations`, bumped on every mutation
         //   the sort order    NOTHING TO DO — see below
         //
@@ -2214,6 +2250,12 @@
         // the click handler), so changing sort reloads the page and takes this
         // whole map with it. Adding a sort key would be a second answer to a
         // question the page reload has already settled; don't.
+        //
+        // The SET has to be compared for exactly the reason the search does, and
+        // the failure is the sharper of the two: open a set, swipe, and a copy
+        // held from before it was opened is the whole unfiltered category. The
+        // viewer asked for a collection and got the library, with nothing on
+        // screen to say so.
         //
         // The comparison errs toward discarding. Wrongly dropping a good copy
         // costs one fetch nobody needed. Wrongly trusting a stale one shows a
@@ -2238,7 +2280,7 @@
         function cachedView(pathname) {
             var held = neighbourCache[pathname];
             if (!held) { return null; }
-            if (held.query !== liveQuery() || held.mutation !== libraryMutations) {
+            if (held.query !== liveQuery() || held.set !== activeSet() || held.mutation !== libraryMutations) {
                 delete neighbourCache[pathname];
                 return null;
             }
@@ -2252,6 +2294,7 @@
             if (!isTouch() || categoryPaths.length < 2) { return; }
             var here = window.location.pathname;
             var query = liveQuery();
+            var set = activeSet();
             var mutation = libraryMutations;
             [-1, 1].forEach(function (step) {
                 var path = neighbourPath(here, step);
@@ -2269,6 +2312,7 @@
                         neighbourCache[path] = {
                             view: viewFrom(html),
                             query: query,
+                            set: set,
                             mutation: mutation,
                         };
                     })
@@ -2351,6 +2395,10 @@
                     scrollToTopOfGallery();
                     // Use the live pathname, not the page-load base: a no-reload tab
                     // switch changes the view without replacing the toolbar.
+                    //
+                    // Built here rather than through categoryUrl() because this
+                    // is the one gesture that must DROP an active set: typing is
+                    // a new intent, and a set is not something a query narrows.
                     // Re-primed after: the held neighbours are already refused by
                     // the query comparison, but a swipe made straight after a
                     // search should still be quick rather than merely correct.
@@ -2401,7 +2449,14 @@
                 // Only a poster with no recorded set falls back to the query.
                 var setKey = relatedEl.getAttribute('data-related-set') || '';
                 if (search) { search.value = setKey ? '' : (relatedEl.getAttribute('data-related') || ''); }
-                switchCategory('/library/all', { set: setKey });
+                // The poster this was activated on travels with the set, so the
+                // destination can name the other sets that poster belongs to.
+                // Meaningless without a set, hence the guard rather than always
+                // sending it.
+                switchCategory('/library/all', {
+                    set: setKey,
+                    from: setKey ? (relatedEl.getAttribute('data-related-from') || '') : '',
+                });
                 return;
             }
             var actionEl = e.target.closest('[data-action]');
@@ -2433,11 +2488,22 @@
             if (sortLink && root.contains(sortLink)) {
                 e.preventDefault();
                 var sortQ = search ? search.value.trim() : '';
+                // A set and a query are alternatives the server never applies
+                // together, so exactly one of them is carried. The set used to be
+                // carried by neither, which made the sort control an accidental
+                // way out of a set: pressing it re-sorted the whole library and
+                // the set silently vanished.
+                var sortSet = activeSet();
+                var sortFrom = activeFrom();
+                var sortState = sortSet
+                    ? '&set=' + encodeURIComponent(sortSet)
+                        + (sortFrom ? '&from=' + encodeURIComponent(sortFrom) : '')
+                    : (sortQ ? '&q=' + encodeURIComponent(sortQ) : '');
                 // Full navigation so the sort control's active state (in the
                 // toolbar, outside #results) re-renders correctly too.
                 window.location.assign(
                     window.location.pathname + '?sort=' + encodeURIComponent(sortLink.getAttribute('data-sort'))
-                    + (sortQ ? '&q=' + encodeURIComponent(sortQ) : '')
+                    + sortState
                 );
                 return;
             }
@@ -2814,6 +2880,7 @@
                     neighbourCache[path] = {
                         view: view,
                         query: liveQuery(),
+                        set: activeSet(),
                         mutation: libraryMutations,
                     };
                     // The gesture may have ended, or a second one may have

@@ -104,6 +104,32 @@ final class Database
             )'
         );
 
+        // What a set is CALLED, keyed by the rating key its members record.
+        //
+        // A set's name would seem to belong on the item that names it, and it
+        // does — in plex_items, which holds one row per imported POSTER. That is
+        // the problem: a user who imports films without collection posters has
+        // no row for the collection at all, so a set opened from one of its films
+        // could only be described ("in this set") rather than named. The name is
+        // a fact about the set; the poster is a separate thing that may not
+        // exist.
+        //
+        // Not a `set_titles` column beside `set_keys`. Titles contain commas, so
+        // the comma-joined encoding would have to become JSON; a parallel array
+        // has to be kept in step with its partner on every write; and it would
+        // store a collection's name once per member film rather than once.
+        //
+        // Written during the walk that already reads collection membership, so
+        // it costs no request. Empty until the next import, where a set is named
+        // exactly as well as it is today.
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS plex_sets (
+                rating_key TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )'
+        );
+
         // Added after the initial release; safe to run every boot.
         $this->ensureColumn($pdo, 'plex_items', 'section_key', "TEXT NOT NULL DEFAULT ''");
         // Plex's poster path carries a version token; storing it lets an import

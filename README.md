@@ -27,10 +27,11 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
   - **Send to Plex** — re-apply the poster Marquee has stored, and lock it.
   - **Fetch from Plex** — pull the item's current poster from Plex.
   - **Related posters** — open the set a poster belongs to: a show with all of
-    its seasons, or a film with the rest of its Plex collection. Works from any
-    member, so a late season or a sequel gets you the whole set, and it holds
-    even for collections whose films share no words in their titles. Useful for
-    making a set match. A film in no collection falls back to searching its
+    its seasons, or a film with the rest of its Plex collection, read in release
+    order. Works from any member, so a late season or a sequel gets you the whole
+    set, and it holds even for collections whose films share no words in their
+    titles. Useful for making a set match. A film in more than one collection is
+    told which others it is in. A film in no collection falls back to searching its
     title, and where that finds only itself the gallery offers a shorter query —
     "Jackass" for "Jackass: Best and Last" — with the number of posters it would
     find, so you can widen the search yourself without it ever widening on its
@@ -56,7 +57,7 @@ same idea, cleaner code, built spec-first with [OpenSpec](https://github.com/Fis
 - **Browse by type or all at once** — switch between Movies, TV Shows, TV
   Seasons, and Collections, or use the **All** view (the default) to see your
   whole library in one grid, each poster tagged with its type.
-- **Sort your way** — order the gallery by title or by when each item was added
+- **Sort your way** — order the gallery by title, by release, or by when each item was added
   to Plex, either way round: tap a sort button again to reverse it (A–Z becomes
   Z–A, newest first becomes oldest first). Each keeps the direction you left it
   in. Set the install default under **Settings**.
