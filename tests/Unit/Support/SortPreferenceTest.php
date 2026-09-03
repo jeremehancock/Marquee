@@ -123,10 +123,10 @@ final class SortPreferenceTest extends TestCase
     {
         $this->resolve(['sort' => 'alphabetical_desc']);
         $this->resolve(['sort' => 'date_added_asc']);
-        $this->resolve(['sort' => 'release_desc']);
+        $this->resolve(['sort' => 'release_asc']);
 
         $state = $this->resolve([]);
-        self::assertSame(SortOrder::ReleaseDesc, $state->current);
+        self::assertSame(SortOrder::ReleaseAsc, $state->current);
         self::assertSame(SortOrder::AlphabeticalDesc, $this->offered($state, SortField::Alphabetical));
         self::assertSame(SortOrder::DateAddedAsc, $this->offered($state, SortField::DateAdded));
     }

@@ -63,7 +63,11 @@
            whose name is not known yet is described rather than dropped: the link
            is the useful part, the name is the courtesy. #}
         <p class="stats stats--suggest">
-            Also in
+            {#- The film is NAMED, not implied. A set view holds many posters, so
+                "Also in MonsterVerse" gives no clue which one it is about — and
+                following the link makes it worse, because the next set says the
+                same thing about a film the reader can no longer identify. -#}
+            {{ set_from_title ?? 'This poster' }} is also in
             {%- for other in also_in %}
                 {{ loop.first ? '' : (loop.last ? ' and' : ',') }}
                 <a href="/library/{{ view.value }}?set={{ other.key|url_encode }}{{ set_from is not empty ? '&from=' ~ set_from|url_encode : '' }}">{{

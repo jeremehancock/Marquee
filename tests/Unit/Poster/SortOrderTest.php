@@ -48,8 +48,8 @@ final class SortOrderTest extends TestCase
         self::assertSame(SortOrder::Alphabetical, SortOrder::AlphabeticalDesc->flipped());
         self::assertSame(SortOrder::DateAddedAsc, SortOrder::DateAdded->flipped());
         self::assertSame(SortOrder::DateAdded, SortOrder::DateAddedAsc->flipped());
-        self::assertSame(SortOrder::ReleaseDesc, SortOrder::Release->flipped());
-        self::assertSame(SortOrder::Release, SortOrder::ReleaseDesc->flipped());
+        self::assertSame(SortOrder::ReleaseAsc, SortOrder::Release->flipped());
+        self::assertSame(SortOrder::Release, SortOrder::ReleaseAsc->flipped());
     }
 
     public function testFlippingTwiceReturnsTheSameOrder(): void
@@ -71,7 +71,7 @@ final class SortOrderTest extends TestCase
         self::assertSame('Date added', SortOrder::DateAdded->label());
         self::assertSame('Date added', SortOrder::DateAddedAsc->label());
         self::assertSame('Release', SortOrder::Release->label());
-        self::assertSame('Release', SortOrder::ReleaseDesc->label());
+        self::assertSame('Release', SortOrder::ReleaseAsc->label());
     }
 
     /**
@@ -83,7 +83,7 @@ final class SortOrderTest extends TestCase
     public function testReleaseAndDateAddedDoNotShareDirectionWords(): void
     {
         $dates = [SortOrder::DateAdded->directionPhrase(), SortOrder::DateAddedAsc->directionPhrase()];
-        $releases = [SortOrder::Release->directionPhrase(), SortOrder::ReleaseDesc->directionPhrase()];
+        $releases = [SortOrder::Release->directionPhrase(), SortOrder::ReleaseAsc->directionPhrase()];
 
         self::assertSame([], array_intersect($dates, $releases));
     }
@@ -108,10 +108,10 @@ final class SortOrderTest extends TestCase
     {
         self::assertFalse(SortOrder::Alphabetical->isReversed(), 'A–Z is how titles normally run.');
         self::assertFalse(SortOrder::DateAdded->isReversed(), 'Newest first is how dates normally run.');
-        self::assertFalse(SortOrder::Release->isReversed(), 'Earliest first is how a release order normally runs.');
+        self::assertFalse(SortOrder::Release->isReversed(), 'Latest first is how a release order normally runs.');
         self::assertTrue(SortOrder::AlphabeticalDesc->isReversed());
         self::assertTrue(SortOrder::DateAddedAsc->isReversed());
-        self::assertTrue(SortOrder::ReleaseDesc->isReversed());
+        self::assertTrue(SortOrder::ReleaseAsc->isReversed());
     }
 
     public function testFlippingAlwaysChangesWhetherAnOrderIsReversed(): void
@@ -186,5 +186,57 @@ final class SortOrderTest extends TestCase
     public function testDefaultIsAlphabetical(): void
     {
         self::assertSame(SortOrder::Alphabetical, SortOrder::default());
+    }
+
+    /**
+     * The two date-shaped fields must rest pointing the same way AND mean the
+     * same thing by it.
+     *
+     * This shipped wrong. Release defaulted to earliest-first while Date added
+     * defaults to newest-first, so both buttons sat in the toolbar showing an
+     * identical down arrow while ordering time in opposite directions — which is
+     * precisely what keying the arrow to "reversed" rather than to
+     * ascending/descending is supposed to prevent. The convention only holds if
+     * fields answering the same kind of question agree about their ordinary
+     * direction.
+     *
+     * Titles are excluded deliberately: A–Z is not a claim about time, and
+     * nobody reads a down arrow on it as "newest".
+     */
+    public function testBothTimeFieldsRunTheSameWayByDefault(): void
+    {
+        self::assertSame(
+            SortField::DateAdded->defaultDirection(),
+            SortField::Release->defaultDirection(),
+            'a down arrow must mean the same thing on both date-shaped buttons',
+        );
+    }
+
+    /**
+     * And the direction itself, stated so a later "tidy-up" cannot quietly flip
+     * both together and still pass the test above.
+     */
+    public function testTheTimeFieldsLeadWithTheMostRecent(): void
+    {
+        self::assertSame(SortDirection::Descending, SortField::DateAdded->defaultDirection());
+        self::assertSame(SortDirection::Descending, SortField::Release->defaultDirection());
+        self::assertSame('latest first', SortField::Release->defaultOrder()->directionPhrase());
+    }
+
+    /**
+     * The bare slug names each field's default direction, and the suffixed one
+     * its reverse — the pattern date_added/date_added_asc already set. Getting
+     * this backwards would make DEFAULT_SORT=release mean the opposite of what
+     * the settings screen shows for it.
+     */
+    public function testTheBareSlugIsAlwaysTheFieldsDefaultDirection(): void
+    {
+        foreach (SortField::all() as $field) {
+            self::assertSame(
+                $field->value,
+                $field->defaultOrder()->value,
+                $field->value . ': the unsuffixed slug must be the default direction',
+            );
+        }
     }
 }

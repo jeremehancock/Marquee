@@ -189,3 +189,48 @@ One edge found while validating and left as it is: a film with NO recorded year
 ties with a yearless collection, and category order puts the film first — so
 "the collection leads its films" holds whenever the films have years, which is
 the ordinary case. Both directions are pinned in `ReleaseOrderTest`.
+
+## Validation feedback, and the two things it found
+
+Both came from the first pass over the `:dev` image, and both were mine.
+
+### The release arrow was backwards
+
+Reported as "when the arrow is down it is showing oldest to newest; it should be
+newest to oldest". Correct, and the cause is worth naming because the convention
+looked satisfied.
+
+The arrow reports whether a field is running its *ordinary* way, not whether it
+ascends — deliberately, so that A–Z (ascending) and newest-first (descending) can
+both rest pointing down. That works while each field's "ordinary way" is
+self-evident. It stops working the moment two fields answer the SAME kind of
+question and disagree: Date added rested down meaning newest-first, Release
+rested down meaning oldest-first, and the two buttons sat side by side looking
+identical while ordering time in opposite directions.
+
+So Release's default direction is now **descending, latest first**, matching Date
+added. The slugs move with it, following the pattern the date field already set —
+the unsuffixed slug names the default direction — so `release` is latest-first and
+`release_asc` is earliest-first.
+
+**A set still opens earliest first**, and now does so by naming that direction
+explicitly rather than inheriting the field's default. That is the right split
+anyway: browsing a library by release and reading a trilogy are different acts,
+which is the premise the whole change rests on. Three tests pin it — that both
+time fields default the same way, that they default to *descending* specifically,
+and that the library leads with the newest while a set leads with the earliest.
+
+### "Also in MonsterVerse" did not say what it was about
+
+Reported as: the link is neat but you cannot tell which film it refers to, and
+following it loses the thread entirely.
+
+Correct, and this was a straight implementation miss — the design doc's own
+sentence was "Godzilla vs. Kong is also in MonsterVerse" and it shipped as "Also
+in MonsterVerse". A set view holds many posters, so the subject is not
+recoverable from context, and after one hop the reader is being told something
+about a film they can no longer name.
+
+The line now names the poster, using the same caption the card carries. The
+requirement says so explicitly rather than leaving it to the wording, and the
+tests assert the film's name rather than the bare preposition.

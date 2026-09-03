@@ -250,4 +250,30 @@ final class SetOrderTest extends AppTestCase
         self::assertStringContainsString('in this set', $body);
         self::assertSame('Zzz First', $this->firstFilm($app, '/library/all?set=700&page=1'));
     }
+
+    /**
+     * The library and a set lead with opposite ends of the same field, and both
+     * are deliberate.
+     *
+     * Browsing by release leads with the newest, agreeing with Date added beside
+     * it so a down arrow means one thing across the toolbar. Opening a SET leads
+     * with the earliest, because reading a trilogy in the order it came out is
+     * the whole reason to open one. Asserted together so neither can be changed
+     * on the assumption that the other follows from it.
+     */
+    public function testTheLibraryLeadsWithTheNewestWhileASetLeadsWithTheEarliest(): void
+    {
+        $app = $this->app();
+
+        self::assertSame(
+            'Aaa Last',
+            $this->firstFilm($app, '/library/all?sort=release'),
+            'browsing by release leads with 2020, like date added beside it',
+        );
+        self::assertSame(
+            'Zzz First',
+            $this->firstFilm($app, '/library/all?set=700'),
+            'a set leads with 1990 — the order it was released in',
+        );
+    }
 }

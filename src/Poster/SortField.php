@@ -27,14 +27,25 @@ enum SortField: string
 
     /**
      * The direction this field runs in until the user chooses otherwise.
-     * Titles read forwards; dates lead with whatever arrived most recently; a
-     * release order reads the way a series was released, earliest first.
+     * Titles read forwards; both date-shaped fields lead with the most recent.
+     *
+     * Release leads with the LATEST deliberately, matching Date added. The two
+     * sit side by side and both answer a question about time, so a down arrow —
+     * which means "this field is running its ordinary way" — has to mean the
+     * same thing on each. Defaulting release to earliest-first left the two
+     * buttons resting identically while meaning opposite orders, which is how it
+     * shipped to the first person who looked at it and is the one thing the
+     * arrow convention exists to prevent.
+     *
+     * A SET still opens earliest-first: reading a trilogy in the order it came
+     * out is a different act from browsing a library, and the set asks for that
+     * order explicitly rather than inheriting it from here.
      */
     public function defaultDirection(): SortDirection
     {
         return match ($this) {
-            self::Alphabetical, self::Release => SortDirection::Ascending,
-            self::DateAdded => SortDirection::Descending,
+            self::Alphabetical => SortDirection::Ascending,
+            self::DateAdded, self::Release => SortDirection::Descending,
         };
     }
 
@@ -59,8 +70,8 @@ enum SortField: string
                 SortDirection::Ascending => SortOrder::DateAddedAsc,
             },
             self::Release => match ($direction) {
-                SortDirection::Ascending => SortOrder::Release,
-                SortDirection::Descending => SortOrder::ReleaseDesc,
+                SortDirection::Descending => SortOrder::Release,
+                SortDirection::Ascending => SortOrder::ReleaseAsc,
             },
         };
     }

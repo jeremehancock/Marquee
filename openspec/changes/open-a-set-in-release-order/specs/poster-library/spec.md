@@ -4,6 +4,15 @@
 The system SHALL order posters by release using only facts already recorded for
 the Plex item: its release year, and — for a season — its season number.
 
+The field's default direction SHALL be **descending — latest first — matching
+Date added.** The two fields both answer a question about time and sit side by
+side in the same control, where the direction indicator reports whether a field
+is running its ordinary way rather than whether it ascends. Giving them opposite
+ordinary directions would leave both buttons resting identically while ordering
+time in opposite directions, which is the single confusion that convention exists
+to prevent. A set opens **earliest first** by asking for that direction
+explicitly, not by inheriting it from here.
+
 Ascending, the order SHALL be decided by, in turn:
 
 1. the recorded release year, with a poster whose release year is **not known**
@@ -52,6 +61,12 @@ SHALL NOT be treated as an error.
 - **THEN** that poster is listed before every poster whose year is known
 - **AND** no error is reported
 
+#### Scenario: Release rests the same way as date added
+- **WHEN** neither the release nor the date-added field has been reversed this
+  session
+- **THEN** both rest in their descending direction, leading with the most recent
+- **AND** the direction indicator on each carries the same meaning
+
 #### Scenario: A poster with no Plex record is still ordered
 - **WHEN** the gallery is ordered by release and a poster has no Plex mapping at
   all
@@ -88,6 +103,12 @@ order of the listing it narrows.
   film in a collection
 - **THEN** the set is shown in release order, earliest first
 - **AND** the sort control indicates release as the active field
+
+#### Scenario: A set asks for earliest first rather than inheriting it
+- **WHEN** the same library is browsed by release without a set active
+- **THEN** it leads with the most recently released poster
+- **AND** the set continues to lead with the earliest, the two directions being
+  chosen for different acts rather than one following from the other
 
 #### Scenario: Sorting inside a set keeps the set
 - **WHEN** a user viewing a set activates the title sort button
@@ -173,6 +194,12 @@ When a set is opened from a poster, the address SHALL carry the poster it was
 opened from, and the set view SHALL name every **other** set that poster belongs
 to, each as a link to that set.
 
+The line SHALL **name the poster it is about**. A set view holds many posters, so
+a line reading only "also in MonsterVerse" does not say which of them it refers
+to — and following it makes that worse, because the next set says the same thing
+about a poster the reader can no longer identify. The poster SHALL be named the
+way it is named everywhere else, so the line and the card agree.
+
 The link SHALL carry the same origin poster, so a poster in several sets can be
 followed from any one of them to any other.
 
@@ -199,6 +226,12 @@ to say.
   Kong" and a "MonsterVerse" collection, and the set opened is King Kong
 - **THEN** the set view names MonsterVerse as another set that film belongs to
 - **AND** that name is a link to the MonsterVerse set
+- **AND** the line names the film it is about, not only the other set
+
+#### Scenario: The film stays named after following the link
+- **WHEN** the user follows that link to the MonsterVerse set
+- **THEN** the line there names the same film and offers King Kong
+- **AND** the reader can still tell which poster the line refers to
 
 #### Scenario: Following it carries the poster onward
 - **WHEN** the user follows that link
@@ -319,11 +352,12 @@ The system SHALL support three gallery sort fields — **Alphabetical**
 to Plex) and **Release** (by the release year recorded for each poster's Plex
 item) — each in either direction, giving six effective orders: titles ascending
 (A–Z), titles descending (Z–A), date added newest first, date added oldest first,
-release earliest first, and release latest first. The selected order SHALL apply
+release latest first, and release earliest first. The selected order SHALL apply
 to both a single category and the aggregate `all` view.
 
-Each field SHALL have a default direction: ascending for Alphabetical, descending
-(newest first) for Date added, and ascending (earliest first) for Release.
+Each field SHALL have a default direction: ascending for Alphabetical, and
+descending for both fields that order by time — Date added leading with the most
+recently added, Release leading with the most recently released.
 
 #### Scenario: Alphabetical order lists by title
 - **WHEN** the effective sort order is Alphabetical ascending
@@ -345,15 +379,15 @@ Each field SHALL have a default direction: ascending for Alphabetical, descendin
 - **THEN** the gallery lists posters by their Plex "added at" timestamp with the
   least recently added poster first
 
-#### Scenario: Release order lists earliest first
+#### Scenario: Release order lists latest first
+- **WHEN** the effective sort order is Release descending
+- **THEN** the gallery lists posters by their recorded release year with the
+  most recently released first
+
+#### Scenario: Release ascending lists earliest first
 - **WHEN** the effective sort order is Release ascending
 - **THEN** the gallery lists posters by their recorded release year with the
   earliest first
-
-#### Scenario: Release descending lists latest first
-- **WHEN** the effective sort order is Release descending
-- **THEN** the gallery lists posters by their recorded release year with the
-  latest first
 
 #### Scenario: Sort order applies to the aggregate view
 - **WHEN** a user views the `all` slug with any of the six orders
@@ -371,7 +405,11 @@ environment variable, accepting `alphabetical`, `date_added` or `release`, and
 SHALL fall back to Alphabetical when the variable is unset, empty, or holds an
 unrecognized value. Each accepted value SHALL select its field in that field's
 default direction, so `alphabetical` means A–Z, `date_added` means newest first,
-and `release` means earliest first.
+and `release` means latest first.
+
+Where an order has a slug for each direction, the **unsuffixed slug SHALL name
+the field's default direction** and the suffixed one its reverse, so a value that
+names a field alone always resolves to the order that field's button rests in.
 
 #### Scenario: Default is Alphabetical when unset
 - **WHEN** `DEFAULT_SORT` is not set
@@ -385,7 +423,7 @@ and `release` means earliest first.
 
 #### Scenario: Release set as the install default
 - **WHEN** `DEFAULT_SORT` is `release`
-- **THEN** the gallery orders posters by release, earliest first, until the user
+- **THEN** the gallery orders posters by release, latest first, until the user
   chooses otherwise
 
 #### Scenario: Unrecognized value falls back to Alphabetical
@@ -512,8 +550,10 @@ different things.
 #### Scenario: Every field rests pointing the same way
 - **WHEN** the gallery is ordered A–Z and neither the date-added nor the release
   field has been reversed this session
-- **THEN** every button shows a downward arrow, despite A–Z and earliest-first
-  being ascending and the date field's default being descending
+- **THEN** every button shows a downward arrow, despite A–Z being ascending and
+  both time fields resting descending
+- **AND** the two time fields lead with the most recent, so a resting arrow means
+  one thing across the control
 
 #### Scenario: Direction indicator matches the tray's trigger
 - **WHEN** a user opens the phone sort tray from its trigger
@@ -536,8 +576,8 @@ different things.
   first being the date field reversed
 
 #### Scenario: Release button conveys direction by indicator
-- **WHEN** the gallery is ordered by release, latest first
-- **THEN** the release button keeps its label and shows an upward arrow, latest
+- **WHEN** the gallery is ordered by release, earliest first
+- **THEN** the release button keeps its label and shows an upward arrow, earliest
   first being the release field reversed
 
 #### Scenario: Release and date added do not describe direction alike

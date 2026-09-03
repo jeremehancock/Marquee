@@ -71,7 +71,7 @@ final class ReleaseOrderTest extends TestCase
                 'The Matrix Reloaded.png' => [2003, null],
                 'The Matrix Revolutions.png' => [2003, null],
             ],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertSame('The Matrix', $order[0]);
@@ -84,7 +84,7 @@ final class ReleaseOrderTest extends TestCase
         $order = $this->order(
             ['The Matrix Reloaded.png', 'The Matrix.png'],
             ['The Matrix.png' => [1999, null], 'The Matrix Reloaded.png' => [2003, null]],
-            SortOrder::ReleaseDesc,
+            SortOrder::Release,
         );
 
         self::assertSame(['The Matrix Reloaded', 'The Matrix'], $order);
@@ -105,7 +105,7 @@ final class ReleaseOrderTest extends TestCase
                 'Breaking Bad - Season 1.png' => [2008, 1],
                 'Breaking Bad - Season 2.png' => [2008, 2],
             ],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertSame(
@@ -128,8 +128,8 @@ final class ReleaseOrderTest extends TestCase
         ];
 
         self::assertSame(
+            $this->order($filenames, $recorded, SortOrder::ReleaseAsc),
             $this->order($filenames, $recorded, SortOrder::Release),
-            $this->order($filenames, $recorded, SortOrder::ReleaseDesc),
         );
     }
 
@@ -149,7 +149,7 @@ final class ReleaseOrderTest extends TestCase
                 'Kong.png' => [2017, null],
                 'MonsterVerse.png' => [null, null],
             ],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertSame(['MonsterVerse', 'Godzilla', 'Kong'], $order);
@@ -165,7 +165,7 @@ final class ReleaseOrderTest extends TestCase
         $order = $this->order(
             ['Zero.png', 'Unknown.png'],
             ['Zero.png' => [0, null], 'Unknown.png' => [null, null]],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertSame(['Unknown', 'Zero'], $order);
@@ -176,7 +176,7 @@ final class ReleaseOrderTest extends TestCase
         $order = $this->order(
             ['Unmapped.png', 'Dune.png'],
             ['Dune.png' => [2021, null]],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertCount(2, $order);
@@ -192,7 +192,7 @@ final class ReleaseOrderTest extends TestCase
         $order = $this->order(
             ['Newer - Season 1.png', 'Older - Season 9.png'],
             ['Older - Season 9.png' => [1999, 9], 'Newer - Season 1.png' => [2020, 1]],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
         );
 
         self::assertSame(['Older - Season 9', 'Newer - Season 1'], $order);
@@ -263,7 +263,7 @@ final class ReleaseOrderTest extends TestCase
         self::assertStringContainsString('Resurrections', $alphabetical[2]);
         self::assertStringContainsString('Revolutions', $alphabetical[3]);
 
-        $release = $this->order($filenames, $recorded, SortOrder::Release);
+        $release = $this->order($filenames, $recorded, SortOrder::ReleaseAsc);
         self::assertStringContainsString('Revolutions', $release[2]);
         self::assertStringContainsString('Resurrections', $release[3]);
     }
@@ -290,7 +290,7 @@ final class ReleaseOrderTest extends TestCase
                 'Undated Film.png' => [null, null],
                 'Godzilla.png' => [2014, null],
             ],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
             [
                 'MonsterVerse.png' => PosterCategory::Collections,
                 'Undated Film.png' => PosterCategory::Movies,
@@ -314,7 +314,7 @@ final class ReleaseOrderTest extends TestCase
                 'Godzilla.png' => [2014, null],
                 'Kong.png' => [2017, null],
             ],
-            SortOrder::Release,
+            SortOrder::ReleaseAsc,
             ['MonsterVerse.png' => PosterCategory::Collections],
         );
 

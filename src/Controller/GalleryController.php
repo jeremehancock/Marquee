@@ -91,7 +91,11 @@ final class GalleryController
             $this->session,
             $params,
             $this->posterConfig->defaultSort,
-            $inSet ? SortOrder::Release : null,
+            // Earliest first, explicitly — NOT the release field's own default,
+            // which is latest first so that its arrow agrees with the date
+            // field's. Reading a trilogy in the order it came out is the whole
+            // point of opening a set, so the set names the direction it wants.
+            $inSet ? SortOrder::ReleaseAsc : null,
             !$inSet,
         );
         $sort = $sortState->current;
@@ -144,6 +148,18 @@ final class GalleryController
             // Carried on the links this view renders, so a set survives a tab
             // change and a sort press with its origin intact.
             'set_from' => $origin,
+            // And what that poster is CALLED. "Also in MonsterVerse" gives no
+            // clue which of the posters on screen it is about, and following it
+            // loses the thread entirely — the next view says "also in King Kong"
+            // about a film the reader can no longer name. The same caption the
+            // card carries, so the sentence names the poster the way every other
+            // surface does.
+            'set_from_title' => $originPoster === null
+                ? null
+                : $originPoster->captionTitle(
+                    $facts->for($originPoster)->title,
+                    $facts->for($originPoster)->year,
+                ),
             // The OTHER sets the origin poster belongs to, named where known.
             // The origin poster's own sets, not the union over every member: a
             // film in a large collection commonly belongs to several others, and

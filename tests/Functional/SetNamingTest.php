@@ -114,7 +114,11 @@ final class SetNamingTest extends AppTestCase
             '/library/all?set=100&from=' . rawurlencode($this->origin('Godzilla vs Kong')),
         )->getBody();
 
-        self::assertStringContainsString('Also in', $body);
+        // The FILM is named. "Also in MonsterVerse" alone gives no clue which of
+        // the posters on screen it is about, and following the link makes it
+        // worse — the next set says the same thing about a film the reader can no
+        // longer identify.
+        self::assertStringContainsString('Godzilla vs Kong is also in', $body);
         self::assertStringContainsString('MonsterVerse', $body);
         self::assertStringContainsString('set=200', $body);
         self::assertStringNotContainsString('>King Kong</a>', $body, 'the set being shown is not "also"');
@@ -135,6 +139,7 @@ final class SetNamingTest extends AppTestCase
             '/library/all?set=200&from=' . rawurlencode($this->origin('Godzilla vs Kong')),
         )->getBody();
 
+        self::assertStringContainsString('Godzilla vs Kong is also in', $body);
         self::assertStringContainsString('King Kong', $body);
         self::assertStringContainsString('set=100', $body);
     }
@@ -154,7 +159,7 @@ final class SetNamingTest extends AppTestCase
             '/library/all?set=300&from=' . rawurlencode($this->origin('Solaris')),
         )->getBody();
 
-        self::assertStringNotContainsString('Also in', $body);
+        self::assertStringNotContainsString('is also in', $body);
     }
 
     /**
@@ -170,7 +175,7 @@ final class SetNamingTest extends AppTestCase
         $body = (string) $this->get($this->app(), '/library/all?set=100')->getBody();
 
         self::assertStringContainsString('Godzilla vs Kong', $body);
-        self::assertStringNotContainsString('Also in', $body);
+        self::assertStringNotContainsString('is also in', $body);
     }
 
     /**
@@ -187,7 +192,7 @@ final class SetNamingTest extends AppTestCase
 
         self::assertSame(200, $withGhost->getStatusCode());
         self::assertStringContainsString('Godzilla vs Kong', (string) $withGhost->getBody());
-        self::assertStringNotContainsString('Also in', (string) $withGhost->getBody());
+        self::assertStringNotContainsString('is also in', (string) $withGhost->getBody());
         self::assertSame($without->getStatusCode(), $withGhost->getStatusCode());
     }
 
@@ -202,7 +207,7 @@ final class SetNamingTest extends AppTestCase
         $response = $this->get($this->app(), '/library/all?set=100&from=nonsense/Whatever.png');
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringNotContainsString('Also in', (string) $response->getBody());
+        self::assertStringNotContainsString('is also in', (string) $response->getBody());
     }
 
     /**
@@ -251,7 +256,7 @@ final class SetNamingTest extends AppTestCase
             '/library/all?set=600&from=' . rawurlencode($this->origin('Arrival')),
         )->getBody();
 
-        self::assertStringContainsString('Also in', $body);
+        self::assertStringContainsString('Arrival is also in', $body);
         self::assertStringContainsString('set=700', $body);
         self::assertStringContainsString('another set', $body);
     }

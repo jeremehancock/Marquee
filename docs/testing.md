@@ -498,12 +498,13 @@ then check:
 | The same, from a different member | The identical set — it must not matter which member you start from |
 | A collection whose films share no words (MCU, A24, Ghibli) | Still gathered; this is the case a title search cannot reach |
 | **Related posters** on a film in no collection | Falls back to searching that film's title |
-| Order of any set | Release order — a show before its seasons, a series oldest first — whatever sort you left the gallery in |
+| Order of any set | Release order, earliest first — a show before its seasons — whatever sort you left the gallery in |
 | Change the sort inside a set | The set stays, re-ordered; clearing it returns the library to the order you had chosen |
 | Switch tab inside a set | The set is carried, exactly as an active search is |
-| A film in two collections | The set view names the other one and links to it |
+| A film in two collections | The set view names the film and the other collection, and links to it; following the link names the film again |
 | A collection whose own poster was never imported | Named on screen rather than "this set" |
 | A collection missing a film the library holds | Offers a shorter query with its count — only when the film's title has a subtitle or an instalment number to cut |
+| Sort by **Release** in the library (no set) | Leads with the newest, and its arrow rests the same way as Date added's — both time fields mean the same thing by a down arrow |
 | Import summary | Unchanged — the membership read imports no posters and fails no items |
 
 Before that import, films and seasons fall back to a title search, which is the
