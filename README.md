@@ -123,11 +123,28 @@ docker compose up -d
 > discontinued Compose v1 (`docker-compose`, with a hyphen) instead of the
 > current Compose v2 plugin. Compose v1 does not work with recent Docker
 > versions: it fails with `KeyError: 'ContainerConfig'` when it recreates a
-> container. Install the v2 plugin instead, for example
-> `sudo apt install docker-compose-plugin` (Docker's own repository) or
-> `sudo apt install docker-compose-v2` (Ubuntu's repository), then use
-> `docker compose` as shown. See
-> [Docker's install guide](https://docs.docker.com/compose/install/linux/).
+> container. Install the v2 plugin instead, then use `docker compose` as shown.
+> The package name depends on your system:
+>
+> - **Ubuntu and its derivatives:** it depends on where your Docker came from.
+>   Run `dpkg -s docker-ce` to check. If it says the package is not installed,
+>   your Docker is Ubuntu's own (`docker.io`), so run
+>   `sudo apt install docker-compose-v2`. If it shows the package details, your
+>   Docker came from Docker's repository, so run
+>   `sudo apt install docker-compose-plugin`.
+> - **Debian:** `sudo apt install docker-compose-plugin`, after adding Docker's
+>   repository as described in
+>   [Docker's Debian guide](https://docs.docker.com/engine/install/debian/).
+> - **Fedora, RHEL, CentOS and similar:** `sudo dnf install docker-compose-plugin`
+>   (from Docker's repository).
+> - **Arch, Manjaro and similar:** `sudo pacman -S docker-compose` (Arch's
+>   package is already v2, despite the name).
+> - **macOS and Windows:** Docker Desktop includes Compose v2; update Docker
+>   Desktop if `docker compose` is missing.
+>
+> For anything else, see Docker's
+> [Compose install guide](https://docs.docker.com/compose/install/), which
+> also covers installing the plugin by hand on any Linux system.
 
 Open `http://<host>:1818`. Marquee asks you to sign in to Plex — that one step
 is both your login and the connection to your server. Then go to **Import from
