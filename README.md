@@ -126,9 +126,15 @@ docker compose up -d
 > container. Install the v2 plugin instead, then use `docker compose` as shown.
 > The package name depends on your system:
 >
-> - **Ubuntu, Debian and their derivatives:** `sudo apt install docker-compose-plugin`
->   if you installed Docker from Docker's own repository, or
->   `sudo apt install docker-compose-v2` if you use Ubuntu's.
+> - **Ubuntu and its derivatives:** it depends on where your Docker came from.
+>   Run `dpkg -s docker-ce` to check. If it says the package is not installed,
+>   your Docker is Ubuntu's own (`docker.io`), so run
+>   `sudo apt install docker-compose-v2`. If it shows the package details, your
+>   Docker came from Docker's repository, so run
+>   `sudo apt install docker-compose-plugin`.
+> - **Debian:** `sudo apt install docker-compose-plugin`, after adding Docker's
+>   repository as described in
+>   [Docker's Debian guide](https://docs.docker.com/engine/install/debian/).
 > - **Fedora, RHEL, CentOS and similar:** `sudo dnf install docker-compose-plugin`
 >   (from Docker's repository).
 > - **Arch, Manjaro and similar:** `sudo pacman -S docker-compose` (Arch's
