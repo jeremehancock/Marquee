@@ -119,6 +119,16 @@ Then start it:
 docker compose up -d
 ```
 
+> **`docker compose` says "command not found"?** Your system has the old,
+> discontinued Compose v1 (`docker-compose`, with a hyphen) instead of the
+> current Compose v2 plugin. Compose v1 does not work with recent Docker
+> versions: it fails with `KeyError: 'ContainerConfig'` when it recreates a
+> container. Install the v2 plugin instead, for example
+> `sudo apt install docker-compose-plugin` (Docker's own repository) or
+> `sudo apt install docker-compose-v2` (Ubuntu's repository), then use
+> `docker compose` as shown. See
+> [Docker's install guide](https://docs.docker.com/compose/install/linux/).
+
 Open `http://<host>:1818`. Marquee asks you to sign in to Plex — that one step
 is both your login and the connection to your server. Then go to **Import from
 Plex** to pull in your posters.
