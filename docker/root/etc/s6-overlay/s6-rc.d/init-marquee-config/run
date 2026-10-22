@@ -14,7 +14,7 @@ mkdir -p \
     /config/posters/tv-seasons \
     /config/posters/collections
 
-lsiown -R abc:abc /config
+chown -R abc:abc /config
 
 # Sessions are readable only by the user that runs the app. PHP writes the
 # session files 0600; the directory holding them should not be looser.

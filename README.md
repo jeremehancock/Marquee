@@ -4,9 +4,10 @@
 > **Security update, October 22, 2026: please update to 2.15.1 or later.**
 > Earlier versions run PHP 8.4.16, which is vulnerable to CVE-2026-109618 and
 > CVE-2026-109619 ("PHP2Shell"), critical flaws that allow remote code
-> execution without logging in. 2.15.1 moves to PHP 8.5.12. Your settings and
-> posters are unaffected: run `docker compose pull` and then
-> `docker compose up -d`.
+> execution without logging in. 2.15.1 moved to PHP 8.5.12, and later releases
+> build on the official PHP image, so each new release carries the newest PHP
+> security fixes. Your settings and posters are unaffected: run
+> `docker compose pull` and then `docker compose up -d`.
 
 Marquee is a self-hosted web app for managing your Plex media posters — for
 Movies, TV Shows, TV Seasons, and Collections. Import every poster from Plex,
@@ -398,6 +399,19 @@ docker compose up -d
 With the update check turned on under **Settings**, Marquee shows a note in the
 footer when a newer release is available.
 
+> **Updating from 2.15.1 or earlier?** Marquee now builds on the official PHP
+> image instead of a LinuxServer one. Your settings, posters, sessions,
+> `PUID`/`PGID` and `TZ` carry over unchanged. Three things are different:
+>
+> - The web server's and PHP's own logs are in the container log
+>   (`docker logs marquee`) rather than `/config/log`. Marquee's logs stay in
+>   `/config/data`.
+> - The nginx configuration is part of the image. Edits you made under
+>   `/config/nginx` are no longer read.
+> - `/config/nginx`, `/config/php`, `/config/keys`, `/config/log` and
+>   `/config/www` were created by the old image and are no longer used. Marquee
+>   leaves them alone; you can delete them.
+
 ### Image tags
 
 | Tag | Built from | Use for |
@@ -610,15 +624,13 @@ artwork in your library, deleting posters, and disconnecting the install — so
 treat a signed-in browser as you would the Plex account itself.
 
 **Rate limiting on an internet-facing install.** Starting a sign-in is the one
-route reachable without a session, and it calls plex.tv. New installs ship an
-nginx limit for it. **Existing installs will not pick it up**: the base image
-copies its site config into `/config/nginx/site-confs/` only on first run, so
-yours is already there and untouched by upgrades. To add it, copy the
-`limit_req_zone` line and the `location = /plex/connection/sign-in` block from
-[`default.conf.sample`](docker/root/defaults/nginx/site-confs/default.conf.sample)
-into `/config/nginx/site-confs/default.conf` and restart. If Marquee sits behind
-Cloudflare, Traefik, or Nginx Proxy Manager, their rate limiting is better placed
-than this one and worth using instead.
+route reachable without a session, and it calls plex.tv. Marquee's nginx limits
+how often it can be requested
+([`marquee.conf`](docker/root/etc/nginx/http.d/marquee.conf)). The nginx
+configuration is part of the image, so every install runs the current one after
+updating, with nothing to copy by hand. If Marquee sits behind Cloudflare,
+Traefik, or Nginx Proxy Manager, their rate limiting is better placed than this
+one and worth using instead.
 
 If you want to reach Marquee from outside your network, prefer a VPN over
 opening a port to the internet. <a href="https://www.tailscale.com/" target="_blank" rel="noopener">Tailscale™</a>
@@ -654,7 +666,7 @@ how to smoke-test a Dockerfile change locally, and
 - **[Slim 4](https://www.slimframework.com/)** (PSR-7 / PSR-15) with **PHP-DI**
 - **Twig** server-rendered templates + **Alpine.js** (no build step)
 - **Guzzle** for outbound HTTP, **SQLite** (PDO) for metadata, **Monolog** for logs
-- **Docker**: LinuxServer Alpine-nginx base with s6-overlay and cron
+- **Docker**: the official PHP image (`php:8.5-fpm-alpine`) with nginx, s6-overlay and cron
 - Quality gates: **PHPUnit**, **PHPStan** (level 10, max), **PHP-CS-Fixer**, GitHub Actions
 
 ### Spec-driven development with OpenSpec
