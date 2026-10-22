@@ -1,5 +1,13 @@
 # Marquee
 
+> [!IMPORTANT]
+> **Security update, October 22, 2026: please update to 2.15.1 or later.**
+> Earlier versions run PHP 8.4.16, which is vulnerable to CVE-2026-109618 and
+> CVE-2026-109619 ("PHP2Shell"), critical flaws that allow remote code
+> execution without logging in. 2.15.1 moves to PHP 8.5.12. Your settings and
+> posters are unaffected: run `docker compose pull` and then
+> `docker compose up -d`.
+
 Marquee is a self-hosted web app for managing your Plex media posters — for
 Movies, TV Shows, TV Seasons, and Collections. Import every poster from Plex,
 then refine each one in place: upload your own art, paste an image URL, or pick a
