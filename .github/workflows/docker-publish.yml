@@ -1,5 +1,14 @@
 name: Publish Docker image
 
+# The run's title in the Actions list names what it publishes: the moving tag
+# for main and dev, the branch otherwise (such a run gets only sha-<short>), and
+# "(manual)" for a dispatch. Whether it is also a release is decided later, from
+# VERSION, so the merge job's name carries that instead.
+run-name: >-
+  Publish ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && ':latest'
+  || ((github.event.workflow_run.head_branch || github.ref_name) == 'dev' && ':dev'
+  || (github.event.workflow_run.head_branch || github.ref_name)) }}${{ github.event_name == 'workflow_dispatch' && ' (manual)' || '' }}
+
 # Build and push the multi-arch image to Docker Hub.
 #   push to dev   -> bozodev/marquee:dev                    (testing)
 #   push to main  -> bozodev/marquee:latest                 (production)
@@ -9,6 +18,15 @@ name: Publish Docker image
 #                    in-app update notice).
 # Every build also gets an immutable sha-<short> tag. Can be run by hand from
 # the Actions tab.
+#
+# Three jobs. prepare works out the branch, version, release and tags once.
+# build runs once per architecture, each on a runner of that architecture
+# (arm64 on GitHub's native arm64 runner, never emulated: compiling PHP's
+# extensions under emulation took ~13 minutes on the release that carries a new
+# PHP patch), and pushes its image by digest with no tag. merge combines the two
+# digests into one multi-arch image and moves every tag to it, then cuts the
+# release. merge needs both builds, so if either fails no tag moves and no
+# release is created: a tag never names an image missing an architecture.
 #
 # Release flow: bump VERSION on dev, validate the :dev image, then merge dev
 # into main — the merge publishes :latest and the pinned version in one step.
@@ -40,19 +58,26 @@ permissions:
   contents: write   # create the release tag + GitHub Release on a version bump
 
 jobs:
-  publish:
-    name: Build and push (linux/amd64, linux/arm64)
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     # Skip on forks (only the source repo has the Docker Hub credentials), and
     # for the automatic path only publish when CI actually passed AND that CI was
     # triggered by a push — a pull_request CI run for the same commit must not
     # spawn a second, racing publish. A manual dispatch deliberately bypasses
-    # both checks.
+    # both checks. The later jobs need this one, so they skip with it.
     if: >-
       github.repository_owner == 'jeremehancock' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.event == 'push'))
+    outputs:
+      sha: ${{ steps.ver.outputs.sha }}
+      version: ${{ steps.ver.outputs.version }}
+      release: ${{ steps.ver.outputs.release }}
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      merge-name: ${{ steps.name.outputs.merge-name }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,8 +93,10 @@ jobs:
           # From the workflow_run payload on the automatic path; from the
           # dispatched ref on a manual run.
           BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
           version="$(tr -d '[:space:]' < VERSION)"
           if [ -z "$version" ]; then
@@ -89,18 +116,6 @@ jobs:
           fi
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU (for arm64 emulation)
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Derive image tags
         id: meta
         uses: docker/metadata-action@v6
@@ -115,24 +130,144 @@ jobs:
             type=raw,value=${{ steps.ver.outputs.version }},enable=${{ steps.ver.outputs.release == 'true' }}
             type=sha,format=short
 
-      - name: Build and push
+      # The merge job's name, so the run page says which tags moved and whether
+      # this was a release, e.g. "Tag :latest, :2.17.0 and release v2.17.0".
+      - name: Name the merge job
+        id: name
+        env:
+          BRANCH: ${{ steps.ver.outputs.branch }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          RELEASE: ${{ steps.ver.outputs.release }}
+        run: |
+          case "$BRANCH" in
+            main) moving=":latest" ;;
+            dev)  moving=":dev" ;;
+            *)    moving="sha-$(git rev-parse --short HEAD)" ;;
+          esac
+          if [ "$RELEASE" = "true" ]; then
+            name="Tag $moving, :$VERSION and release v$VERSION"
+          else
+            name="Tag $moving"
+          fi
+          echo "merge-name=$name" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      # Let the other architecture finish rather than cancel it: a run is only
+      # ever cancelled by hand, and knowing whether the failure is specific to
+      # one architecture is worth the minutes.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Pushed by digest, with no tag: nothing is pullable by name until merge
+      # has both architectures. Each architecture keeps its own cache scope, or
+      # the two jobs would overwrite each other's entries and both keep missing.
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}
+          labels: ${{ needs.prepare.outputs.labels }}
+          outputs: type=image,name=bozodev/marquee,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=marquee-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=marquee-${{ matrix.arch }}
 
-      # Tag + GitHub Release for a new version. Uses GITHUB_TOKEN, which does not
-      # re-trigger this workflow, so there's no double build.
+      - name: Record the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Hand the digest to the merge job
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: ${{ needs.prepare.outputs.merge-name }}
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect the digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag the multi-arch image
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          TAGS: ${{ needs.prepare.outputs.tags }}
+        run: |
+          args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && args+=(-t "$tag")
+          done <<< "$TAGS"
+          # One file per architecture, named by its digest.
+          refs=()
+          for digest in *; do
+            refs+=("bozodev/marquee@sha256:$digest")
+          done
+          docker buildx imagetools create "${args[@]}" "${refs[@]}"
+
+      - name: Confirm both architectures are present
+        env:
+          TAGS: ${{ needs.prepare.outputs.tags }}
+        run: |
+          tag="$(head -n1 <<< "$TAGS")"
+          manifest="$(docker buildx imagetools inspect "$tag")"
+          echo "$manifest"
+          for platform in linux/amd64 linux/arm64; do
+            grep -q "Platform: *$platform" <<< "$manifest" \
+              || { echo "::error::$tag is missing $platform"; exit 1; }
+          done
+
+      # Tag + GitHub Release for a new version, only now that the complete image
+      # exists. Uses GITHUB_TOKEN, which does not re-trigger this workflow, so
+      # there's no double build.
       - name: Create tag and GitHub Release
-        if: steps.ver.outputs.release == 'true'
+        if: needs.prepare.outputs.release == 'true'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ steps.ver.outputs.version }}
-          name: v${{ steps.ver.outputs.version }}
-          target_commitish: ${{ github.event.workflow_run.head_sha || github.sha }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: v${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ needs.prepare.outputs.sha }}
           generate_release_notes: true

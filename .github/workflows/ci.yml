@@ -46,8 +46,23 @@ jobs:
         run: vendor/bin/phpunit
 
   docker:
-    name: Build image · Smoke test /health
-    runs-on: ubuntu-latest
+    name: Build image · Smoke test (${{ matrix.arch }})
+    # Every architecture we publish, each on its own hardware: an arm64-only
+    # fault (an extension that will not load, a library missing on that
+    # platform) is invisible to an amd64 test. Publishing waits for this whole
+    # run, so a failure on either blocks the commit from being published.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      # Report both architectures even when one fails; never cancel the other.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            machine: x86_64
+            runner: ubuntu-latest
+          - arch: arm64
+            machine: aarch64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
 
@@ -61,7 +76,7 @@ jobs:
           # Non-default PUID/PGID/TZ, so the next step can tell they were applied.
           docker run -d --name marquee -p 8080:80 \
             -e PUID=1234 -e PGID=1235 -e TZ=America/Denver marquee:ci
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
               echo "Health check passed"; exit 0
             fi
@@ -70,10 +85,16 @@ jobs:
           echo "Health check never succeeded"; docker logs marquee; exit 1
 
       - name: Check services, ownership, timezone and the FPM listener
+        env:
+          MACHINE: ${{ matrix.machine }}
         run: |
           # /health only proves nginx and PHP answer. A dead cron, a wrong owner
           # or a wrong timezone all look healthy from outside.
           set -x
+          # The image built for this runner's architecture, with the extensions
+          # Marquee compiles in actually loading on it.
+          test "$(docker exec marquee uname -m)" = "$MACHINE"
+          docker exec marquee php -r 'exit(extension_loaded("gd") && extension_loaded("intl") ? 0 : 1);'
           for svc in svc-php-fpm svc-nginx svc-cron; do
             docker exec marquee s6-svstat "/run/service/$svc" | grep -q '^up '
           done

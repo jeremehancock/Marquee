@@ -9,7 +9,9 @@ testing** and **`main` for releases**.
 ## Branches & Docker image tags
 
 CI publishes to Docker Hub automatically (see
-`.github/workflows/docker-publish.yml`):
+`.github/workflows/docker-publish.yml`). Each run's title in the Actions list
+says which tag it publishes (`Publish :latest`, `Publish :dev`), and its last
+job's name says whether it also released a version:
 
 | You push to… | Docker Hub tag | Use for |
 | --- | --- | --- |
@@ -25,7 +27,7 @@ file. Every build also gets an immutable `sha-<short>` tag.
 
 **Publishing waits for a green CI.** The publish workflow no longer races CI —
 it runs only *after* the CI workflow (lint, static analysis, tests, and the
-image smoke test) succeeds for that commit. A failing or cancelled CI publishes
+image smoke test on both amd64 and arm64) succeeds for that commit. A failing or cancelled CI publishes
 nothing: no moving tag, no pinned version image, no git tag, no release. CI is
 **push-only** — pull requests don't trigger it, so each commit is built exactly
 once (its status still shows on the PR, because checks attach to the commit
