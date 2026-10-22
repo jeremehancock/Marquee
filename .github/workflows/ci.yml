@@ -79,6 +79,9 @@ jobs:
           done
           docker exec marquee grep -qx '0 \* \* \* \* /app/auto-import.sh' /etc/crontabs/abc
           test "$(docker exec marquee stat -c '%u:%g' /config/data)" = "1234:1235"
+          # nginx buffers large responses here as abc; a wrong owner truncates
+          # them only for slow clients, so nothing else in this job would notice.
+          test "$(docker exec marquee stat -c '%u:%g' /var/lib/nginx/tmp)" = "1234:1235"
           test "$(docker exec marquee date +%Z)" != "UTC"
           test "$(docker exec marquee php -r 'echo date_default_timezone_get();')" = "America/Denver"
           # PHP-FPM must listen on loopback only, never on every interface.

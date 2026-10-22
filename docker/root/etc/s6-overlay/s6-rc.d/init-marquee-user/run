@@ -12,6 +12,13 @@ PGID=${PGID:-911}
 groupmod -o -g "$PGID" abc
 usermod -o -u "$PUID" abc
 
+# nginx's workers run as abc and buffer large responses (the gallery, poster
+# images) to disk here whenever the client reads slower than PHP writes. Created
+# at build time for uid 911, so after the remap above the workers could not open
+# it and cut those responses off mid-stream, which a browser behind an HTTP/2
+# proxy reports as ERR_HTTP2_PROTOCOL_ERROR and a blank page.
+chown -R abc:abc /var/lib/nginx
+
 # TZ, for both clocks that matter. crond reads the system zone (and TZ itself),
 # but PHP reads neither, only date.timezone. AutoImportSchedule anchors its
 # slots at local midnight and relies on the two agreeing.

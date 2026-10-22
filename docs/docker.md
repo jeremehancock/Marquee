@@ -105,6 +105,7 @@ timezone. Check them:
 for s in svc-php-fpm svc-nginx svc-cron; do docker exec marquee-test s6-svstat /run/service/$s; done   # each "up (pid …)"
 docker exec marquee-test cat /etc/crontabs/abc                    # expect the hourly tick
 docker exec marquee-test stat -c '%u:%g' /config/data             # expect 1234:1235
+docker exec marquee-test stat -c '%u:%g' /var/lib/nginx/tmp       # expect 1234:1235 (nginx buffers big responses here)
 docker exec marquee-test php -r 'echo date_default_timezone_get();'   # expect America/Denver
 docker exec marquee-test netstat -tln                             # 9000 on 127.0.0.1 only
 docker exec marquee-test su -s /bin/bash abc -c /app/auto-import.sh   # one tick, as cron runs it
