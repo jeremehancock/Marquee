@@ -79,7 +79,10 @@ appear. nginx and PHP-FPM log to the container log (`docker logs`).
 
 CI's lint/analyse/test job never exercises the image. Only the separate `docker`
 job (build plus smoke test) does, and it runs *after* you push, so a broken
-Dockerfile costs a full red-CI round trip.
+Dockerfile costs a full red-CI round trip. CI runs that job twice, on an amd64
+and a native arm64 runner, with the same checks as below plus two more: that
+the container really is that architecture, and that `gd` and `intl` load on it.
+Locally you test your own machine's architecture only; CI covers the other.
 
 Replicate that job locally, with non-default `PUID`/`PGID`/`TZ` so you can tell
 they were applied:
@@ -143,9 +146,16 @@ pattern. Use `**/*.md` if you want Markdown excluded at any depth.
 - The build stage runs `composer install --ignore-platform-reqs` on purpose: the
   build image only resolves and downloads packages, while the runtime image
   compiles the PHP extensions Marquee needs.
-- The image is built for `linux/amd64` and `linux/arm64`. The arm64 half
-  compiles `gd` and `intl` under emulation in CI, so a publish run takes longer
-  than the CI smoke test, which builds amd64 only.
+- The image is built for `linux/amd64` and `linux/arm64`, each on a runner of
+  that architecture (`ubuntu-24.04-arm` for arm64), never under emulation:
+  compiling `gd` and `intl` emulated took about 13 minutes on exactly the
+  release that carries a new PHP patch. The publish workflow builds each
+  architecture in its own job and pushes it by digest with no tag; a final
+  `merge` job combines them into one image and only then moves the tags and
+  cuts the release. If either build fails, no tag moves. In the Actions list a
+  run is titled `Publish :latest` or `Publish :dev` (plus `(manual)` when
+  dispatched), and the merge job's name says which tags it applied and whether
+  it released a version.
 - Every build gets an immutable `sha-<short>` tag, so any commit's image can be
   pulled for a rollback. See
   [development-workflow.md](development-workflow.md) for the branch → tag map.
