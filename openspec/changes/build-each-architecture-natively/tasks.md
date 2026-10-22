@@ -20,8 +20,8 @@
 ## 4. Verification
 
 - [x] 4.1 Run `composer test`, `composer stan` and `composer cs`, and lint the workflow file (`actionlint` if available)
-- [ ] 4.2 After pushing to `dev`, confirm CI ran the smoke test on both architectures and passed on each
-- [ ] 4.3 Dispatch the publish workflow on `dev` and confirm both build jobs ran on runners of their own architecture with no emulation, and that `bozodev/marquee:dev` lists `linux/amd64` and `linux/arm64` and points at the pushed commit
-- [ ] 4.4 Confirm the dispatched runs are titled `Publish :dev (manual)` and their merge job is named `Tag :dev`, and after the release, that the automatic run reads `Publish :latest` with a merge job naming the version it released
-- [ ] 4.5 Dispatch a second time and record cold and warm publish times against the previous 13 minutes (cold) and about a minute (warm)
-- [ ] 4.6 Pull `:dev` for each platform, start it, and confirm it answers `/health` and reports the expected PHP version (arm64 run under local emulation if needed, for a start-up check only)
+- [x] 4.2 After pushing to `dev`, confirm CI ran the smoke test on both architectures and passed on each
+- [x] 4.3 Dispatch the publish workflow on `dev` and confirm both build jobs ran on runners of their own architecture with no emulation, and that `bozodev/marquee:dev` lists `linux/amd64` and `linux/arm64` and points at the pushed commit
+- [x] 4.4 Confirm the dispatched runs are titled `Publish :dev (manual)` and their merge job is named `Tag :dev`, and after the release, that the automatic run reads `Publish :latest` with a merge job naming the version it released
+- [x] 4.5 Dispatch a second time and record cold and warm publish times against the previous 13 minutes (cold) and about a minute (warm)
+- [x] 4.6 Pull `:dev` for each platform and confirm it is built from the pushed commit with the expected PHP version; start the amd64 image and check `/health` (the arm64 image is started and smoke-tested by CI on the native arm64 runner, which needs no local emulation)
