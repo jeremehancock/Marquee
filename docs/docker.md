@@ -14,8 +14,18 @@ The shipped PHP version is dictated by the **LinuxServer base image tag** in the
 | --- | --- |
 | `ghcr.io/linuxserver/baseimage-alpine-nginx:3.21` | PHP 8.3, `php83-fpm`, `/etc/php83/` |
 | `ghcr.io/linuxserver/baseimage-alpine-nginx:3.22` | PHP 8.4, `php84-fpm`, `/etc/php84/` |
+| `ghcr.io/linuxserver/baseimage-alpine-nginx:3.24` | PHP 8.5, `php85-fpm`, `/etc/php85/` |
 
-**Bumping only the extension packages fails the build.** The `php84-*` packages
+**An old base tag freezes PHP.** Alpine ships PHP in its *community*
+repository, which is only updated until the next Alpine release (roughly every
+six months). Rebuilding on an older tag reinstalls the same old PHP, and nothing
+fails. `:3.22` sat on PHP 8.4.16 from December 2025 and so missed the fix for
+the critical CVE-2026-109618/109619 (PHP 8.4.27 / 8.5.12). Moving to the newest
+tag has to be done each time Alpine releases, and a newer tag may bundle a newer
+PHP: `:3.23` and `:3.24` both ship 8.5, so that move was a full PHP upgrade
+(the checklist below), not a one-line change.
+
+**Bumping only the extension packages fails the build.** The `php8N-*` packages
 install a second PHP alongside the base's, but php-fpm and `/etc/phpNN/` stay at
 the base's version — so the fpm-config `sed` step errors with *"No such file or
 directory"*. This is exactly how PR #23 (0.5.1, PHP 8.3 → 8.4) first went red.

@@ -4,7 +4,7 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=8.4",
+        "php": ">=8.5",
         "ext-json": "*",
         "ext-pdo": "*",
         "ext-curl": "*",
@@ -37,7 +37,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.4.0"
+            "php": "8.5.0"
         },
         "sort-packages": true,
         "optimize-autoloader": true
