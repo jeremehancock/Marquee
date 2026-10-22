@@ -1,0 +1,57 @@
+name: PHP currency
+
+# Is the PHP inside the published `latest` image the newest upstream patch for
+# its version line? Run weekly because the failure this guards against is
+# silent: PHP once froze inside the image for ten months while every build
+# passed, and the critical PHP2Shell fix (CVE-2026-109618/109619) was missed.
+#
+# Checks what users pull, not a fresh build. Publishes nothing: when it fails,
+# the remedy is a patch release through /ship, whose rebuild picks up the new
+# PHP and whose GitHub Release tells existing users through the in-app notice.
+# GitHub notifies whoever last edited this schedule when a scheduled run fails.
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Published image runs current PHP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist
+
+      - name: Read the published image's PHP version
+        id: image
+        run: |
+          docker pull -q bozodev/marquee:latest
+          version=$(docker run --rm --entrypoint php bozodev/marquee:latest -r 'echo PHP_VERSION;')
+          echo "Published image runs PHP ${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Ask php.net for the newest release on that line
+        env:
+          IMAGE_PHP: ${{ steps.image.outputs.version }}
+        run: |
+          line=$(echo "$IMAGE_PHP" | cut -d. -f1,2)
+          # An unreachable php.net leaves the file empty, which the check
+          # reports as a failure: an unknown result is not a clean one.
+          curl -fsS "https://www.php.net/releases/index.php?json&version=${line}" -o release.json || : > release.json
+
+      - name: Compare
+        env:
+          IMAGE_PHP: ${{ steps.image.outputs.version }}
+        run: php bin/check-php-currency.php "$IMAGE_PHP" release.json

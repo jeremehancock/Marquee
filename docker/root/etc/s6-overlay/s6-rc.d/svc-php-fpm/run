@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# PHP-FPM, in the foreground so s6 supervises it. with-contenv matters: the pool
+# keeps the environment (clear_env = no), and the application reads its
+# environment-only variables from it.
+
+exec php-fpm -F

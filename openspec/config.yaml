@@ -20,7 +20,7 @@ context: |
     - SQLite via PDO for metadata (library tracking, Plex id mapping, lock and
       import state). Poster image files live on disk under /config/posters.
     - Monolog for logging to /config/data.
-    - Docker: LinuxServer Alpine-nginx base with s6-overlay + cron.
+    - Docker: official php:8.5-fpm-alpine image with nginx, s6-overlay + cron.
 
   Conventions:
     - strict_types=1 in every PHP file; PSR-12 style (enforced by PHP-CS-Fixer).

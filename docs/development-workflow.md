@@ -34,6 +34,13 @@ SHA). That single build drives a single publish, and publishes for a branch
 skipped or cancelled build. You can still run the publish workflow by hand from
 the Actions tab, which deliberately skips the CI gate.
 
+**A weekly check watches the PHP in `:latest`.** The `php-currency` workflow
+(`.github/workflows/php-currency.yml`) runs every Monday and fails when the
+published `:latest` image runs an older PHP patch than php.net's newest for its
+version line, once that release is more than seven days old. It publishes
+nothing; the fix is a patch release, whose rebuild picks up the new PHP. See
+[docker.md](docker.md#where-php-comes-from-and-how-it-stays-current).
+
 **The loop:** build a feature on a branch off `dev` → merge into `dev` (CI
 publishes `:dev`) → test the `:dev` image → **bump `VERSION` on `dev`** → open a
 PR from `dev` into `main`. Merging publishes `:latest` **and** the pinned
@@ -528,8 +535,8 @@ Marquee/
 ├─ src/               # PHP: controllers, services, Plex client, config, DB
 ├─ templates/         # Twig views + partials/
 ├─ tests/             # PHPUnit (Unit, Functional)
-├─ docker/            # s6 services, nginx conf, auto-import cron
-├─ bin/               # CLI entry points that ship in the image (cron, diagnostics)
+├─ docker/            # s6 services, nginx and PHP config, auto-import cron
+├─ bin/               # CLI entry points that ship in the image (cron, diagnostics, PHP currency check)
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
 ├─ docs/              # this file + configuration.md + testing.md + docker.md
 ├─ openspec/          # config.yaml, specs/, changes/

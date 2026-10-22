@@ -58,7 +58,9 @@ jobs:
         run: |
           # No credentials: the health endpoint is public, and Marquee is
           # entered by signing in to Plex, which this probe cannot do.
-          docker run -d --name marquee -p 8080:80 marquee:ci
+          # Non-default PUID/PGID/TZ, so the next step can tell they were applied.
+          docker run -d --name marquee -p 8080:80 \
+            -e PUID=1234 -e PGID=1235 -e TZ=America/Denver marquee:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then
               echo "Health check passed"; exit 0
@@ -66,3 +68,22 @@ jobs:
             sleep 2
           done
           echo "Health check never succeeded"; docker logs marquee; exit 1
+
+      - name: Check services, ownership, timezone and the FPM listener
+        run: |
+          # /health only proves nginx and PHP answer. A dead cron, a wrong owner
+          # or a wrong timezone all look healthy from outside.
+          set -x
+          for svc in svc-php-fpm svc-nginx svc-cron; do
+            docker exec marquee s6-svstat "/run/service/$svc" | grep -q '^up '
+          done
+          docker exec marquee grep -qx '0 \* \* \* \* /app/auto-import.sh' /etc/crontabs/abc
+          test "$(docker exec marquee stat -c '%u:%g' /config/data)" = "1234:1235"
+          # nginx buffers large responses here as abc; a wrong owner truncates
+          # them only for slow clients, so nothing else in this job would notice.
+          test "$(docker exec marquee stat -c '%u:%g' /var/lib/nginx/tmp)" = "1234:1235"
+          test "$(docker exec marquee date +%Z)" != "UTC"
+          test "$(docker exec marquee php -r 'echo date_default_timezone_get();')" = "America/Denver"
+          # PHP-FPM must listen on loopback only, never on every interface.
+          listeners=$(docker exec marquee netstat -tln | awk '$4 ~ /:9000$/ { print $4 }')
+          test "$listeners" = "127.0.0.1:9000"

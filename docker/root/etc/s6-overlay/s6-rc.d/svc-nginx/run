@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# nginx, in the foreground (`daemon off` in nginx.conf) so s6 supervises it.
+# Started after PHP-FPM, so the first request does not meet a missing backend.
+
+exec nginx

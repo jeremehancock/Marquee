@@ -265,10 +265,16 @@ GitHub Release that powers the in-app update notice. Don't edit it outside
 
 ## Docker
 
-**The PHP version comes from the base image tag, not the `php8N-*` extension
-packages.** Editing the package names alone doesn't upgrade PHP — it breaks the
-build. Any Dockerfile change needs a local build + `/health` smoke test before
-pushing, because CI only exercises the image *after* you push.
+**The image is built on the official `php:8.5-fpm-alpine` image, by moving
+tag, so PHP patches arrive on any rebuild.** Never install PHP or its extensions
+with `apk add php8N-*`: those packages belong to Alpine's PHP, not the image's,
+and Alpine stops updating them, which is how 2.15.0 shipped a ten-month-stale
+PHP with a critical hole. Extensions are compiled with `docker-php-ext-install`.
+A weekly `php-currency` workflow fails when `:latest` falls behind; the remedy is
+a patch release, never a silent republish.
 
-Both traps, the full PHP-bump checklist, and the smoke-test commands are in
-[docs/docker.md](docs/docker.md). Read it before touching the `Dockerfile`.
+Any Dockerfile or `docker/root/` change needs a local build and the full smoke
+test before pushing (services, ownership, timezone, not just `/health`), because
+CI only exercises the image *after* you push. The commands and the checklist for
+a new PHP version line are in [docs/docker.md](docs/docker.md). Read it before
+touching the `Dockerfile`.
