@@ -618,7 +618,7 @@ or a similar solution keeps it off the public internet entirely.
 
 ## Development
 
-Requires PHP 8.4+ and Composer.
+Requires PHP 8.5+ and Composer.
 
 ```bash
 composer install
@@ -642,7 +642,7 @@ how to smoke-test a Dockerfile change locally, and
 
 ### Tech stack
 
-- **PHP 8.4+**, Composer, PSR-4 autoloading, `strict_types` throughout
+- **PHP 8.5+**, Composer, PSR-4 autoloading, `strict_types` throughout
 - **[Slim 4](https://www.slimframework.com/)** (PSR-7 / PSR-15) with **PHP-DI**
 - **Twig** server-rendered templates + **Alpine.js** (no build step)
 - **Guzzle** for outbound HTTP, **SQLite** (PDO) for metadata, **Monolog** for logs

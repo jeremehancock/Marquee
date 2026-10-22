@@ -1,6 +1,6 @@
 # Marquee
 
-Self-hosted web app for managing custom Plex media posters. PHP 8.4 / Slim 4 /
+Self-hosted web app for managing custom Plex media posters. PHP 8.5 / Slim 4 /
 Twig / SQLite, shipped as a single Docker image.
 
 Detail lives elsewhere — this file is only what's expensive to get wrong:
