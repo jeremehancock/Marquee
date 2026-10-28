@@ -169,6 +169,33 @@ The `/config` volume holds everything Marquee needs to persist:
 
 Back this directory up if you want to keep your poster selections.
 
+## Installing on Unraid
+
+Marquee is in the
+[Unraid Community Apps Store](https://ca.unraid.net/apps/marquee-185eiy60zl7wo2).
+Open the **Apps** tab on your Unraid server, search for **Marquee**, and click
+**Install**.
+
+The template asks for one thing: **`PLEX_SERVER_URL`**, your Plex server's
+address (for example `http://192.168.1.10:32400`). The rest is filled in for you:
+
+- **Web UI Port:** `1818`, so Marquee opens at `http://<unraid-ip>:1818`
+- **Config:** `/mnt/user/appdata/marquee`, mapped to `/config`. Back this up
+  with the rest of your appdata.
+- **PUID / PGID:** `99` / `100` (Unraid's `nobody` user and `users` group),
+  under the advanced view
+
+Once the container starts, open the web UI and sign in to Plex, exactly as in
+the [Quick start](#quick-start-docker-compose). To update, use **Check for
+Updates** on the Unraid **Docker** tab, then **apply update** on Marquee.
+
+The template is maintained by
+[ctrlaltd1337ed](https://github.com/ctrlaltd1337ed/unraid-templates), who
+created the listing and offered to keep it current. Thank you! Questions
+about the Unraid listing itself go to its
+[support thread](https://forums.unraid.net/topic/188012-support-ctrlaltd1337s-unraid-templates/);
+questions about Marquee go to this repository's issues.
+
 ## Configuration
 
 **Marquee is configured in the app, not in a file.** Open **Settings** — behind
@@ -379,7 +406,7 @@ nothing has to be carried across.
    container. Keep its data volume around for a while if you'd like a safety net
    — Marquee never reads it.
 3. **Set up Marquee.** Follow the [Quick start](#quick-start-docker-compose)
-   above.
+   above, or [Installing on Unraid](#installing-on-unraid) if you're on Unraid.
 4. **Import from Plex.** Run an import for each type you want (Movies, TV Shows,
    TV Seasons, Collections). Marquee pulls the current poster for every item and
    maps it back to the Plex item it belongs to.
@@ -690,6 +717,11 @@ Marquee is a rewrite of [Posteria](https://github.com/jeremehancock/Posteria).
 
 **Find Posters** is served by [posteria.app](https://posteria.app), an online
 poster search service.
+
+The [Unraid Community Apps](https://ca.unraid.net/apps/marquee-185eiy60zl7wo2)
+listing was created and is maintained by
+[ctrlaltd1337ed](https://github.com/ctrlaltd1337ed). Thank you for bringing
+Marquee to Unraid users.
 
 ## Support Development
 
