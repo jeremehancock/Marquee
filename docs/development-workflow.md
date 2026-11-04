@@ -86,7 +86,7 @@ docker compose pull marquee-dev && docker compose up -d marquee-dev
 ### 1. Install the pieces
 
 - **VSCodium** — https://vscodium.com/
-- **Node.js 18+** — for the Claude Code and OpenSpec CLIs. https://nodejs.org/
+- **Node.js 22.12+** — for the Claude Code and OpenSpec CLIs (OpenSpec 1.16 refuses older Node). https://nodejs.org/
 - **Git**
 
 ### 2. Install the Claude Code CLI
@@ -189,7 +189,7 @@ entirely — it is a security control rather than a structural exception. See
 
 ```bash
 npm install -g @fission-ai/openspec
-openspec --version      # this repo was built against 1.6.0
+openspec --version      # this repo uses 1.16.0
 ```
 
 ### The mental model
@@ -232,13 +232,17 @@ you've validated the `:dev` image — both are yours.
 ```bash
 openspec list                       # active changes + task progress
 openspec show <change>              # view a change
-openspec validate <change> --strict # verify structure (spec deltas, scenarios)
+openspec validate <change>          # verify structure (spec deltas, scenarios)
 openspec archive <change>           # archive an implemented change
 openspec --help
 ```
 
-Always run `openspec validate <change> --strict` before coding — it catches
-malformed spec deltas (most commonly scenarios that don't use exactly four `#`).
+Always run `openspec validate <change>` before coding. It catches malformed
+spec deltas (most commonly scenarios that don't use exactly four `#`). Fix every
+warning it prints except "Requirement text is very long". Most existing
+requirements explain their reasoning and run past 500 characters, and a
+`MODIFIED` delta has to repeat a requirement's full text, so `--strict` (which
+turns every warning into a failure) would fail almost any change that edits one.
 
 ### Traps that cost real time
 
@@ -325,7 +329,7 @@ Say you want to add "export/import a backup of all posters."
 4. **Validate:**
 
    ```bash
-   openspec validate poster-backup --strict
+   openspec validate poster-backup
    ```
 
 5. **Apply** (write the code), then run the gates:
@@ -503,7 +507,7 @@ composer cs:fix            # PHP-CS-Fixer (apply)
 # OpenSpec CLI
 openspec list
 openspec show <change>
-openspec validate <change> --strict
+openspec validate <change>
 openspec archive <change>
 
 # OpenSpec via Claude Code
