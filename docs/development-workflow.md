@@ -86,7 +86,7 @@ docker compose pull marquee-dev && docker compose up -d marquee-dev
 ### 1. Install the pieces
 
 - **VSCodium** — https://vscodium.com/
-- **Node.js 18+** — for the Claude Code and OpenSpec CLIs. https://nodejs.org/
+- **Node.js 22.12+** — for the Claude Code and OpenSpec CLIs (OpenSpec 1.16 refuses older Node). https://nodejs.org/
 - **Git**
 
 ### 2. Install the Claude Code CLI
@@ -189,7 +189,7 @@ entirely — it is a security control rather than a structural exception. See
 
 ```bash
 npm install -g @fission-ai/openspec
-openspec --version      # this repo was built against 1.6.0
+openspec --version      # this repo uses 1.16.0
 ```
 
 ### The mental model
