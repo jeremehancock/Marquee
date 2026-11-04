@@ -1,7 +1,12 @@
 # visual-design Specification
 
 ## Purpose
-TBD - created by archiving change polish-surfaces-and-motion. Update Purpose after archive.
+The shared look and feel every screen draws from: the design tokens for colour,
+surface, elevation, radius, spacing and motion, so the appearance is tuned in one
+place; how surfaces, controls and posters respond to pointer, focus and touch;
+how motion behaves, including under reduced motion; and how overlays present
+themselves and manage focus, so a keyboard user can always reach, leave and
+return from them.
 ## Requirements
 ### Requirement: Design token contract
 
