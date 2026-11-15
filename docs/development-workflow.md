@@ -86,7 +86,7 @@ docker compose pull marquee-dev && docker compose up -d marquee-dev
 ### 1. Install the pieces
 
 - **VSCodium** — https://vscodium.com/
-- **Node.js 22.12+** — for the Claude Code and OpenSpec CLIs (OpenSpec 1.16 refuses older Node). https://nodejs.org/
+- **Node.js 22.12+** — for the Claude Code and OpenSpec CLIs (OpenSpec 2.0 refuses older Node). https://nodejs.org/
 - **Git**
 
 ### 2. Install the Claude Code CLI
@@ -177,9 +177,11 @@ entirely — it is a security control rather than a structural exception. See
 - **`openspec/`** — `config.yaml` holds the project context and per-artifact
   rules that guide AI-generated specs. `openspec/specs/` is the source of truth
   once changes are archived; `openspec/changes/` holds in-flight proposals.
-- **`.claude/commands/opsx/`** — the OpenSpec slash commands, committed to the
-  repo, so Claude Code has them the moment you open the folder: `/opsx:explore`,
-  `/opsx:propose`, `/opsx:apply`, `/opsx:update`, `/opsx:sync`, `/opsx:archive`.
+- **`.agents/skills/openspec-*`**: the OpenSpec skills, committed to the
+  repo with links to them in `.claude/skills/`, so Claude Code has them the
+  moment you open the folder: `/openspec-explore`, `/openspec-propose`,
+  `/openspec-apply-change`, `/openspec-update-change`, `/openspec-sync-specs`,
+  `/openspec-archive-change`.
 - **`CLAUDE.md`** — loaded into every Claude Code session automatically. It
   carries the rules that apply while working (spec-first, the quality gates, the
   code conventions) and points here for the rest; `.claude/commands/ship.md`
@@ -189,13 +191,13 @@ entirely — it is a security control rather than a structural exception. See
 
 ```bash
 npm install -g @fission-ai/openspec
-openspec --version      # this repo uses 1.16.0
+openspec --version      # this repo uses 2.0.0
 ```
 
 ### The mental model
 
 ```
-idea ─▶ /opsx:explore ─▶ /opsx:propose ─▶ (review) ─▶ /opsx:apply ─▶ commit/PR ─▶ /opsx:archive
+idea ─▶ /openspec-explore ─▶ /openspec-propose ─▶ (review) ─▶ /openspec-apply-change ─▶ commit/PR ─▶ /openspec-archive-change
              (think)        (write spec)      (you)      (build code)              (fold into specs)
 ```
 
@@ -209,18 +211,18 @@ four** `#`). Archiving folds those deltas into `openspec/specs/`.
 
 | Command | Use it to… |
 | --- | --- |
-| `/opsx:explore` | Think through an idea before committing to a change. No code. |
-| `/opsx:propose` | Create a new change and generate all its artifacts. |
-| `/opsx:apply` | Implement the tasks from a change (writes code). |
-| `/opsx:update` | Revise an existing change's artifacts and keep them coherent. |
-| `/opsx:sync` | Sync a change's delta specs into the main specs without archiving. |
-| `/opsx:archive` | Finalize a completed change and fold its deltas into the specs. |
+| `/openspec-explore` | Think through an idea before committing to a change. No code. |
+| `/openspec-propose` | Create a new change and generate all its artifacts. |
+| `/openspec-apply-change` | Implement the tasks from a change (writes code). |
+| `/openspec-update-change` | Revise an existing change's artifacts and keep them coherent. |
+| `/openspec-sync-specs` | Sync a change's delta specs into the main specs without archiving. |
+| `/openspec-archive-change` | Finalize a completed change and fold its deltas into the specs. |
 | `/ship` | Everything after `apply`: toolchain, commit, archive, PR, resync. |
 
-Reach for `/opsx:propose` by default. `/opsx:explore` earns its cost when you
+Reach for `/openspec-propose` by default. `/openspec-explore` earns its cost when you
 can't yet state what should be true once the work is done — a vague feature idea,
 or a choice between approaches. For a bug with a known-correct behavior, propose
-straight away and correct the artifacts with `/opsx:update` if they miss.
+straight away and correct the artifacts with `/openspec-update-change` if they miss.
 
 `/ship` is the one to remember after that. It works out what state the change is
 in and does the next step, so the order doesn't have to be memorized; run it
@@ -316,14 +318,14 @@ Say you want to add "export/import a backup of all posters."
 2. **Explore** (optional, for anything non-trivial):
 
    ```
-   /opsx:explore  I want to back up and restore all posters and their Plex mappings
+   /openspec-explore  I want to back up and restore all posters and their Plex mappings
    ```
 
 3. **Propose** the change and review the generated artifacts (tweak with
-   `/opsx:update`):
+   `/openspec-update-change`):
 
    ```
-   /opsx:propose  poster-backup
+   /openspec-propose  poster-backup
    ```
 
 4. **Validate:**
@@ -335,7 +337,7 @@ Say you want to add "export/import a backup of all posters."
 5. **Apply** (write the code), then run the gates:
 
    ```
-   /opsx:apply  poster-backup
+   /openspec-apply-change  poster-backup
    ```
    ```bash
    composer test && composer stan && composer cs
@@ -370,7 +372,7 @@ Say you want to add "export/import a backup of all posters."
 10. **Archive** the change so the specs reflect reality:
 
     ```
-    /opsx:archive  poster-backup
+    /openspec-archive-change  poster-backup
     ```
 
 > If you prefer, you can commit directly to `dev` instead of using per-feature
@@ -511,12 +513,12 @@ openspec validate <change>
 openspec archive <change>
 
 # OpenSpec via Claude Code
-/opsx:explore   <idea>
-/opsx:propose   <name-or-description>
-/opsx:apply     <change>
-/opsx:update    <change>
-/opsx:sync      <change>
-/opsx:archive   <change>
+/openspec-explore          <idea>
+/openspec-propose          <name-or-description>
+/openspec-apply-change     <change>
+/openspec-update-change    <change>
+/openspec-sync-specs       <change>
+/openspec-archive-change   <change>
 
 # Branch → image tag
 #   dev   → bozodev/marquee:dev                          (test)
@@ -546,5 +548,6 @@ Marquee/
 ├─ scripts/           # marquee-plex-test.py (live Plex round-trip tester)
 ├─ docs/              # this file + configuration.md + testing.md + docker.md
 ├─ openspec/          # config.yaml, specs/, changes/
-└─ .claude/commands/  # the /opsx:* slash commands
+├─ .agents/skills/    # the OpenSpec skills (/openspec-*)
+└─ .claude/          # /ship, plus links to the OpenSpec skills
 ```
